@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analysis Assistant</title>
+  <link rel="stylesheet" href="dashbaord.css"> <!-- your original dashboard CSS -->
+  <style>
+    /* Full-screen layout */
+    html, body { height: 100%; margin: 0; padding: 0; }
+    .container {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      grid-template-columns: 1fr 300px;
+      grid-template-areas:
+        "header header"
+        "assistant progress"
+        "input progress";
+      height: 100%;
+      gap: 15px;
+      padding: 20px;
+    }
+
+    header { grid-area: header; font-size: 2rem; font-weight: bold; }
+
+    /* Assistant chat area */
+    .assistant {
+      grid-area: assistant;
+      border-radius: 10px;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      gap: 10px;
+      /* Use dashboard colors */
+      background-color: var(--secondaryColor);
+      border: 1px solid var(--borderColor);
+    }
+
+    .message {
+      padding: 10px 15px;
+      border-radius: 8px;
+      max-width: 80%;
+    }
+    .message.user { background-color: var(--accentColor); color: #fff; align-self: flex-end; }
+    .message.assistant { background-color: var(--cardColor); align-self: flex-start; }
+
+    /* Input area */
+    .input-area {
+      grid-area: input;
+      display: flex;
+      gap: 10px;
+    }
+    .input-area input {
+      flex: 1;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid var(--borderColor);
+      background-color: var(--inputBg);
+      color: var(--textColor);
+    }
+    .input-area button {
+      padding: 10px 15px;
+      border-radius: 6px;
+      border: 1px solid var(--borderColor);
+      background-color: var(--accentColor);
+      color: var(--textColor);
+      cursor: pointer;
+    }
+
+    /* Dataset progress */
+    .dataset-progress {
+      grid-area: progress;
+      border-radius: 10px;
+      padding: 15px;
+      overflow-y: auto;
+      background-color: var(--secondaryColor);
+      border: 1px solid var(--borderColor);
+    }
+
+    .progress-item { margin-bottom: 15px; }
+    .progress-item .title { margin-bottom: 5px; }
+    .progress-bar { width: 100%; height: 20px; border-radius: 10px; overflow: hidden; background-color: var(--progressBg); }
+    .progress-bar-inner { height: 100%; width: 0%; background-color: var(--accentColor); border-radius: 10px 0 0 10px; transition: width 0.3s ease; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>Analysis Assistant</header>
+
+    <!-- Assistant chat -->
+    <div class="assistant" id="assistant">
+      <div class="message assistant">Hello! Ask me anything about your datasets.</div>
+    </div>
+
+    <!-- Dataset progress -->
+    <div class="dataset-progress" id="dataset-progress"></div>
+
+    <!-- Input -->
+    <div class="input-area">
+      <input type="text" id="user-input" placeholder="Type your question...">
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const assistant = document.getElementById('assistant');
+    const input = document.getElementById('user-input');
+
+    function sendMessage() {
+      const text = input.value.trim();
+      if (!text) return;
+
+      const userMsg = document.createElement('div');
+      userMsg.classList.add('message', 'user');
+      userMsg.textContent = text;
+      assistant.appendChild(userMsg);
+      assistant.scrollTop = assistant.scrollHeight;
+      input.value = '';
+
+      setTimeout(() => {
+        const reply = document.createElement('div');
+        reply.classList.add('message', 'assistant');
+        reply.textContent = "Processing your question on datasets...";
+        assistant.appendChild(reply);
+        assistant.scrollTop = assistant.scrollHeight;
+      }, 500);
+    }
+
+    // Example datasets progress
+    const datasets = [
+      { name: 'Dataset A', progress: 70 },
+      { name: 'Dataset B', progress: 45 },
+      { name: 'Dataset C', progress: 90 },
+      { name: 'Dataset D', progress: 30 },
+    ];
+
+    const progressContainer = document.getElementById('dataset-progress');
+
+    function renderProgress() {
+      progressContainer.innerHTML = '';
+      datasets.forEach(ds => {
+        const item = document.createElement('div');
+        item.classList.add('progress-item');
+        item.innerHTML = `
+          <div class="title">${ds.name}</div>
+          <div class="progress-bar">
+            <div class="progress-bar-inner" style="width: ${ds.progress}%"></div>
+          </div>
+        `;
+        progressContainer.appendChild(item);
+      });
+    }
+
+    renderProgress();
+    setInterval(() => {
+      datasets.forEach(ds => { ds.progress = Math.min(ds.progress + Math.random()*5, 100); });
+      renderProgress();
+    }, 2000);
+
+    input.addEventListener('keypress', function(e) { if (e.key === 'Enter') sendMessage(); });
+  </script>
+</body>
+</html>

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Dataset Insight Generator – Guest Dashboard</title>
+    <link rel="stylesheet" href="dashbaord.css" />
+</head>
+<body class="dig-body">
+
+    <!-- Sidebar -->
+    <aside class="dig-sidebar">
+        <div class="brand">
+            <img src="DIG.png" alt="Dataset Insight Generator logo" />
+            <span>Dataset Insight Generator</span>
+        </div>
+        <nav>
+            <a href="#top" class="active">Dashboard</a>
+            <a href="#section-upload">Upload</a>
+            <a href="#section-insights">Insights</a>
+            <a href="#section-analysis">History / Analysis</a>
+            <a href="#section-help">Help & Support</a>
+            <a href="#top">Settings</a>
+        </nav>
+    </aside>
+
+    <!-- Main content -->
+    <div class="dig-main" id="top">
+
+        <!-- Top bar -->
+        <header class="dig-topbar">
+    <div>
+        <h1>Dashboard</h1>
+        <p class="subtitle">
+            Upload a dataset to generate instant insights, a cleaned CSV, and a downloadable PDF report.
+        </p>
+
+        <!-- Guest banner -->
+        <div class="guest-banner-container">
+    <div class="guest-banner">
+        <div class="guest-text">
+            You are browsing as a <strong>guest</strong>. 
+            <span>Create an account</span> to access history, cumulative insights, and more.
+        </div>
+    </div>
+    <button class="guest-register-btn">Register Now</button>
+</div>
+
+
+    </div>
+
+    <div class="topbar-right">
+        <button class="primary-btn">New Dataset</button>
+
+        <div class="profile-wrapper">
+            <div class="avatar">G</div>
+            <div class="profile-text">
+                <span class="profile-name">Guest</span>
+                <span class="profile-role">Guest user</span>
+            </div>
+            <div class="profile-dropdown-icon">▾</div>
+
+            <div class="profile-dropdown">
+                <a href="#">Language ▾</a>
+                <a href="#top">Sign out</a>
+            </div>
+            </div>
+        </div>
+</header>
+
+        <!-- Upload + quick stats + session metrics -->
+        <section class="upper-grid" id="section-upload">
+            <!-- Upload card -->
+            <div class="card upload-card">
+                <h2>Upload CSV</h2>
+                <p class="muted">
+                    Drag and drop your .csv file here, or click to browse. Max 50 MB.
+                </p>
+
+                <label class="upload-dropzone">
+                    <input type="file" id="fileUpload" accept=".csv" />
+                    <div class="dropzone-inner">
+                        <div class="dropzone-icon">⬆</div>
+                        <div>
+                            <p class="dropzone-title">Drop your file here</p>
+                            <p class="muted-small">or click to choose a file</p>
+                        </div>
+                    </div>
+                </label>
+
+                <!-- Communication/status bar while uploading -->
+                <div class="upload-status-bar" id="uploadStatusBar">
+                    <div class="status-header">
+                        <span id="uploadStatusText">No file selected.</span>
+                        <span class="status-pill idle" id="uploadStatusPill">Idle</span>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill" id="uploadProgressFill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick stats -->
+            <div class="card stats-card">
+                <h2>Session summary (mock)</h2>
+                <div class="stats-row">
+                    <div class="stat">
+                        <span class="stat-label">Rows detected</span>
+                        <span class="stat-value">–</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Columns</span>
+                        <span class="stat-value">–</span>
+                    </div>
+                </div>
+                <div class="stats-row">
+                    <div class="stat">
+                        <span class="stat-label">Missing values</span>
+                        <span class="stat-value">–</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Upload time</span>
+                        <span class="stat-value">–</span>
+                    </div>
+                </div>
+                <p class="muted-small">
+                    These values will update once your dataset is processed by the backend.
+                </p>
+            </div>
+
+            <!-- Session Metrics -->
+            <div class="card stats-card">
+                <h2>Session Metrics (mock)</h2>
+                <div class="stats-row">
+                    <div class="stat">
+                        <span class="stat-label">Total Entries Processed</span>
+                        <span class="stat-value">–</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Total Datasets Uploaded</span>
+                        <span class="stat-value">–</span>
+                    </div>
+                </div>
+                <div class="stats-row">
+                    <div class="stat">
+                        <span class="stat-label">Insights Generated</span>
+                        <span class="stat-value">–</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Active Models Used</span>
+                        <span class="stat-value">–</span>
+                    </div>
+                </div>
+                <div class="stats-row">
+                    <div class="stat">
+                        <span class="stat-label">Last Upload Time</span>
+                        <span class="stat-value">–</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Average Generation Time</span>
+                        <span class="stat-value">–</span>
+                    </div>
+                </div>
+                <div class="stats-row">
+                    <div class="stat">
+                        <span class="stat-label">Error Rate / Failures</span>
+                        <span class="stat-value">–</span>
+                    </div>
+                </div>
+                <p class="muted-small">
+                    These metrics will update after each dataset is processed.
+                </p>
+            </div>
+        </section>
+
+        <!-- Dataset preview + charts -->
+        <section class="middle-grid" id="section-insights">
+            <!-- Mock dataset preview -->
+            <div class="card table-card">
+                <div class="card-header">
+                    <h2>Dataset preview (mock)</h2>
+                    <span class="pill">First 6 rows</span>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>customer_id</th>
+                            <th>age</th>
+                            <th>country</th>
+                            <th>purchases</th>
+                            <th>churned</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>C001</td><td>28</td><td>Canada</td><td>12</td><td>No</td>
+                        </tr>
+                        <tr>
+                            <td>C002</td><td>35</td><td>USA</td><td>7</td><td>Yes</td>
+                        </tr>
+                        <tr>
+                            <td>C003</td><td>22</td><td>Germany</td><td>4</td><td>No</td>
+                        </tr>
+                        <tr>
+                            <td>C004</td><td>41</td><td>UK</td><td>16</td><td>No</td>
+                        </tr>
+                        <tr>
+                            <td>C005</td><td>30</td><td>Canada</td><td>2</td><td>Yes</td>
+                        </tr>
+                        <tr>
+                            <td>C006</td><td>27</td><td>France</td><td>9</td><td>No</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Analysis chat + report/export (unchanged) -->
+        <section class="analysis-grid" id="section-analysis">
+            <!-- All content same as previous dashboard -->
+        </section>
+
+        <!-- Help / privacy / contact tables (unchanged) -->
+        <section class="lower-grid" id="section-help">
+            <!-- Same content as previous dashboard -->
+        </section>
+
+        <footer class="dig-footer">
+            <span>© 2025 Dataset Insight Generator (mock)</span>
+            <span>Built with C#, React, and Python AI.</span>
+        </footer>
+    </div>
+
+    <!-- Tiny mock script just to animate the upload bar -->
+    <script>
+        const fileInput = document.getElementById("fileUpload");
+        const statusText = document.getElementById("uploadStatusText");
+        const statusPill = document.getElementById("uploadStatusPill");
+        const progressFill = document.getElementById("uploadProgressFill");
+
+        if (fileInput) {
+            fileInput.addEventListener("change", () => {
+                if (!fileInput.files.length) return;
+                const name = fileInput.files[0].name;
+                statusText.textContent = "Uploading " + name + " (mock)…";
+                statusPill.textContent = "Uploading";
+                statusPill.className = "status-pill uploading";
+                progressFill.style.width = "0%";
+
+                let p = 0;
+                const interval = setInterval(() => {
+                    p += 8;
+                    progressFill.style.width = p + "%";
+                    if (p >= 100) {
+                        clearInterval(interval);
+                        statusText.textContent =
+                            "Upload complete (mock). Ready for analysis.";
+                        statusPill.textContent = "Ready";
+                        statusPill.className = "status-pill ready";
+                    }
+                }, 120);
+            });
+        }
+    </script>
+</body>
+</html>

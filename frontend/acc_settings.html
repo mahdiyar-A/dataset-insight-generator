@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Account Settings — Dataset Insight Generator</title>
+  <link rel="stylesheet" href="acc_settings.css" />
+</head>
+<body>
+  <div class="container">
+    <a class="btn ghost" href="dashboard.html">← Back to dashboard</a>
+    <h2>Account Settings</h2>
+
+    <div class="settings-section">
+      <h3>Appearance</h3>
+      <div class="setting-row">
+        <div><strong>Dark Mode</strong><div class="muted-small">Enable dark theme</div></div>
+        <div class="switch on"><div class="knob"></div></div>
+      </div>
+      <div class="setting-row">
+        <div><strong>Font Size</strong><div class="muted-small">Choose the font size for the app</div></div>
+        <select>
+          <option>Small</option>
+          <option selected>Medium</option>
+          <option>Large</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <div><strong>Language</strong><div class="muted-small">Select your preferred language</div></div>
+        <select>
+          <option>English</option>
+          <option>French</option>
+          <option>Spanish</option>
+          <option>Other</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h3>Notifications</h3>
+      <div class="setting-row"><div>Email Notifications</div><div class="switch on"><div class="knob"></div></div></div>
+      <div class="setting-row"><div>Push Notifications</div><div class="switch on"><div class="knob"></div></div></div>
+      <div class="setting-row"><div>SMS Notifications</div><div class="switch"><div class="knob"></div></div></div>
+      <div class="setting-row"><div>Marketing Emails</div><div class="switch"><div class="knob"></div></div></div>
+    </div>
+
+    <div class="settings-section">
+      <h3>Privacy & Security</h3>
+      <div class="setting-row"><div>Two-Factor Authentication (2FA)</div><div class="switch"><div class="knob"></div></div></div>
+      <div class="setting-row"><div>Login Alerts</div><div class="switch on"><div class="knob"></div></div></div>
+      <div class="setting-row"><div>Account Activity Alerts</div><div class="switch on"><div class="knob"></div></div></div>
+      <div class="setting-row">
+        <div>Reset Password</div>
+        <button class="primary-btn">Reset</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h3>Data & Account Management</h3>
+      <div class="setting-row"><div>Download Your Data</div><button class="primary-btn">Download</button></div>
+      <div class="setting-row"><div>Delete Account</div><button class="secondary-btn">Delete</button></div>
+      <div class="setting-row"><div>Export Settings</div><button class="primary-btn">Export</button></div>
+      <div class="setting-row"><div>Backup Data</div><div class="switch"><div class="knob"></div></div></div>
+    </div>
+
+    <div style="margin-top:20px;">
+      <button class="primary-btn-lg">Save Settings</button>
+      <a class="secondary-btn" href="dashboard.html">Cancel</a>
+    </div>
+  </div>
+</body>
+</html>

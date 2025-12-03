@@ -1,0 +1,66 @@
+/* Avatar / profile picture styles for profile_edit.html and dashboard */
+
+.big-avatar, .avatar.big-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:700;
+  font-size:44px;
+  color:#fff;
+  background: linear-gradient(90deg,#3b82f6,#6366f1);
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,0.04);
+}
+
+/* smaller avatar variant already styled in dashboard but keep this as fallback */
+.avatar { width:40px; height:40px; border-radius:999px; display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff }
+
+/* when using an uploaded image we set background-image inline; ensure it covers */
+.big-avatar[style] { background-size:cover; background-position:center; color:transparent }
+
+/* hidden helper */
+.hidden { display:none; }
+
+/* small responsive adjustments */
+@media (max-width:700px){ .big-avatar{ width:100px;height:100px;font-size:36px } }
+input:focus {
+    outline: none;
+    border-color: #3b82f6; /* blue accent */
+    box-shadow: 0 0 0 2px rgba(59, 131, 246, 0.616);
+    background: rgba(15, 23, 42, 0.95);
+    color: #e5e7eb;
+}
+#uploadPfpBtn {
+    padding: 7px 1px;      /* smaller padding */
+}
+
+#profileForm button[type="submit"] {
+    padding: 10px 18px;      /* larger padding */
+    font-size: 0.9rem;       /* bigger text */
+    margin-top: 16px;        /* move it lower from the inputs */
+}
+.back-dashboard-container {
+    margin-bottom: 16px; /* space below */
+}
+.btn.ghost {
+    display: inline-block;
+    margin: 0;          /* remove default margin */
+    margin-left: 12px;  /* give some space from left */
+    margin-top: 12px;   /* give some space from top */
+    padding: 6px 12px;  /* make it a bit bigger */
+    font-size: 0.85rem;
+    text-decoration: none;
+    border-radius: 999px;
+    border: 1px solid rgba(148,163,184,0.3);
+    color: #bfdbfe;
+    background: rgba(15,23,42,0.8);
+    transition: background 0.15s, transform 0.1s;
+}
+
+.btn.ghost:hover {
+    background: rgba(15,23,42,1);
+    transform: translateY(-1px);
+}
