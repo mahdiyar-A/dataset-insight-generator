@@ -1,164 +1,280 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Analysis Assistant</title>
-  <link rel="stylesheet" href="dashbaord.css"> <!-- your original dashboard CSS -->
-  <style>
-    /* Full-screen layout */
-    html, body { height: 100%; margin: 0; padding: 0; }
-    .container {
-      display: grid;
-      grid-template-rows: auto 1fr auto;
-      grid-template-columns: 1fr 300px;
-      grid-template-areas:
-        "header header"
-        "assistant progress"
-        "input progress";
-      height: 100%;
-      gap: 15px;
-      padding: 20px;
-    }
+    <meta charset="UTF-8">
+    <title>Data Insight Generator</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <style>
+        body {
+            margin: 0;
+            font-family: var(--font-sans);
+            background: radial-gradient(circle at top, #020617 0, #020617 45%, #000 100%);
+            color: var(--text);
+            display: flex;
+            height: 100vh;
+        }
 
-    header { grid-area: header; font-size: 2rem; font-weight: bold; }
+        /* Left sidebar */
+        .sidebar {
+            width: 220px;
+            background: var(--bg-elevated);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 16px 0;
+        }
 
-    /* Assistant chat area */
-    .assistant {
-      grid-area: assistant;
-      border-radius: 10px;
-      padding: 15px;
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto;
-      gap: 10px;
-      /* Use dashboard colors */
-      background-color: var(--secondaryColor);
-      border: 1px solid var(--borderColor);
-    }
+        .sidebar h2 {
+            font-size: 1rem;
+            text-align: center;
+            margin-bottom: 12px;
+        }
 
-    .message {
-      padding: 10px 15px;
-      border-radius: 8px;
-      max-width: 80%;
-    }
-    .message.user { background-color: var(--accentColor); color: #fff; align-self: flex-end; }
-    .message.assistant { background-color: var(--cardColor); align-self: flex-start; }
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 0 12px;
+            overflow-y: auto;
+            flex: 1;
+        }
 
-    /* Input area */
-    .input-area {
-      grid-area: input;
-      display: flex;
-      gap: 10px;
-    }
-    .input-area input {
-      flex: 1;
-      padding: 10px;
-      border-radius: 6px;
-      border: 1px solid var(--borderColor);
-      background-color: var(--inputBg);
-      color: var(--textColor);
-    }
-    .input-area button {
-      padding: 10px 15px;
-      border-radius: 6px;
-      border: 1px solid var(--borderColor);
-      background-color: var(--accentColor);
-      color: var(--textColor);
-      cursor: pointer;
-    }
+        .file-item {
+            padding: 10px 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: var(--text-soft);
+            transition: background 0.2s;
+        }
 
-    /* Dataset progress */
-    .dataset-progress {
-      grid-area: progress;
-      border-radius: 10px;
-      padding: 15px;
-      overflow-y: auto;
-      background-color: var(--secondaryColor);
-      border: 1px solid var(--borderColor);
-    }
+        .file-item.active,
+        .file-item:hover {
+            background: var(--accent-soft);
+            color: #bfdbfe;
+        }
 
-    .progress-item { margin-bottom: 15px; }
-    .progress-item .title { margin-bottom: 5px; }
-    .progress-bar { width: 100%; height: 20px; border-radius: 10px; overflow: hidden; background-color: var(--progressBg); }
-    .progress-bar-inner { height: 100%; width: 0%; background-color: var(--accentColor); border-radius: 10px 0 0 10px; transition: width 0.3s ease; }
-  </style>
+        /* Main chat column */
+        .chat-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px;
+            overflow: hidden;
+        }
+
+        .chat-wrapper {
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            gap: 16px;
+        }
+
+        /* Top status bar */
+        .status-bar {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: rgba(15,23,42,0.95);
+            border: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: var(--text-soft);
+        }
+
+        /* Chat area */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 8px;
+            overflow-y: auto;
+        }
+
+        .msg-row {
+            display: flex;
+        }
+
+        .msg-row.assistant {
+            justify-content: flex-start;
+        }
+
+        .msg-row.user {
+            justify-content: flex-end;
+        }
+
+        .msg {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 16px;
+            line-height: 1.5;
+        }
+
+        .msg-row.assistant .msg {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(37, 99, 235, 0.3);
+            color: var(--text);
+        }
+
+        .msg-row.assistant.pending .msg {
+            border-style: dashed;
+            color: var(--text-soft);
+        }
+
+        .msg-row.user .msg {
+            background: linear-gradient(135deg, #1d4ed8, #2563eb);
+            color: white;
+            border-bottom-right-radius: 3px;
+        }
+
+        .msg ul {
+            margin: 6px 0 4px 18px;
+            padding: 0;
+        }
+
+        .msg li {
+            margin-bottom: 2px;
+        }
+
+        /* Input area */
+        .input-row {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .input-row-inner {
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-row input {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(55, 65, 81, 0.9);
+            background: rgba(15, 23, 42, 0.95);
+            color: var(--text);
+            font-size: 0.9rem;
+        }
+
+        .send-btn {
+            padding: 12px 20px;
+            border-radius: 999px;
+            border: none;
+            background: var(--accent);
+            color: white;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .download-btn {
+            padding: 12px 20px;
+            border-radius: 999px;
+            border: none;
+            background: rgba(37, 99, 235, 0.2);
+            color: #93c5fd;
+            font-size: 0.9rem;
+            cursor: pointer;
+            align-self: flex-start;
+        }
+
+        /* Scrollbars */
+        .chat-container::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .chat-container::-webkit-scrollbar-track {
+            background: rgba(2, 6, 23, 0.9);
+        }
+
+        .chat-container::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #3b82f6, #6366f1);
+            border-radius: 999px;
+            border: 2px solid rgba(2, 6, 23, 0.9);
+        }
+
+        .chat-container::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #60a5fa, #818cf8);
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <header>Analysis Assistant</header>
 
-    <!-- Assistant chat -->
-    <div class="assistant" id="assistant">
-      <div class="message assistant">Hello! Ask me anything about your datasets.</div>
+    <!-- Sidebar for dataset chats -->
+    <div class="sidebar">
+        <h2>Your CSVs</h2>
+        <div class="file-list">
+            <div class="file-item active">sales_data.csv</div>
+            <div class="file-item">inventory.csv</div>
+            <div class="file-item">customer_info.csv</div>
+        </div>
     </div>
 
-    <!-- Dataset progress -->
-    <div class="dataset-progress" id="dataset-progress"></div>
+    <!-- Main chat column -->
+    <div class="chat-column">
+        <div class="chat-wrapper">
 
-    <!-- Input -->
-    <div class="input-area">
-      <input type="text" id="user-input" placeholder="Type your question...">
-      <button onclick="sendMessage()">Send</button>
+            <!-- Top file status bar -->
+            <div class="status-bar">
+                <span>File: <strong>sales_data.csv</strong></span>
+                <span>Rows: 1024 · Columns: 8 · Missing: 42%</span>
+            </div>
+
+            <!-- Scrollable chat container -->
+            <div class="chat-container">
+                <div class="msg-row assistant">
+                    <div class="msg">
+                        We’ve scanned your dataset and found:
+                        <ul>
+                            <li><strong>42% missing values</strong> in <strong>price</strong></li>
+                            <li>Inconsistent formatting in <strong>Date</strong></li>
+                            <li>Duplicate values in <strong>transaction_id</strong></li>
+                        </ul>
+                        The dataset is analyzable, but cleaning is recommended.
+                    </div>
+                </div>
+
+                <div class="msg-row user">
+                    <div class="msg">
+                        Clean automatically, but if something looks wrong, stop and ask me.
+                    </div>
+                </div>
+
+                <div class="msg-row assistant pending">
+                    <div class="msg">Understood. Applying automatic cleaning rules…</div>
+                </div>
+
+                <div class="msg-row assistant">
+                    <div class="msg">
+                        Cleaning complete (mock).
+                        <ul>
+                            <li>Removed <strong>32 duplicate rows</strong></li>
+                            <li>Imputed <strong>price</strong></li>
+                            <li>Standardized all <strong>Date</strong> values</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input + send -->
+            <div class="input-row">
+                <div class="input-row-inner">
+                    <input type="text" placeholder="Ask a question…">
+                    <button class="send-btn">Send</button>
+                </div>
+                <button class="download-btn">Download Cleaned Dataset</button>
+            </div>
+
+        </div>
     </div>
-  </div>
 
-  <script>
-    const assistant = document.getElementById('assistant');
-    const input = document.getElementById('user-input');
-
-    function sendMessage() {
-      const text = input.value.trim();
-      if (!text) return;
-
-      const userMsg = document.createElement('div');
-      userMsg.classList.add('message', 'user');
-      userMsg.textContent = text;
-      assistant.appendChild(userMsg);
-      assistant.scrollTop = assistant.scrollHeight;
-      input.value = '';
-
-      setTimeout(() => {
-        const reply = document.createElement('div');
-        reply.classList.add('message', 'assistant');
-        reply.textContent = "Processing your question on datasets...";
-        assistant.appendChild(reply);
-        assistant.scrollTop = assistant.scrollHeight;
-      }, 500);
-    }
-
-    // Example datasets progress
-    const datasets = [
-      { name: 'Dataset A', progress: 70 },
-      { name: 'Dataset B', progress: 45 },
-      { name: 'Dataset C', progress: 90 },
-      { name: 'Dataset D', progress: 30 },
-    ];
-
-    const progressContainer = document.getElementById('dataset-progress');
-
-    function renderProgress() {
-      progressContainer.innerHTML = '';
-      datasets.forEach(ds => {
-        const item = document.createElement('div');
-        item.classList.add('progress-item');
-        item.innerHTML = `
-          <div class="title">${ds.name}</div>
-          <div class="progress-bar">
-            <div class="progress-bar-inner" style="width: ${ds.progress}%"></div>
-          </div>
-        `;
-        progressContainer.appendChild(item);
-      });
-    }
-
-    renderProgress();
-    setInterval(() => {
-      datasets.forEach(ds => { ds.progress = Math.min(ds.progress + Math.random()*5, 100); });
-      renderProgress();
-    }, 2000);
-
-    input.addEventListener('keypress', function(e) { if (e.key === 'Enter') sendMessage(); });
-  </script>
 </body>
 </html>

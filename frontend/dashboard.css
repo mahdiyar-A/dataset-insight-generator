@@ -277,7 +277,7 @@ body.dig-body {
 
 .upper-grid {
     display: grid;
-    grid-template-columns: minmax(0, 2.1fr) minmax(0, 1.4fr);
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.4fr);
     gap: 16px;
 }
 
@@ -293,7 +293,11 @@ body.dig-body {
     gap: 16px;
     align-items: stretch;
 }
-
+.lower-grid {
+    display: grid;
+    grid-template-columns: minmax(0,3fr) minmax(0,3fr) minmax(0,3fr);
+    gap: 16px;
+}
 /* upload */
 
 .upload-card {
@@ -313,7 +317,7 @@ body.dig-body {
         rgba(15, 23, 42, 0.96)
     );
     cursor: pointer;
-    padding: 18px;
+    padding: 60px;
 }
 
 .upload-dropzone input[type="file"] {
@@ -327,8 +331,8 @@ body.dig-body {
 }
 
 .dropzone-icon {
-    width: 40px;
-    height: 40px;
+    width: 50px;
+    height: 50px;
     border-radius: 999px;
     background: var(--accent-soft);
     display: flex;
@@ -340,11 +344,11 @@ body.dig-body {
 
 .dropzone-title {
     margin: 0;
-    font-size: 0.9rem;
+    font-size: 1.5rem;
 }
 
 .upload-status-bar {
-    margin-top: 10px;
+    margin-top: 6px;
 }
 
 .status-header {
@@ -976,5 +980,244 @@ body.dig-body {
     font-weight: 500;
     color: white;
 }
-/* Shared base style for all action buttons */
+/* COLLAPSIBLE SIDEBAR BASE */
+/* Sidebar */
+.dig-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 70px;               /* default narrow width */
+    background-color: #020617; /* dark theme background */
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    transition: width 0.3s ease;
+    z-index: 1000;
+    overflow: hidden;
+}
 
+/* Sidebar hover expands */
+.dig-sidebar:hover {
+    width: 220px; /* expanded width */
+}
+
+/* Brand/logo area */
+.dig-sidebar .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px;
+}
+
+.dig-sidebar .brand .logo {
+    width: 40px;
+    height: 40px;
+}
+
+.dig-sidebar .brand .brand-name {
+    font-size: 1rem;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+/* Show text when hovering */
+.dig-sidebar:hover .brand .brand-name {
+    opacity: 1;
+}
+
+/* Navigation links */
+.dig-sidebar nav {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.dig-sidebar nav a {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    color: #aaa;
+    text-decoration: none;
+    font-weight: 500;
+    border-left: 4px solid transparent;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* Show link text only when expanded */
+.dig-sidebar nav a::before {
+    content: attr(data-short); /* optional for icons only in narrow state */
+}
+
+.dig-sidebar:hover nav a::before {
+    content: none; /* hide short icon-only label when expanded */
+}
+
+.dig-sidebar nav a.active {
+    background-color: rgba(37, 99, 235, 0.2);
+    border-left-color: #2563eb;
+    color: #fff;
+}
+
+.dig-sidebar nav a:hover {
+    background-color: rgba(37, 99, 235, 0.15);
+    color: #fff;
+}
+
+/* Optional: adjust main content margin to match sidebar width */
+.dig-main {
+    margin-left: 70px; /* match sidebar default width */
+    transition: margin-left 0.3s ease;
+}
+
+.dig-sidebar:hover ~ .dig-main {
+    margin-left: 220px; /* match expanded width */
+}
+.info-card {
+    border: 1px solid var(--border, #1f2937);
+    border-radius: 14px;
+    padding: 1.5rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Title */
+.info-card h2 {
+    font-size: 1.25rem;
+    font-weight: 400;
+    margin-bottom: 1rem;
+    color: var(--text, #e5e7eb);
+}
+
+/* Table */
+.info-card table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+}
+
+/* Table header */
+.info-card thead th {
+    text-align: left;
+    font-size: 0.85rem;
+    font-weight: 300;
+    color: var(--text-soft, #9ca3af);
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border, #1f2937);
+}
+
+/* Table rows */
+.info-card tbody td {
+    padding: 0.6rem 0;
+    font-size: 0.8rem;
+    color: var(--text, #e5e7eb);
+}
+
+/* Subtle row separation */
+.info-card tbody tr:not(:last-child) td {
+    border-bottom: 1px solid rgba(31, 41, 55, 0.5);
+}
+
+/* Muted support link */
+.muted-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.9rem;
+    color: var(--text-soft, #9ca3af);
+    text-decoration: none;
+    margin-top: 0.25rem;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.muted-link:hover {
+    color: var(--accent, #2563eb);
+    transform: translateX(2px);
+}
+.analysis-chat-log {
+    max-height: 250px;
+    overflow-y: auto;
+    padding-right: 8px; /* space for scrollbar */
+}
+
+/* Chrome, Edge, Safari */
+.analysis-chat-log::-webkit-scrollbar {
+    width: 8px;
+}
+
+.analysis-chat-log::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.analysis-chat-log::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+        180deg,
+        rgba(99,102,241,0.7),
+        rgba(59,130,246,0.7)
+    );
+    border-radius: 999px;
+}
+
+.analysis-chat-log::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+        180deg,
+        rgba(99,102,241,1),
+        rgba(59,130,246,1)
+    );
+}
+
+/* Firefox */
+.analysis-chat-log {
+    scrollbar-width: thin;
+    scrollbar-color: #5d7baf transparent;
+}
+/* ===============================
+   Global scrollbar styling
+   =============================== */
+
+/* Chrome, Edge, Safari */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(2, 6, 23, 0.9); /* deep background */
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+        180deg,
+        #3b82f6,
+        #6366f1
+    );
+    border-radius: 999px;
+    border: 2px solid rgba(2, 6, 23, 0.9); /* spacing effect */
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+        180deg,
+        #60a5fa,
+        #818cf8
+    );
+    box-shadow: 0 0 12px rgba(99,102,241,0.5);
+}
+
+/* Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #5d7baf rgba(2, 6, 23, 0.9);
+}
+::-webkit-scrollbar-thumb {
+    opacity: 0;
+}
+
+body:hover ::-webkit-scrollbar-thumb {
+    opacity: 1;
+}

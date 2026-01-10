@@ -251,3 +251,42 @@ body {
         margin-right: 16px;
     }
 }
+/* ===============================
+   Global scrollbar styling
+   =============================== */
+
+/* Chrome, Edge, Safari */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(2, 6, 23, 0.9); /* deep background */
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+        180deg,
+        #3b82f6,
+        #6366f1
+    );
+    border-radius: 999px;
+    border: 2px solid rgba(2, 6, 23, 0.9); /* spacing effect */
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+        180deg,
+        #60a5fa,
+        #818cf8
+    );
+    box-shadow: 0 0 12px rgba(99,102,241,0.5);
+}
+
+/* Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #5d7baf rgba(2, 6, 23, 0.9);
+}
