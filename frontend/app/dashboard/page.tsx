@@ -1,16 +1,24 @@
-export default function DashboardPage() {
+// frontend/app/test/page.tsx
+
+export default function dashboardPage() {
   return (
     <div className="dig-body">
+      {/* Sidebar Toggle (NO JS) */}
+      <input type="checkbox" id="sidebar-toggle" className="sidebar-toggle" />
+
       {/* Sidebar */}
       <aside className="dig-sidebar">
         <div className="brand">
-          <img src="/DIG.png" alt="Dataset Insight Generator logo" />
-          <span>Dataset Insight Generator</span>
+          <img src="DIG.png" alt="Dataset Insight Generator logo" className="logo" />
+          <span className="brand-name">
+            Dataset Insight <br /> Generator
+          </span>
         </div>
         <nav>
           <a href="#top" className="active">Dashboard</a>
           <a href="#section-upload">Upload</a>
-          <a href="#section-insights">Insights</a>
+          <a href="#section-dataset-management">History / Analysis</a>
+          <a href="#section-insights">AI Insights</a>
           <a href="#section-help">Help & Support</a>
           <a href="#top">Settings</a>
         </nav>
@@ -18,46 +26,37 @@ export default function DashboardPage() {
 
       {/* Main content */}
       <div className="dig-main" id="top">
-        {/* Topbar */}
+        {/* Top bar */}
         <header className="dig-topbar">
           <div>
             <h1>Dashboard</h1>
             <p className="subtitle">
               Upload a dataset to generate instant insights, a cleaned CSV, and a downloadable PDF report.
             </p>
-
-            {/* Guest banner */}
-            <div className="guest-banner-container">
-              <div className="guest-banner">
-                <div className="guest-text">
-                  You are browsing as a <strong>guest</strong>. <span>Create an account</span> to access history, cumulative insights, and more.
-                </div>
-              </div>
-              <button className="guest-register-btn">Register Now</button>
-            </div>
           </div>
 
           <div className="topbar-right">
             <button className="primary-btn">New Dataset</button>
 
             <div className="profile-wrapper">
-              <div className="avatar">G</div>
+              <div className="avatar">M</div>
               <div className="profile-text">
-                <span className="profile-name">Guest</span>
+                <span className="profile-name">Mahdiyar (mock)</span>
                 <span className="profile-role">Guest user</span>
               </div>
               <div className="profile-dropdown-icon">▾</div>
 
               <div className="profile-dropdown">
-                <a href="#">Language ▾</a>
-                <a href="#">Theme ▾</a>
+                <a href="/dashboard/profileEditor">View profile</a>
+                <a href="#section-analysis">History</a>
+                <a href="/dashboard/accountSettings">Account settings</a>
                 <a href="#top">Sign out</a>
               </div>
             </div>
           </div>
         </header>
 
-        {/* Upper grid: Upload + Analysis Assistant */}
+        {/* Upload + quick stats */}
         <section className="upper-grid" id="section-upload">
           {/* Upload card */}
           <div className="card upload-card">
@@ -81,24 +80,40 @@ export default function DashboardPage() {
                 <span id="uploadStatusText">No file selected.</span>
                 <span className="status-pill idle" id="uploadStatusPill">Idle</span>
               </div>
+
               <div className="progress-track">
                 <div className="progress-fill" id="uploadProgressFill"></div>
               </div>
             </div>
 
             <div className="stats-row">
-              <div className="stat"><span className="stat-label">Rows detected</span><span className="stat-value">–</span></div>
-              <div className="stat"><span className="stat-label">Columns</span><span className="stat-value">–</span></div>
-              <div className="stat"><span className="stat-label">Missing values</span><span className="stat-value">–</span></div>
-              <div className="stat"><span className="stat-label">Upload time</span><span className="stat-value">–</span></div>
+              <div className="stat">
+                <span className="stat-label">Rows detected</span>
+                <span className="stat-value">–</span>
+              </div>
+              <div className="stat">
+                <span className="stat-label">Columns</span>
+                <span className="stat-value">–</span>
+              </div>
+              <div className="stat">
+                <span className="stat-label">Missing values</span>
+                <span className="stat-value">–</span>
+              </div>
+              <div className="stat">
+                <span className="stat-label">Upload time</span>
+                <span className="stat-value">–</span>
+              </div>
             </div>
           </div>
 
-          {/* Analysis Assistant card */}
+          {/* Analysis assistant card */}
           <div className="card analysis-chat-card">
             <div className="card-header">
               <h2>Analysis assistant</h2>
-              <span className="pill live-pill">Step 2 of 4 · Profiling & cleaning (mock)</span>
+              <div className="header-actions">
+                <span className="pill live-pill">Step 2 of 4 · Profiling & cleaning (mock)</span>
+                <a href="/dashboard/assistant" className="open-aa">Open →</a>
+              </div>
             </div>
 
             <div className="analysis-timeline">
@@ -120,15 +135,19 @@ export default function DashboardPage() {
                   The dataset is analyzable, but we strongly recommend cleaning it first.
                 </div>
               </div>
+
               <div className="msg-row assistant">
                 <div className="msg">How would you like us to handle these issues?</div>
               </div>
+
               <div className="msg-row user">
                 <div className="msg">Clean automatically, but if something looks wrong, stop and ask me.</div>
               </div>
+
               <div className="msg-row assistant pending">
                 <div className="msg">Understood. Applying automatic cleaning rules…</div>
               </div>
+
               <div className="msg-row assistant">
                 <div className="msg">
                   Cleaning complete (mock).
@@ -137,7 +156,9 @@ export default function DashboardPage() {
                     <li>Imputed <strong>price</strong></li>
                     <li>Standardized all <strong>Date</strong> values</li>
                   </ul>
-                  <a className="download-cleaned" href="#" download>Download cleaned_dataset.csv (mock)</a>
+                  <a className="download-cleaned" href="#" download>
+                    Download cleaned_dataset.csv (mock)
+                  </a>
                 </div>
               </div>
             </div>
@@ -156,14 +177,82 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Middle grid: Dataset preview + charts */}
+        {/* Dataset Management Table */}
+        <section className="dataset-management-grid" id="section-dataset-management">
+          <div className="card table-card">
+            <div className="card-header">
+              <h2>Dataset management</h2>
+              <span className="pill">Your recent uploads</span>
+            </div>
+
+            <table className="dataset-table">
+              <thead>
+                <tr>
+                  <th>Dataset name</th>
+                  <th>Rows</th>
+                  <th>Columns</th>
+                  <th>Upload time</th>
+                  <th>Size</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                <tr>
+                  <td>sales_q1.csv</td>
+                  <td>12,482</td>
+                  <td>14</td>
+                  <td>2h ago</td>
+                  <td>3.1 MB</td>
+                  <td><span className="status-pill ready">Processed</span></td>
+                  <td className="actions-cell">
+                    <button className="table-action view">View</button>
+                    <button className="table-action delete">Delete</button>
+                    <button className="table-action run">Run model</button>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>customers_latest.csv</td>
+                  <td>8,311</td>
+                  <td>9</td>
+                  <td>Yesterday</td>
+                  <td>1.8 MB</td>
+                  <td><span className="status-pill uploading">Processing</span></td>
+                  <td className="actions-cell">
+                    <button className="table-action view">View</button>
+                    <button className="table-action delete">Delete</button>
+                    <button className="table-action run">Run model</button>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>inventory_backup.csv</td>
+                  <td>3,201</td>
+                  <td>6</td>
+                  <td>3 days ago</td>
+                  <td>742 KB</td>
+                  <td><span className="status-pill idle">Pending</span></td>
+                  <td className="actions-cell">
+                    <button className="table-action view">View</button>
+                    <button className="table-action delete">Delete</button>
+                    <button className="table-action run">Run model</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* Dataset preview + charts */}
         <section className="middle-grid" id="section-insights">
-          {/* Dataset table */}
           <div className="card table-card">
             <div className="card-header">
               <h2>Dataset preview (mock)</h2>
               <span className="pill">First 6 rows</span>
             </div>
+
             <table>
               <thead>
                 <tr>
@@ -174,6 +263,7 @@ export default function DashboardPage() {
                   <th>churned</th>
                 </tr>
               </thead>
+
               <tbody>
                 <tr><td>C001</td><td>28</td><td>Canada</td><td>12</td><td>No</td></tr>
                 <tr><td>C002</td><td>35</td><td>USA</td><td>7</td><td>Yes</td></tr>
@@ -220,14 +310,21 @@ export default function DashboardPage() {
             <h2>Report & exports</h2>
             <span className="pill">Report status: not started</span>
           </div>
+
           <p className="muted-small">
             Once analysis is complete, you can download the PDF report.
           </p>
-          <button className="primary-btn-lg disabled">Download PDF report</button>
+
+          <button className="primary-btn-lg disabled">
+            Download PDF report
+          </button>
+
           <div className="export-buttons">
             <button className="secondary-btn disabled">Download cleaned CSV</button>
             <button className="secondary-btn disabled">View report online</button>
+            <button className="secondary-btn disabled">Email me the report</button>
           </div>
+
           <div className="report-preview">
             <h3>What your report includes (mock)</h3>
             <ul>
@@ -240,7 +337,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Lower grid: Help & support */}
+        {/* Help section */}
         <section className="lower-grid" id="section-help">
           <div className="card info-card">
             <h2>Help center</h2>
@@ -282,7 +379,6 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Footer */}
         <footer className="dig-footer">
           <span>© 2025 Dataset Insight Generator (mock)</span>
           <span>Built with C#, React, and Python AI.</span>
