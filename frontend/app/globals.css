@@ -1475,3 +1475,49 @@ body.dig-body {
     scrollbar-width: thin;
     scrollbar-color: #5d7baf rgba(2, 6, 23, 0.9);
 }
+/* Chart card container (relative for arrow positioning) */
+.chart-card {
+    position: relative;
+}
+
+/* Chart arrows */
+.chart-card .carousel-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: rgba(37, 99, 235, 0.1); /* barely visible */
+    border: none;
+    color: white;
+    font-size: 1.2rem;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0; /* hidden by default */
+    transition: opacity 0.2s, background-color 0.2s, transform 0.2s;
+    z-index: 5;
+}
+
+/* Left arrow */
+.chart-card .carousel-arrow.left {
+    left: 8px;
+}
+
+/* Right arrow */
+.chart-card .carousel-arrow.right {
+    right: 8px;
+}
+
+/* Show arrows on hover */
+.chart-card:hover .carousel-arrow {
+    opacity: 1;
+}
+
+/* Hover effect for arrows */
+.chart-card .carousel-arrow:hover {
+    background-color: var(--accent); /* blue from global */
+    transform: translateY(-50%) scale
+}
