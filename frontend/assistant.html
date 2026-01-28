@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Data Insight Generator</title>
+<link rel="stylesheet" href="dashboard.css">
+<link rel="stylesheet" href="assistant.css">
+</head>
+
+<body>
+
+<!-- SIDEBAR -->
+<div class="left-rail">
+    <div class="app-logo">
+        <img src="DIG.png" alt="Data Insight Generator logo">
+    </div>
+
+    <div class="sidebar">
+        <a href="dashboard.html" class="sidebar-dashboard-btn">← Back to Dashboard</a>
+        <h2>Your CSVs</h2>
+        <div class="file-list">
+            <div class="file-item active">sales_data.csv</div>
+            <div class="file-item">inventory.csv</div>
+            <div class="file-item">customers.csv</div>
+            <div class="file-item">marketing.csv</div>
+            <div class="file-item">employees.csv</div>
+            <div class="file-item">expenses.csv</div>
+            <div class="file-item">profits.csv</div>
+            <div class="file-item">shipments.csv</div>
+        </div>
+    </div>
+</div>
+
+<!-- MAIN CHAT -->
+<div class="chat-column">
+<div class="chat-wrapper">
+
+
+<div class="aa-sticky-title">
+    <strong>Data Insight Generator</strong>
+    <span>| Analysis Assistant</span>
+</div>
+<div class="status-bar">
+    <span>File: <strong>sales_data.csv</strong></span>
+    <span>Rows: 1024 · Columns: 8 · Missing: 42%</span>
+</div>
+<div class="chat-container">
+    <!-- MANY messages to force scroll -->
+    <div class="msg-row assistant"><div class="msg">Dataset loaded successfully.</div></div>
+    <div class="msg-row assistant"><div class="msg">Checking column consistency…</div></div>
+    <div class="msg-row assistant"><div class="msg">42% missing values detected in <strong>price</strong>.</div></div>
+    <div class="msg-row user"><div class="msg">Can you fix that automatically?</div></div>
+    <div class="msg-row assistant"><div class="msg">Yes. Median imputation recommended.</div></div>
+    <div class="msg-row assistant"><div class="msg">Removing duplicate transaction IDs…</div></div>
+    <div class="msg-row assistant"><div class="msg">Standardizing date formats.</div></div>
+    <div class="msg-row assistant"><div class="msg">Re-validating dataset integrity.</div></div>
+    <div class="msg-row assistant"><div class="msg">No critical issues found.</div></div>
+    <div class="msg-row assistant"><div class="msg">Dataset is ready for analysis.</div></div>
+    <div class="msg-row assistant"><div class="msg">Suggested next steps: trend analysis, forecasting.</div></div>
+    <div class="msg-row user"><div class="msg">Start trend analysis.</div></div>
+    <div class="msg-row assistant"><div class="msg">Initializing analysis pipeline…</div></div>
+</div>
+
+<div class="input-row">
+    <div class="input-row-inner">
+        <input type="text" placeholder="Ask a question…">
+        <button class="send-btn">Send</button>
+    </div>
+    <button class="download-btn">Download Cleaned Dataset</button>
+</div>
+
+</div>
+</div>
+
+</body>
+</html>

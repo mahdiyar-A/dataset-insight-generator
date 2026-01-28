@@ -1,0 +1,277 @@
+html, body {
+    height: 100%;
+    overflow: hidden; /* prevent body scroll */
+}
+
+body {
+    margin: 0;
+    font-family: var(--font-sans);
+    background: radial-gradient(circle at top, #020617 0, #020617 45%, #000 100%);
+    color: var(--text);
+    display: flex;
+    height: 100vh;
+}
+
+/* ================= SIDEBAR ================= */
+.sidebar {
+    width: 220px;
+    background: var(--bg-elevated);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 16px 0;
+    height: 100vh;
+    overflow-y: auto; /* sidebar scroll */
+}
+
+.sidebar h2 {
+    font-size: 1rem;
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+.file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 12px;
+}
+
+.file-item {
+    padding: 10px 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text-soft);
+    transition: background 0.2s;
+}
+
+.file-item.active,
+.file-item:hover {
+    background: var(--accent-soft);
+    color: #bfdbfe;
+}
+
+/* ================= MAIN CHAT COLUMN ================= */
+.chat-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.chat-wrapper {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 16px;
+    overflow: hidden;
+}
+
+/* ================= STATUS BAR ================= */
+.status-bar {
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: rgba(15,23,42,0.95);
+    border: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    color: var(--text-soft);
+}
+
+/* ================= CHAT AREA ================= */
+.chat-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+    overflow-y: auto; /* MAIN SCROLL */
+    padding-right: 6px;
+}
+
+.msg-row {
+    display: flex;
+}
+
+.msg-row.assistant { justify-content: flex-start; }
+.msg-row.user { justify-content: flex-end; }
+
+.msg {
+    max-width: 70%;
+    padding: 12px 16px;
+    border-radius: 16px;
+    line-height: 1.5;
+}
+
+.msg-row.assistant .msg {
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(37, 99, 235, 0.3);
+    color: var(--text);
+}
+
+.msg-row.assistant.pending .msg {
+    border-style: dashed;
+    color: var(--text-soft);
+}
+
+.msg-row.user .msg {
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    color: white;
+    border-bottom-right-radius: 3px;
+}
+
+.msg ul {
+    margin: 6px 0 4px 18px;
+    padding: 0;
+}
+
+.msg li {
+    margin-bottom: 2px;
+}
+
+/* ================= INPUT ================= */
+.input-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.input-row-inner {
+    display: flex;
+    gap: 10px;
+}
+
+.input-row input {
+    flex: 1;
+    padding: 12px 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(55, 65, 81, 0.9);
+    background: rgba(15, 23, 42, 0.95);
+    color: var(--text);
+    font-size: 0.9rem;
+}
+
+.send-btn {
+    padding: 12px 20px;
+    border-radius: 999px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.download-btn {
+    padding: 12px 20px;
+    border-radius: 999px;
+    border: none;
+    background: rgba(37, 99, 235, 0.2);
+    color: #93c5fd;
+    font-size: 0.9rem;
+    cursor: pointer;
+    align-self: flex-start;
+}
+
+/* ================= SCROLLBARS ================= */
+.chat-container::-webkit-scrollbar,
+.sidebar::-webkit-scrollbar {
+    width: 10px;
+}
+
+.chat-container::-webkit-scrollbar-thumb,
+.sidebar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #3b82f6, #6366f1);
+    border-radius: 999px;
+}
+/* Sticky Analysis Assistant title bar */
+
+/* Sticky full-width Analysis Assistant header */
+
+.aa-sticky-title {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+
+    width: 100%;
+    padding: 12px 24px;
+
+    background: rgba(2, 6, 23, 0.95);
+    backdrop-filter: blur(12px);
+
+    border-bottom: 1px solid var(--border);
+
+    font-size: 0.85rem;
+}
+
+.aa-sticky-title strong {
+    color: var(--text);
+}
+
+.aa-sticky-title span {
+    color: var(--text-soft);
+}
+/* Left rail (logo + sidebar) */
+.left-rail {
+    width: 220px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    border-right: 1px solid var(--border);
+    background: var(--bg-elevated);
+}
+
+/* Top-left DIG logo */
+.app-logo {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.app-logo img {
+    height: 26px;
+    width: auto;
+    object-fit: contain;
+}
+
+/* Sidebar keeps its own scroll */
+.sidebar {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.sidebar-dashboard-btn {
+    display: inline-block;
+    margin: 0;          /* remove default margin */
+    margin-left: 12px;
+    margin-right: 16px;  /* give some space from left */
+    margin-top: 12px;   /* give some space from top */
+    padding: 6px 12px;  /* make it a bit bigger */
+    font-size: 0.85rem;
+    text-decoration: none;
+    border-radius: 999px;
+    border: 1px solid rgba(148,163,184,0.3);
+    color: #bfdbfe;
+    background: rgba(15,23,42,0.8);
+    transition: background 0.15s, transform 0.1s;
+}
+
+.sidebar-dashboard-btn:hover {
+    background: rgba(15,23,42,1);
+    transform: translateY(-1px);
+}
+.assistant-root {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+}

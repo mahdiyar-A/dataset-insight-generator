@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Dataset Insight Generator – Guest Dashboard</title>
+    <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body class="dig-body">
+
+    <!-- Sidebar -->
+    <aside class="dig-sidebar">
+        <div class="brand">
+            <img src="DIG.png" alt="Dataset Insight Generator logo" />
+            <span>Dataset Insight Generator</span>
+        </div>
+        <nav>
+            <a href="#top" class="active">Dashboard</a>
+            <a href="#section-upload">Upload</a>
+            <a href="#section-insights">Insights</a>
+            <a href="#section-help">Help & Support</a>
+            <a href="#top">Settings</a>
+        </nav>
+    </aside>
+
+    <!-- Main content -->
+    <div class="dig-main" id="top">
+
+        <!-- Top bar -->
+        <header class="dig-topbar">
+    <div>
+        <h1>Dashboard</h1>
+        <p class="subtitle">
+            Upload a dataset to generate instant insights, a cleaned CSV, and a downloadable PDF report.
+        </p>
+
+        <!-- Guest banner -->
+        <div class="guest-banner-container">
+    <div class="guest-banner">
+        <div class="guest-text">
+            You are browsing as a <strong>guest</strong>. 
+            <span>Create an account</span> to access history, cumulative insights, and more.
+        </div>
+    </div>
+    <button class="guest-register-btn">Register Now</button>
+</div>
+
+
+    </div>
+
+    <div class="topbar-right">
+        <button class="primary-btn">New Dataset</button>
+
+        <div class="profile-wrapper">
+            <div class="avatar">G</div>
+            <div class="profile-text">
+                <span class="profile-name">Guest</span>
+                <span class="profile-role">Guest user</span>
+            </div>
+            <div class="profile-dropdown-icon">▾</div>
+
+            <div class="profile-dropdown">
+                <a href="#">Language ▾</a>
+                <a href="#">Theme ▾</a>
+                <a href="#top">Sign out</a>
+            </div>
+            </div>
+        </div>
+</header>
+
+        <!-- Main content -->
+    <section class="upper-grid" id="section-upload">
+
+        <!-- Upload card -->
+        <div class="card upload-card">
+            <h2>Upload CSV</h2>
+            <p class="muted">Drag and drop your .csv file here, or click to browse. Max 50 MB.</p>
+
+            <label class="upload-dropzone">
+                <input type="file" id="fileUpload" accept=".csv" />
+                <div class="dropzone-inner">
+                    <div class="dropzone-icon">⬆</div>
+                    <div>
+                        <p class="dropzone-title">Drop your file here</p>
+                        <p class="muted-small">or click to choose a file</p>
+                    </div>
+                </div>
+            </label>
+
+            <!-- Status bar -->
+            <div class="upload-status-bar" id="uploadStatusBar">
+                <div class="status-header">
+                    <span id="uploadStatusText">No file selected.</span>
+                    <span class="status-pill idle" id="uploadStatusPill">Idle</span>
+                </div>
+
+                <div class="progress-track">
+                    <div class="progress-fill" id="uploadProgressFill"></div>
+                </div>
+            </div>
+            <div class="stats-row">
+                <div class="stat">
+                    <span class="stat-label">Rows detected</span>
+                    <span class="stat-value">–</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Columns</span>
+                    <span class="stat-value">–</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Missing values</span>
+                    <span class="stat-value">–</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Upload time</span>
+                    <span class="stat-value">–</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- AA card -->
+
+        <div class="card analysis-chat-card">
+            <div class="card-header">
+                <h2>Analysis assistant</h2>
+                <span class="pill live-pill">Step 2 of 4 · Profiling & cleaning (mock)</span>
+            </div>
+
+            <div class="analysis-timeline">
+                <span class="step done">1. Upload</span>
+                <span class="step active">2. Data quality checks</span>
+                <span class="step">3. Insights</span>
+                <span class="step">4. Report ready</span>
+            </div>
+
+            <div class="analysis-chat-log">
+                <div class="msg-row assistant">
+                    <div class="msg">
+                        We’ve scanned your dataset and found:
+                        <ul>
+                            <li><strong>42% missing values</strong> in <strong>price</strong></li>
+                            <li>Inconsistent formatting in <strong>Date</strong></li>
+                            <li>Duplicate values in <strong>transaction_id</strong></li>
+                        </ul>
+                        The dataset is analyzable, but we strongly recommend cleaning it first.
+                    </div>
+                </div>
+
+                <div class="msg-row assistant">
+                    <div class="msg">
+                        How would you like us to handle these issues?
+                    </div>
+                </div>
+
+                <div class="msg-row user">
+                    <div class="msg">
+                        Clean automatically, but if something looks wrong, stop and ask me.
+                    </div>
+                </div>
+
+                <div class="msg-row assistant pending">
+                    <div class="msg">
+                        Understood. Applying automatic cleaning rules…
+                    </div>
+                </div>
+
+                <div class="msg-row assistant">
+                    <div class="msg">
+                        Cleaning complete (mock).
+                        <ul>
+                            <li>Removed <strong>32 duplicate rows</strong></li>
+                            <li>Imputed <strong>price</strong></li>
+                            <li>Standardized all <strong>Date</strong> values</li>
+                        </ul>
+                        <a class="download-cleaned" href="#" download>
+                            Download cleaned_dataset.csv (mock)
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="analysis-quick-actions">
+                <button class="chip-btn">Clean automatically</button>
+                <button class="chip-btn subtle">Review issues first</button>
+                <button class="chip-btn subtle">Continue without cleaning</button>
+                <button class="chip-btn subtle">Cancel analysis</button>
+            </div>
+
+            <div class="analysis-input-row">
+                <input type="text" placeholder="Ask a question…" />
+                <button class="send-btn">Send</button>
+            </div>
+        </div>
+    </section>
+    <!-- Dataset preview + charts -->
+    <section class="middle-grid" id="section-insights">
+
+        <div class="card table-card">
+            <div class="card-header">
+                <h2>Dataset preview (mock)</h2>
+                <span class="pill">First 6 rows</span>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>customer_id</th>
+                        <th>age</th>
+                        <th>country</th>
+                        <th>purchases</th>
+                        <th>churned</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    <tr><td>C001</td><td>28</td><td>Canada</td><td>12</td><td>No</td></tr>
+                    <tr><td>C002</td><td>35</td><td>USA</td><td>7</td><td>Yes</td></tr>
+                    <tr><td>C003</td><td>22</td><td>Germany</td><td>4</td><td>No</td></tr>
+                    <tr><td>C004</td><td>41</td><td>UK</td><td>16</td><td>No</td></tr>
+                    <tr><td>C005</td><td>30</td><td>Canada</td><td>2</td><td>Yes</td></tr>
+                    <tr><td>C006</td><td>27</td><td>France</td><td>9</td><td>No</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-column">
+
+            <div class="card chart-card">
+                <div class="card-header">
+                    <h2>Mock bar chart</h2>
+                    <span class="pill">Churn rate by country</span>
+                </div>
+
+                <div class="bar-chart">
+                    <div class="bar" style="--h: 40%">CA</div>
+                    <div class="bar" style="--h: 65%">US</div>
+                    <div class="bar" style="--h: 30%">DE</div>
+                    <div class="bar" style="--h: 20%">FR</div>
+                    <div class="bar" style="--h: 50%">UK</div>
+                </div>
+            </div>
+
+            <div class="card chart-card">
+                <div class="card-header">
+                    <h2>Mock trend</h2>
+                    <span class="pill">Uploads this week</span>
+                </div>
+
+                <div class="line-chart">
+                    <div class="line-chart-bg"></div>
+                    <div class="line-chart-line"></div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+        <!-- Export card -->
+        <div class="card analysis-report-card">
+            <div class="card-header">
+                <h2>Report & exports</h2>
+                <span class="pill">Report status: not started</span>
+            </div>
+
+            <p class="muted-small">
+                Once analysis is complete, you can download the PDF report.
+            </p>
+
+            <button class="primary-btn-lg disabled">
+                Download PDF report
+            </button>
+
+            <div class="export-buttons">
+                <button class="secondary-btn disabled">Download cleaned CSV</button>
+                <button class="secondary-btn disabled">View report online</button>
+            </div>
+
+            <div class="report-preview">
+                <h3>What your report includes (mock)</h3>
+                <ul>
+                    <li>Dataset overview</li>
+                    <li>Missing values summary</li>
+                    <li>Key distributions</li>
+                    <li>Cleaning log</li>
+                    <li>AI insights</li>
+                </ul>
+            </div>
+        </div>
+
+    </section>
+
+    <!-- Help section -->
+    <section class="lower-grid" id="section-help">
+
+        <div class="card info-card">
+            <h2>Help center</h2>
+            <table>
+                <thead><tr><th>Topic</th><th>Status</th></tr></thead>
+                <tbody>
+                    <tr><td>Uploading CSV files</td><td>Updated</td></tr>
+                    <tr><td>Supported delimiters</td><td>Draft</td></tr>
+                    <tr><td>AI-generated summaries</td><td>Beta</td></tr>
+                </tbody>
+            </table>
+            <a href="#section-help" class="muted-link">View documentation →</a>
+        </div>
+
+        <div class="card info-card">
+            <h2>Privacy & data</h2>
+            <table>
+                <thead><tr><th>Policy</th><th>Last review</th></tr></thead>
+                <tbody>
+                    <tr><td>Data retention</td><td>Jan 2025</td></tr>
+                    <tr><td>Access control</td><td>Jan 2025</td></tr>
+                    <tr><td>Export / deletion</td><td>Planned</td></tr>
+                </tbody>
+            </table>
+            <a href="#section-help" class="muted-link">Read privacy overview →</a>
+        </div>
+
+        <div class="card info-card">
+            <h2>Contact & support</h2>
+            <table>
+                <thead><tr><th>Channel</th><th>Response time</th></tr></thead>
+                <tbody>
+                    <tr><td>Email</td><td>1–2 business days</td></tr>
+                    <tr><td>Live chat</td><td>Coming soon</td></tr>
+                    <tr><td>GitHub issues</td><td>Within 48 hours</td></tr>
+                </tbody>
+            </table>
+            <a href="#section-help" class="muted-link">Open a support ticket →</a>
+        </div>
+
+    </section>
+
+    <footer class="dig-footer">
+        <span>© 2025 Dataset Insight Generator (mock)</span>
+        <span>Built with C#, React, and Python AI.</span>
+    </footer>
+
+</div>
+</body>

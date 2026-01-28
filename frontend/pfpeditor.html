@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Edit profile — Dataset Insight Generator</title>
+  <link rel="stylesheet" href="pfpeditor.css" />
+</head>
+<body>
+  <div class="back-dashboard-container">
+    <a href="dashboard.html" class="btn ghost">← Back to dashboard</a>
+</div>
+
+  <div class="container">
+    <aside class="card">
+      <div class="big-avatar" id="bigAvatar">M</div>
+      <h3 id="displayName">Mock User</h3>
+      <label class="secondary-btn" id="uploadPfpBtn">Upload avatar</label>
+      <input type="file" id="pfpInput" accept="image/*" class="hidden" />
+
+      <button class="secondary-btn" id="removePfpBtn">Remove avatar</button>
+    </aside>
+
+    <section class="card">
+      <h2>Edit profile</h2>
+      <form id="profileForm">
+        <div class="input-group">
+            <label>First name</label>
+            <input type="text" id="firstName" required />
+        </div>
+
+        <div class="input-group">
+            <label>Middle name</label>
+            <input type="text" id="middleName" placeholder="Optional" />
+        </div>
+
+        <div class="input-group">
+            <label>Last name</label>
+            <input type="text" id="lastName" required />
+        </div>
+
+        <div class="input-group">
+            <label>Display name</label>
+            <input type="text" id="displayNameInput" placeholder="Optional (e.g., Mahdiyar)" />
+        </div>
+
+        <div class="input-group">
+            <label>Phone Number</label>
+            <input type="text" id="phoneNumberInput" placeholder="Optional (e.g., +1 123 456 7890)" />
+        </div>
+
+        <div class="form-actions">
+            <button class="primary-btn" type="submit">Save profile</button>
+        </div>
+        </form>
+    </section>
+  </div>
+</body>
+</html>
