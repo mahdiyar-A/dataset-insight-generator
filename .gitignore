@@ -46,7 +46,9 @@ obj/
 **/bin/
 **/obj/
 
-*.sln
+*.log
+*.t4
+c*.sln
 *.csproj.user
 *.cache
 
