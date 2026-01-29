@@ -1,5 +1,6 @@
-// frontend/app/layout.tsx
+
 import "./globals.css";
+
 
 export const metadata = {
   title: "Dataset Insight Generator",
@@ -15,10 +16,6 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <div className="app-container">
-          {/* Optional layout: Navbar + Sidebar */}
-          {/* <Navbar /> */}
-          {/* <Sidebar /> */}
-
           <main>{children}</main>
         </div>
       </body>
