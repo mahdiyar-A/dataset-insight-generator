@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/app/contexts/AuthContext';
 import './register.css';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { register } = useAuth();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -27,31 +29,9 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('https://your-backend-url/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          firstName,
-          lastName,
-          email,
-          password,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Registration failed');
-      }
-
-      const data = await response.json();
-
-      // Optional: store token if backend logs in user immediately
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-      }
-
-      router.push('/dashboard'); // or '/login' depending on flow
+      const username = `${firstName} ${lastName}`.trim() || email.split('@')[0];
+      await register(email, password, username);
+      router.push('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Registration failed');
     } finally {

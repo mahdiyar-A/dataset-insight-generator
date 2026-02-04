@@ -54,4 +54,53 @@ export default class BackendAPI {
       setTimeout(() => resolve(`Assistant response to "${message}" (mock)`), 700)
     );
   }
+
+static async login(email, password) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const token = 'mock_jwt_' + Date.now();
+      const user = { id: '1', email, username: email.split('@')[0], profilePicture: null };
+      
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      
+      // Also set as cookie so middleware can see it
+      document.cookie = `authToken=${token}; path=/`;
+      
+      resolve(user);
+    }, 500);
+  });
+}
+  static async register(email, password, username, phoneNumber) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const token = 'mock_jwt_' + Date.now();
+      const user = { id: '1', email, username, profilePicture: null};
+      
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      
+      document.cookie = `authToken=${token}; path=/`;
+
+      resolve(user);
+    }, 500);
+  });
+}
+
+static async getCurrentUser() {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const token = localStorage.getItem('authToken');
+      const userJson = localStorage.getItem('currentUser');
+      
+      if (token && userJson) {
+        resolve(JSON.parse(userJson));
+      } else {
+        resolve(null);
+      }
+    }, 100);
+  });
+}
+
+
 }

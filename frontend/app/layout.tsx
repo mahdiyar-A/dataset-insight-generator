@@ -1,10 +1,9 @@
-
+import type { Metadata } from "next";
+import { AuthProvider } from "./contexts/AuthContext";
 import "./globals.css";
 
-
-export const metadata = {
+export const metadata: Metadata = {
   title: "Dataset Insight Generator",
-  description: "Next.js Frontend",
 };
 
 export default function RootLayout({
@@ -15,9 +14,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <div className="app-container">
-          <main>{children}</main>
-        </div>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );
