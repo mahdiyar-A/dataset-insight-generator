@@ -31,30 +31,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Load user on mount
   useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      setCurrentUser(null);
+      setIsLoading(false);
+      return;
+    }
     const loadUser = async () => {
-      const user = await BackendAPI.getCurrentUser();
-      setCurrentUser(user);
+      try {
+        const user = await BackendAPI.getCurrentUser(token);
+        setCurrentUser(user);
+      } catch {
+        setCurrentUser(null);
+      }
       setIsLoading(false);
     };
     loadUser();
   }, []);
 
   const login = async (email: string, password: string) => {
-    const user = await BackendAPI.login(email, password);
-    setCurrentUser(user);
-    return user;
+    const result = await BackendAPI.login(email, password);
+    // Expect result: { token, user }
+    localStorage.setItem('authToken', result.token);
+    setCurrentUser(result.user);
+    localStorage.setItem('currentUser', JSON.stringify(result.user));
+    return result.user;
   };
 
   const register = async (email: string, password: string, username: string) => {
-    const user = await BackendAPI.register(email, password, username);
-    setCurrentUser(user);
-    return user;
+    const result = await BackendAPI.register(email, password, username);
+    localStorage.setItem('authToken', result.token);
+    setCurrentUser(result.user);
+    localStorage.setItem('currentUser', JSON.stringify(result.user));
+    return result.user;
   };
 
   const logout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('currentUser');
-    document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;';
     setCurrentUser(null);
   };
 
@@ -64,7 +78,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.setItem('currentUser', JSON.stringify(user));
     } catch (err) {
-      // ignore storage errors in mock
       console.warn('Failed to write currentUser to localStorage', err);
     }
   };

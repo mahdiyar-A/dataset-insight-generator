@@ -55,52 +55,37 @@ export default class BackendAPI {
     );
   }
 
-static async login(email, password) {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const token = 'mock_jwt_' + Date.now();
-      const user = { id: '1', email, username: email.split('@')[0], profilePicture: null };
-      
-      localStorage.setItem('authToken', token);
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      
-      // Also set as cookie so middleware can see it
-      document.cookie = `authToken=${token}; path=/`;
-      
-      resolve(user);
-    }, 500);
-  });
-}
-  static async register(email, password, username, phoneNumber) {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const token = 'mock_jwt_' + Date.now();
-      const user = { id: '1', email, username, profilePicture: null};
-      
-      localStorage.setItem('authToken', token);
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      
-      document.cookie = `authToken=${token}; path=/`;
+  static async login(email, password) {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    if (!response.ok) throw new Error('Login failed');
+    return await response.json();
+  }
 
-      resolve(user);
-    }, 500);
-  });
-}
+  static async register(email, password, username) {
+    const response = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, username })
+    });
+    if (!response.ok) throw new Error('Registration failed');
+    return await response.json();
+  }
 
-static async getCurrentUser() {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const token = localStorage.getItem('authToken');
-      const userJson = localStorage.getItem('currentUser');
-      
-      if (token && userJson) {
-        resolve(JSON.parse(userJson));
-      } else {
-        resolve(null);
-      }
-    }, 100);
-  });
-}
+  static async getCurrentUser(token) {
+    const response = await fetch('/api/users/profile', {
+      method: 'GET',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+       }
+    });
+    if (!response.ok) throw new Error('Failed to fetch user profile');
+    return await response.json();
+  }
 
 
 }

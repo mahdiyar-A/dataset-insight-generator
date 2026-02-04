@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
+import BackendAPI from '@/lib/BackendAPI';
 import styles from './accountSettings.module.css';
 
 export default function AccountSettingsPage() {
@@ -14,7 +15,19 @@ export default function AccountSettingsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const token = localStorage.getItem('authToken');
+    try {
+      if (token) {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+      }
+    } catch {}
     logout();
     router.push('/login');
   };
@@ -24,11 +37,20 @@ export default function AccountSettingsPage() {
     setDeleting(true);
 
     try {
-      // Mock: clear user data from localStorage
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('currentUser');
-      document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;';
-      
+      const token = localStorage.getItem('authToken');
+      if (!token) throw new Error('Not authenticated');
+      // Call backend API to delete account (if implemented)
+      const response = await fetch('/api/users/delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Failed to delete account');
+      }
       logout();
       router.push('/login');
     } catch (err: any) {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
+import BackendAPI from '@/lib/BackendAPI';
 import styles from './profileEditor.module.css';
 
 export default function ProfileEditorPage() {
@@ -58,28 +59,37 @@ export default function ProfileEditorPage() {
     setLoading(true);
 
     try {
+      const token = localStorage.getItem('authToken');
+      if (!token) throw new Error('Not authenticated');
+
       // Build updated username from displayName or names
       const username = (formData.displayName || `${formData.firstName} ${formData.lastName}`).trim();
 
-      const updatedUser = {
-        ...currentUser,
-        username,
+      // Prepare payload for backend
+      const payload = {
         firstName: formData.firstName,
         lastName: formData.lastName,
-        // keep email unchanged here (requires backend to change)
-
-        //store phone num
-        phoneNumber: (formData.phoneNumber?.trim() || currentUser?.phoneNumber) ?? '',
+        username,
+        phoneNumber: formData.phoneNumber?.trim() || '',
       };
 
-      // Update the mock backend (localStorage) via AuthContext helper
-      updateUser(updatedUser);
-
+      // Call backend API to update profile
+      const response = await fetch('/api/users/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Failed to update profile');
+      }
+      const updatedUser = await response.json();
+      updateUser(updatedUser); // update context/localStorage
       setSuccess('Profile updated successfully!');
-      // keep form values as user entered (do not overwrite)
       setLoading(false);
-
-      // Optional: clear success after a few seconds
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
       setError(err?.message || 'Failed to update profile');
