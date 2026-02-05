@@ -1,3 +1,9 @@
+<<<<<<< Updated upstream
+=======
+using backend.Application.Interfaces;
+using backend.Application.Services;
+
+>>>>>>> Stashed changes
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -5,8 +11,23 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddControllers();
+builder.Logging.ClearProviders(); 
+builder.Logging.AddConsole();
+
+<<<<<<< Updated upstream
+=======
+// builder.Services.AddHttpClient<IPythonAiClient, PythonAiClient>();
+builder.Services.AddHttpClient<IPythonAiClient, FakePythonAiClient>();
+builder.Services.AddScoped<IAiService, AiService>();
+
 var app = builder.Build();
 
+app.MapControllerRoute(
+    name: "default",
+    pattern:"{controller=Home}/{action=Index}/{id?}");
+
+>>>>>>> Stashed changes
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -15,6 +36,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.MapControllers();
 
 var summaries = new[]
 {
