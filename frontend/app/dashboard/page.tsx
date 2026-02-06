@@ -3,6 +3,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/app/contexts/AuthContext";
 import UploadCard from "@/components/UploadCard";
 import AnalysisAssistantCard from "@/components/AnalysisChatCard";
 import HistoryCard from "@/components/historyCard";
@@ -15,6 +17,8 @@ export default function DashboardPage() {
   const [activeSection, setActiveSection] = useState("top");
 
   // Refs for each section
+  const router = useRouter();
+  const { logout, currentUser } = useAuth();
   const topRef = useRef(null);
   const uploadRef = useRef(null);
   const historyRef = useRef(null);
@@ -67,6 +71,11 @@ export default function DashboardPage() {
       console.error(err);
       alert("Error creating new dataset");
     }
+  };
+
+  const handleSignOut = () => {
+    logout();
+    router.push('/login');
   };
 
   return (
@@ -146,8 +155,7 @@ export default function DashboardPage() {
                 <a href="/dashboard/profileEditor">View profile</a>
                 <a href="#section-analysis">History</a>
                 <a href="/dashboard/accountSettings">Account settings</a>
-                <a href="#top">Sign out</a>
-              </div>
+                <a onClick={handleSignOut} style={{ cursor: 'pointer' }}>Sign out</a>              </div>
             </div>
           </div>
         </header>

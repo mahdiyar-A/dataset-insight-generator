@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/app/contexts/AuthContext';
 import './login.css';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,23 +18,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('https://-backend-url/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Invalid email or password');
-      }
-
-      const data = await response.json();
-
-      // Example: store JWT / session token
-      localStorage.setItem('token', data.token);
-
+      await login(email, password);
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Login failed');

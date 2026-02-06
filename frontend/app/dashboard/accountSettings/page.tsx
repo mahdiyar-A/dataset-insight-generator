@@ -1,86 +1,193 @@
-// app/dashboard/accountSettings/page.tsx
-import styles from "./accountSettings.module.css";
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/app/contexts/AuthContext';
+import BackendAPI from '@/lib/BackendAPI';
+import styles from './accountSettings.module.css';
 
 export default function AccountSettingsPage() {
+  const router = useRouter();
+  const { currentUser, logout } = useAuth();
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const handleLogout = async () => {
+    const token = localStorage.getItem('authToken');
+    try {
+      if (token) {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+      }
+    } catch {}
+    logout();
+    router.push('/login');
+  };
+
+  const handleDeleteAccount = async () => {
+    setError('');
+    setDeleting(true);
+
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) throw new Error('Not authenticated');
+      // Call backend API to delete account (if implemented)
+      const response = await fetch('/api/users/delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Failed to delete account');
+      }
+      logout();
+      router.push('/login');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to delete account');
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className={styles.container}>
       {/* Back to dashboard */}
-      <a href="/dashboard" className={styles.btnGhost}>← Back to dashboard</a>
+      <a href="/dashboard" className={styles.btnGhost}>
+        ← Back to dashboard
+      </a>
 
       <h2>Account Settings</h2>
 
-      {/* Appearance Section */}
+      {error && <p style={{ color: '#d32f2f', marginBottom: '16px' }}>{error}</p>}
+      {success && <p style={{ color: '#388e3c', marginBottom: '16px' }}>{success}</p>}
+
+      {/* Account Information Section */}
       <div className={styles.settingsSection}>
-        <h3>Appearance</h3>
-
+        <h3>Account Information</h3>
         <div className={styles.settingRow}>
           <div>
-            <strong>Dark Mode</strong>
-            <div className={styles.mutedSmall}>Enable dark theme</div>
+            <strong>Email</strong>
+            <div className={styles.mutedSmall}>{currentUser?.email}</div>
           </div>
-          <div className={`${styles.switch} ${styles.on}`}><div className={styles.knob}></div></div>
         </div>
-
         <div className={styles.settingRow}>
           <div>
-            <strong>Font Size</strong>
-            <div className={styles.mutedSmall}>Choose the font size for the app</div>
+            <strong>Username</strong>
+            <div className={styles.mutedSmall}>{currentUser?.username}</div>
           </div>
-          <select>
-            <option>Small</option>
-            <option selected>Medium</option>
-            <option>Large</option>
-          </select>
         </div>
-
         <div className={styles.settingRow}>
           <div>
-            <strong>Language</strong>
-            <div className={styles.mutedSmall}>Select your preferred language</div>
+            <strong>Account Created</strong>
+            <div className={styles.mutedSmall}>
+              {new Date().toLocaleDateString()} (mock date)
+            </div>
           </div>
-          <select>
-            <option>English</option>
-            <option>French</option>
-            <option>Spanish</option>
-            <option>Other</option>
-          </select>
         </div>
-      </div>
-
-      {/* Notifications Section */}
-      <div className={styles.settingsSection}>
-        <h3>Notifications</h3>
-        <div className={styles.settingRow}><div>Email Notifications</div><div className={`${styles.switch} ${styles.on}`}><div className={styles.knob}></div></div></div>
-        <div className={styles.settingRow}><div>Push Notifications</div><div className={`${styles.switch} ${styles.on}`}><div className={styles.knob}></div></div></div>
-        <div className={styles.settingRow}><div>SMS Notifications</div><div className={styles.switch}><div className={styles.knob}></div></div></div>
-        <div className={styles.settingRow}><div>Marketing Emails</div><div className={styles.switch}><div className={styles.knob}></div></div></div>
       </div>
 
       {/* Privacy & Security */}
       <div className={styles.settingsSection}>
         <h3>Privacy & Security</h3>
-        <div className={styles.settingRow}><div>Two-Factor Authentication (2FA)</div><div className={styles.switch}><div className={styles.knob}></div></div></div>
-        <div className={styles.settingRow}><div>Login Alerts</div><div className={`${styles.switch} ${styles.on}`}><div className={styles.knob}></div></div></div>
-        <div className={styles.settingRow}><div>Account Activity Alerts</div><div className={`${styles.switch} ${styles.on}`}><div className={styles.knob}></div></div></div>
         <div className={styles.settingRow}>
-          <div>Reset Password</div>
-          <button className={styles.primaryBtn}>Reset</button>
+          <div>
+            <strong>Password</strong>
+            <div className={styles.mutedSmall}>Manage your password</div>
+          </div>
+          <button className={styles.primaryBtn} disabled>
+            Change (backend only)
+          </button>
+        </div>
+        <div className={styles.settingRow}>
+          <div>
+            <strong>Login History</strong>
+            <div className={styles.mutedSmall}>View recent login activity</div>
+          </div>
+          <button className={styles.primaryBtn} disabled>
+            View (backend only)
+          </button>
         </div>
       </div>
 
-      {/* Data & Account Management */}
-      <div className={styles.settingsSection}>
-        <h3>Data & Account Management</h3>
-        <div className={styles.settingRow}><div>Download Your Data</div><button className={styles.primaryBtn}>Download</button></div>
-        <div className={styles.settingRow}><div>Delete Account</div><button className={styles.secondaryBtn}>Delete</button></div>
-        <div className={styles.settingRow}><div>Export Settings</div><button className={styles.primaryBtn}>Export</button></div>
-        <div className={styles.settingRow}><div>Backup Data</div><div className={styles.switch}><div className={styles.knob}></div></div></div>
-      </div>
+      {/* Danger Zone - Account Management */}
+      <div className={styles.settingsSection} style={{ borderColor: '#d32f2f' }}>
+        <h3 style={{ color: '#d32f2f' }}>Danger Zone</h3>
 
-      {/* Footer actions */}
-      <div style={{ marginTop: 20 }}>
-        <button className={styles.primaryBtnLg}>Save Settings</button>
-        <a href="/dashboard" className={styles.secondaryBtn}>Cancel</a>
+        <div className={styles.settingRow}>
+          <div>
+            <strong>Sign Out</strong>
+            <div className={styles.mutedSmall}>
+              End your current session
+            </div>
+          </div>
+          <button
+            className={styles.secondaryBtn}
+            onClick={handleLogout}
+          >
+            Sign Out
+          </button>
+        </div>
+
+        <div className={styles.settingRow}>
+          <div>
+            <strong>Delete Account</strong>
+            <div className={styles.mutedSmall}>
+              Permanently delete your account and all associated data
+            </div>
+          </div>
+          <button
+            className={styles.secondaryBtn}
+            style={{ borderColor: '#d32f2f', color: '#d32f2f' }}
+            onClick={() => setShowDeleteConfirm(true)}
+          >
+            Delete
+          </button>
+        </div>
+
+        {/* Delete confirmation modal */}
+        {showDeleteConfirm && (
+          <div style={{
+            marginTop: '16px',
+            padding: '16px',
+            backgroundColor: '#fff3e0',
+            border: '1px solid #d32f2f',
+            borderRadius: '8px',
+          }}>
+            <p style={{ marginBottom: '12px', fontWeight: 'bold' }}>
+              ⚠️ Are you sure you want to delete your account?
+            </p>
+            <p style={{ marginBottom: '16px', fontSize: '0.9em', color: '#666' }}>
+              This action cannot be undone. All your data will be permanently deleted.
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                className={styles.secondaryBtn}
+                style={{ borderColor: '#d32f2f', color: '#d32f2f' }}
+                onClick={handleDeleteAccount}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting...' : 'Yes, Delete My Account'}
+              </button>
+              <button
+                className={styles.primaryBtn}
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

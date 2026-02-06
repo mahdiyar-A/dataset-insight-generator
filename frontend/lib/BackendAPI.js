@@ -54,4 +54,38 @@ export default class BackendAPI {
       setTimeout(() => resolve(`Assistant response to "${message}" (mock)`), 700)
     );
   }
+
+  static async login(email, password) {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    if (!response.ok) throw new Error('Login failed');
+    return await response.json();
+  }
+
+  static async register(email, password, username) {
+    const response = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, username })
+    });
+    if (!response.ok) throw new Error('Registration failed');
+    return await response.json();
+  }
+
+  static async getCurrentUser(token) {
+    const response = await fetch('/api/users/profile', {
+      method: 'GET',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+       }
+    });
+    if (!response.ok) throw new Error('Failed to fetch user profile');
+    return await response.json();
+  }
+
+
 }
