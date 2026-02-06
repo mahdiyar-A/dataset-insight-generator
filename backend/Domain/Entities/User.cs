@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace backend.Domain.Entities;
 
 public class User
@@ -12,12 +14,19 @@ public class User
     // Security (never expose)
     public string PasswordHash { get; private set; } = null!;
 
+    // Dashboard pointers (latest-only design)
+    public Guid? LatestDatasetId { get; private set; }
+    public Guid? LatestJobId { get; private set; }
+    public Guid? LatestReportId { get; private set; }
+
     // State
     public bool IsActive { get; private set; } = true;
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; private set; }
 
-    private User() { } // EF Core
+    // For JSON deserialization (ODM)
+    [JsonConstructor]
+    private User() { }
 
     public User(string userName, string email, string passwordHash, string? profilePicture = null)
     {
@@ -39,4 +48,9 @@ public class User
     public void SetPasswordHash(string newPasswordHash) => PasswordHash = newPasswordHash;
 
     public void SetProfilePicture(string? profilePicture) => ProfilePicture = profilePicture;
+
+    // Call from services when new "latest" is created
+    public void SetLatestDataset(Guid datasetId) => LatestDatasetId = datasetId;
+    public void SetLatestJob(Guid jobId) => LatestJobId = jobId;
+    public void SetLatestReport(Guid reportId) => LatestReportId = reportId;
 }

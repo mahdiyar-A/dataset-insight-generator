@@ -1,66 +1,64 @@
+using System.Text.Json.Serialization;
+
 namespace backend.Domain.Entities;
 
 public class Dataset
 {
     public Guid Id { get; private set; }
 
-    // Relationship: Dataset belongs to a Project
-    public Guid ProjectId { get; private set; }
+    // Ownership
+    public Guid UserId { get; private set; }
 
-    // Public info
-    public string Name { get; private set; } = null!;
+    // File info
+    public string FileName { get; private set; } = null!;
+    public long FileSizeBytes { get; private set; }
+    public DateTime UploadedAt { get; private set; } = DateTime.UtcNow;
 
-    // Storage pointer (do NOT store the raw CSV in DB)
-    public string FilePath { get; private set; } = null!;
+    // File paths (stored on disk)
+    public string OriginalCsvPath { get; private set; } = null!;
+    public string? CleanedCsvPath { get; private set; }
 
-    // Metadata (optional but useful)
-    public long? RowCount { get; private set; }
-    public long? ColumnCount { get; private set; }
+    // Dashboard preview (small JSON only)
+    public string? PreviewJson { get; private set; }
 
-    // JSON string for schema/summary (keep it flexible)
-    public string ColumnSummaryJson { get; private set; } = "{}";
+    // Optional metadata
+    public int? RowCount { get; private set; }
+    public int? ColumnCount { get; private set; }
 
-    public double? SizeInMb { get; private set; }
-    public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
+    // For JSON deserialization (ODM)
+    [JsonConstructor]
+    private Dataset() { }
 
-    private Dataset() { } // EF Core
-
-    public Dataset(Guid projectId, string name, string filePath)
+    public Dataset(
+        Guid userId,
+        string fileName,
+        long fileSizeBytes,
+        string originalCsvPath
+    )
     {
-        if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Dataset name cannot be empty.", nameof(name));
-        if (string.IsNullOrWhiteSpace(filePath))
-            throw new ArgumentException("Dataset file path cannot be empty.", nameof(filePath));
-
         Id = Guid.NewGuid();
-        ProjectId = projectId;
-        Name = name.Trim();
-        FilePath = filePath.Trim();
+        UserId = userId;
+        FileName = fileName;
+        FileSizeBytes = fileSizeBytes;
+        OriginalCsvPath = originalCsvPath;
     }
 
-    public void Rename(string newName)
+    // Called when cleaning finishes
+    public void AttachCleanedCsv(string cleanedCsvPath)
     {
-        if (string.IsNullOrWhiteSpace(newName))
-            throw new ArgumentException("Dataset name cannot be empty.", nameof(newName));
-
-        Name = newName.Trim();
+        CleanedCsvPath = cleanedCsvPath;
     }
 
-    public void UpdateFilePath(string newFilePath)
+    // Called when preview is generated
+    public void SetPreview(string previewJson)
     {
-        if (string.IsNullOrWhiteSpace(newFilePath))
-            throw new ArgumentException("Dataset file path cannot be empty.", nameof(newFilePath));
-
-        FilePath = newFilePath.Trim();
+        PreviewJson = previewJson;
     }
 
-    public void UpdateMetadata(long? rowCount, long? columnCount, double? sizeInMb, string? columnSummaryJson)
+    // Optional metadata updates
+    public void SetShape(int rows, int columns)
     {
-        RowCount = rowCount;
-        ColumnCount = columnCount;
-        SizeInMb = sizeInMb;
-
-        if (!string.IsNullOrWhiteSpace(columnSummaryJson))
-            ColumnSummaryJson = columnSummaryJson;
+        RowCount = rows;
+        ColumnCount = columns;
     }
 }

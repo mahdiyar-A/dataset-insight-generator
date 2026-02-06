@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace backend.Domain.Entities;
 
 public class Project
@@ -16,14 +18,16 @@ public class Project
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; private set; }
 
-    private Project() { } // EF Core
+    // For JSON deserialization (ODM)
+    [JsonConstructor]
+    private Project() { }
 
     public Project(Guid ownerId, string name, string? description = null)
     {
         Id = Guid.NewGuid();
         OwnerId = ownerId;
-        Name = name;
-        Description = description;
+        Name = name.Trim();
+        Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
     }
 
     public void Rename(string newName)
