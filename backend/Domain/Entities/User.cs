@@ -24,15 +24,33 @@ public class User
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; private set; }
 
-    // For JSON deserialization (ODM)
+    //  EF Core needs this
+    protected User() { }
+
+    // Optional: keep for JSON tools if you want
     [JsonConstructor]
-    private User() { }
+    private User(Guid id, string userName, string email, string passwordHash, string? profilePicture,
+        Guid? latestDatasetId, Guid? latestJobId, Guid? latestReportId,
+        bool isActive, DateTime createdAt, DateTime? lastLoginAt)
+    {
+        Id = id;
+        UserName = userName;
+        Email = email;
+        PasswordHash = passwordHash;
+        ProfilePicture = profilePicture;
+        LatestDatasetId = latestDatasetId;
+        LatestJobId = latestJobId;
+        LatestReportId = latestReportId;
+        IsActive = isActive;
+        CreatedAt = createdAt;
+        LastLoginAt = lastLoginAt;
+    }
 
     public User(string userName, string email, string passwordHash, string? profilePicture = null)
     {
         Id = Guid.NewGuid();
-        UserName = userName;
-        Email = email;
+        UserName = userName.Trim();
+        Email = NormalizeEmail(email);
         PasswordHash = passwordHash;
         ProfilePicture = profilePicture;
     }
@@ -41,16 +59,15 @@ public class User
     public void Activate() => IsActive = true;
     public void UpdateLastLogin() => LastLoginAt = DateTime.UtcNow;
 
-    public void UpdateEmail(string newEmail) => Email = newEmail;
-    public void UpdateUserName(string newUserName) => UserName = newUserName;
+    public void UpdateEmail(string newEmail) => Email = NormalizeEmail(newEmail);
+    public void UpdateUserName(string newUserName) => UserName = newUserName.Trim();
 
-    // Call this only from AuthService
     public void SetPasswordHash(string newPasswordHash) => PasswordHash = newPasswordHash;
-
     public void SetProfilePicture(string? profilePicture) => ProfilePicture = profilePicture;
 
-    // Call from services when new "latest" is created
     public void SetLatestDataset(Guid datasetId) => LatestDatasetId = datasetId;
     public void SetLatestJob(Guid jobId) => LatestJobId = jobId;
     public void SetLatestReport(Guid reportId) => LatestReportId = reportId;
+
+    private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
 }
