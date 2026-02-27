@@ -49,6 +49,17 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Serve profile pictures from the local "storage" folder at request path /storage.
+// This lets the frontend fetch images from the path returned by the storage service.
+var storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
+if (!Directory.Exists(storagePath)) Directory.CreateDirectory(storagePath);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(storagePath),
+    RequestPath = "/storage"
+});
+
+// Redirect HTTP to HTTPS in environments where TLS is configured.
 app.UseHttpsRedirection();
 
 // Auth middleware order
