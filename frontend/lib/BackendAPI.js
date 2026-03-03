@@ -1,91 +1,58 @@
-// lib/backendAPI.js
+// frontend/lib/BackendAPI.js
+
+const API_BASE =
+  (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5151").replace(/\/$/, "");
+
+async function readError(res) {
+  try {
+    const data = await res.json();
+    return data?.message || data?.error || JSON.stringify(data);
+  } catch {
+    return await res.text();
+  }
+}
 
 export default class BackendAPI {
-  static async createNewDataset() {
-    return new Promise((resolve) => setTimeout(resolve, 500));
-  }
-
-  static async signOut() {
-    return new Promise((resolve) => setTimeout(resolve, 500));
-  }
-
-  static async uploadFile(file, onProgress) {
-    return new Promise((resolve, reject) => {
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += 10;
-        if (onProgress) onProgress(progress);
-        if (progress >= 100) {
-          clearInterval(interval);
-          resolve();
-        }
-      }, 100);
+  // AUTH
+  static async login(email, password) {
+    const res = await fetch(`${API_BASE}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
     });
+
+    if (!res.ok) throw new Error((await readError(res)) || "Login failed");
+    return await res.json();
   }
 
-  static async cleanDataset(filename) {
-    return new Promise((resolve) => setTimeout(() => resolve(), 700));
+  static async register(firstName, lastName, email, password) {
+    const res = await fetch(`${API_BASE}/api/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ firstName, lastName, email, password }),
+    });
+
+    if (!res.ok) throw new Error((await readError(res)) || "Registration failed");
+    return await res.json();
   }
 
-  static async getDatasetIssues(filename) {
-    return new Promise((resolve) =>
-      setTimeout(
-        () =>
-          resolve([
-            { column: 'price', issue: '42% missing values' },
-            { column: 'Date', issue: 'Inconsistent formatting' },
-            { column: 'transaction_id', issue: 'Duplicate values' },
-          ]),
-        500
-      )
-    );
+  static async me(token) {
+    const res = await fetch(`${API_BASE}/api/auth/me`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) throw new Error((await readError(res)) || "Failed to fetch user");
+    return await res.json();
   }
 
-  static async continueWithoutCleaning(filename) {
-    return new Promise((resolve) => setTimeout(resolve, 500));
-  }
-
-  static async cancelAnalysis() {
-    return new Promise((resolve) => setTimeout(resolve, 500));
-  }
-
+  // keep these mocks if other UI still calls them
   static async sendAnalysisMessage(message) {
     return new Promise((resolve) =>
-      setTimeout(() => resolve(`Assistant response to "${message}" (mock)`), 700)
+      setTimeout(() => resolve(`Assistant response to "${message}" (mock)`), 300)
     );
   }
-
-  static async login(email, password) {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    if (!response.ok) throw new Error('Login failed');
-    return await response.json();
-  }
-
-  static async register(email, password, username) {
-    const response = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, username })
-    });
-    if (!response.ok) throw new Error('Registration failed');
-    return await response.json();
-  }
-
-  static async getCurrentUser(token) {
-    const response = await fetch('/api/users/profile', {
-      method: 'GET',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-       }
-    });
-    if (!response.ok) throw new Error('Failed to fetch user profile');
-    return await response.json();
-  }
-
-
 }

@@ -2,26 +2,35 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/app/contexts/AuthContext';
 import './login.css';
+
+const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleLogin = async () => {
     setError('');
-    setLoading(true);
 
+    const e = email.trim();
+    if (!isValidEmail(e)) return setError('Enter a valid email (must include @).');
+    if (!password) return setError('Password is required.');
+
+    setLoading(true);
     try {
-      await login(email, password);
-      router.push('/dashboard');
+      await login(e, password);
+      router.push('/'); // auth-only for now
     } catch (err: any) {
-      setError(err.message || 'Login failed');
+      setError(err?.message || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -37,7 +46,6 @@ export default function LoginPage() {
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          required
         />
 
         <input
@@ -45,25 +53,20 @@ export default function LoginPage() {
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          required
         />
 
         {error && <p className="auth-error">{error}</p>}
 
         <div className="forgot-password">
-          <a href="/forgot-password">Forgot password?</a>
+          <Link href="/login/forgotPassword">Forgot password?</Link>
         </div>
 
-        <button
-          className="auth-btn"
-          onClick={handleLogin}
-          disabled={loading}
-        >
+        <button className="auth-btn" onClick={handleLogin} disabled={loading}>
           {loading ? 'Logging in…' : 'Login'}
         </button>
 
         <div className="auth-footer">
-          Don't have an account? <a href="/register">Register</a>
+          Don&apos;t have an account? <Link href="/register">Register</Link>
         </div>
       </div>
     </div>

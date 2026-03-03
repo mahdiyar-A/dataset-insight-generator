@@ -23,7 +23,7 @@ builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        var secret = builder.Configuration["Jwt:Secret"] ?? "CHANGE_THIS_TO_A_32+_CHAR_SECRET________";
+        var secret = builder.Configuration["Jwt:Secret"] ?? "dig 4qihrgiqrhgiqrhguhq4otnrhqoqq cq";
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
 
         options.TokenValidationParameters = new TokenValidationParameters
@@ -38,7 +38,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("dev", p =>
+        p.WithOrigins("http://localhost:3000")
+         .AllowAnyHeader()
+         .AllowAnyMethod());
+});
+
+
 builder.Services.AddAuthorization();
+
 
 var app = builder.Build();
 
@@ -60,8 +70,8 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 // Redirect HTTP to HTTPS in environments where TLS is configured.
-app.UseHttpsRedirection();
-
+// app.UseHttpsRedirection();
+app.UseCors("dev");
 // Auth middleware order
 app.UseAuthentication();
 app.UseAuthorization();

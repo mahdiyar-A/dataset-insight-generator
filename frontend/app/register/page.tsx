@@ -2,8 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/app/contexts/AuthContext';
 import './register.css';
+
+const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+const isNameOk = (v: string) => /^[A-Za-z]{1,30}$/.test(v.trim()); // letters only, max 30
+const isPasswordOk = (v: string) => v.length >= 8 && /\d/.test(v); // >=8 + digit
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -21,19 +26,23 @@ export default function RegisterPage() {
   const handleRegister = async () => {
     setError('');
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
+    const fn = firstName.trim();
+    const ln = lastName.trim();
+    const em = email.trim();
+
+    if (!isNameOk(fn)) return setError('First name must be letters only (max 30).');
+    if (!isNameOk(ln)) return setError('Last name must be letters only (max 30).');
+    if (!isValidEmail(em)) return setError('Enter a valid email (must include @).');
+    if (!isPasswordOk(password))
+      return setError('Password must be at least 8 characters and contain at least 1 number.');
+    if (password !== confirmPassword) return setError('Passwords do not match.');
 
     setLoading(true);
-
     try {
-      const username = `${firstName} ${lastName}`.trim() || email.split('@')[0];
-      await register(email, password, username);
-      router.push('/dashboard');
+      await register(fn, ln, em, password); // auto-login happens inside AuthContext
+      router.push('/'); // auth-only for now
     } catch (err: any) {
-      setError(err.message || 'Registration failed');
+      setError(err?.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
@@ -52,7 +61,6 @@ export default function RegisterPage() {
               placeholder="Enter your first name"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
-              required
             />
           </div>
 
@@ -63,7 +71,6 @@ export default function RegisterPage() {
               placeholder="Enter your last name"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
-              required
             />
           </div>
         </div>
@@ -75,7 +82,6 @@ export default function RegisterPage() {
             placeholder="Enter your email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            required
           />
         </div>
 
@@ -86,7 +92,6 @@ export default function RegisterPage() {
             placeholder="Enter your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            required
           />
         </div>
 
@@ -97,22 +102,17 @@ export default function RegisterPage() {
             placeholder="Confirm your password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            required
           />
         </div>
 
         {error && <p className="auth-error">{error}</p>}
 
-        <button
-          className="auth-btn"
-          onClick={handleRegister}
-          disabled={loading}
-        >
+        <button className="auth-btn" onClick={handleRegister} disabled={loading}>
           {loading ? 'Creating account…' : 'Register'}
         </button>
 
         <div className="auth-footer">
-          Already have an account? <a href="/login">Login</a>
+          Already have an account? <Link href="/login">Login</Link>
         </div>
       </div>
     </div>
