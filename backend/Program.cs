@@ -2,10 +2,20 @@ using backend.Application.Interfaces;
 using backend.Application.Services;
 using backend.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
+Console.WriteLine("[DIG] Starting...");
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Force URL binding
+builder.WebHost.UseUrls("http://localhost:5150");
+
+// Logging
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
 
 // Controllers
 builder.Services.AddControllers();
@@ -23,7 +33,7 @@ builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        var secret = builder.Configuration["Jwt:Secret"] ?? "dig 4qihrgiqrhgiqrhguhq4otnrhqoqq cq";
+        var secret = builder.Configuration["Jwt:Secret"] ?? "dig4qihrgiqrhgiqrhguhq4otnrhqoqqcq769g8yg979870i9j";
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
 
         options.TokenValidationParameters = new TokenValidationParameters
@@ -46,11 +56,11 @@ builder.Services.AddCors(options =>
          .AllowAnyMethod());
 });
 
-
 builder.Services.AddAuthorization();
 
-
 var app = builder.Build();
+
+Console.WriteLine("[DIG] App built. Starting middleware...");
 
 // Swagger UI
 if (app.Environment.IsDevelopment())
@@ -59,24 +69,35 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Serve profile pictures from the local "storage" folder at request path /storage.
-// This lets the frontend fetch images from the path returned by the storage service.
+// Static files for storage
 var storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
 if (!Directory.Exists(storagePath)) Directory.CreateDirectory(storagePath);
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(storagePath),
+    FileProvider = new PhysicalFileProvider(storagePath),
     RequestPath = "/storage"
 });
 
-// Redirect HTTP to HTTPS in environments where TLS is configured.
-// app.UseHttpsRedirection();
+// ↓ THIS was missing in your original — routing must come before auth
+app.UseRouting();
+
 app.UseCors("dev");
-// Auth middleware order
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Map controllers (IMPORTANT)
 app.MapControllers();
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
-app.Run();
+Console.WriteLine("[DIG] Listening on http://localhost:5150");
+Console.WriteLine("[DIG] Swagger at  http://localhost:5150/swagger");
+
+try
+{
+    app.Run();
+}
+catch (Exception ex)
+{
+    Console.WriteLine("[DIG] FATAL: " + ex.Message);
+    Console.WriteLine(ex.StackTrace);
+    Console.ReadKey();
+}
