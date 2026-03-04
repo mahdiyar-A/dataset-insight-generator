@@ -58,3 +58,26 @@ c*.sln
 coverage/
 .tmp/
 .temp/
+
+####################################
+# Secrets
+####################################
+backend/appsettings.json
+backend/appsettings.Development.json
+
+####################################
+# Python
+####################################
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+####################################
+# Storage (user uploaded files)
+####################################
+backend/storage/
+backend/App_Data/

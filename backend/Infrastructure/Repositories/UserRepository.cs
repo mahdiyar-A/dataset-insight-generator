@@ -1,110 +1,81 @@
-using System.Text.Json;
 using backend.Application.Interfaces;
 using backend.Domain.Entities;
+using Supabase.Postgrest.Attributes;
+using Supabase.Postgrest.Models;
+using static Supabase.Postgrest.Constants;
 
 namespace backend.Infrastructure.Repositories;
 
+[Table("users")]
+public class UserRow : BaseModel
+{
+    [PrimaryKey("id", false)]       public string   Id                { get; set; } = "";
+    [Column("first_name")]          public string   FirstName         { get; set; } = "";
+    [Column("last_name")]           public string   LastName          { get; set; } = "";
+    [Column("email")]               public string   Email             { get; set; } = "";
+    [Column("password_hash")]       public string   PasswordHash      { get; set; } = "";
+    [Column("profile_picture_url")] public string?  ProfilePictureUrl { get; set; }
+    [Column("created_at")]          public DateTime  CreatedAt        { get; set; }
+    [Column("last_login_at")]       public DateTime? LastLoginAt      { get; set; }
+}
+
 public class UserRepository : IUserRepository
 {
-    private readonly string _filePath;
-    private readonly SemaphoreSlim _lock = new(1, 1);
-
-    private static readonly JsonSerializerOptions Options = new()
-    {
-        WriteIndented = true
-    };
-
-    public UserRepository(IWebHostEnvironment env)
-    {
-        var directory = Path.Combine(env.ContentRootPath, "App_Data");
-        Directory.CreateDirectory(directory);
-
-        _filePath = Path.Combine(directory, "users.json");
-    }
+    private readonly Supabase.Client _db;
+    public UserRepository(Supabase.Client db) => _db = db;
 
     public async Task<User?> GetByEmailAsync(string email)
     {
-        var users = await ReadAllAsync();
-        return users.FirstOrDefault(u =>
-            u.Email.Trim().ToLower() == email.Trim().ToLower());
+        var result = await _db.From<UserRow>()
+            .Filter("email", Operator.Equals, email.Trim().ToLowerInvariant())
+            .Single();
+        return result == null ? null : ToDomain(result);
     }
 
     public async Task<User?> GetByIdAsync(Guid id)
     {
-        var users = await ReadAllAsync();
-        return users.FirstOrDefault(u => u.Id == id);
+        var result = await _db.From<UserRow>()
+            .Filter("id", Operator.Equals, id.ToString())
+            .Single();
+        return result == null ? null : ToDomain(result);
     }
 
     public async Task AddAsync(User user)
     {
-        await _lock.WaitAsync();
-        try
-        {
-            var users = await ReadAllUnsafeAsync();
-
-            if (users.Any(u =>
-                u.Email.Trim().ToLower() == user.Email.Trim().ToLower()))
-                throw new InvalidOperationException("EMAIL_EXISTS");
-
-            users.Add(user);
-            await WriteAllUnsafeAsync(users);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        await _db.From<UserRow>().Insert(ToRow(user));
     }
 
     public async Task UpdateAsync(User user)
     {
-        await _lock.WaitAsync();
-        try
-        {
-            var users = await ReadAllUnsafeAsync();
-
-            var index = users.FindIndex(u => u.Id == user.Id);
-            if (index >= 0)
-            {
-                users[index] = user;
-                await WriteAllUnsafeAsync(users);
-            }
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        // Update by id explicitly — avoids duplicate key on email unique constraint
+        await _db.From<UserRow>()
+            .Filter("id", Operator.Equals, user.Id.ToString())
+            .Set(r => r.LastLoginAt!, user.LastLoginAt)
+            .Set(r => r.ProfilePictureUrl!, user.ProfilePicture)
+            .Set(r => r.FirstName, user.UserName.Split(' ').FirstOrDefault() ?? user.UserName)
+            .Set(r => r.LastName, user.UserName.Contains(' ')
+                ? string.Join(' ', user.UserName.Split(' ').Skip(1))
+                : "")
+            .Update();
     }
 
-    private async Task<List<User>> ReadAllAsync()
+    private static User ToDomain(UserRow r)
     {
-        await _lock.WaitAsync();
-        try
-        {
-            return await ReadAllUnsafeAsync();
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        var fullName = $"{r.FirstName} {r.LastName}".Trim();
+        return new User(fullName, r.Email, r.PasswordHash, r.ProfilePictureUrl);
     }
 
-    private async Task<List<User>> ReadAllUnsafeAsync()
+    private static UserRow ToRow(User u) => new()
     {
-        if (!File.Exists(_filePath))
-            return new List<User>();
-
-        var json = await File.ReadAllTextAsync(_filePath);
-
-        if (string.IsNullOrWhiteSpace(json))
-            return new List<User>();
-
-        return JsonSerializer.Deserialize<List<User>>(json, Options)
-               ?? new List<User>();
-    }
-
-    private Task WriteAllUnsafeAsync(List<User> users)
-    {
-        var json = JsonSerializer.Serialize(users, Options);
-        return File.WriteAllTextAsync(_filePath, json);
-    }
+        Id                = u.Id.ToString(),
+        FirstName         = u.UserName.Split(' ').FirstOrDefault() ?? u.UserName,
+        LastName          = u.UserName.Contains(' ')
+                            ? string.Join(' ', u.UserName.Split(' ').Skip(1))
+                            : "",
+        Email             = u.Email,
+        PasswordHash      = u.PasswordHash,
+        ProfilePictureUrl = u.ProfilePicture,
+        CreatedAt         = u.CreatedAt,
+        LastLoginAt       = u.LastLoginAt
+    };
 }
