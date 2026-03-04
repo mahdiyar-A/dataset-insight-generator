@@ -26,9 +26,13 @@ body {
 }
 
 .logo {
-    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-weight: 100 ;
     letter-spacing: 0.03em;
-    font-size: 1.1rem;
+    font-size: 1.9rem;
+    color: #f9fafb;
 }
 
 .nav-links a {
@@ -229,26 +233,78 @@ body {
     background: #020617;
 }
 
-/* Responsive */
+/* Mobile Responsive */
 @media (max-width: 900px) {
+    .navbar {
+        flex-direction: row;
+        flex-wrap: wrap;
+        padding: 14px 5vw;
+        gap: 10px;
+    }
+
+    .logo {
+        font-size: 1.2rem;
+    }
+
+    .logo img {
+        height: 32px;
+    }
+
+    .nav-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .nav-links a {
+        margin-left: 0;
+        margin-right: 12px;
+        font-size: 0.8rem;
+    }
+
     .hero {
         grid-template-columns: 1fr;
-        padding-top: 40px;
+        padding: 30px 5vw 20px;
+        gap: 24px;
+    }
+
+    .hero-content h1 {
+        font-size: 1.7rem;
+    }
+
+    .hero-subtitle {
+        font-size: 0.9rem;
+    }
+
+    .hero-buttons {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .btn {
+        width: 100%;
+        justify-content: center;
     }
 
     .hero-panel {
         justify-content: flex-start;
     }
 
-    .navbar {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
+    .hero-card {
+        max-width: 100%;
+        width: 100%;
     }
 
-    .nav-links a {
-        margin-left: 0;
-        margin-right: 16px;
+    .section {
+        padding: 30px 5vw;
+    }
+
+    .section h2 {
+        font-size: 1.1rem;
+    }
+
+    .card-grid {
+        grid-template-columns: 1fr;
     }
 }
 /* ===============================
@@ -295,7 +351,7 @@ body {
 :root {
     --bg: #020617;
     --bg-elevated: #020617;
-    --panel: #020617;
+    --panel: #2a2f44;
     --panel2: #020617;
     --accent: #2563eb;
     --accent-soft: rgba(37, 99, 235, 0.2);
