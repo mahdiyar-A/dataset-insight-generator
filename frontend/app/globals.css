@@ -1301,108 +1301,129 @@ body.dig-body {
 
 
 
-/* COLLAPSIBLE SIDEBAR BASE */
-/* Sidebar */
+/* ═══════════════════════════════════════
+   SIDEBAR — replace old .dig-sidebar rules
+   ═══════════════════════════════════════ */
+
 .dig-sidebar {
-    width: 70px;
-    background: #020617;
-    border-right: 1px solid var(--border);
-    padding: 24px 22px;
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
     position: fixed;
     top: 0;
     left: 0;
-    height: 100%;
-    width: 70px; 
-    top: 0;
-    overflow: hidden;
-    z-index: 1000;
-    transition: width 0.3s ease;
-}
-
-.dig-sidebar nav {
-    gap: 8px;
-    margin-top: 12px;
+    height: 100vh;
+    width: 64px;
+    background: #020617;
+    border-right: 1px solid rgba(31, 41, 55, 0.8);
     display: flex;
     flex-direction: column;
-}
-
-.dig-sidebar nav a {
-    display: flex;
-    align-items: center;
-    padding: 10px 12px;
-    color: var(--text-soft);
-    text-decoration: none;
-    font-weight: 500;
-    border-left: 4px solid transparent;
-    transition: all 0.2s ease;
-    white-space: nowrap;
     overflow: hidden;
-    border-radius: 999px;
-    transition: background 0.15s, color 0.15s, transform 0.1s;
-    font-size: 0.9rem;
+    transition: width 0.25s ease;
+    z-index: 1000;
 }
 
 .dig-sidebar:hover {
-    width: 220px; /* expanded width */
+    width: 210px;
 }
 
-/* Brand/logo area */
-.dig-sidebar .brand {
+/* Logo area */
+.sidebar-logo-wrap {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 16px;
+    padding: 18px 14px;
+    border-bottom: 1px solid rgba(31, 41, 55, 0.6);
+    flex-shrink: 0;
 }
 
-.dig-sidebar .brand .logo {
-    width: 40px;
-    height: 40px;
+.sidebar-logo-img {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: 8px;
 }
 
-.dig-sidebar .brand .brand-name {
+.sidebar-logo-text {
     font-size: 1rem;
-    font-weight: 600;
+    font-weight: 700;
+    color: #60a5fa;
     white-space: nowrap;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.2s ease 0.05s;
 }
 
-/* Show text when hovering */
-.dig-sidebar:hover .brand .brand-name {
+.dig-sidebar:hover .sidebar-logo-text {
     opacity: 1;
 }
 
-/* Navigation links */
-
-
-/* Show link text only when expanded */
-.dig-sidebar nav a::before {
-    content: attr(data-short); /* optional for icons only in narrow state */
+/* Nav */
+.sidebar-nav {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 10px;
+    overflow: hidden;
 }
 
-.dig-sidebar:hover nav a::before {
-    content: none; /* hide short icon-only label when expanded */
+/* Bottom buttons */
+.sidebar-bottom {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 10px 18px;
+    border-top: 1px solid rgba(31, 41, 55, 0.6);
 }
 
-.dig-sidebar nav a.active {
-    background-color: rgba(37, 99, 235, 0.2);
-    border-left-color: #2563eb;
-    color: #fff;
+/* Nav link button */
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 10px;
+    border-radius: 10px;
+    border: none;
+    background: transparent;
+    color: #6b7280;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: background 0.15s, color 0.15s;
 }
 
-.dig-sidebar nav a:hover {
-    background-color: rgba(37, 99, 235, 0.15);
-    color: #fff;
+.sidebar-link:hover {
+    background: rgba(37, 99, 235, 0.12);
+    color: #e5e7eb;
 }
 
-/* Optional: adjust main content margin to match sidebar width */
+.sidebar-link.active {
+    background: rgba(37, 99, 235, 0.18);
+    color: #bfdbfe;
+}
 
+.sidebar-icon {
+    font-size: 1.05rem;
+    flex-shrink: 0;
+    width: 22px;
+    text-align: center;
+}
 
-.dig-sidebar:hover ~ .dig-main {
-    margin-left: 220px; /* match expanded width */
+.sidebar-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.15s ease 0.05s;
+    pointer-events: none;
+}
+
+.dig-sidebar:hover .sidebar-label {
+    opacity: 1;
+}
+
+/* Main content offset */
+.dig-main {
+    margin-left: 64px;
+    transition: margin-left 0.25s ease;
 }
 .info-card {
     border: 1px solid var(--border, #1f2937);

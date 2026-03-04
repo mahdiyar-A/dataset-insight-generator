@@ -1,5 +1,4 @@
 // @ts-nocheck
-
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -13,199 +12,216 @@ import DownloadsCard from "@/components/downloadCard";
 import InfoCards from "@/components/infoCards";
 
 export default function DashboardPage() {
-  // Active sidebar link
   const [activeSection, setActiveSection] = useState("top");
-
-  // Refs for each section
   const router = useRouter();
-  const { logout, currentUser } = useAuth();
-  const topRef = useRef(null);
-  const uploadRef = useRef(null);
-  const historyRef = useRef(null);
-  const chartsRef = useRef(null);
-  const downloadRef = useRef(null);
-  const helpRef = useRef(null);
+  const { logout, user } = useAuth();
 
-  // IntersectionObserver for scroll highlighting
+  const topRef      = useRef(null);
+  const uploadRef   = useRef(null);
+  const historyRef  = useRef(null);
+  const chartsRef   = useRef(null);
+  const downloadRef = useRef(null);
+  const helpRef     = useRef(null);
+
   useEffect(() => {
     const sections = [
-      { id: "top", ref: topRef },
-      { id: "section-upload", ref: uploadRef },
-      { id: "section-history", ref: historyRef },
-      { id: "section-charts", ref: chartsRef },
+      { id: "top",              ref: topRef },
+      { id: "section-upload",   ref: uploadRef },
+      { id: "section-history",  ref: historyRef },
+      { id: "section-charts",   ref: chartsRef },
       { id: "section-download", ref: downloadRef },
-      { id: "section-help", ref: helpRef },
+      { id: "section-help",     ref: helpRef },
     ];
-
     const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) setActiveSection(entry.target.id);
-        });
-      },
-      { root: null, rootMargin: "0px", threshold: 0.6 }
+      (entries) => entries.forEach((e) => { if (e.isIntersecting) setActiveSection(e.target.id); }),
+      { threshold: 0.3 }
     );
-
-    sections.forEach((s) => {
-      if (s.ref.current) observer.observe(s.ref.current);
-    });
-
+    sections.forEach((s) => { if (s.ref.current) observer.observe(s.ref.current); });
     return () => observer.disconnect();
   }, []);
 
-  // Scroll to section
-  const scrollToSection = (id, ref) => {
-    if (ref && ref.current) {
-      ref.current.scrollIntoView({ behavior: "smooth" });
-      setActiveSection(id);
-    }
+  const scrollTo = (id, ref) => {
+    ref?.current?.scrollIntoView({ behavior: "smooth" });
+    setActiveSection(id);
   };
 
-  // New dataset button
-  const handleNewDataset = async () => {
-    try {
-      const response = await fetch("/api/datasets/new", { method: "POST" });
-      if (!response.ok) throw new Error("Failed to create new dataset");
-      alert("New dataset created (mock)");
-    } catch (err) {
-      console.error(err);
-      alert("Error creating new dataset");
-    }
-  };
+  const handleSignOut = () => { logout(); router.push("/login"); };
 
-  const handleSignOut = () => {
-    logout();
-    router.push('/login');
-  };
+  const avatarLetter = user?.userName?.charAt(0)?.toUpperCase() ?? "U";
+  const displayName  = user?.userName ?? "User";
+
+  const navItems = [
+    { id: "top",              label: "Dashboard",   icon: <IconGrid />,    ref: topRef },
+    { id: "section-upload",   label: "Upload",      icon: <IconUpload />,  ref: uploadRef },
+    { id: "section-history",  label: "History",     icon: <IconHistory />, ref: historyRef },
+    { id: "section-charts",   label: "AI Insights", icon: <IconChart />,   ref: chartsRef },
+    { id: "section-download", label: "Report",      icon: <IconReport />,  ref: downloadRef },
+    { id: "section-help",     label: "Help",        icon: <IconHelp />,    ref: helpRef },
+  ];
 
   return (
-    <div className="dig-body">
-      {/* Sidebar */}
+    <div className="dig-body" style={{ display: "flex", minHeight: "100vh" }}>
+
+      {/* ── SIDEBAR ── */}
       <aside className="dig-sidebar">
-        <div className="brand">
-          <img src="DIG.png" alt="DIG logo" className="logo" />
-          <span className="brand-name">
-            Dataset Insight <br /> Generator
-          </span>
+        {/* Logo */}
+        <div className="sidebar-logo-wrap">
+          <img src="/d_dig.svg" alt="DIG" className="sidebar-logo-img" />
+          <span className="sidebar-logo-text">DIG</span>
         </div>
-        <nav>
-          <a
-            className={activeSection === "top" ? "active" : ""}
-            onClick={() => scrollToSection("top", topRef)}
-          >
-            Dashboard
-          </a>
-          <a
-            className={activeSection === "section-upload" ? "active" : ""}
-            onClick={() => scrollToSection("section-upload", uploadRef)}
-          >
-            Upload
-          </a>
-          <a
-            className={activeSection === "section-history" ? "active" : ""}
-            onClick={() => scrollToSection("section-history", historyRef)}
-          >
-            History / Analysis
-          </a>
-          <a
-            className={activeSection === "section-charts" ? "active" : ""}
-            onClick={() => scrollToSection("section-charts", chartsRef)}
-          >
-            AI Insights
-          </a>
-          <a
-            className={activeSection === "section-download" ? "active" : ""}
-            onClick={() => scrollToSection("section-download", downloadRef)}
-          >
-            Report & Exports
-          </a>
-          <a
-            className={activeSection === "section-help" ? "active" : ""}
-            onClick={() => scrollToSection("section-help", helpRef)}
-          >
-            Help & Support
-          </a>
-          
+
+        {/* Nav */}
+        <nav className="sidebar-nav">
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              className={`sidebar-link ${activeSection === item.id ? "active" : ""}`}
+              onClick={() => scrollTo(item.id, item.ref)}
+              title={item.label}
+            >
+              <span className="sidebar-icon">{item.icon}</span>
+              <span className="sidebar-label">{item.label}</span>
+            </button>
+          ))}
         </nav>
+
+        {/* Bottom */}
+        <div className="sidebar-bottom">
+          <button
+            className="sidebar-link"
+            onClick={() => router.push("/dashboard/settings")}
+            title="Settings"
+          >
+            <span className="sidebar-icon"><IconSettings /></span>
+            <span className="sidebar-label">Settings</span>
+          </button>
+          <button className="sidebar-link" onClick={handleSignOut} title="Sign out">
+            <span className="sidebar-icon"><IconSignOut /></span>
+            <span className="sidebar-label">Sign out</span>
+          </button>
+        </div>
       </aside>
 
-      {/* Main content */}
+      {/* ── MAIN ── */}
       <div className="dig-main">
+
         {/* Top bar */}
-        <header className="dig-topbar" ref={topRef}>
+        <header className="dig-topbar" id="top" ref={topRef}>
           <div>
             <h1>Dashboard</h1>
-            <p className="subtitle">
-              Upload a dataset to generate instant insights.
-            </p>
+            <p className="subtitle">Upload a dataset to generate instant insights.</p>
           </div>
-
           <div className="topbar-right">
-            <button className="primary-btn" onClick={handleNewDataset}>
-              New Dataset
-            </button>
             <div className="profile-wrapper">
-              <div className="avatar">M</div>
+              <div className="avatar">{avatarLetter}</div>
               <div className="profile-text">
-                <span className="profile-name">Mahdiyar (mock)</span>
-                <span className="profile-role">Guest user</span>
+                <span className="profile-name">{displayName}</span>
+                <span className="profile-role">Member</span>
               </div>
               <div className="profile-dropdown-icon">▾</div>
               <div className="profile-dropdown">
                 <a href="/dashboard/profileEditor">View profile</a>
-                <a href="#section-analysis">History</a>
                 <a href="/dashboard/accountSettings">Account settings</a>
-                <a onClick={handleSignOut} style={{ cursor: 'pointer' }}>Sign out</a>              </div>
+              </div>
             </div>
           </div>
         </header>
 
-        {/* Upper grid: Upload + AI Assistant */}
-        <section
-          className="upper-grid"
-          id="section-upload"
-          ref={uploadRef}
-        >
+        {/* 1. Upload + Assistant side by side */}
+        <section className="upper-grid" id="section-upload" ref={uploadRef}>
           <UploadCard />
           <AnalysisAssistantCard />
         </section>
 
-        {/* History section */}
-        <section
-          className="dataset-management-grid"
-          id="section-history"
-          ref={historyRef}
-        >
+        {/* 2. Dataset history */}
+        <section className="dataset-management-grid" id="section-history" ref={historyRef}>
           <HistoryCard />
         </section>
 
-        {/* Charts section */}
-        <section
-          className="charts-grid"
-          id="section-charts"
-          ref={chartsRef}
-        >
+        {/* 3. Visualizations — BELOW history */}
+        <section id="section-charts" ref={chartsRef}>
           <ChartsCard />
         </section>
 
-        {/* Download / Report card */}
-        <section
-          className="charts-grid"
-          id="section-download"
-          ref={downloadRef}
-        >
+        {/* 4. Report & Exports */}
+        <section id="section-download" ref={downloadRef}>
           <DownloadsCard />
         </section>
 
-        {/* Info / Help cards */}
-        <section
-          className="charts-grid"
-          id="section-help"
-          ref={helpRef}
-        >
+        {/* 5. Help + Contact */}
+        <section id="section-help" ref={helpRef}>
           <InfoCards />
         </section>
+
       </div>
     </div>
   );
+}
+
+/* ── SVG Icons (replacing emoji for cleaner sidebar) ── */
+function IconGrid() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+      <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+    </svg>
+  );
+}
+function IconUpload() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+      <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+      <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+    </svg>
+  );
+}
+function IconHistory() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+    </svg>
+  );
+}
+function IconChart() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+      <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+      <line x1="6" y1="20" x2="6" y2="14"/>
+    </svg>
+  );
+}
+function IconReport() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
+    </svg>
+  );
+}
+function IconHelp() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+      <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+  );
+}
+function IconSettings() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  );
+}
+function IconSignOut() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+      <polyline points="16 17 21 12 16 7"/>
+      <line x1="21" y1="12" x2="9" y2="12"/>
+    </svg>
+  );
+
 }

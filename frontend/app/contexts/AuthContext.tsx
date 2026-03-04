@@ -6,36 +6,46 @@ import BackendAPI from '@/lib/BackendAPI';
 type User = {
   id?: string;
   email?: string;
-  userName?: string;
+  username?: string;   // backend returns "username" (lowercase)
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
+  profilePicture?: string;
 };
 
 type AuthContextType = {
   user: User | null;
+  currentUser: User | null;   // alias for compatibility
   token: string | null;
   isAuthed: boolean;
+  isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (firstName: string, lastName: string, email: string, password: string) => Promise<void>;
   logout: () => void;
+  updateUser: (updated: Partial<User>) => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const TOKEN_KEY = 'dig_token';
-const USER_KEY = 'dig_user';
+const USER_KEY  = 'dig_user';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [token,     setToken]     = useState<string | null>(null);
+  const [user,      setUser]      = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Load saved auth on first mount
   useEffect(() => {
     try {
       const savedToken = localStorage.getItem(TOKEN_KEY);
-      const savedUser = localStorage.getItem(USER_KEY);
+      const savedUser  = localStorage.getItem(USER_KEY);
       if (savedToken) setToken(savedToken);
-      if (savedUser) setUser(JSON.parse(savedUser));
+      if (savedUser)  setUser(JSON.parse(savedUser));
     } catch {
-      // ignore
+      // ignore parse errors
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -45,18 +55,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const data = await BackendAPI.login(email, password);
     const t = data?.token;
     const u = data?.user;
-
     if (!t || !u) throw new Error('Login response missing token/user');
-
     setToken(t);
     setUser(u);
-
     localStorage.setItem(TOKEN_KEY, t);
     localStorage.setItem(USER_KEY, JSON.stringify(u));
   };
 
   const register = async (firstName: string, lastName: string, email: string, password: string) => {
-    // backend register returns { user } (no token), so we auto-login after registering
     await BackendAPI.register(firstName, lastName, email, password);
     await login(email, password);
   };
@@ -68,9 +74,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(USER_KEY);
   };
 
+  // Merge partial update into user state + localStorage
+  const updateUser = (updated: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const merged = { ...prev, ...updated };
+      localStorage.setItem(USER_KEY, JSON.stringify(merged));
+      return merged;
+    });
+  };
+
   const value = useMemo(
-    () => ({ user, token, isAuthed, login, register, logout }),
-    [user, token, isAuthed]
+    () => ({
+      user,
+      currentUser: user,   // alias — both point to same object
+      token,
+      isAuthed,
+      isLoading,
+      login,
+      register,
+      logout,
+      updateUser,
+    }),
+    [user, token, isAuthed, isLoading]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
