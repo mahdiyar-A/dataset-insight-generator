@@ -12,15 +12,12 @@ async function readError(res) {
 }
 
 function authHeaders(token) {
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  };
+  return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
 }
 
 export default class BackendAPI {
 
-  // ── AUTH ──────────────────────────────────────────────
+  // ── AUTH ──────────────────────────────────────────────────────────────
 
   static async login(email, password) {
     const res = await fetch(`${API_BASE}/api/auth/login`, {
@@ -30,6 +27,7 @@ export default class BackendAPI {
     });
     if (!res.ok) throw new Error((await readError(res)) || "Login failed");
     return await res.json();
+    // → { token, user: { id, email, userName } }
   }
 
   static async register(firstName, lastName, email, password) {
@@ -42,29 +40,66 @@ export default class BackendAPI {
     return await res.json();
   }
 
-  static async me(token) {
-    const res = await fetch(`${API_BASE}/api/auth/me`, {
-      headers: authHeaders(token),
-    });
-    if (!res.ok) throw new Error((await readError(res)) || "Failed to fetch user");
+  // ── USER PROFILE  /api/user/me ────────────────────────────────────────
+
+  static async getUserProfile(token) {
+    // GET /api/user/me
+    // → { id, email, userName, firstName, lastName, phoneNumber, profilePicture, createdAt, isActive }
+    const res = await fetch(`${API_BASE}/api/user/me`, { headers: authHeaders(token) });
+    if (!res.ok) throw new Error((await readError(res)) || "Failed to fetch profile");
     return await res.json();
   }
 
-  // ── USER / PROFILE ────────────────────────────────────
-
-  static async updateProfile(token, payload) {
-    // payload: { firstName, lastName, username, phoneNumber }
-    const res = await fetch(`${API_BASE}/api/users/profile`, {
-      method: "PUT",
+  static async updateUsername(token, userName) {
+    // PATCH /api/user/me/username  { userName }
+    // userName here = full display name e.g. "John Smith"
+    const res = await fetch(`${API_BASE}/api/user/me/username`, {
+      method: "PATCH",
       headers: authHeaders(token),
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ userName }),
     });
-    if (!res.ok) throw new Error((await readError(res)) || "Failed to update profile");
+    if (!res.ok) throw new Error((await readError(res)) || "Failed to update name");
+    return await res.json(); // → GetMeResponseDto
+  }
+
+  static async updateEmail(token, email) {
+    // PATCH /api/user/me/email  { email }
+    const res = await fetch(`${API_BASE}/api/user/me/email`, {
+      method: "PATCH",
+      headers: authHeaders(token),
+      body: JSON.stringify({ email }),
+    });
+    if (!res.ok) throw new Error((await readError(res)) || "Failed to update email");
     return await res.json();
   }
 
+  static async uploadProfilePicture(token, file) {
+    // POST /api/user/me/profile-picture  multipart "file"
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(`${API_BASE}/api/user/me/profile-picture`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    if (!res.ok) throw new Error((await readError(res)) || "Failed to upload picture");
+    return await res.json(); // → { profilePicturePath }
+  }
+
+  static async deleteAccount(token) {
+    // DELETE /api/user/me → 204
+    const res = await fetch(`${API_BASE}/api/user/me`, {
+      method: "DELETE",
+      headers: authHeaders(token),
+    });
+    if (!res.ok) throw new Error((await readError(res)) || "Failed to delete account");
+    return true;
+  }
+
+  // NOTE: changePassword not yet implemented in backend
+  // When ready: PATCH /api/user/me/password  { currentPassword, newPassword }
   static async changePassword(token, currentPassword, newPassword) {
-    const res = await fetch(`${API_BASE}/api/users/password`, {
+    const res = await fetch(`${API_BASE}/api/user/me/password`, {
       method: "PATCH",
       headers: authHeaders(token),
       body: JSON.stringify({ currentPassword, newPassword }),
@@ -73,60 +108,62 @@ export default class BackendAPI {
     return await res.json();
   }
 
-  static async deleteAccount(token) {
-    const res = await fetch(`${API_BASE}/api/users/delete`, {
-      method: "DELETE",
-      headers: authHeaders(token),
-    });
-    if (!res.ok) throw new Error((await readError(res)) || "Failed to delete account");
-    return true;
-  }
+  // ── DATASET  /api/datasets  (one per user) ────────────────────────────
 
-  // ── DATASETS ──────────────────────────────────────────
-
-  static async uploadDataset(token, file) {
-    // Reads CSV client-side first to get metadata
-    const text = await file.text();
-    const lines = text.split("\n").filter((l) => l.trim());
-    const rows    = Math.max(0, lines.length - 1);          // exclude header
-    const columns = lines[0]?.split(",").length ?? 0;
-    const sizeKB  = (file.size / 1024).toFixed(1);
-
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("rows",    String(rows));
-    formData.append("columns", String(columns));
-    formData.append("sizeKB",  String(sizeKB));
-
-    const res = await fetch(`${API_BASE}/api/datasets/upload`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },   // NO Content-Type — let browser set multipart boundary
-      body: formData,
-    });
-    if (!res.ok) throw new Error((await readError(res)) || "Upload failed");
-    return await res.json();   // returns dataset record with id, rows, columns, size, uploadedAt
-  }
-
-  static async getDatasetHistory(token) {
-    const res = await fetch(`${API_BASE}/api/datasets/history`, {
-      headers: authHeaders(token),
-    });
-    if (!res.ok) throw new Error((await readError(res)) || "Failed to fetch history");
+  static async getCurrentDataset(token) {
+    // GET /api/datasets/current
+    // → { id, fileName, reportFileName, rowCount, columnCount, fileSizeBytes, uploadedAt, hasCleanedCsv, hasPdfReport }
+    // returns null if no dataset yet (404)
+    const res = await fetch(`${API_BASE}/api/datasets/current`, { headers: authHeaders(token) });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error((await readError(res)) || "Failed to fetch dataset");
     return await res.json();
   }
 
-  static async downloadDataset(token, id) {
-    const res = await fetch(`${API_BASE}/api/datasets/${id}/download`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) throw new Error((await readError(res)) || "Download failed");
-    return await res.blob();
+  static async getDatasetStatus(token) {
+    // GET /api/datasets/current/status  → { status: "pending"|"processing"|"done"|"failed" }
+    const res = await fetch(`${API_BASE}/api/datasets/current/status`, { headers: authHeaders(token) });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error((await readError(res)) || "Failed to fetch status");
+    return await res.json();
   }
 
-  static async deleteDataset(token, id) {
-    const res = await fetch(`${API_BASE}/api/datasets/${id}`, {
-      method: "DELETE",
+  static async uploadDataset(token, file) {
+    const text    = await file.text();
+    const lines   = text.split("\n").filter((l) => l.trim());
+    const rows    = Math.max(0, lines.length - 1);
+    const columns = lines[0]?.split(",").length ?? 0;
+
+    const formData = new FormData();
+    formData.append("file",    file);
+    formData.append("rows",    String(rows));
+    formData.append("columns", String(columns));
+
+    const res = await fetch(`${API_BASE}/api/datasets/upload`, {
+      method: "POST",
       headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    if (!res.ok) throw new Error((await readError(res)) || "Upload failed");
+    return await res.json();
+    // → { id, fileName, reportFileName, rowCount, columnCount, fileSizeBytes, uploadedAt, hasCleanedCsv, hasPdfReport }
+  }
+
+  static async getDownloadUrl(token, type) {
+    // type: "original" | "cleaned" | "report"
+    // GET /api/datasets/download/{type}  → { url: signedUrl, fileName }
+    const res = await fetch(`${API_BASE}/api/datasets/download/${type}`, {
+      headers: authHeaders(token),
+    });
+    if (!res.ok) throw new Error((await readError(res)) || "Download failed");
+    return await res.json();
+  }
+
+  static async deleteCurrentDataset(token) {
+    // DELETE /api/datasets/current → 204
+    const res = await fetch(`${API_BASE}/api/datasets/current`, {
+      method: "DELETE",
+      headers: authHeaders(token),
     });
     if (!res.ok) throw new Error((await readError(res)) || "Delete failed");
     return true;
