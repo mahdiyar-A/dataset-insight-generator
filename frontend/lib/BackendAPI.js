@@ -16,7 +16,6 @@ function authHeaders(token) {
 }
 
 export default class BackendAPI {
-
   // ── AUTH ──────────────────────────────────────────────────────────────
 
   static async login(email, password) {
@@ -98,7 +97,7 @@ export default class BackendAPI {
     return await res.json();
   }
 
-  // ── DATASET  /api/datasets  ────────────────────────────────────────────
+  // ── DATASET  /api/datasets ────────────────────────────────────────────
 
   static async getCurrentDataset(token) {
     const res = await fetch(`${API_BASE}/api/datasets/current`, { headers: authHeaders(token) });
@@ -139,7 +138,7 @@ export default class BackendAPI {
       headers: authHeaders(token),
     });
     if (!res.ok) throw new Error((await readError(res)) || "Download failed");
-    return await res.json();
+    return await res.json(); // { url, fileName }
   }
 
   static async deleteCurrentDataset(token) {
@@ -151,9 +150,7 @@ export default class BackendAPI {
     return true;
   }
 
-  //  NEW: Email report (assumes backend implemented in future)
-  // POST /api/datasets/email-report
-  // Body: { subject, includeAttachment }
+  // ✅ Email report (frontend fully wired; backend later)
   static async emailReport(token, { subject, includeAttachment = true } = {}) {
     const res = await fetch(`${API_BASE}/api/datasets/email-report`, {
       method: "POST",
@@ -163,8 +160,48 @@ export default class BackendAPI {
         includeAttachment,
       }),
     });
-
     if (!res.ok) throw new Error((await readError(res)) || "Email failed");
+    return await res.json();
+  }
+
+  // ✅ NEW: Visualizations (max 5) for current user
+  // Expected response shape (recommended):
+  // [
+  //   { id: "uuid-or-int", title: "Correlation heatmap", url: "https://signed-url.png" },
+  //   ...
+  // ]
+  static async getVisualizations(token) {
+    const res = await fetch(`${API_BASE}/api/datasets/visualizations`, {
+      headers: authHeaders(token),
+    });
+    if (res.status === 404) return [];
+    if (!res.ok) throw new Error((await readError(res)) || "Failed to fetch visualizations");
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  }
+
+  // ✅ NEW: Chatbot API (frontend fully wired; backend later)
+  // GET returns array of messages:
+  // [{ role: "user"|"assistant", content: "...", createdAt: "..." }, ...]
+  static async getChatHistory(token) {
+    const res = await fetch(`${API_BASE}/api/chat/history`, {
+      headers: authHeaders(token),
+    });
+    if (res.status === 404) return [];
+    if (!res.ok) throw new Error((await readError(res)) || "Failed to fetch chat history");
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  }
+
+  // POST message, returns assistant reply (recommended):
+  // { reply: "...." } OR { role:"assistant", content:"..." }
+  static async sendChatMessage(token, message) {
+    const res = await fetch(`${API_BASE}/api/chat/message`, {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify({ message }),
+    });
+    if (!res.ok) throw new Error((await readError(res)) || "Failed to send message");
     return await res.json();
   }
 }
