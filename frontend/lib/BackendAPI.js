@@ -27,7 +27,6 @@ export default class BackendAPI {
     });
     if (!res.ok) throw new Error((await readError(res)) || "Login failed");
     return await res.json();
-    // → { token, user: { id, email, userName } }
   }
 
   static async register(firstName, lastName, email, password) {
@@ -43,27 +42,22 @@ export default class BackendAPI {
   // ── USER PROFILE  /api/user/me ────────────────────────────────────────
 
   static async getUserProfile(token) {
-    // GET /api/user/me
-    // → { id, email, userName, firstName, lastName, phoneNumber, profilePicture, createdAt, isActive }
     const res = await fetch(`${API_BASE}/api/user/me`, { headers: authHeaders(token) });
     if (!res.ok) throw new Error((await readError(res)) || "Failed to fetch profile");
     return await res.json();
   }
 
   static async updateUsername(token, userName) {
-    // PATCH /api/user/me/username  { userName }
-    // userName here = full display name e.g. "John Smith"
     const res = await fetch(`${API_BASE}/api/user/me/username`, {
       method: "PATCH",
       headers: authHeaders(token),
       body: JSON.stringify({ userName }),
     });
     if (!res.ok) throw new Error((await readError(res)) || "Failed to update name");
-    return await res.json(); // → GetMeResponseDto
+    return await res.json();
   }
 
   static async updateEmail(token, email) {
-    // PATCH /api/user/me/email  { email }
     const res = await fetch(`${API_BASE}/api/user/me/email`, {
       method: "PATCH",
       headers: authHeaders(token),
@@ -74,7 +68,6 @@ export default class BackendAPI {
   }
 
   static async uploadProfilePicture(token, file) {
-    // POST /api/user/me/profile-picture  multipart "file"
     const formData = new FormData();
     formData.append("file", file);
     const res = await fetch(`${API_BASE}/api/user/me/profile-picture`, {
@@ -83,11 +76,10 @@ export default class BackendAPI {
       body: formData,
     });
     if (!res.ok) throw new Error((await readError(res)) || "Failed to upload picture");
-    return await res.json(); // → { profilePicturePath }
+    return await res.json();
   }
 
   static async deleteAccount(token) {
-    // DELETE /api/user/me → 204
     const res = await fetch(`${API_BASE}/api/user/me`, {
       method: "DELETE",
       headers: authHeaders(token),
@@ -96,8 +88,6 @@ export default class BackendAPI {
     return true;
   }
 
-  // NOTE: changePassword not yet implemented in backend
-  // When ready: PATCH /api/user/me/password  { currentPassword, newPassword }
   static async changePassword(token, currentPassword, newPassword) {
     const res = await fetch(`${API_BASE}/api/user/me/password`, {
       method: "PATCH",
@@ -108,12 +98,9 @@ export default class BackendAPI {
     return await res.json();
   }
 
-  // ── DATASET  /api/datasets  (one per user) ────────────────────────────
+  // ── DATASET  /api/datasets  ────────────────────────────────────────────
 
   static async getCurrentDataset(token) {
-    // GET /api/datasets/current
-    // → { id, fileName, reportFileName, rowCount, columnCount, fileSizeBytes, uploadedAt, hasCleanedCsv, hasPdfReport }
-    // returns null if no dataset yet (404)
     const res = await fetch(`${API_BASE}/api/datasets/current`, { headers: authHeaders(token) });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error((await readError(res)) || "Failed to fetch dataset");
@@ -121,7 +108,6 @@ export default class BackendAPI {
   }
 
   static async getDatasetStatus(token) {
-    // GET /api/datasets/current/status  → { status: "pending"|"processing"|"done"|"failed" }
     const res = await fetch(`${API_BASE}/api/datasets/current/status`, { headers: authHeaders(token) });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error((await readError(res)) || "Failed to fetch status");
@@ -129,14 +115,14 @@ export default class BackendAPI {
   }
 
   static async uploadDataset(token, file) {
-    const text    = await file.text();
-    const lines   = text.split("\n").filter((l) => l.trim());
-    const rows    = Math.max(0, lines.length - 1);
+    const text = await file.text();
+    const lines = text.split("\n").filter((l) => l.trim());
+    const rows = Math.max(0, lines.length - 1);
     const columns = lines[0]?.split(",").length ?? 0;
 
     const formData = new FormData();
-    formData.append("file",    file);
-    formData.append("rows",    String(rows));
+    formData.append("file", file);
+    formData.append("rows", String(rows));
     formData.append("columns", String(columns));
 
     const res = await fetch(`${API_BASE}/api/datasets/upload`, {
@@ -146,12 +132,9 @@ export default class BackendAPI {
     });
     if (!res.ok) throw new Error((await readError(res)) || "Upload failed");
     return await res.json();
-    // → { id, fileName, reportFileName, rowCount, columnCount, fileSizeBytes, uploadedAt, hasCleanedCsv, hasPdfReport }
   }
 
   static async getDownloadUrl(token, type) {
-    // type: "original" | "cleaned" | "report"
-    // GET /api/datasets/download/{type}  → { url: signedUrl, fileName }
     const res = await fetch(`${API_BASE}/api/datasets/download/${type}`, {
       headers: authHeaders(token),
     });
@@ -160,12 +143,28 @@ export default class BackendAPI {
   }
 
   static async deleteCurrentDataset(token) {
-    // DELETE /api/datasets/current → 204
     const res = await fetch(`${API_BASE}/api/datasets/current`, {
       method: "DELETE",
       headers: authHeaders(token),
     });
     if (!res.ok) throw new Error((await readError(res)) || "Delete failed");
     return true;
+  }
+
+  //  NEW: Email report (assumes backend implemented in future)
+  // POST /api/datasets/email-report
+  // Body: { subject, includeAttachment }
+  static async emailReport(token, { subject, includeAttachment = true } = {}) {
+    const res = await fetch(`${API_BASE}/api/datasets/email-report`, {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        subject: subject ?? "Your report is ready",
+        includeAttachment,
+      }),
+    });
+
+    if (!res.ok) throw new Error((await readError(res)) || "Email failed");
+    return await res.json();
   }
 }

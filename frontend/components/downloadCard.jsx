@@ -14,46 +14,99 @@ const REPORT_SECTIONS = [
   { emoji: "📉", title: "Visualizations",        desc: "All charts embedded with captions: bar charts, heatmaps, scatter plots, trend lines." },
 ];
 
-function PDFModal({ reportFileName, onClose }) {
+function PDFModal({ reportFileName, pdfUrl, onClose }) {
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(2,6,23,0.8)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#020617", border: "1px solid rgba(31,41,55,0.9)", borderRadius: "18px", padding: "26px", maxWidth: "640px", width: "100%", display: "flex", flexDirection: "column", gap: "18px", boxShadow: "0 24px 60px rgba(0,0,0,0.6)", maxHeight: "85vh", overflowY: "auto" }}>
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(2,6,23,0.8)",
+        backdropFilter: "blur(6px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
+        padding: "20px",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#020617",
+          border: "1px solid rgba(31,41,55,0.9)",
+          borderRadius: "18px",
+          padding: "16px",
+          width: "min(1000px, 95vw)",
+          height: "min(85vh, 900px)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "12px",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.6)",
+          overflow: "hidden",
+        }}
+      >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div style={{ width: "38px", height: "38px", borderRadius: "8px", background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div
+              style={{
+                width: "38px",
+                height: "38px",
+                borderRadius: "8px",
+                background: "rgba(239,68,68,0.15)",
+                border: "1px solid rgba(239,68,68,0.3)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="1.6">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
               </svg>
             </div>
             <div>
-              <h3 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 700, color: "#e5e7eb" }}>{reportFileName}</h3>
-              <p className="muted-small" style={{ marginTop: "2px" }}>Report preview</p>
+              <h3 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 700, color: "#e5e7eb" }}>
+                {reportFileName}
+              </h3>
+              <p className="muted-small" style={{ marginTop: "2px" }}>
+                Live report preview
+              </p>
             </div>
           </div>
-          <button onClick={onClose} style={{ background: "rgba(15,23,42,0.9)", border: "1px solid rgba(55,65,81,0.8)", borderRadius: "8px", padding: "7px", color: "#6b7280", cursor: "pointer", display: "flex" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+
+          <button
+            onClick={onClose}
+            style={{
+              background: "rgba(15,23,42,0.9)",
+              border: "1px solid rgba(55,65,81,0.8)",
+              borderRadius: "8px",
+              padding: "7px",
+              color: "#6b7280",
+              cursor: "pointer",
+              display: "flex",
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
 
-        {/* Mock PDF page */}
-        <div style={{ background: "#fff", borderRadius: "10px", padding: "28px", color: "#1a1a1a", fontSize: "0.82rem", lineHeight: "1.7" }}>
-          <div style={{ borderBottom: "2px solid #1d4ed8", paddingBottom: "12px", marginBottom: "16px" }}>
-            <p style={{ margin: 0, fontSize: "0.65rem", color: "#6b7280", letterSpacing: "0.08em", textTransform: "uppercase" }}>DIG — Dataset Insight Generator</p>
-            <h2 style={{ margin: "4px 0 0", fontSize: "1.1rem", fontWeight: 800, color: "#0f172a" }}>Analysis Report</h2>
-            <p style={{ margin: "2px 0 0", fontSize: "0.72rem", color: "#6b7280" }}>Generated automatically · {reportFileName}</p>
-          </div>
-          {REPORT_SECTIONS.map((s, i) => (
-            <div key={i} style={{ marginBottom: "14px" }}>
-              <p style={{ margin: "0 0 4px", fontWeight: 700, color: "#0f172a", fontSize: "0.82rem" }}>{s.emoji} {s.title}</p>
-              <p style={{ margin: 0, color: "#374151", fontSize: "0.77rem" }}>{s.desc}</p>
-            </div>
-          ))}
-          <div style={{ marginTop: "20px", paddingTop: "12px", borderTop: "1px solid #e5e7eb", fontSize: "0.7rem", color: "#9ca3af", textAlign: "center" }}>
-            Page 1 of 6 · {reportFileName}
-          </div>
+        <div style={{ flex: 1, borderRadius: "12px", overflow: "hidden", border: "1px solid rgba(31,41,55,0.8)" }}>
+          <iframe
+            title="PDF preview"
+            src={pdfUrl}
+            style={{ width: "100%", height: "100%", border: 0, background: "#fff" }}
+          />
         </div>
-        <p className="muted-small" style={{ textAlign: "center" }}>This is a preview. Download for the full report.</p>
+
+        <p className="muted-small" style={{ textAlign: "center", margin: 0 }}>
+          If the preview doesn’t load, use “Download PDF Report”.
+        </p>
       </div>
     </div>
   );
@@ -61,10 +114,15 @@ function PDFModal({ reportFileName, onClose }) {
 
 export default function DownloadCard() {
   const { token } = useAuth();
-  const [dataset,   setDataset]   = useState(null);
-  const [loading,   setLoading]   = useState(true);
-  const [showPDF,   setShowPDF]   = useState(false);
+  const [dataset, setDataset] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const [showPDF, setShowPDF] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState("");
+  const [pdfLoading, setPdfLoading] = useState(false);
+
   const [emailSent, setEmailSent] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
 
   useEffect(() => { fetchDataset(); }, [token]);
 
@@ -93,10 +151,38 @@ export default function DownloadCard() {
     }
   };
 
-  const handleEmail = () => {
-    // TODO: POST to backend which emails from admin.dig@proton.me to user's registered email
-    setEmailSent(true);
-    setTimeout(() => setEmailSent(false), 4000);
+  const handleViewPdf = async () => {
+    try {
+      setPdfLoading(true);
+      const { url } = await BackendAPI.getDownloadUrl(token, "report");
+      setPdfUrl(url);
+      setShowPDF(true);
+    } catch (err) {
+      alert("Failed to open PDF: " + err.message);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  // REAL frontend wiring (no mock): calls API, waits for success
+  const handleEmail = async () => {
+    try {
+      setEmailSending(true);
+
+      // backend will email signed-in user's registered email
+      // backend will use the subject + attach PDF / include link, depending on implementation later
+      await BackendAPI.emailReport(token, {
+        subject: "Your report is ready",
+        includeAttachment: true,
+      });
+
+      setEmailSent(true);
+      setTimeout(() => setEmailSent(false), 4000);
+    } catch (err) {
+      alert("Email failed: " + err.message);
+    } finally {
+      setEmailSending(false);
+    }
   };
 
   const reportReady = dataset?.hasPdfReport === true;
@@ -106,7 +192,13 @@ export default function DownloadCard() {
 
   return (
     <>
-      {showPDF && <PDFModal reportFileName={reportFileName} onClose={() => setShowPDF(false)} />}
+      {showPDF && (
+        <PDFModal
+          reportFileName={reportFileName}
+          pdfUrl={pdfUrl}
+          onClose={() => { setShowPDF(false); setPdfUrl(""); }}
+        />
+      )}
 
       <div className="card analysis-report-card">
         <div className="card-header">
@@ -126,7 +218,6 @@ export default function DownloadCard() {
             : "Upload a dataset first to get started."}
         </p>
 
-        {/* PDF file row */}
         <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 14px", borderRadius: "12px", background: "rgba(15,23,42,0.9)", border: "1px solid rgba(31,41,55,0.9)" }}>
           <div style={{ width: "38px", height: "38px", borderRadius: "8px", background: reportReady ? "rgba(239,68,68,0.15)" : "rgba(31,41,55,0.8)", border: `1px solid ${reportReady ? "rgba(239,68,68,0.3)" : "rgba(55,65,81,0.8)"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={reportReady ? "#f87171" : "#4b5563"} strokeWidth="1.6">
@@ -134,22 +225,33 @@ export default function DownloadCard() {
               <polyline points="14 2 14 8 20 8" />
             </svg>
           </div>
+
           <div style={{ flex: 1 }}>
             <p style={{ margin: 0, fontSize: "0.82rem", fontWeight: 600, color: reportReady ? "#e5e7eb" : "#4b5563" }}>
               {reportFileName}
             </p>
             <p className="muted-small">{reportReady ? "Ready" : "Pending analysis"}</p>
           </div>
+
           <button
-            disabled={!reportReady}
-            onClick={() => reportReady && setShowPDF(true)}
-            style={{ background: "rgba(37,99,235,0.12)", border: "1px solid rgba(37,99,235,0.3)", borderRadius: "8px", padding: "6px 12px", color: !reportReady ? "#374151" : "#93c5fd", fontSize: "0.75rem", fontWeight: 600, cursor: !reportReady ? "not-allowed" : "pointer", opacity: !reportReady ? 0.45 : 1 }}
+            disabled={!reportReady || pdfLoading}
+            onClick={() => reportReady && handleViewPdf()}
+            style={{
+              background: "rgba(37,99,235,0.12)",
+              border: "1px solid rgba(37,99,235,0.3)",
+              borderRadius: "8px",
+              padding: "6px 12px",
+              color: (!reportReady || pdfLoading) ? "#374151" : "#93c5fd",
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              cursor: (!reportReady || pdfLoading) ? "not-allowed" : "pointer",
+              opacity: (!reportReady || pdfLoading) ? 0.45 : 1,
+            }}
           >
-            View PDF
+            {pdfLoading ? "Loading…" : "View PDF"}
           </button>
         </div>
 
-        {/* Primary: Download PDF */}
         <button
           className="primary-btn-lg"
           disabled={!reportReady}
@@ -159,7 +261,6 @@ export default function DownloadCard() {
           ↓ Download PDF Report — {reportFileName}
         </button>
 
-        {/* Secondary exports */}
         <div className="export-buttons">
           <button
             className="secondary-btn"
@@ -172,24 +273,23 @@ export default function DownloadCard() {
 
           <button
             className="secondary-btn"
-            disabled={!reportReady}
+            disabled={!reportReady || emailSending}
             style={{
-              opacity: !reportReady ? 0.45 : 1,
-              cursor: !reportReady ? "not-allowed" : "pointer",
+              opacity: (!reportReady || emailSending) ? 0.45 : 1,
+              cursor: (!reportReady || emailSending) ? "not-allowed" : "pointer",
               color: emailSent ? "#bbf7d0" : undefined,
               borderColor: emailSent ? "rgba(34,197,94,0.4)" : undefined,
             }}
             onClick={() => reportReady && handleEmail()}
           >
-            {emailSent ? "✓ Email sent to your inbox!" : "Email me the report"}
+            {emailSending ? "Sending…" : emailSent ? "✓ Email sent to your inbox!" : "Email me the report"}
           </button>
         </div>
 
         <p className="muted-small" style={{ fontStyle: "italic" }}>
-          Email delivery is sent from admin.dig@proton.me to your registered address.
+          Email delivery is sent from dataset_insight_generator.ai@proton.me to your registered address.
         </p>
 
-        {/* What's included */}
         <div className="report-preview">
           <h3 style={{ fontSize: "0.78rem", color: "#6b7280", marginBottom: "10px", letterSpacing: "0.05em", textTransform: "uppercase" }}>
             What's included in your report
@@ -206,6 +306,7 @@ export default function DownloadCard() {
             ))}
           </div>
         </div>
+
       </div>
     </>
   );
