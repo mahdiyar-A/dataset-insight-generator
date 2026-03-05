@@ -184,8 +184,8 @@ export default function DashboardPage() {
               </div>
               <div className="profile-dropdown-icon">▾</div>
               <div className="profile-dropdown">
-                <a href="/dashboard/profileEditor">View profile</a>
-                <a href="/dashboard/accountSettings">Account settings</a>
+                <a href="/dashboard/profileView">View profile</a>
+                <a href="/dashboard/editProfile">Account settings</a>
               </div>
             </div>
           </div>
