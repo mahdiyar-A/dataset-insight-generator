@@ -226,22 +226,7 @@ export default function AccountSettingsPage() {
           </button>
         </div>
 
-        {/* ── PREFERENCES (placeholder) ── */}
-        <div className="card" style={sectionStyle}>
-          <h2 style={sectionHeadStyle}>Website Preferences</h2>
-          <p style={{ margin: "-8px 0 0", color: "#6b7280", fontSize: "0.82rem" }}>Theme and language — coming soon.</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
-            {[["Theme", ["Dark", "Light", "System"]], ["Language", ["English", "French", "Arabic"]]].map(([lbl, opts]) => (
-              <div key={lbl} style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <label style={labelStyle}>{lbl}</label>
-                <select disabled style={disabledSelectStyle}>
-                  {opts.map(o => <option key={o}>{o}{o !== opts[0] ? " (coming soon)" : ""}</option>)}
-                </select>
-              </div>
-            ))}
-          </div>
-        </div>
-
+       
         {/* ── DANGER ZONE ── */}
         <div className="card" style={{ ...sectionStyle, borderColor: "rgba(249,115,115,0.3)" }}>
           <h2 style={{ ...sectionHeadStyle, color: "#f97373" }}>Danger Zone</h2>
