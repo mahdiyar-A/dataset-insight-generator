@@ -5,7 +5,7 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
 
-export default function UploadCard({ onUploadSuccess, resetKey }) {
+export default function UploadCard({ onUploadSuccess, resetKey, guestMode = false, guestSessionId = null }) {
   const { token } = useAuth();
   const fileInputRef = useRef(null);
 
@@ -84,13 +84,24 @@ export default function UploadCard({ onUploadSuccess, resetKey }) {
 
     // Send to backend to save as temp file (needed for analysis later)
     try {
-      const result = await BackendAPI.uploadDataset(
-        token, selectedFile,
-        parsed?.totalRows ?? 0,
-        parsed?.totalCols ?? 0
-      );
+      let result;
+      if (guestMode) {
+        const form = new FormData();
+        form.append("file",      selectedFile);
+        form.append("sessionId", guestSessionId ?? "guest");
+        form.append("rows",      String(parsed?.totalRows ?? 0));
+        form.append("columns",   String(parsed?.totalCols ?? 0));
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/guest/upload`, { method: "POST", body: form });
+        if (!res.ok) throw new Error("Upload failed");
+        result = await res.json();
+      } else {
+        result = await BackendAPI.uploadDataset(
+          token, selectedFile,
+          parsed?.totalRows ?? 0,
+          parsed?.totalCols ?? 0
+        );
+      }
       setStatus("done");
-      // Notify dashboard with temp metadata (isPending=true, not yet in DB)
       onUploadSuccess?.(result);
     } catch (err) {
       console.error("Upload error:", err);

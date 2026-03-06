@@ -36,7 +36,7 @@ const CONDITION_STUBS = {
   all_good:     "Your dataset looks great! No significant issues found. Ready to generate your full report and visualizations.",
 };
 
-export default function AnalysisAssistantCard({ dataset, reportReady, onViewReport, onAnalysisStarted }) {
+export default function AnalysisAssistantCard({ dataset, reportReady, onViewReport, onAnalysisStarted, guestMode = false }) {
   const { token } = useAuth();
 
   const [stage,            setStage]            = useState(0);   // 0=idle 1=running 2=ready
@@ -72,13 +72,26 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
     if (sending) return;
     setSending(true);
     try {
-      const res = await BackendAPI.sendChatMessage(token, message, {
+      const meta = {
         fileName:         dataset?.fileName,
         fileSizeBytes:    dataset?.fileSizeBytes,
         rowCount:         dataset?.rowCount,
         columnCount:      dataset?.columnCount,
         pendingCondition: pendingCondition,
-      });
+      };
+
+      let res;
+      if (guestMode) {
+        const sessionId = sessionStorage.getItem("dig_guest_session") ?? "guest";
+        const response  = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/guest/chat`, {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message, sessionId, ...meta }),
+        });
+        res = await response.json();
+      } else {
+        res = await BackendAPI.sendChatMessage(token, message, meta);
+      }
       // Expected: { reply, condition, done, failed, requiresResponse }
       const reply     = res?.reply ?? res?.content ?? "Processing…";
       const cond      = res?.condition ?? null;
