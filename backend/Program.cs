@@ -72,6 +72,8 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<IUserProfileService, UserProfileService>(); // was missing!
 builder.Services.AddHttpClient<IPythonAiClient, PythonAiClient>();
+builder.Services.AddScoped<AnalysisService>();
+builder.Services.AddScoped<IAiService, AiService>();
 
 // JWT
 var jwtSecret = builder.Configuration["Jwt:Secret"]

@@ -125,24 +125,24 @@ export default function HomePage() {
     <br />
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginTop: '8px' }}>
       <div>
-        <p style={{ fontWeight: 600, color: '#f9fafb' }}>dev name</p>
+        <p style={{ fontWeight: 600, color: '#f9fafb' }}>Mahdiyar Ashrafioun</p>
         <p style={{ fontSize: '0.8rem', color: '#9ca3af' }}>Project Manager · Full Stack</p>
-        <a href="https://linkedin.com/in/yourprofile" target="_blank" style={{ fontSize: '0.78rem', color: '#60a5fa' }}>LinkedIn →</a>
+        <a href="https://www.linkedin.com/in/mahdiyar-ashrafioun/" target="_blank" style={{ fontSize: '0.78rem', color: '#60a5fa' }}>LinkedIn →</a>
       </div>
       <div>
-        <p style={{ fontWeight: 600, color: '#f9fafb' }}>Dev Name</p>
+        <p style={{ fontWeight: 600, color: '#f9fafb' }}>Pranhjot Singh Sidhu</p>
         <p style={{ fontSize: '0.8rem', color: '#9ca3af' }}>Backend Developer</p>
-        <a href="https://linkedin.com/in/" target="_blank" style={{ fontSize: '0.78rem', color: '#60a5fa' }}>LinkedIn →</a>
+        <a href="https://www.linkedin.com/in/prabhjot-sidhu-24abb3381/" target="_blank" style={{ fontSize: '0.78rem', color: '#60a5fa' }}>LinkedIn →</a>
       </div>
       <div>
-        <p style={{ fontWeight: 600, color: '#f9fafb' }}>Dev Name</p>
+        <p style={{ fontWeight: 600, color: '#f9fafb' }}>Harmanroop Singh</p>
         <p style={{ fontSize: '0.8rem', color: '#9ca3af' }}>Frontend Developer</p>
-        <a href="https://linkedin.com/in/" target="_blank" style={{ fontSize: '0.78rem', color: '#60a5fa' }}>LinkedIn →</a>
+        <a href="https://www.linkedin.com/in/harmanroop-singh/" target="_blank" style={{ fontSize: '0.78rem', color: '#60a5fa' }}>LinkedIn →</a>
       </div>
       <div>
-        <p style={{ fontWeight: 600, color: '#f9fafb' }}>Dev Name</p>
+        <p style={{ fontWeight: 600, color: '#f9fafb' }}>Muhammad ibad Hassan</p>
         <p style={{ fontSize: '0.8rem', color: '#9ca3af' }}>Frontend Developer </p>
-        <a href="https://linkedin.com/in/" target="_blank" style={{ fontSize: '0.78rem', color: '#60a5fa' }}>LinkedIn →</a>
+        <a href="http://linkedin.com/in/muhammad-ibad-hassan-331a37241" target="_blank" style={{ fontSize: '0.78rem', color: '#60a5fa' }}>LinkedIn →</a>
       </div>
     </div>
   </div>
