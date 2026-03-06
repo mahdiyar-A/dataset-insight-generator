@@ -12,4 +12,5 @@ public class UpdateEmailRequestDto
     [Required]
     [EmailAddress]
     public string Email { get; set; } = default!;
+    // both endpoint are made bot because of lack of authenticting email its on read only mode in frontend
 }
