@@ -24,6 +24,9 @@ export default function HistoryCard({ dataset, onDelete }) {
   const { token } = useAuth();
   const [deleting, setDeleting] = useState(false);
 
+  // Only show datasets that have been through analysis (isPending=false and status=done)
+  const showDataset = dataset && !dataset.isPending && dataset.status === "done";
+
   const handleDownload = async (type, fallbackName) => {
     try {
       const { url, fileName } = await BackendAPI.getDownloadUrl(token, type);
@@ -64,12 +67,11 @@ export default function HistoryCard({ dataset, onDelete }) {
             <th>Rows</th>
             <th>Columns</th>
             <th>Size</th>
-            <th>Uploaded</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {!dataset ? (
+          {!showDataset ? (
             <tr>
               <td>
                 <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
@@ -79,10 +81,10 @@ export default function HistoryCard({ dataset, onDelete }) {
                       <polyline points="14 2 14 8 20 8"/>
                     </svg>
                   </span>
-                  <span style={{ color:"#4b5563", fontSize:"0.82rem" }}>No dataset uploaded yet</span>
+                  <span style={{ color:"#4b5563", fontSize:"0.82rem" }}>No completed analysis yet</span>
                 </div>
               </td>
-              {["—","—","—","—"].map((v,i) => <td key={i} style={{ color:"#374151" }}>{v}</td>)}
+              {["—","—","—"].map((v,i) => <td key={i} style={{ color:"#374151" }}>{v}</td>)}
               <td className="actions-cell">
                 <button className="table-action" disabled style={{ opacity:0.3, cursor:"not-allowed" }}>Download</button>
                 <button className="table-action delete" disabled style={{ opacity:0.3, cursor:"not-allowed" }}>Delete</button>
@@ -104,7 +106,6 @@ export default function HistoryCard({ dataset, onDelete }) {
               <td>{dataset.rowCount    ?? "—"}</td>
               <td>{dataset.columnCount ?? "—"}</td>
               <td>{formatSize(dataset.fileSizeBytes)}</td>
-              <td style={{ fontSize:"0.75rem", color:"#9ca3af" }}>{formatDate(dataset.uploadedAt)}</td>
               <td className="actions-cell">
                 <button className="table-action" onClick={() => handleDownload("original", dataset.fileName)}
                   style={{ borderColor:"rgba(37,99,235,0.35)", color:"#93c5fd" }}>

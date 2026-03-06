@@ -31,7 +31,8 @@ export default function DashboardPage() {
   const [dataset,       setDataset]       = useState(null);
   const [datasetStatus, setDatasetStatus] = useState(null);
   const [reportReady,   setReportReady]   = useState(false);
-  const [analysisKey,   setAnalysisKey]   = useState(0);  // incremented on new upload to remount chatbot
+  const [analysisKey,   setAnalysisKey]   = useState(0);
+  const [uploadResetKey, setUploadResetKey] = useState(0);  // incremented on new upload to remount chatbot
 
   const topRef      = useRef(null);
   const uploadRef   = useRef(null);
@@ -80,11 +81,11 @@ export default function DashboardPage() {
   }, [token]);
 
   // Called by UploadCard after temp upload succeeds
-  // result has isPending=true — it's not in DB yet, just metadata for preview + chatbot
+  // isPending=true — NOT in DB, do NOT show in HistoryCard
+  // Only store as tempMeta so chatbot knows file name/size for greeting
   const handleUploadSuccess = useCallback(async (tempMeta) => {
     stopPolling();
-    // Set temp metadata so chatbot enables and history shows preview
-    setDataset(tempMeta);
+    setDataset({ ...tempMeta, isPending: true }); // chatbot reads this, HistoryCard ignores isPending
     setDatasetStatus("pending");
     setReportReady(false);
     setAnalysisKey(k => k + 1);
@@ -108,10 +109,11 @@ export default function DashboardPage() {
 
         if (s.status === "done" || s.status === "failed") {
           stopPolling();
-          // Full reload — picks up new chart_urls, cleaned_csv_url, pdf_report_url from DB
           const updated = await BackendAPI.getCurrentDataset(token);
           setDataset(updated);
           if (updated?.hasPdfReport) setReportReady(true);
+          setAnalysisKey(k => k + 1);    // remount chatbot → back to idle
+          setUploadResetKey(k => k + 1); // clear UploadCard file
         }
       } catch { /* network blip — keep polling */ }
     }, 10_000);
@@ -278,7 +280,7 @@ export default function DashboardPage() {
 
         {/* 1. Upload + Chatbot */}
         <section className="upper-grid" id="section-upload" ref={uploadRef}>
-          <UploadCard onUploadSuccess={handleUploadSuccess} />
+          <UploadCard onUploadSuccess={handleUploadSuccess} resetKey={uploadResetKey} />
           <AnalysisAssistantCard
             key={analysisKey}
             dataset={dataset}

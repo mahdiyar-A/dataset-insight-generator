@@ -1,20 +1,31 @@
 // @ts-nocheck
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
 
-export default function UploadCard({ onUploadSuccess }) {
+export default function UploadCard({ onUploadSuccess, resetKey }) {
   const { token } = useAuth();
   const fileInputRef = useRef(null);
 
   const [file,     setFile]     = useState(null);
-  const [status,   setStatus]   = useState("idle");  // idle | uploading | done | error
-  const [stats,    setStats]    = useState({ rows: null, columns: null, uploadTime: null, size: null });
+  const [status,   setStatus]   = useState("idle");
+  const [stats,    setStats]    = useState({ rows: null, columns: null, size: null });
   const [preview,  setPreview]  = useState(null);
   const [dragging, setDragging] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  // Reset when analysis completes (resetKey incremented by dashboard)
+  useEffect(() => {
+    if (resetKey === 0) return; // skip initial mount
+    setFile(null);
+    setStatus("idle");
+    setStats({ rows: null, columns: null, size: null });
+    setPreview(null);
+    setErrorMsg("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, [resetKey]);
 
   const parseCSV = (text) => {
     const lines = text.split("\n").filter((l) => l.trim());
@@ -64,10 +75,9 @@ export default function UploadCard({ onUploadSuccess }) {
     // Show preview immediately from client-side parse — no waiting for backend
     if (parsed) {
       setStats({
-        rows:       parsed.totalRows.toLocaleString(),
-        columns:    parsed.totalCols,
-        uploadTime,
-        size:       `${sizeKB} KB`,
+        rows:    parsed.totalRows.toLocaleString(),
+        columns: parsed.totalCols,
+        size:    `${sizeKB} KB`,
       });
       setPreview({ headers: parsed.headers, rows: parsed.rows, totalCols: parsed.totalCols });
     }
@@ -177,11 +187,10 @@ export default function UploadCard({ onUploadSuccess }) {
       {/* Stats */}
       <div className="stats-row">
         {[
-          { label: "Rows",        value: stats.rows       ?? "–" },
-          { label: "Columns",     value: stats.columns    ?? "–" },
-          { label: "Size",        value: stats.size       ?? "–" },
-          { label: "Upload time", value: stats.uploadTime ?? "–" },
-        ].map((s) => (
+        { label: "Rows",    value: stats.rows    ?? "–" },
+        { label: "Columns", value: stats.columns ?? "–" },
+        { label: "Size",    value: stats.size    ?? "–" },
+      ].map((s) => (
           <div className="stat" key={s.label}>
             <div className="stat-label">{s.label}</div>
             <div className="stat-value">{s.value}</div>

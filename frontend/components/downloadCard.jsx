@@ -143,11 +143,16 @@ export default function DownloadCard({ dataset }) {
 
         {/* Secondary exports */}
         <div className="export-buttons">
-          <button className="secondary-btn" disabled={!cleanedReady}
-            style={{ opacity:!cleanedReady ? 0.45 : 1, cursor:!cleanedReady ? "not-allowed" : "pointer" }}
-            onClick={() => cleanedReady && handleDownload("cleaned", `cleaned_${dataset?.fileName}`)}>
-            Download cleaned CSV
-          </button>
+          {cleanedReady ? (
+            <button className="secondary-btn"
+              onClick={() => handleDownload("cleaned", `cleaned_${dataset?.fileName}`)}>
+              ↓ Download Cleaned CSV
+            </button>
+          ) : (
+            <div style={{ padding:"10px 14px", borderRadius:"10px", background:"rgba(15,23,42,0.6)", border:"1px solid rgba(31,41,55,0.8)", fontSize:"0.78rem", color:"#4b5563", fontStyle:"italic" }}>
+              Cleaned CSV — not applicable for your dataset
+            </div>
+          )}
           <button className="secondary-btn" disabled={!reportReady || emailSending}
             style={{ opacity:(!reportReady||emailSending) ? 0.45 : 1, cursor:(!reportReady||emailSending) ? "not-allowed" : "pointer", color: emailSent ? "#bbf7d0" : undefined, borderColor: emailSent ? "rgba(34,197,94,0.4)" : undefined }}
             onClick={() => reportReady && handleEmail()}>

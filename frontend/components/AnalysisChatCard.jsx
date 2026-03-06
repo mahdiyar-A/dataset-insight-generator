@@ -161,8 +161,9 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
     setAwaitingResponse(false);
     setCondition(null);
     setStubStep(0);
-    addMsg("assistant", "Analysis started. Scanning your dataset…");
-    timerRef.current = setTimeout(() => sendMessage("start_analysis"), 600);
+    const name = dataset?.fileName ?? "your dataset";
+    addMsg("assistant", `We've received "${name}" — starting analysis now. Please wait…`);
+    timerRef.current = setTimeout(() => sendMessage("start_analysis"), 800);
   };
 
   const handleCancel = () => {
@@ -289,12 +290,6 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
                 </button>
               </>
             )}
-
-            <button className="primary-btn" onClick={handleStart} disabled={sending}
-              style={{ padding:"6px 16px", fontSize:"0.8rem", fontWeight:800, borderRadius:"999px", marginLeft:"auto", display:"flex", alignItems:"center", gap:"6px", opacity: sending ? 0.5 : 1 }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              Start
-            </button>
           </div>
         </>
       )}
