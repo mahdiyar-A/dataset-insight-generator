@@ -139,7 +139,7 @@ public class GuestController : ControllerBase
             var tempPath = FindTempFile(req.SessionId);
             if (tempPath != null)
                 _ = Task.Run(() => RunGuestAnalysisAsync(
-                    req.SessionId, tempPath,
+                    req.SessionId ?? "guest", tempPath,
                     req.FileName ?? "data.csv",
                     userWantsCleaning, userConfirmedLow
                 ));
