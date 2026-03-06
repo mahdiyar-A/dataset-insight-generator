@@ -205,11 +205,17 @@ export default class BackendAPI {
     return Array.isArray(data) ? data : [];
   }
 
-  static async sendChatMessage(token, message) {
+  static async sendChatMessage(token, message, meta = {}) {
     const res = await fetch(`${API_BASE}/api/chat/message`, {
       method: "POST",
       headers: authHeaders(token),
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({
+        message,
+        fileName:      meta.fileName      ?? null,
+        fileSizeBytes: meta.fileSizeBytes  ?? null,
+        rowCount:      meta.rowCount       ?? null,
+        columnCount:   meta.columnCount    ?? null,
+      }),
     });
     if (!res.ok) throw new Error((await readError(res)) || "Failed to send message");
     return await res.json();

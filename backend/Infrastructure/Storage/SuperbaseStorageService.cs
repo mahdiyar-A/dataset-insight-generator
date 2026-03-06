@@ -24,15 +24,18 @@ public class SupabaseStorageService : IStorageService
     public async Task<string> SaveOriginalCsvAsync(Guid userId, IFormFile file)
     {
         ValidateCsv(file);
-        var path = $"users/{userId}/original.csv";
-        return await UploadAsync(file, path);
+        return await UploadAsync(file, $"users/{userId}/original.csv");
     }
 
-    public async Task<string> SaveCleanedCsvAsync(Guid userId, byte[] csvBytes)
-        => await UploadBytesAsync(csvBytes, $"users/{userId}/cleaned.csv", "text/csv");
+    // Used by AnalysisService — saves bytes directly (original or cleaned)
+    public async Task<string> SaveCleanedCsvAsync(Guid userId, byte[] csvBytes, string fileName = "cleaned.csv")
+        => await UploadBytesAsync(csvBytes, $"users/{userId}/{fileName}", "text/csv");
 
     public async Task<string> SavePdfReportAsync(Guid userId, byte[] pdfBytes)
         => await UploadBytesAsync(pdfBytes, $"users/{userId}/report.pdf", "application/pdf");
+
+    public async Task<string> SaveChartAsync(Guid userId, int index, byte[] pngBytes)
+        => await UploadBytesAsync(pngBytes, $"users/{userId}/chart_{index}.png", "image/png");
 
     public async Task DeleteUserFilesAsync(Guid userId)
     {
@@ -42,17 +45,20 @@ public class SupabaseStorageService : IStorageService
             {
                 $"users/{userId}/original.csv",
                 $"users/{userId}/cleaned.csv",
-                $"users/{userId}/report.pdf"
+                $"users/{userId}/report.pdf",
+                $"users/{userId}/chart_0.png",
+                $"users/{userId}/chart_1.png",
+                $"users/{userId}/chart_2.png",
+                $"users/{userId}/chart_3.png",
+                $"users/{userId}/chart_4.png",
             };
             await _client.Storage.From(_bucket).Remove(paths);
         }
-        catch { /* ignore if files don't exist */ }
+        catch { /* ignore — files may not exist */ }
     }
 
     public async Task<string> GetSignedUrlAsync(string storagePath, int expiresInSeconds = 3600)
-    {
-        return await _client.Storage.From(_bucket).CreateSignedUrl(storagePath, expiresInSeconds);
-    }
+        => await _client.Storage.From(_bucket).CreateSignedUrl(storagePath, expiresInSeconds);
 
     private async Task<string> UploadAsync(IFormFile file, string storagePath)
     {
@@ -63,11 +69,7 @@ public class SupabaseStorageService : IStorageService
 
     private async Task<string> UploadBytesAsync(byte[] bytes, string storagePath, string contentType)
     {
-        var options = new Supabase.Storage.FileOptions
-        {
-            ContentType = contentType,
-            Upsert      = true
-        };
+        var options = new Supabase.Storage.FileOptions { ContentType = contentType, Upsert = true };
         await _client.Storage.From(_bucket).Upload(bytes, storagePath, options);
         return storagePath;
     }
@@ -75,16 +77,18 @@ public class SupabaseStorageService : IStorageService
     private static void ValidateImage(IFormFile file)
     {
         var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp" };
-        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-        if (!allowed.Contains(ext)) throw new InvalidOperationException("Invalid image type");
-        if (file.Length > 2 * 1024 * 1024) throw new InvalidOperationException("Image too large (max 2MB)");
+        if (!allowed.Contains(Path.GetExtension(file.FileName).ToLowerInvariant()))
+            throw new InvalidOperationException("Invalid image type");
+        if (file.Length > 2 * 1024 * 1024)
+            throw new InvalidOperationException("Image too large (max 2MB)");
     }
 
     private static void ValidateCsv(IFormFile file)
     {
         var allowed = new[] { ".csv", ".xlsx", ".xls", ".txt" };
-        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-        if (!allowed.Contains(ext)) throw new InvalidOperationException("Invalid file type");
-        if (file.Length > 50 * 1024 * 1024) throw new InvalidOperationException("File too large (max 50MB)");
+        if (!allowed.Contains(Path.GetExtension(file.FileName).ToLowerInvariant()))
+            throw new InvalidOperationException("Invalid file type");
+        if (file.Length > 50 * 1024 * 1024)
+            throw new InvalidOperationException("File too large (max 50MB)");
     }
 }

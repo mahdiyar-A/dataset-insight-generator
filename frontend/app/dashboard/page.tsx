@@ -12,15 +12,26 @@ import ChartsCard from "@/components/chartsCard";
 import DownloadsCard from "@/components/downloadCard";
 import InfoCards from "@/components/infoCards";
 
+/*
+  FULL CYCLE:
+  1. Login       → loadDataset() pulls existing dataset + charts + report → shown in all cards
+  2. New upload  → loadDataset() called by UploadCard → all cards refresh, chatbot resets to idle
+  3. Start analy → chatbot sends "start_analysis" → backend sets status="processing" → polling starts
+  4. Yes/No      → chatbot sends "yes"/"no" → backend pipeline runs (AI step, ignored for now)
+  5. Polling     → every 10s checks status → when "done" → full reload → all cards fill with new data
+  6. Delete      → clears all state → cards show empty state
+  7. Next login  → step 1 again, data persists in DB
+*/
+
 export default function DashboardPage() {
   const [activeSection, setActiveSection] = useState("top");
   const router = useRouter();
   const { logout, currentUser, token, refreshUser } = useAuth();
 
-  // Dataset state — loaded once on mount, shared with child cards via props/context
   const [dataset,       setDataset]       = useState(null);
-  const [datasetStatus, setDatasetStatus] = useState(null); // "pending"|"processing"|"done"|"failed"|null
+  const [datasetStatus, setDatasetStatus] = useState(null);
   const [reportReady,   setReportReady]   = useState(false);
+  const [analysisKey,   setAnalysisKey]   = useState(0);  // incremented on new upload to remount chatbot
 
   const topRef      = useRef(null);
   const uploadRef   = useRef(null);
@@ -30,49 +41,101 @@ export default function DashboardPage() {
   const helpRef     = useRef(null);
   const pollRef     = useRef(null);
 
-  // ── Load user profile + dataset on mount
+  // ── On login: pull profile + existing dataset from DB ──────────────────
   useEffect(() => {
-    if (token) {
-      refreshUser();
-      loadDataset();
-    }
+    if (!token) return;
+    refreshUser();
+    loadDataset();
   }, [token]);
 
+  // Case 1: On login — pull completed dataset from DB
+  // Only returns data if a previous analysis succeeded
+  // Temp uploads are NOT in DB and won't appear here
   const loadDataset = useCallback(async () => {
     if (!token) return;
+    stopPolling();
     try {
       const data = await BackendAPI.getCurrentDataset(token);
       setDataset(data);
-      if (data) {
-        setReportReady(data.hasPdfReport === true);
-        if (!data.hasPdfReport) startPolling();
+
+      if (!data) {
+        setDatasetStatus(null);
+        setReportReady(false);
+        return;
       }
-    } catch { /* no dataset yet */ }
+
+      const status = data.status ?? "pending";
+      setDatasetStatus(status);
+      setReportReady(data.hasPdfReport === true);
+
+      // Resume polling if analysis was already running when user logged in / refreshed
+      if (status === "processing" || status === "pending") {
+        startPolling();
+      }
+    } catch {
+      setDataset(null);
+      setDatasetStatus(null);
+      setReportReady(false);
+    }
   }, [token]);
 
-  // ── Poll /api/datasets/current/status every 10s while analysis is running
+  // Called by UploadCard after temp upload succeeds
+  // result has isPending=true — it's not in DB yet, just metadata for preview + chatbot
+  const handleUploadSuccess = useCallback(async (tempMeta) => {
+    stopPolling();
+    // Set temp metadata so chatbot enables and history shows preview
+    setDataset(tempMeta);
+    setDatasetStatus("pending");
+    setReportReady(false);
+    setAnalysisKey(k => k + 1);
+  }, []);
+
+  // ── Called by AnalysisChatCard when user confirms analysis (Yes/No sent) ─
+  // Backend already set status="processing" — just start polling
+  const handleAnalysisStarted = useCallback(() => {
+    setDatasetStatus("processing");
+    startPolling();
+  }, []);
+
+  // ── Poll /api/datasets/current/status every 10s ─────────────────────────
   const startPolling = useCallback(() => {
-    if (pollRef.current) return; // already polling
+    if (pollRef.current) return; // already running
     pollRef.current = setInterval(async () => {
       try {
         const s = await BackendAPI.getDatasetStatus(token);
         if (!s) return;
         setDatasetStatus(s.status);
+
         if (s.status === "done" || s.status === "failed") {
-          clearInterval(pollRef.current);
-          pollRef.current = null;
-          // Reload full dataset to get updated URLs
+          stopPolling();
+          // Full reload — picks up new chart_urls, cleaned_csv_url, pdf_report_url from DB
           const updated = await BackendAPI.getCurrentDataset(token);
           setDataset(updated);
           if (updated?.hasPdfReport) setReportReady(true);
         }
-      } catch { /* ignore */ }
+      } catch { /* network blip — keep polling */ }
     }, 10_000);
   }, [token]);
 
-  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+  const stopPolling = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  };
 
-  // Scroll sections
+  // ── Called by HistoryCard delete button ──────────────────────────────────
+  const handleDelete = useCallback(() => {
+    stopPolling();
+    setDataset(null);
+    setDatasetStatus(null);
+    setReportReady(false);
+    setAnalysisKey(k => k + 1);
+  }, []);
+
+  useEffect(() => () => stopPolling(), []);
+
+  // ── Intersection observer → sidebar highlight ───────────────────────────
   useEffect(() => {
     const sections = [
       { id: "top",              ref: topRef },
@@ -90,16 +153,11 @@ export default function DashboardPage() {
     return () => observer.disconnect();
   }, []);
 
-  const scrollTo = (id, ref) => {
-    ref?.current?.scrollIntoView({ behavior: "smooth" });
-    setActiveSection(id);
-  };
-
+  const scrollTo      = (id, ref) => { ref?.current?.scrollIntoView({ behavior: "smooth" }); setActiveSection(id); };
   const scrollToReport = () => scrollTo("section-download", downloadRef);
+  const handleSignOut  = () => { logout(); router.push("/login"); };
 
-  const handleSignOut = () => { logout(); router.push("/login"); };
-
-  // User display — from backend via AuthContext
+  // ── User display ─────────────────────────────────────────────────────────
   const firstName    = currentUser?.firstName ?? "";
   const lastName     = currentUser?.lastName  ?? "";
   const fullName     = `${firstName} ${lastName}`.trim();
@@ -119,6 +177,9 @@ export default function DashboardPage() {
     { id: "section-help",     label: "Help",        icon: <IconHelp />,    ref: helpRef },
   ];
 
+  const showProcessingBanner = (datasetStatus === "processing" || datasetStatus === "pending") && !reportReady && !!dataset;
+  const showFailedBanner     = datasetStatus === "failed";
+
   return (
     <div className="dig-body" style={{ display: "flex", minHeight: "100vh" }}>
 
@@ -128,23 +189,17 @@ export default function DashboardPage() {
           <img src="/d_dig.svg" alt="DIG" className="sidebar-logo-img" />
           <span className="sidebar-logo-text">DIG</span>
         </div>
-
         <nav className="sidebar-nav">
           {navItems.map((item) => (
-            <button
-              key={item.id}
-              className={`sidebar-link ${activeSection === item.id ? "active" : ""}`}
-              onClick={() => scrollTo(item.id, item.ref)}
-              title={item.label}
-            >
+            <button key={item.id} className={`sidebar-link ${activeSection === item.id ? "active" : ""}`}
+              onClick={() => scrollTo(item.id, item.ref)} title={item.label}>
               <span className="sidebar-icon">{item.icon}</span>
               <span className="sidebar-label">{item.label}</span>
             </button>
           ))}
         </nav>
-
         <div className="sidebar-bottom">
-          <button className="sidebar-link" onClick={() => router.push("/dashboard/settings")} title="Settings">
+          <button className="sidebar-link" onClick={() => router.push("/dashboard/editProfile")} title="Settings">
             <span className="sidebar-icon"><IconSettings /></span>
             <span className="sidebar-label">Settings</span>
           </button>
@@ -158,29 +213,26 @@ export default function DashboardPage() {
       {/* ── MAIN ── */}
       <div className="dig-main">
 
-        {/* Top bar */}
+        {/* Topbar */}
         <header className="dig-topbar" id="top" ref={topRef}>
           <div>
             <h1>Dashboard</h1>
             <p className="subtitle">
               {dataset
                 ? `Last upload: ${dataset.fileName} · ${dataset.rowCount ?? "?"} rows`
-                : "Upload a dataset to generate instant insights."}
+                : "Upload a dataset to get started."}
             </p>
           </div>
           <div className="topbar-right">
             <div className="profile-wrapper">
-              {/* Avatar */}
-              <div className="avatar" style={avatarUrl ? { padding: 0, overflow: "hidden" } : {}}>
+              <div className="avatar" style={avatarUrl ? { padding:0, overflow:"hidden" } : {}}>
                 {avatarUrl
-                  ? <img src={avatarUrl} alt={displayName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ? <img src={avatarUrl} alt={displayName} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                   : avatarLetter}
               </div>
               <div className="profile-text">
                 <span className="profile-name">{displayName}</span>
-                <span className="profile-role">
-                  {memberSince ? `Member since ${memberSince}` : "Member"}
-                </span>
+                <span className="profile-role">{memberSince ? `Member since ${memberSince}` : "Member"}</span>
               </div>
               <div className="profile-dropdown-icon">▾</div>
               <div className="profile-dropdown">
@@ -191,52 +243,54 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        {/* Report-ready banner — appears when analysis finishes */}
+        {/* ── Banners ── */}
         {reportReady && (
-          <div style={{
-            margin: "0 0 0",
-            padding: "12px 24px",
-            background: "linear-gradient(90deg, rgba(22,163,74,0.12), rgba(22,163,74,0.06))",
-            borderBottom: "1px solid rgba(34,197,94,0.2)",
-            display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px"
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span style={{ fontSize: "16px" }}>✅</span>
-              <span style={{ fontSize: "0.85rem", color: "#bbf7d0", fontWeight: 600 }}>
-                Your analysis is complete — report and cleaned dataset are ready.
+          <div style={{ padding:"12px 24px", background:"linear-gradient(90deg,rgba(22,163,74,0.12),rgba(22,163,74,0.06))", borderBottom:"1px solid rgba(34,197,94,0.2)", display:"flex", alignItems:"center", justifyContent:"space-between", gap:"12px" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
+              <span>✅</span>
+              <span style={{ fontSize:"0.85rem", color:"#bbf7d0", fontWeight:600 }}>
+                Analysis complete — report, charts, and cleaned dataset are ready.
               </span>
             </div>
-            <button
-              onClick={scrollToReport}
-              style={{ padding: "7px 16px", borderRadius: "999px", border: "1px solid rgba(34,197,94,0.4)", background: "rgba(22,163,74,0.15)", color: "#86efac", fontSize: "0.78rem", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
-            >
+            <button onClick={scrollToReport} style={{ padding:"7px 16px", borderRadius:"999px", border:"1px solid rgba(34,197,94,0.4)", background:"rgba(22,163,74,0.15)", color:"#86efac", fontSize:"0.78rem", fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
               View Report →
             </button>
           </div>
         )}
 
-        {/* Analysis in-progress banner */}
-        {datasetStatus === "processing" && !reportReady && (
-          <div style={{
-            padding: "12px 24px",
-            background: "rgba(37,99,235,0.08)",
-            borderBottom: "1px solid rgba(37,99,235,0.2)",
-            display: "flex", alignItems: "center", gap: "10px"
-          }}>
-            <span style={{ fontSize: "14px", animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span>
-            <span style={{ fontSize: "0.85rem", color: "#93c5fd" }}>Analysis running — your report will be ready shortly…</span>
+        {showProcessingBanner && (
+          <div style={{ padding:"12px 24px", background:"rgba(37,99,235,0.08)", borderBottom:"1px solid rgba(37,99,235,0.2)", display:"flex", alignItems:"center", gap:"10px" }}>
+            <span>⏳</span>
+            <span style={{ fontSize:"0.85rem", color:"#93c5fd" }}>
+              Analysis running — charts and report will appear when done…
+            </span>
           </div>
         )}
 
-        {/* 1. Upload + Assistant */}
+        {showFailedBanner && (
+          <div style={{ padding:"12px 24px", background:"rgba(127,29,29,0.12)", borderBottom:"1px solid rgba(249,115,115,0.2)", display:"flex", alignItems:"center", gap:"10px" }}>
+            <span>❌</span>
+            <span style={{ fontSize:"0.85rem", color:"#fca5a5" }}>
+              Analysis failed. Please try uploading your dataset again.
+            </span>
+          </div>
+        )}
+
+        {/* 1. Upload + Chatbot */}
         <section className="upper-grid" id="section-upload" ref={uploadRef}>
-          <UploadCard onUploadSuccess={loadDataset} />
-          <AnalysisAssistantCard reportReady={reportReady} onViewReport={scrollToReport} />
+          <UploadCard onUploadSuccess={handleUploadSuccess} />
+          <AnalysisAssistantCard
+            key={analysisKey}
+            dataset={dataset}
+            reportReady={reportReady}
+            onViewReport={scrollToReport}
+            onAnalysisStarted={handleAnalysisStarted}
+          />
         </section>
 
         {/* 2. Dataset history */}
         <section className="dataset-management-grid" id="section-history" ref={historyRef}>
-          <HistoryCard dataset={dataset} onDelete={() => { setDataset(null); setReportReady(false); }} />
+          <HistoryCard dataset={dataset} onDelete={handleDelete} />
         </section>
 
         {/* 3. Charts */}

@@ -36,7 +36,7 @@ const CONDITION_STUBS = {
   all_good:     "Your dataset looks great! No significant issues found. Ready to generate your full report and visualizations.",
 };
 
-export default function AnalysisAssistantCard({ reportReady, onViewReport }) {
+export default function AnalysisAssistantCard({ dataset, reportReady, onViewReport, onAnalysisStarted }) {
   const { token } = useAuth();
 
   const [stage,            setStage]            = useState(0);   // 0=idle 1=running 2=ready
@@ -72,7 +72,12 @@ export default function AnalysisAssistantCard({ reportReady, onViewReport }) {
     if (sending) return;
     setSending(true);
     try {
-      const res = await BackendAPI.sendChatMessage(token, message);
+      const res = await BackendAPI.sendChatMessage(token, message, {
+        fileName:      dataset?.fileName,
+        fileSizeBytes: dataset?.fileSizeBytes,
+        rowCount:      dataset?.rowCount,
+        columnCount:   dataset?.columnCount,
+      });
       // Expected: { reply, condition, done, failed, requiresResponse }
       const reply     = res?.reply ?? res?.content ?? "Processing…";
       const cond      = res?.condition ?? null;
@@ -90,6 +95,10 @@ export default function AnalysisAssistantCard({ reportReady, onViewReport }) {
         setStage(2);
         setAwaitingResponse(false);
       } else {
+        // If backend set status=processing (user said yes/no and analysis kicked off)
+        if (!needsResp && !done && !failed && cond === null) {
+          onAnalysisStarted?.();
+        }
         setAwaitingResponse(needsResp);
       }
     } catch (err) {
@@ -136,6 +145,7 @@ export default function AnalysisAssistantCard({ reportReady, onViewReport }) {
       // If all_good → auto-advance
       if (next.condition === "all_good") {
         setAwaitingResponse(false);
+        onAnalysisStarted?.();
         timerRef.current = setTimeout(() => {
           addMsg("assistant", "✅ Analysis complete! Your report is being generated.");
           setStage(2);
@@ -233,9 +243,11 @@ export default function AnalysisAssistantCard({ reportReady, onViewReport }) {
           </div>
           <p style={{ margin:0, fontSize:"0.9rem", fontWeight:600, color:"#e5e7eb" }}>Ready to analyse</p>
           <p className="muted-small" style={{ maxWidth:"260px", lineHeight:"1.6" }}>
-            Upload a CSV above, then press <strong style={{ color:"#bfdbfe" }}>Start</strong> to begin the analysis pipeline.
+            {dataset
+              ? <>Press <strong style={{ color:"#bfdbfe" }}>Start</strong> to begin the analysis pipeline.</>
+              : "Upload a CSV above first, then start the analysis."}
           </p>
-          <button className="primary-btn" style={{ fontWeight:800, marginTop:"4px", display:"flex", alignItems:"center", gap:"7px" }} onClick={handleStart}>
+          <button className="primary-btn" style={{ fontWeight:800, marginTop:"4px", display:"flex", alignItems:"center", gap:"7px", opacity: dataset ? 1 : 0.4, cursor: dataset ? "pointer" : "not-allowed" }} onClick={dataset ? handleStart : undefined} disabled={!dataset}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
             Start
           </button>

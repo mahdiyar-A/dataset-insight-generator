@@ -9,5 +9,6 @@ public interface IDatasetRepository
     Task DeleteByUserIdAsync(Guid userId);
     Task UpdateStatusAsync(Guid userId, string status,
         string? cleanedCsvUrl = null, string? pdfReportUrl = null);
-    Task UpdateChartUrlsAsync(Guid userId, string chartUrlsJson);  // ← NEW
+    Task UpdateChartUrlsAsync(Guid userId, string chartUrlsJson);
+    Task UpdateOriginalCsvPathAsync(Guid userId, string originalCsvPath);  // ← NEW
 }

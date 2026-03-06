@@ -5,7 +5,7 @@ import React, { useState, useRef, useCallback } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
 
-export default function UploadCard() {
+export default function UploadCard({ onUploadSuccess }) {
   const { token } = useAuth();
   const fileInputRef = useRef(null);
 
@@ -61,6 +61,7 @@ export default function UploadCard() {
     const text       = await selectedFile.text();
     const parsed     = parseCSV(text);
 
+    // Show preview immediately from client-side parse — no waiting for backend
     if (parsed) {
       setStats({
         rows:       parsed.totalRows.toLocaleString(),
@@ -71,9 +72,16 @@ export default function UploadCard() {
       setPreview({ headers: parsed.headers, rows: parsed.rows, totalCols: parsed.totalCols });
     }
 
+    // Send to backend to save as temp file (needed for analysis later)
     try {
-      await BackendAPI.uploadDataset(token, selectedFile);
+      const result = await BackendAPI.uploadDataset(
+        token, selectedFile,
+        parsed?.totalRows ?? 0,
+        parsed?.totalCols ?? 0
+      );
       setStatus("done");
+      // Notify dashboard with temp metadata (isPending=true, not yet in DB)
+      onUploadSuccess?.(result);
     } catch (err) {
       console.error("Upload error:", err);
       setStatus("error");
@@ -172,6 +180,7 @@ export default function UploadCard() {
           { label: "Rows",        value: stats.rows       ?? "–" },
           { label: "Columns",     value: stats.columns    ?? "–" },
           { label: "Size",        value: stats.size       ?? "–" },
+          { label: "Upload time", value: stats.uploadTime ?? "–" },
         ].map((s) => (
           <div className="stat" key={s.label}>
             <div className="stat-label">{s.label}</div>

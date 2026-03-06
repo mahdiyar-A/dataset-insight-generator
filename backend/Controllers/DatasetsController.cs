@@ -15,45 +15,91 @@ public class DatasetsController : ControllerBase
     private readonly IDatasetRepository _datasets;
     private readonly IStorageService    _storage;
 
+    private static readonly string TempDir = Path.Combine(Path.GetTempPath(), "dig_uploads");
+
     public DatasetsController(IDatasetRepository datasets, IStorageService storage)
     {
         _datasets = datasets;
         _storage  = storage;
+        Directory.CreateDirectory(TempDir);
     }
 
     private Guid GetUserId()
     {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier)
-                 ?? User.FindFirstValue("sub");
+        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
         if (string.IsNullOrEmpty(claim) || !Guid.TryParse(claim, out var id))
             throw new UnauthorizedAccessException("Missing user id claim");
         return id;
     }
 
-    // ── GET /api/datasets/current ─────────────────────────────────────────
+    // POST /api/datasets/upload
+    // Saves CSV to server temp folder ONLY — nothing goes to Supabase until analysis succeeds
+    [HttpPost("upload")]
+    [RequestSizeLimit(52_428_800)]
+    public async Task<IActionResult> Upload(
+        [FromForm] IFormFile file,
+        [FromForm] int? rows,
+        [FromForm] int? columns)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { error = "NO_FILE", message = "No file provided." });
+
+        if (Path.GetExtension(file.FileName).ToLowerInvariant() != ".csv")
+            return BadRequest(new { error = "INVALID_TYPE", message = "Only .csv files are accepted." });
+
+        if (file.Length > 50 * 1024 * 1024)
+            return BadRequest(new { error = "TOO_LARGE", message = "File exceeds 50 MB limit." });
+
+        var userId   = GetUserId();
+        var tempPath = Path.Combine(TempDir, $"{userId}.csv");
+
+        using (var stream = System.IO.File.Create(tempPath))
+            await file.CopyToAsync(stream);
+
+        int rowCount    = rows    ?? 0;
+        int columnCount = columns ?? 0;
+
+        if (!rows.HasValue || !columns.HasValue)
+        {
+            var lines   = System.IO.File.ReadAllLines(tempPath)
+                              .Where(l => !string.IsNullOrWhiteSpace(l)).ToArray();
+            rowCount    = Math.Max(0, lines.Length - 1);
+            columnCount = lines.Length > 0 ? lines[0].Split(',').Length : 0;
+        }
+
+        return Ok(new
+        {
+            fileName      = file.FileName,
+            fileSizeBytes = file.Length,
+            rowCount,
+            columnCount,
+            status        = "pending",
+            uploadedAt    = DateTime.UtcNow,
+            hasCleanedCsv = false,
+            hasPdfReport  = false,
+            isPending     = true,
+        });
+    }
+
+    // GET /api/datasets/current — only returns data that's been through analysis
     [HttpGet("current")]
     public async Task<IActionResult> GetCurrent()
     {
         var userId  = GetUserId();
         var dataset = await _datasets.GetByUserIdAsync(userId);
-
         if (dataset == null)
-            return NotFound(new { error = "NO_DATASET", message = "No dataset uploaded yet." });
-
+            return NotFound(new { error = "NO_DATASET" });
         return Ok(ToDto(dataset));
     }
 
-    // ── GET /api/datasets/current/status ─────────────────────────────────  ← NEW
-    // Used by frontend polling every 10s during analysis
+    // GET /api/datasets/current/status
     [HttpGet("current/status")]
     public async Task<IActionResult> GetStatus()
     {
         var userId  = GetUserId();
         var dataset = await _datasets.GetByUserIdAsync(userId);
-
         if (dataset == null)
             return NotFound(new { error = "NO_DATASET" });
-
         return Ok(new
         {
             status        = dataset.Status,
@@ -62,146 +108,91 @@ public class DatasetsController : ControllerBase
         });
     }
 
-    // ── GET /api/datasets/visualizations ─────────────────────────────────  ← NEW
-    // Returns up to 5 chart objects for the current dataset
-    // Shape: [{ type, label, url, desc, color }, ...]
-    // Empty array if no analysis done yet
+    // GET /api/datasets/visualizations
     [HttpGet("visualizations")]
     public async Task<IActionResult> GetVisualizations()
     {
         var userId  = GetUserId();
         var dataset = await _datasets.GetByUserIdAsync(userId);
-
         if (dataset == null || dataset.ChartUrls == null)
             return Ok(Array.Empty<object>());
-
-        // chart_urls is stored as JSON in Supabase
-        // The AI service saves it — we just serve it back
         try
         {
             var charts = JsonSerializer.Deserialize<List<object>>(dataset.ChartUrls);
             return Ok(charts ?? new List<object>());
         }
-        catch
-        {
-            return Ok(Array.Empty<object>());
-        }
+        catch { return Ok(Array.Empty<object>()); }
     }
 
-    // ── POST /api/datasets/upload ─────────────────────────────────────────
-    [HttpPost("upload")]
-    [RequestSizeLimit(52_428_800)]
-    public async Task<IActionResult> Upload(
-        [FromForm] IFormFile file,
-        [FromForm] int?      rows,
-        [FromForm] int?      columns)
+    // GET /api/datasets/temp/exists — frontend checks before allowing Start
+    [HttpGet("temp/exists")]
+    public IActionResult TempExists()
     {
-        if (file == null || file.Length == 0)
-            return BadRequest(new { error = "NO_FILE", message = "No file provided." });
-
-        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-        if (ext != ".csv")
-            return BadRequest(new { error = "INVALID_TYPE", message = "Only .csv files are accepted." });
-
-        var userId = GetUserId();
-
-        try
-        {
-            await _storage.DeleteUserFilesAsync(userId);
-            var csvUrl  = await _storage.SaveOriginalCsvAsync(userId, file);
-            var dataset = new Dataset(userId, file.FileName, file.Length, csvUrl);
-
-            if (rows.HasValue && columns.HasValue)
-            {
-                dataset.SetShape(rows.Value, columns.Value);
-            }
-            else
-            {
-                using var reader  = new StreamReader(file.OpenReadStream());
-                var content       = await reader.ReadToEndAsync();
-                var lines         = content.Split('\n').Where(l => !string.IsNullOrWhiteSpace(l)).ToArray();
-                dataset.SetShape(
-                    Math.Max(0, lines.Length - 1),
-                    lines.Length > 0 ? lines[0].Split(',').Length : 0
-                );
-            }
-
-            await _datasets.UpsertAsync(dataset);
-            return Ok(ToDto(dataset));
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { error = "UPLOAD_FAILED", message = ex.Message });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = "SERVER_ERROR", message = ex.Message });
-        }
+        var userId   = GetUserId();
+        var tempPath = Path.Combine(TempDir, $"{userId}.csv");
+        return Ok(new { exists = System.IO.File.Exists(tempPath) });
     }
 
-    // ── GET /api/datasets/download/original ──────────────────────────────
+    // GET /api/datasets/download/original
     [HttpGet("download/original")]
     public async Task<IActionResult> DownloadOriginal()
     {
         var userId  = GetUserId();
         var dataset = await _datasets.GetByUserIdAsync(userId);
         if (dataset == null) return NotFound(new { error = "NO_DATASET" });
-
         var url = await _storage.GetSignedUrlAsync(dataset.OriginalCsvPath, 3600);
         return Ok(new { url, fileName = dataset.FileName });
     }
 
-    // ── GET /api/datasets/download/cleaned ───────────────────────────────
+    // GET /api/datasets/download/cleaned
     [HttpGet("download/cleaned")]
     public async Task<IActionResult> DownloadCleaned()
     {
         var userId  = GetUserId();
         var dataset = await _datasets.GetByUserIdAsync(userId);
         if (dataset == null) return NotFound(new { error = "NO_DATASET" });
-        if (dataset.CleanedCsvPath == null) return NotFound(new { error = "NOT_READY", message = "Cleaned CSV not ready yet." });
-
+        if (dataset.CleanedCsvPath == null)
+            return NotFound(new { error = "NOT_READY", message = "Cleaned CSV not ready yet." });
         var url = await _storage.GetSignedUrlAsync(dataset.CleanedCsvPath, 3600);
         return Ok(new { url, fileName = $"cleaned_{dataset.FileName}" });
     }
 
-    // ── GET /api/datasets/download/report ────────────────────────────────
+    // GET /api/datasets/download/report
     [HttpGet("download/report")]
     public async Task<IActionResult> DownloadReport()
     {
         var userId  = GetUserId();
         var dataset = await _datasets.GetByUserIdAsync(userId);
         if (dataset == null) return NotFound(new { error = "NO_DATASET" });
-        if (dataset.PdfReportPath == null) return NotFound(new { error = "NOT_READY", message = "PDF report not ready yet." });
-
+        if (dataset.PdfReportPath == null)
+            return NotFound(new { error = "NOT_READY", message = "PDF report not ready yet." });
         var url = await _storage.GetSignedUrlAsync(dataset.PdfReportPath, 3600);
         return Ok(new { url, fileName = dataset.ReportFileName });
     }
 
-    // ── POST /api/datasets/email-report ──────────────────────────────────  ← NEW
-    // Placeholder: returns success — wire to SendGrid/SMTP when ready
+    // POST /api/datasets/email-report
     [HttpPost("email-report")]
     public async Task<IActionResult> EmailReport([FromBody] EmailReportRequest req)
     {
         var userId  = GetUserId();
         var dataset = await _datasets.GetByUserIdAsync(userId);
         if (dataset == null) return NotFound(new { error = "NO_DATASET" });
-        if (dataset.PdfReportPath == null) return BadRequest(new { error = "NOT_READY", message = "Report not ready yet." });
-
-        // TODO: integrate SendGrid or SMTP here
-        // For now: returns success so frontend works
-        // When implementing: get user email from IUserRepository, generate signed URL, send email
-        return Ok(new
-        {
-            message  = "Report queued for delivery.",
-            fileName = dataset.ReportFileName,
-        });
+        if (dataset.PdfReportPath == null)
+            return BadRequest(new { error = "NOT_READY", message = "Report not ready yet." });
+        // TODO: wire to SendGrid
+        return Ok(new { message = "Report queued for delivery.", fileName = dataset.ReportFileName });
     }
 
-    // ── DELETE /api/datasets/current ─────────────────────────────────────
+    // DELETE /api/datasets/current
     [HttpDelete("current")]
     public async Task<IActionResult> DeleteCurrent()
     {
-        var userId  = GetUserId();
+        var userId   = GetUserId();
+        var tempPath = Path.Combine(TempDir, $"{userId}.csv");
+
+        // Always clean temp file
+        if (System.IO.File.Exists(tempPath)) System.IO.File.Delete(tempPath);
+
         var dataset = await _datasets.GetByUserIdAsync(userId);
         if (dataset == null) return NotFound(new { error = "NO_DATASET" });
 
@@ -210,7 +201,6 @@ public class DatasetsController : ControllerBase
         return NoContent();
     }
 
-    // ── DTO ───────────────────────────────────────────────────────────────
     private static object ToDto(Dataset d) => new
     {
         id             = d.Id,
@@ -223,6 +213,7 @@ public class DatasetsController : ControllerBase
         uploadedAt     = d.UploadedAt,
         hasCleanedCsv  = d.CleanedCsvPath != null,
         hasPdfReport   = d.PdfReportPath  != null,
+        isPending      = false,
     };
 }
 

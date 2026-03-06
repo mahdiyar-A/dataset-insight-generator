@@ -19,7 +19,7 @@ public class DatasetRow : BaseModel
     [Column("cleaned_csv_url")]     public string?   CleanedCsvUrl   { get; set; }
     [Column("pdf_report_url")]      public string?   PdfReportUrl    { get; set; }
     [Column("status")]              public string    Status          { get; set; } = "pending";
-    [Column("chart_urls")]          public string?   ChartUrls       { get; set; }   // ← NEW (JSONB stored as string)
+    [Column("chart_urls")]          public string?   ChartUrls       { get; set; }
     [Column("uploaded_at")]         public DateTime  UploadedAt      { get; set; }
     [Column("completed_at")]        public DateTime? CompletedAt     { get; set; }
 }
@@ -39,11 +39,9 @@ public class DatasetRepository : IDatasetRepository
 
     public async Task UpsertAsync(Dataset dataset)
     {
-        // Delete old row first (one per user rule)
         await _db.From<DatasetRow>()
             .Filter("user_id", Operator.Equals, dataset.UserId.ToString())
             .Delete();
-
         await _db.From<DatasetRow>().Insert(ToRow(dataset));
     }
 
@@ -55,10 +53,7 @@ public class DatasetRepository : IDatasetRepository
             .Set(r => r.Status, status);
 
         if (status is "done" or "failed")
-        {
-            var completedAt = DateTime.UtcNow;
-            update = update.Set(r => r.CompletedAt!, completedAt);
-        }
+            update = update.Set(r => r.CompletedAt!, DateTime.UtcNow);
 
         if (cleanedCsvUrl != null)
             update = update.Set(r => r.CleanedCsvUrl!, cleanedCsvUrl);
@@ -69,12 +64,19 @@ public class DatasetRepository : IDatasetRepository
         await update.Update();
     }
 
-    // ← NEW: called by AI service after generating charts
     public async Task UpdateChartUrlsAsync(Guid userId, string chartUrlsJson)
     {
         await _db.From<DatasetRow>()
             .Filter("user_id", Operator.Equals, userId.ToString())
             .Set(r => r.ChartUrls!, chartUrlsJson)
+            .Update();
+    }
+
+    public async Task UpdateOriginalCsvPathAsync(Guid userId, string originalCsvPath)
+    {
+        await _db.From<DatasetRow>()
+            .Filter("user_id", Operator.Equals, userId.ToString())
+            .Set(r => r.OriginalCsvUrl!, originalCsvPath)
             .Update();
     }
 
@@ -84,8 +86,6 @@ public class DatasetRepository : IDatasetRepository
             .Filter("user_id", Operator.Equals, userId.ToString())
             .Delete();
     }
-
-    // ── Mappers ───────────────────────────────────────────────────────────
 
     private static Dataset ToDomain(DatasetRow r)
     {
@@ -97,13 +97,10 @@ public class DatasetRepository : IDatasetRepository
         );
         if (r.RowCount.HasValue && r.ColumnCount.HasValue)
             d.SetShape(r.RowCount.Value, r.ColumnCount.Value);
-        if (r.CleanedCsvUrl != null)
-            d.AttachCleanedCsv(r.CleanedCsvUrl);
-        if (r.PdfReportUrl != null)
-            d.SetPdfReport(r.PdfReportUrl);
-        if (r.ChartUrls != null)
-            d.SetChartUrls(r.ChartUrls);       // ← NEW
-        d.SetStatus(r.Status ?? "pending");    // ← NEW
+        if (r.CleanedCsvUrl != null) d.AttachCleanedCsv(r.CleanedCsvUrl);
+        if (r.PdfReportUrl  != null) d.SetPdfReport(r.PdfReportUrl);
+        if (r.ChartUrls     != null) d.SetChartUrls(r.ChartUrls);
+        d.SetStatus(r.Status ?? "pending");
         return d;
     }
 
@@ -118,7 +115,7 @@ public class DatasetRepository : IDatasetRepository
         OriginalCsvUrl = d.OriginalCsvPath,
         CleanedCsvUrl  = d.CleanedCsvPath,
         PdfReportUrl   = d.PdfReportPath,
-        ChartUrls      = d.ChartUrls,           // ← NEW
+        ChartUrls      = d.ChartUrls,
         Status         = d.Status,
         UploadedAt     = d.UploadedAt,
     };

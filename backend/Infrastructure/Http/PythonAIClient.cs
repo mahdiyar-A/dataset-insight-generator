@@ -6,76 +6,65 @@ namespace backend.Infrastructure.Http;
 
 public class PythonAiClient : IPythonAiClient
 {
-    private readonly HttpClient _http;
-    private readonly IConfiguration _config;
+    private readonly HttpClient                _http;
+    private readonly IConfiguration            _config;
+    private readonly ILogger<PythonAiClient>   _logger;
 
-    public PythonAiClient(HttpClient http, IConfiguration config)
+    public PythonAiClient(HttpClient http, IConfiguration config, ILogger<PythonAiClient> logger)
     {
-        _http = http;
+        _http   = http;
         _config = config;
-        
-        var timeoutSeconds = _config.GetValue<int?>("AIService:TimeoutSeconds") ?? 30;
-        _http.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+        _logger = logger;
+        _http.Timeout = TimeSpan.FromSeconds(
+            _config.GetValue<int?>("AIService:TimeoutSeconds") ?? 120);
     }
 
-    /// <summary>
-    /// Sends a dataset reference or uploaded file to the python AI service
-    /// and returns the raw JSON response from the service.
-    /// </summary>
-    /// <param name="request"></param>
-    /// <returns>Contains DatasetID, UploadedFile, and SessionID for session-based tracking</returns>
-    /// <exception cref="ArgumentException"></exception>
-    /// <exception cref="InvalidOperationException"></exception>
-    /// <exception cref="Exception"></exception>
     public async Task<string> CallPythonAiAsync(AnalyzeRequestDto request)
     {
-        //Input validation for both dataset and the uploadedFile
-        if (request.DatasetId == null && request.UploadedFile == null) throw new ArgumentException("Either Dataset or UploadedFile must be provided for use.");
+        if (request.CsvFileBytes == null && request.CsvUrl == null)
+            throw new ArgumentException("Either CsvFileBytes or CsvUrl must be provided.");
 
-        //Getting retries from appsettings.json
+        var baseUrl = _config["AIService:BaseUrl"]
+            ?? throw new InvalidOperationException("AIService:BaseUrl not configured.");
+
         var retries = _config.GetValue<int?>("AIService:RetryCount") ?? 3;
-        //Gets baseUrl from our appsettings.json configuration and checks for validity
-        var baseUrl = _config["AIService:BaseUrl"] ?? throw new InvalidOperationException("AIService BaseUrl is not configured");
 
-        for (int attempts = 1; attempts <= retries; attempts++)
+        for (int attempt = 1; attempt <= retries; attempt++)
         {
             try
             {
-                //Lets you send files and form fields together
                 using var content = new MultipartFormDataContent();
-                
-                content.Add(new StringContent(request.SessionId.ToString()), "sessionId");
-                
-                //Attach uploaded file if provided
-                if (request.UploadedFile != null)
-                {
-                    //Reads file stream, prepares MIME type for the python server, and attaches the file 
-                    var streamContent = new StreamContent(request.UploadedFile.OpenReadStream());
-                    streamContent.Headers.ContentType = new MediaTypeHeaderValue(request.UploadedFile.ContentType);
-                    content.Add(streamContent, "file", request.UploadedFile.FileName);
-                }
-                
-                //Attaches datasetId as a form field to content if provided
-                if (request.DatasetId != null) content.Add(new StringContent(request.DatasetId.ToString() ?? string.Empty), "datasetId");
+                content.Add(new StringContent(request.SessionId.ToString()), "session_id");
 
-                //Sends the request to the Python AI service asynchronously
+                if (request.DatasetId.HasValue)
+                    content.Add(new StringContent(request.DatasetId.Value.ToString()), "dataset_id");
+
+                if (request.CsvFileBytes != null)
+                {
+                    var byteContent = new ByteArrayContent(request.CsvFileBytes);
+                    byteContent.Headers.ContentType = new MediaTypeHeaderValue("text/csv");
+                    content.Add(byteContent, "file", request.CsvFileName ?? "data.csv");
+                }
+                else if (!string.IsNullOrEmpty(request.CsvUrl))
+                {
+                    content.Add(new StringContent(request.CsvUrl), "csv_url");
+                }
+
                 var response = await _http.PostAsync($"{baseUrl}/analyze", content);
-                
-                //Checks if the python server responded with anything
-                //and if it hasn't it throws HttpRequestException
                 response.EnsureSuccessStatusCode();
-                
-                //Returns the raw AI JSON
                 return await response.Content.ReadAsStringAsync();
             }
-            catch (HttpRequestException ex) when (attempts < retries)
+            catch (HttpRequestException ex) when (attempt < retries)
             {
-                Console.WriteLine($"Attempt {attempts} failed: {ex.Message}. Retrying...");
-                await Task.Delay(1000);
+                _logger.LogWarning("[AI] Attempt {Attempt} failed: {Msg}. Retrying…", attempt, ex.Message);
+                await Task.Delay(2000 * attempt);
+            }
+            catch (TaskCanceledException)
+            {
+                throw new TimeoutException("Python AI service timed out.");
             }
         }
-        //If no output has been returned and the Python
-        //AI service was called too many times an error will be thrown.
-        throw new HttpRequestException("Failed to call Python AI service after multiple attempts.");
+
+        throw new HttpRequestException($"Python AI service failed after {retries} attempts.");
     }
 }
