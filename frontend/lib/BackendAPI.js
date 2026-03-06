@@ -5,10 +5,16 @@ const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5150
 
 async function readError(res) {
   try {
-    const data = await res.json();
-    return data?.message || data?.error || JSON.stringify(data);
+    const text = await res.text();
+    if (!text) return null;
+    try {
+      const data = JSON.parse(text);
+      return data?.message || data?.error || JSON.stringify(data);
+    } catch {
+      return text;
+    }
   } catch {
-    return await res.text();
+    return null;
   }
 }
 

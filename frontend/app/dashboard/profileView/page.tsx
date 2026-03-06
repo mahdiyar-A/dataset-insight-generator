@@ -72,7 +72,7 @@ export default function ProfileViewPage() {
           </div>
 
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "4px" }}>
-            <button style={secondaryBtn} onClick={() => router.push("/dashboard/accountSettings")}>
+            <button style={secondaryBtn} onClick={() => router.push("/dashboard/editProfile")}>
               Edit in Account Settings →
             </button>
           </div>
