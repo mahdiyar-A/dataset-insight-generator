@@ -38,7 +38,7 @@ def build_stats_summary(df: pd.DataFrame, quality: DataQualityResult) -> StatsSu
     # ── Top correlations (up to 5) ────────────────────────────────────────
     top_correlations = []
     if len(numeric_df.columns) >= 2:
-        corr = numeric_df.corr().abs()
+        corr = numeric_df.corr().abs().copy()  # .copy() makes it writable
         np.fill_diagonal(corr.values, 0)
         pairs = (
             corr.unstack()

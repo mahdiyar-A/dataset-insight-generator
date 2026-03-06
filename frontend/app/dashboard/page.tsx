@@ -69,6 +69,13 @@ export default function DashboardPage() {
       setDatasetStatus(status);
       setReportReady(data.hasPdfReport === true);
 
+      // Don't resurface a failed status from a previous session
+      // Only show failed if it just happened this session (polling detected it)
+      if (status === "failed") {
+        setDatasetStatus(null);
+        return;
+      }
+
       // Resume polling if analysis was already running when user logged in / refreshed
       if (status === "processing" || status === "pending") {
         startPolling();

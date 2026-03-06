@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import UploadCard         from "@/components/UploadCard";
 import AnalysisAssistantCard from "@/components/AnalysisChatCard";
-import ChartsCard         from "@/components/ChartsCard";
+import ChartsCard         from "@/components/chartsCard";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
