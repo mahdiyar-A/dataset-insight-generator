@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // remove reactCompiler completely
+  images: {
+    domains: ["rougcvdaxcczynyxnyiz.supabase.co"],
+  },
 };
 
 export default nextConfig;

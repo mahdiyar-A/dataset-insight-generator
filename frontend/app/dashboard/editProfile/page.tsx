@@ -81,7 +81,7 @@ export default function AccountSettingsPage() {
     try {
       const result = await BackendAPI.uploadProfilePicture(token, file);
       // Backend returns { profilePicturePath }
-      updateUser({ profilePicture: result.profilePicturePath });
+      localStorage.removeItem("dig_user");
       await refreshUser();
     } catch (err) {
       setProfileMsg({ type: "error", text: "Picture upload failed: " + err.message });

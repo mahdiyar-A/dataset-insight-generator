@@ -6,11 +6,13 @@ public class SupabaseStorageService : IStorageService
 {
     private readonly Supabase.Client _client;
     private readonly string _bucket;
+    private readonly string _supabaseUrl;
 
     public SupabaseStorageService(Supabase.Client client, IConfiguration config)
     {
         _client = client;
         _bucket = config["Supabase:BucketName"] ?? "dig-files";
+        _supabaseUrl = (config["Supabase:Url"] ?? "").TrimEnd('/');
     }
 
     public async Task<string> SaveProfilePictureAsync(Guid userId, IFormFile file)
@@ -71,7 +73,7 @@ public class SupabaseStorageService : IStorageService
     {
         var options = new Supabase.Storage.FileOptions { ContentType = contentType, Upsert = true };
         await _client.Storage.From(_bucket).Upload(bytes, storagePath, options);
-        return storagePath;
+        return $"{_supabaseUrl}/storage/v1/object/public/{_bucket}/{storagePath}";
     }
 
     private static void ValidateImage(IFormFile file)
