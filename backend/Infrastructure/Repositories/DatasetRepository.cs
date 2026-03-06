@@ -19,6 +19,7 @@ public class DatasetRow : BaseModel
     [Column("cleaned_csv_url")]     public string?   CleanedCsvUrl   { get; set; }
     [Column("pdf_report_url")]      public string?   PdfReportUrl    { get; set; }
     [Column("status")]              public string    Status          { get; set; } = "pending";
+    [Column("chart_urls")]          public string?   ChartUrls       { get; set; }   // ← NEW (JSONB stored as string)
     [Column("uploaded_at")]         public DateTime  UploadedAt      { get; set; }
     [Column("completed_at")]        public DateTime? CompletedAt     { get; set; }
 }
@@ -28,7 +29,6 @@ public class DatasetRepository : IDatasetRepository
     private readonly Supabase.Client _db;
     public DatasetRepository(Supabase.Client db) => _db = db;
 
-    // Get the single dataset for this user (null if none uploaded yet)
     public async Task<Dataset?> GetByUserIdAsync(Guid userId)
     {
         var result = await _db.From<DatasetRow>()
@@ -37,10 +37,9 @@ public class DatasetRepository : IDatasetRepository
         return result == null ? null : ToDomain(result);
     }
 
-    // Upsert: replaces existing row if user already has one
     public async Task UpsertAsync(Dataset dataset)
     {
-        // Delete old dataset files + row first, then insert fresh
+        // Delete old row first (one per user rule)
         await _db.From<DatasetRow>()
             .Filter("user_id", Operator.Equals, dataset.UserId.ToString())
             .Delete();
@@ -51,23 +50,31 @@ public class DatasetRepository : IDatasetRepository
     public async Task UpdateStatusAsync(Guid userId, string status,
         string? cleanedCsvUrl = null, string? pdfReportUrl = null)
     {
-        var existing = await _db.From<DatasetRow>()
+        var update = _db.From<DatasetRow>()
             .Filter("user_id", Operator.Equals, userId.ToString())
-            .Single();
+            .Set(r => r.Status, status);
 
-        if (existing == null) return;
+        if (status is "done" or "failed")
+        {
+            var completedAt = DateTime.UtcNow;
+            update = update.Set(r => r.CompletedAt!, completedAt);
+        }
 
-        existing.Status      = status;
-        existing.CompletedAt = status is "done" or "failed" ? DateTime.UtcNow : null;
-        if (cleanedCsvUrl != null) existing.CleanedCsvUrl = cleanedCsvUrl;
-        if (pdfReportUrl  != null) existing.PdfReportUrl  = pdfReportUrl;
+        if (cleanedCsvUrl != null)
+            update = update.Set(r => r.CleanedCsvUrl!, cleanedCsvUrl);
 
+        if (pdfReportUrl != null)
+            update = update.Set(r => r.PdfReportUrl!, pdfReportUrl);
+
+        await update.Update();
+    }
+
+    // ← NEW: called by AI service after generating charts
+    public async Task UpdateChartUrlsAsync(Guid userId, string chartUrlsJson)
+    {
         await _db.From<DatasetRow>()
             .Filter("user_id", Operator.Equals, userId.ToString())
-            .Set(r => r.Status,       existing.Status)
-            .Set(r => r.CompletedAt!, existing.CompletedAt)
-            .Set(r => r.CleanedCsvUrl!, existing.CleanedCsvUrl)
-            .Set(r => r.PdfReportUrl!,  existing.PdfReportUrl)
+            .Set(r => r.ChartUrls!, chartUrlsJson)
             .Update();
     }
 
@@ -77,6 +84,8 @@ public class DatasetRepository : IDatasetRepository
             .Filter("user_id", Operator.Equals, userId.ToString())
             .Delete();
     }
+
+    // ── Mappers ───────────────────────────────────────────────────────────
 
     private static Dataset ToDomain(DatasetRow r)
     {
@@ -92,6 +101,9 @@ public class DatasetRepository : IDatasetRepository
             d.AttachCleanedCsv(r.CleanedCsvUrl);
         if (r.PdfReportUrl != null)
             d.SetPdfReport(r.PdfReportUrl);
+        if (r.ChartUrls != null)
+            d.SetChartUrls(r.ChartUrls);       // ← NEW
+        d.SetStatus(r.Status ?? "pending");    // ← NEW
         return d;
     }
 
@@ -106,7 +118,8 @@ public class DatasetRepository : IDatasetRepository
         OriginalCsvUrl = d.OriginalCsvPath,
         CleanedCsvUrl  = d.CleanedCsvPath,
         PdfReportUrl   = d.PdfReportPath,
-        Status         = "pending",
+        ChartUrls      = d.ChartUrls,           // ← NEW
+        Status         = d.Status,
         UploadedAt     = d.UploadedAt,
     };
 }

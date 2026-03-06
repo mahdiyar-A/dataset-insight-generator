@@ -1,4 +1,5 @@
 // frontend/lib/BackendAPI.js
+// Full file — replace existing
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5150").replace(/\/$/, "");
 
@@ -16,6 +17,7 @@ function authHeaders(token) {
 }
 
 export default class BackendAPI {
+
   // ── AUTH ──────────────────────────────────────────────────────────────
 
   static async login(email, password) {
@@ -38,9 +40,10 @@ export default class BackendAPI {
     return await res.json();
   }
 
-  // ── USER PROFILE  /api/user/me ────────────────────────────────────────
+  // ── USER PROFILE ──────────────────────────────────────────────────────
 
   static async getUserProfile(token) {
+    // → { id, email, userName, firstName, lastName, phoneNumber, profilePicture, createdAt, isActive }
     const res = await fetch(`${API_BASE}/api/user/me`, { headers: authHeaders(token) });
     if (!res.ok) throw new Error((await readError(res)) || "Failed to fetch profile");
     return await res.json();
@@ -53,6 +56,17 @@ export default class BackendAPI {
       body: JSON.stringify({ userName }),
     });
     if (!res.ok) throw new Error((await readError(res)) || "Failed to update name");
+    return await res.json();
+  }
+
+  static async updatePhone(token, phoneNumber) {
+    // PATCH /api/user/me/phone  { phoneNumber }
+    const res = await fetch(`${API_BASE}/api/user/me/phone`, {
+      method: "PATCH",
+      headers: authHeaders(token),
+      body: JSON.stringify({ phoneNumber }),
+    });
+    if (!res.ok) throw new Error((await readError(res)) || "Failed to update phone");
     return await res.json();
   }
 
@@ -78,15 +92,6 @@ export default class BackendAPI {
     return await res.json();
   }
 
-  static async deleteAccount(token) {
-    const res = await fetch(`${API_BASE}/api/user/me`, {
-      method: "DELETE",
-      headers: authHeaders(token),
-    });
-    if (!res.ok) throw new Error((await readError(res)) || "Failed to delete account");
-    return true;
-  }
-
   static async changePassword(token, currentPassword, newPassword) {
     const res = await fetch(`${API_BASE}/api/user/me/password`, {
       method: "PATCH",
@@ -97,7 +102,16 @@ export default class BackendAPI {
     return await res.json();
   }
 
-  // ── DATASET  /api/datasets ────────────────────────────────────────────
+  static async deleteAccount(token) {
+    const res = await fetch(`${API_BASE}/api/user/me`, {
+      method: "DELETE",
+      headers: authHeaders(token),
+    });
+    if (!res.ok) throw new Error((await readError(res)) || "Failed to delete account");
+    return true;
+  }
+
+  // ── DATASET ───────────────────────────────────────────────────────────
 
   static async getCurrentDataset(token) {
     const res = await fetch(`${API_BASE}/api/datasets/current`, { headers: authHeaders(token) });
@@ -114,14 +128,14 @@ export default class BackendAPI {
   }
 
   static async uploadDataset(token, file) {
-    const text = await file.text();
-    const lines = text.split("\n").filter((l) => l.trim());
-    const rows = Math.max(0, lines.length - 1);
+    const text    = await file.text();
+    const lines   = text.split("\n").filter(l => l.trim());
+    const rows    = Math.max(0, lines.length - 1);
     const columns = lines[0]?.split(",").length ?? 0;
 
     const formData = new FormData();
-    formData.append("file", file);
-    formData.append("rows", String(rows));
+    formData.append("file",    file);
+    formData.append("rows",    String(rows));
     formData.append("columns", String(columns));
 
     const res = await fetch(`${API_BASE}/api/datasets/upload`, {
@@ -134,6 +148,7 @@ export default class BackendAPI {
   }
 
   static async getDownloadUrl(token, type) {
+    // type: "original" | "cleaned" | "report"
     const res = await fetch(`${API_BASE}/api/datasets/download/${type}`, {
       headers: authHeaders(token),
     });
@@ -150,26 +165,21 @@ export default class BackendAPI {
     return true;
   }
 
-  // ✅ Email report (frontend fully wired; backend later)
   static async emailReport(token, { subject, includeAttachment = true } = {}) {
     const res = await fetch(`${API_BASE}/api/datasets/email-report`, {
       method: "POST",
       headers: authHeaders(token),
-      body: JSON.stringify({
-        subject: subject ?? "Your report is ready",
-        includeAttachment,
-      }),
+      body: JSON.stringify({ subject: subject ?? "Your DIG report is ready", includeAttachment }),
     });
     if (!res.ok) throw new Error((await readError(res)) || "Email failed");
     return await res.json();
   }
 
-  // ✅ NEW: Visualizations (max 5) for current user
-  // Expected response shape (recommended):
-  // [
-  //   { id: "uuid-or-int", title: "Correlation heatmap", url: "https://signed-url.png" },
-  //   ...
-  // ]
+  // ── VISUALIZATIONS ────────────────────────────────────────────────────
+  // Returns up to 5 charts for the current user's dataset
+  // Shape: [{ type, label, url, desc, color }, ...]
+  // Empty array if no analysis done yet
+
   static async getVisualizations(token) {
     const res = await fetch(`${API_BASE}/api/datasets/visualizations`, {
       headers: authHeaders(token),
@@ -180,9 +190,11 @@ export default class BackendAPI {
     return Array.isArray(data) ? data : [];
   }
 
-  // ✅ NEW: Chatbot API (frontend fully wired; backend later)
-  // GET returns array of messages:
-  // [{ role: "user"|"assistant", content: "...", createdAt: "..." }, ...]
+  // ── CHATBOT ───────────────────────────────────────────────────────────
+  // Messages: "start_analysis" | "yes" | "no"
+  // Response: { reply, condition, done, failed, requiresResponse }
+  // condition: "not_clean" | "low_accuracy" | "not_workable" | "all_good"
+
   static async getChatHistory(token) {
     const res = await fetch(`${API_BASE}/api/chat/history`, {
       headers: authHeaders(token),
@@ -193,8 +205,6 @@ export default class BackendAPI {
     return Array.isArray(data) ? data : [];
   }
 
-  // POST message, returns assistant reply (recommended):
-  // { reply: "...." } OR { role:"assistant", content:"..." }
   static async sendChatMessage(token, message) {
     const res = await fetch(`${API_BASE}/api/chat/message`, {
       method: "POST",
@@ -203,5 +213,6 @@ export default class BackendAPI {
     });
     if (!res.ok) throw new Error((await readError(res)) || "Failed to send message");
     return await res.json();
+    // → { reply, condition, done, failed, requiresResponse }
   }
 }

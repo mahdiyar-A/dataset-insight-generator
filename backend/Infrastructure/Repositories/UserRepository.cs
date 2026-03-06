@@ -9,14 +9,15 @@ namespace backend.Infrastructure.Repositories;
 [Table("users")]
 public class UserRow : BaseModel
 {
-    [PrimaryKey("id", false)]       public string   Id                { get; set; } = "";
-    [Column("first_name")]          public string   FirstName         { get; set; } = "";
-    [Column("last_name")]           public string   LastName          { get; set; } = "";
-    [Column("email")]               public string   Email             { get; set; } = "";
-    [Column("password_hash")]       public string   PasswordHash      { get; set; } = "";
-    [Column("profile_picture_url")] public string?  ProfilePictureUrl { get; set; }
-    [Column("created_at")]          public DateTime  CreatedAt        { get; set; }
-    [Column("last_login_at")]       public DateTime? LastLoginAt      { get; set; }
+    [PrimaryKey("id", false)]       public string    Id                { get; set; } = "";
+    [Column("first_name")]          public string    FirstName         { get; set; } = "";
+    [Column("last_name")]           public string    LastName          { get; set; } = "";
+    [Column("email")]               public string    Email             { get; set; } = "";
+    [Column("password_hash")]       public string    PasswordHash      { get; set; } = "";
+    [Column("phone_number")]        public string?   PhoneNumber       { get; set; }   // ← NEW
+    [Column("profile_picture_url")] public string?   ProfilePictureUrl { get; set; }
+    [Column("created_at")]          public DateTime  CreatedAt         { get; set; }
+    [Column("last_login_at")]       public DateTime? LastLoginAt       { get; set; }
 }
 
 public class UserRepository : IUserRepository
@@ -47,35 +48,53 @@ public class UserRepository : IUserRepository
 
     public async Task UpdateAsync(User user)
     {
-        // Update by id explicitly — avoids duplicate key on email unique constraint
+        var nameParts = user.UserName.Split(' ', 2);
+        var firstName = nameParts[0];
+        var lastName  = nameParts.Length > 1 ? nameParts[1] : "";
+
         await _db.From<UserRow>()
             .Filter("id", Operator.Equals, user.Id.ToString())
-            .Set(r => r.LastLoginAt!, user.LastLoginAt)
+            .Set(r => r.FirstName,          firstName)
+            .Set(r => r.LastName,           lastName)
+            .Set(r => r.Email,              user.Email)
+            .Set(r => r.PasswordHash,       user.PasswordHash)
+            .Set(r => r.PhoneNumber!,       user.PhoneNumber)
             .Set(r => r.ProfilePictureUrl!, user.ProfilePicture)
-            .Set(r => r.FirstName, user.UserName.Split(' ').FirstOrDefault() ?? user.UserName)
-            .Set(r => r.LastName, user.UserName.Contains(' ')
-                ? string.Join(' ', user.UserName.Split(' ').Skip(1))
-                : "")
+            .Set(r => r.LastLoginAt!,       user.LastLoginAt)
             .Update();
     }
 
+    // ── Domain ↔ Row mappers ─────────────────────────────────────────────
+
     private static User ToDomain(UserRow r)
     {
-        var fullName = $"{r.FirstName} {r.LastName}".Trim();
-        return new User(fullName, r.Email, r.PasswordHash, r.ProfilePictureUrl);
+        return User.Restore(
+            id:             Guid.Parse(r.Id),
+            userName:       $"{r.FirstName} {r.LastName}".Trim(),
+            email:          r.Email,
+            passwordHash:   r.PasswordHash,
+            profilePicture: r.ProfilePictureUrl,
+            phoneNumber:    r.PhoneNumber,
+            isActive:       true,
+            createdAt:      r.CreatedAt,
+            lastLoginAt:    r.LastLoginAt
+        );
     }
 
-    private static UserRow ToRow(User u) => new()
+    private static UserRow ToRow(User u)
     {
-        Id                = u.Id.ToString(),
-        FirstName         = u.UserName.Split(' ').FirstOrDefault() ?? u.UserName,
-        LastName          = u.UserName.Contains(' ')
-                            ? string.Join(' ', u.UserName.Split(' ').Skip(1))
-                            : "",
-        Email             = u.Email,
-        PasswordHash      = u.PasswordHash,
-        ProfilePictureUrl = u.ProfilePicture,
-        CreatedAt         = u.CreatedAt,
-        LastLoginAt       = u.LastLoginAt
-    };
+        var nameParts = u.UserName.Split(' ', 2);
+        return new UserRow
+        {
+            Id                = u.Id.ToString(),
+            FirstName         = nameParts[0],
+            LastName          = nameParts.Length > 1 ? nameParts[1] : "",
+            Email             = u.Email,
+            PasswordHash      = u.PasswordHash,
+            PhoneNumber       = u.PhoneNumber,
+            ProfilePictureUrl = u.ProfilePicture,
+            CreatedAt         = u.CreatedAt,
+            LastLoginAt       = u.LastLoginAt
+        };
+    }
 }

@@ -7,25 +7,31 @@ public class Dataset
     public Guid     Id              { get; private set; }
     public Guid     UserId          { get; private set; }
 
-    // File metadata
     public string   FileName        { get; private set; } = null!;
     public long     FileSizeBytes   { get; private set; }
     public DateTime UploadedAt      { get; private set; } = DateTime.UtcNow;
 
-    // Storage paths (Supabase Storage)
+    // Storage paths
     public string   OriginalCsvPath { get; private set; } = null!;
     public string?  CleanedCsvPath  { get; private set; }
     public string?  PdfReportPath   { get; private set; }
 
-    // Dashboard preview JSON blob
-    public string?  PreviewJson     { get; private set; }
-
-    // Shape metadata
+    // Shape
     public int?     RowCount        { get; private set; }
     public int?     ColumnCount     { get; private set; }
 
-    // Auto-generated display name e.g. "analysis_report_2026-03-04.pdf"
-    public string   ReportFileName =>
+    // Analysis state  ← NEW
+    public string   Status          { get; private set; } = "pending";  // pending | processing | done | failed
+
+    // Chart URLs JSON blob — set by AI service after analysis  ← NEW
+    // Stored as raw JSON string, e.g. [{"type":"bar","label":"Distribution","url":"users/x/chart_0.png",...}]
+    public string?  ChartUrls       { get; private set; }
+
+    // Preview JSON
+    public string?  PreviewJson     { get; private set; }
+
+    // Auto-generated report filename
+    public string ReportFileName =>
         $"analysis_report_{UploadedAt:yyyy-MM-dd}.pdf";
 
     [JsonConstructor]
@@ -38,6 +44,7 @@ public class Dataset
         FileName        = fileName;
         FileSizeBytes   = fileSizeBytes;
         OriginalCsvPath = originalCsvPath;
+        Status          = "pending";
     }
 
     public void SetShape(int rows, int columns)
@@ -46,12 +53,9 @@ public class Dataset
         ColumnCount = columns;
     }
 
-    public void AttachCleanedCsv(string cleanedCsvPath)
-        => CleanedCsvPath = cleanedCsvPath;
-
-    public void SetPdfReport(string pdfReportPath)
-        => PdfReportPath = pdfReportPath;
-
-    public void SetPreview(string previewJson)
-        => PreviewJson = previewJson;
+    public void AttachCleanedCsv(string cleanedCsvPath) => CleanedCsvPath = cleanedCsvPath;
+    public void SetPdfReport(string pdfReportPath)       => PdfReportPath  = pdfReportPath;
+    public void SetPreview(string previewJson)           => PreviewJson    = previewJson;
+    public void SetChartUrls(string chartUrlsJson)       => ChartUrls      = chartUrlsJson;  // ← NEW
+    public void SetStatus(string status)                 => Status         = status;           // ← NEW
 }

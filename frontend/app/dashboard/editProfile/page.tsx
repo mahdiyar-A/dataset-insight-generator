@@ -11,7 +11,7 @@ export default function AccountSettingsPage() {
   const { currentUser, isLoading, updateUser, refreshUser, logout, token } = useAuth();
   const fileInputRef = useRef(null);
 
-  const [form, setForm] = useState({ firstName: "", lastName: "", phoneNumber: "" });
+  const [form, setForm] = useState({ firstName: "", lastName: "", phoneNumber: "", email: "" });
   const [initialized,   setInitialized]   = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMsg,    setProfileMsg]    = useState(null);
@@ -36,6 +36,7 @@ export default function AccountSettingsPage() {
         firstName:   currentUser.firstName   ?? parts[0]                    ?? "",
         lastName:    currentUser.lastName    ?? parts.slice(1).join(" ")    ?? "",
         phoneNumber: currentUser.phoneNumber ?? "",
+        email:       currentUser.email       ?? "",
       });
       if (currentUser.profilePicture) setAvatarUrl(currentUser.profilePicture);
       setInitialized(true);
@@ -56,11 +57,11 @@ export default function AccountSettingsPage() {
     setSavingProfile(true);
     setProfileMsg(null);
     try {
-      // Backend stores name as userName = "First Last"
       const userName = `${form.firstName.trim()} ${form.lastName.trim()}`.trim();
-      const updated  = await BackendAPI.updateUsername(token, userName);
-      // Optimistic + re-fetch
-      updateUser({ ...updated, firstName: form.firstName.trim(), lastName: form.lastName.trim() });
+      await Promise.all([
+        BackendAPI.updateUsername(token, userName),
+        BackendAPI.updatePhone(token, form.phoneNumber.trim() || null),
+      ]);
       await refreshUser();
       setProfileMsg({ type: "success", text: "Profile updated." });
     } catch (err) {
@@ -113,6 +114,7 @@ export default function AccountSettingsPage() {
     setPwMsg(null);
     try {
       await BackendAPI.changePassword(token, pwForm.current, pwForm.next);
+      await refreshUser();
       setPwMsg({ type: "success", text: "Password changed successfully." });
       setPwForm({ current: "", next: "", confirm: "" });
     } catch (err) {
@@ -189,8 +191,8 @@ export default function AccountSettingsPage() {
 
           <Field label="Phone number (optional)" value={form.phoneNumber} onChange={(v) => setForm(p => ({ ...p, phoneNumber: v }))} placeholder="+1 123 456 7890" />
 
-          <Field label="Email address" value={currentUser?.email ?? ""} onChange={() => {}} disabled />
-          <p style={{ margin: "-8px 0 0", color: "#4b5563", fontSize: "0.75rem" }}>Email cannot be changed here. Contact support.</p>
+          <Field label="Email address" value={form.email} onChange={() => {}} disabled />
+          <p style={{ margin: "-8px 0 0", color: "#4b5563", fontSize: "0.75rem" }}>Email cannot be changed here.</p>
 
           {profileMsg && <Msg msg={profileMsg} />}
 
