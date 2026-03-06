@@ -1,5 +1,5 @@
 {
   "python.terminal.useEnvFile": true,
-  "python.defaultInterpreterPath": "${workspaceFolder}/ai_service/venv/Scripts/python.exe",
+  "python.defaultInterpreterPath": "C:/Users/mashr/OneDrive/Desktop/DIG/dataset-insight-generator/ai_service/venv/Scripts/python.exe",
   "python.envFile": "${workspaceFolder}/ai_service/.env"
 }
