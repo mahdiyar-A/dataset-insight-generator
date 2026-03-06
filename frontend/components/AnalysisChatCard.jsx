@@ -68,15 +68,16 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
     setMessages(prev => [...prev, { role, text }]);
 
   // ── Send a message to the backend chatbot ──
-  const sendMessage = async (message) => {
+  const sendMessage = async (message, pendingCondition = null) => {
     if (sending) return;
     setSending(true);
     try {
       const res = await BackendAPI.sendChatMessage(token, message, {
-        fileName:      dataset?.fileName,
-        fileSizeBytes: dataset?.fileSizeBytes,
-        rowCount:      dataset?.rowCount,
-        columnCount:   dataset?.columnCount,
+        fileName:         dataset?.fileName,
+        fileSizeBytes:    dataset?.fileSizeBytes,
+        rowCount:         dataset?.rowCount,
+        columnCount:      dataset?.columnCount,
+        pendingCondition: pendingCondition,
       });
       // Expected: { reply, condition, done, failed, requiresResponse }
       const reply     = res?.reply ?? res?.content ?? "Processing…";
@@ -179,14 +180,14 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
     if (!awaitingResponse || sending) return;
     addMsg("user", "Yes");
     setAwaitingResponse(false);
-    sendMessage("yes");
+    sendMessage("yes", condition);
   };
 
   const handleNo = () => {
     if (!awaitingResponse || sending) return;
     addMsg("user", "No");
     setAwaitingResponse(false);
-    sendMessage("no");
+    sendMessage("no", condition);
   };
 
   // Condition badge color

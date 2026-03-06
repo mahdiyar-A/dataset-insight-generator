@@ -35,12 +35,12 @@ public class AnalysisService
         _logger   = logger;
     }
 
-    public void StartInBackground(Guid userId, string fileName, long fileSizeBytes, int rowCount, int columnCount)
+    public void StartInBackground(Guid userId, string fileName, long fileSizeBytes, int rowCount, int columnCount, bool userWantsCleaning = false, bool userConfirmedLow = false)
     {
-        _ = Task.Run(() => RunAsync(userId, fileName, fileSizeBytes, rowCount, columnCount));
+        _ = Task.Run(() => RunAsync(userId, fileName, fileSizeBytes, rowCount, columnCount, userWantsCleaning, userConfirmedLow));
     }
 
-    public async Task RunAsync(Guid userId, string fileName, long fileSizeBytes, int rowCount, int columnCount)
+    public async Task RunAsync(Guid userId, string fileName, long fileSizeBytes, int rowCount, int columnCount, bool userWantsCleaning = false, bool userConfirmedLow = false)
     {
         _logger.LogInformation("[Analysis] Starting for user {UserId}", userId);
 
@@ -71,10 +71,12 @@ public class AnalysisService
             // ── 4. Build request — send file bytes directly to Python ──────
             var request = new AnalyzeRequestDto
             {
-                SessionId    = userId,
-                DatasetId    = placeholderDataset.Id,
-                CsvFileBytes = csvBytes,
-                CsvFileName  = fileName,
+                SessionId           = userId,
+                DatasetId           = placeholderDataset.Id,
+                CsvFileBytes        = csvBytes,
+                CsvFileName         = fileName,
+                UserWantsCleaning   = userWantsCleaning,
+                UserConfirmedLow    = userConfirmedLow,
             };
 
             _logger.LogInformation("[Analysis] Calling Python AI for user {UserId}", userId);

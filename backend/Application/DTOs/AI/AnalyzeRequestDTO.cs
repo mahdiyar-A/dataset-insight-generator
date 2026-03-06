@@ -11,4 +11,8 @@ public class AnalyzeRequestDto
 
     // Fallback: signed URL if bytes not available
     public string? CsvUrl       { get; set; }
+
+    // User decisions from chatbot
+    public bool UserWantsCleaning { get; set; } = false;
+    public bool UserConfirmedLow  { get; set; } = false;
 }

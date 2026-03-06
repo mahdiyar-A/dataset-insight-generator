@@ -211,10 +211,11 @@ export default class BackendAPI {
       headers: authHeaders(token),
       body: JSON.stringify({
         message,
-        fileName:      meta.fileName      ?? null,
-        fileSizeBytes: meta.fileSizeBytes  ?? null,
-        rowCount:      meta.rowCount       ?? null,
-        columnCount:   meta.columnCount    ?? null,
+        fileName:         meta.fileName         ?? null,
+        fileSizeBytes:    meta.fileSizeBytes     ?? null,
+        rowCount:         meta.rowCount          ?? null,
+        columnCount:      meta.columnCount       ?? null,
+        pendingCondition: meta.pendingCondition  ?? null,
       }),
     });
     if (!res.ok) throw new Error((await readError(res)) || "Failed to send message");

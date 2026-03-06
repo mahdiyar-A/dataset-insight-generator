@@ -95,18 +95,30 @@ public class ChatController : ControllerBase
 
         if (message == "yes" || message == "no")
         {
-            var fileInfo = new System.IO.FileInfo(tempPath);
-            var reply    = message == "yes"
+            var reply = message == "yes"
                 ? "Running the full analysis pipeline now. Your report and charts will appear when done."
                 : "Skipping that step and running analysis as-is. Results will appear shortly.";
 
-            // Start pipeline in background — passes file metadata from request
+            // Determine which flag to set based on what question was asked
+            // Frontend passes condition so we know what yes/no was answering
+            bool userWantsCleaning = message == "yes" && req.PendingCondition == "not_clean";
+            bool userConfirmedLow  = message == "yes" && req.PendingCondition == "low_accuracy";
+
+            // If no condition was pending (all_good) and user said yes → just proceed
+            if (req.PendingCondition == "all_good" || req.PendingCondition == null)
+            {
+                userWantsCleaning = false;
+                userConfirmedLow  = true; // no confirmation needed, just proceed
+            }
+
             _analysis.StartInBackground(
                 userId,
                 req.FileName      ?? "data.csv",
                 req.FileSizeBytes ?? new System.IO.FileInfo(tempPath).Length,
                 req.RowCount      ?? 0,
-                req.ColumnCount   ?? 0
+                req.ColumnCount   ?? 0,
+                userWantsCleaning,
+                userConfirmedLow
             );
 
             return Ok(new ChatMessageResponse
@@ -133,12 +145,13 @@ public class ChatController : ControllerBase
 
 public class ChatMessageRequest
 {
-    [JsonPropertyName("message")]       public string  Message       { get; set; } = "";
-    // Frontend sends these so backend has metadata without re-reading the file
-    [JsonPropertyName("fileName")]      public string? FileName      { get; set; }
-    [JsonPropertyName("fileSizeBytes")] public long?   FileSizeBytes { get; set; }
-    [JsonPropertyName("rowCount")]      public int?    RowCount      { get; set; }
-    [JsonPropertyName("columnCount")]   public int?    ColumnCount   { get; set; }
+    [JsonPropertyName("message")]          public string  Message          { get; set; } = "";
+    [JsonPropertyName("fileName")]         public string? FileName         { get; set; }
+    [JsonPropertyName("fileSizeBytes")]    public long?   FileSizeBytes    { get; set; }
+    [JsonPropertyName("rowCount")]         public int?    RowCount         { get; set; }
+    [JsonPropertyName("columnCount")]      public int?    ColumnCount      { get; set; }
+    // What condition the chatbot was displaying when user hit Yes/No
+    [JsonPropertyName("pendingCondition")] public string? PendingCondition { get; set; }
 }
 
 public class ChatMessageResponse
