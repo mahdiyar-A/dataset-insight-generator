@@ -5,10 +5,7 @@ import urllib.error
 from ai_engine.models.models import StatsSummary, LLMReport, ChartInstruction
 
 
-GEMINI_API_URL = (
-    "https://generativelanguage.googleapis.com/v1beta/models/"
-    "gemini-2.0-flash:generateContent"
-)
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 
 CHART_COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444"]
 CHART_TYPES  = ["bar", "line", "scatter", "histogram", "heatmap", "box"]
