@@ -7,7 +7,7 @@ from ai_engine.models.models import StatsSummary, LLMReport, ChartInstruction
 
 GEMINI_API_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
-    "gemini-1.5-flash:generateContent"
+    "gemini-2.0-flash:generateContent"
 )
 
 CHART_COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444"]
@@ -34,8 +34,9 @@ def _build_prompt(stats: StatsSummary, confidence_note: str, was_cleaned: bool) 
         "NOTE: Dataset was used as-is without cleaning."
     )
 
-    return f"""You are a senior data analyst producing a formal, executive-level report.
-Analyze the following dataset statistics and produce a structured report.
+    return f"""You are a senior data analyst and report writer producing a formal, executive-level data analysis report for a professional audience.
+
+Analyze the following dataset statistics and produce a comprehensive structured report.
 
 {cleaning_note}
 Confidence note: {confidence_note}
@@ -46,13 +47,17 @@ DATASET STATISTICS:
 YOUR TASK — respond ONLY with valid JSON in this exact structure, nothing else:
 
 {{
-  "executive_summary": "2-3 sentence overview of what this dataset represents and its key characteristics.",
+  "report_title": "A professional, descriptive title for this report based on what the data appears to represent.",
+
+  "introduction": "3-4 sentences. Professionally introduce the report — describe what dataset was analyzed, its scope (rows, columns, data types), the purpose of this analysis, and what the reader can expect to find in the report. Formal tone, as if written by a consulting firm.",
+
+  "executive_summary": "3-4 sentences. High-level overview of the most important findings. What story does this data tell? What are the headline takeaways a decision-maker needs to know immediately?",
 
   "insights": [
     {{
       "rank": 1,
-      "title": "Short insight title",
-      "body": "3-5 sentences. Formal tone. Cite specific numbers from the data. Focus on non-obvious, hard-to-capture patterns — not generic observations. Business, financial, educational, or domain-relevant significance.",
+      "title": "Short, specific insight title",
+      "body": "4-6 sentences. Formal analytical tone. Cite specific numbers, percentages, and column names from the data. Focus on non-obvious, hard-to-capture patterns — not generic observations. Explain business, operational, or domain-relevant significance. Connect the finding to potential real-world implications.",
       "insight_index": 1
     }}
   ],
@@ -64,22 +69,23 @@ YOUR TASK — respond ONLY with valid JSON in this exact structure, nothing else
       "title": "Chart title",
       "x_column": "exact column name from data",
       "y_column": "exact column name or null for single-column charts",
-      "description": "What this chart reveals and why it matters",
+      "description": "What this chart reveals and why it matters to the analysis",
       "insight_index": 1,
       "color": "#3b82f6"
     }}
   ],
 
-  "confidence_note": "Your honest assessment of how much to trust these insights given the data quality. Be specific."
+  "conclusion": "3-4 sentences. Professionally conclude the report — summarize the key findings, highlight any limitations or caveats in the data, and provide forward-looking recommendations or next steps based on the analysis. End with a statement about the overall analytical confidence.",
+
+  "confidence_note": "Honest, specific assessment of how much to trust these insights given the data quality, sample size, and completeness."
 }}
 
 RULES:
 - Produce exactly 5 insights, ranked by significance (most impactful first)
-- Produce 3-5 charts, each tied to a specific insight via insight_index
-- chart_type must be one of: bar, line, scatter, histogram, heatmap, box
-- x_column and y_column must be EXACT column names from the data (case-sensitive)
-- Insights must be specific and data-driven — no generic statements like "the data shows variation"
-- Use formal analytical language — this is an executive report
+- Produce between 3 and 5 charts maximum. Choose charts wisely — only create a chart if it genuinely adds visual value. NOT every insight needs its own chart. Prefer charts that show trends, distributions, or comparisons that are immediately readable.
+- chart_type must be one of: bar, line, scatter, histogram, heatmap, box — pick the type that best fits the data pattern
+- x_column and y_column must be EXACT column names from the data (case-sensitive). For histograms and box plots, y_column can be null.
+- All text must be formal, professional, and specific — no generic filler statements
 - Do NOT include markdown, code blocks, or any text outside the JSON
 """
 
@@ -90,7 +96,7 @@ def call_gemini(stats: StatsSummary, confidence_note: str, was_cleaned: bool, ap
     payload = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
-            "temperature":     0.3,   # low temp = consistent, formal output
+            "temperature":     0.3,
             "maxOutputTokens": 4096,
             "topP":            0.8,
         }
@@ -113,28 +119,23 @@ def call_gemini(stats: StatsSummary, confidence_note: str, was_cleaned: bool, ap
     except urllib.error.URLError as e:
         raise RuntimeError(f"Gemini connection failed: {e.reason}")
 
-    # Extract text from Gemini response
     try:
         text = raw["candidates"][0]["content"]["parts"][0]["text"]
     except (KeyError, IndexError) as e:
         raise RuntimeError(f"Unexpected Gemini response format: {raw}")
 
-    # Strip any markdown code fences if Gemini added them
     text = re.sub(r"```(?:json)?", "", text).strip()
     text = text.strip("`").strip()
 
-    # Parse JSON
     try:
         parsed = json.loads(text)
     except json.JSONDecodeError as e:
-        # Try to extract JSON from within the text
         match = re.search(r'\{.*\}', text, re.DOTALL)
         if match:
             parsed = json.loads(match.group())
         else:
             raise RuntimeError(f"Could not parse Gemini response as JSON: {e}\nRaw: {text[:500]}")
 
-    # Build chart instructions
     chart_instructions = []
     for i, c in enumerate(parsed.get("chart_instructions", [])):
         chart_instructions.append(ChartInstruction(
@@ -149,9 +150,12 @@ def call_gemini(stats: StatsSummary, confidence_note: str, was_cleaned: bool, ap
         ))
 
     return LLMReport(
+        reportTitle=parsed.get("report_title", ""),
+        introduction=parsed.get("introduction", ""),
         executiveSummary=parsed.get("executive_summary", ""),
         insights=parsed.get("insights", []),
         chartInstructions=chart_instructions,
         confidenceNote=parsed.get("confidence_note", ""),
+        conclusion=parsed.get("conclusion", ""),
         rawResponse=text,
     )

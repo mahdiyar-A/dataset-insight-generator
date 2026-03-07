@@ -25,10 +25,10 @@ class StatsSummary:
     columnCount: int
     columnTypes: Dict[str, str]
     missingPercentages: Dict[str, float]
-    numericStats: Dict[str, Dict[str, float]]   # mean, median, std, min, max, q1, q3
-    topCorrelations: List[Dict[str, Any]]        # top 5 correlations
-    categoricalSummaries: Dict[str, Dict]        # top values per categorical col
-    outlierSummary: Dict[str, float]             # col → outlier %
+    numericStats: Dict[str, Dict[str, float]]
+    topCorrelations: List[Dict[str, Any]]
+    categoricalSummaries: Dict[str, Dict]
+    outlierSummary: Dict[str, float]
     detectedIssues: List[str]
 
 
@@ -39,18 +39,21 @@ class ChartInstruction:
     title: str
     xColumn: str
     yColumn: Optional[str]   # None for histograms/single-col charts
-    description: str         # what insight this chart visualizes
-    insightIndex: int        # which insight (1-5) this chart belongs to
+    description: str
+    insightIndex: int
     color: str               # hex color
 
 
 @dataclass
 class LLMReport:
-    executiveSummary: str             # 2-3 sentence overview
-    insights: List[Dict[str, Any]]   # [{rank, title, body, insightIndex}]
+    executiveSummary: str
+    insights: List[Dict[str, Any]]
     chartInstructions: List[ChartInstruction]
-    confidenceNote: str               # LLM's own note on data reliability
-    rawResponse: str                  # full LLM response for debugging
+    confidenceNote: str
+    rawResponse: str
+    reportTitle: str = ""
+    introduction: str = ""
+    conclusion: str = ""
 
 
 @dataclass
