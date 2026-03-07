@@ -5,15 +5,6 @@ using backend.Domain.Entities;
 
 namespace backend.Application.Services;
 
-/// <summary>
-/// Full analysis pipeline:
-/// 1. Read CSV from server temp folder (saved there at upload time)
-/// 2. Send to Python AI as file stream — no Supabase needed yet
-/// 3. On success → save cleaned CSV + PDF + charts to Supabase Storage
-/// 4. Write dataset row + chart_urls + status=done to DB
-/// 5. Delete temp file
-/// 6. On any failure → status=failed, temp file kept for retry
-/// </summary>
 public class AnalysisService
 {
     private readonly IDatasetRepository      _datasets;
@@ -48,27 +39,20 @@ public class AnalysisService
 
         try
         {
-            // ── 1. Check temp file exists ─────────────────────────────────
             if (!File.Exists(tempPath))
             {
                 _logger.LogError("[Analysis] Temp file missing for user {UserId}", userId);
-                // Try to update DB if a row exists
                 await TrySetFailed(userId);
                 return;
             }
 
-            // ── 2. Write pending dataset row to DB ────────────────────────
-            // We need a row in DB so polling works
-            // Use a placeholder path — will be replaced on success
             var placeholderDataset = new Dataset(userId, fileName, fileSizeBytes, "pending");
             placeholderDataset.SetShape(rowCount, columnCount);
             placeholderDataset.SetStatus("processing");
             await _datasets.UpsertAsync(placeholderDataset);
 
-            // ── 3. Read CSV bytes from temp file ──────────────────────────
             var csvBytes = await File.ReadAllBytesAsync(tempPath);
 
-            // ── 4. Build request — send file bytes directly to Python ──────
             var request = new AnalyzeRequestDto
             {
                 SessionId           = userId,
@@ -82,7 +66,6 @@ public class AnalysisService
             _logger.LogInformation("[Analysis] Calling Python AI for user {UserId}", userId);
             var rawJson = await _pythonAi.CallPythonAiAsync(request);
 
-            // ── 5. Parse Python response ──────────────────────────────────
             AnalyzeResponseDto? result;
             try
             {
@@ -103,7 +86,8 @@ public class AnalysisService
                 return;
             }
 
-            // ── 6. Save original CSV to Supabase Storage ──────────────────
+            // ── 6. Save original CSV ──────────────────────────────────────
+            // FIX: UploadBytesAsync now returns the relative storagePath
             var originalCsvPath = await _storage.SaveCleanedCsvAsync(userId, csvBytes, "original.csv");
 
             // ── 7. Save cleaned CSV ───────────────────────────────────────
@@ -122,15 +106,16 @@ public class AnalysisService
                 }
             }
 
-            // ── 8. Save PDF report ────────────────────────────────────────
+            // ── 8. Save PDF ───────────────────────────────────────────────
             string? pdfPath = null;
             if (!string.IsNullOrEmpty(result.PdfReportBase64))
             {
                 try
                 {
                     var bytes = Convert.FromBase64String(result.PdfReportBase64);
+                    // FIX: SavePdfReportAsync now returns relative path (e.g. "users/{id}/report.pdf")
                     pdfPath   = await _storage.SavePdfReportAsync(userId, bytes);
-                    _logger.LogInformation("[Analysis] PDF saved");
+                    _logger.LogInformation("[Analysis] PDF saved at {Path}", pdfPath);
                 }
                 catch (Exception ex)
                 {
@@ -147,9 +132,10 @@ public class AnalysisService
                     string? chartUrl = null;
                     if (!string.IsNullOrEmpty(chart.ImageBase64))
                     {
-                        var pngBytes = Convert.FromBase64String(chart.ImageBase64);
-                        var path     = await _storage.SaveChartAsync(userId, i, pngBytes);
-                        chartUrl     = await _storage.GetSignedUrlAsync(path, 86400);
+                        var pngBytes    = Convert.FromBase64String(chart.ImageBase64);
+                        // FIX: SaveChartAsync returns relative path — pass that directly to GetSignedUrlAsync
+                        var storagePath = await _storage.SaveChartAsync(userId, i, pngBytes);
+                        chartUrl        = await _storage.GetSignedUrlAsync(storagePath, 86400);
                     }
                     chartMeta.Add(new { type = chart.Type, label = chart.Label, desc = chart.Desc, color = chart.Color, url = chartUrl });
                 }
@@ -159,18 +145,15 @@ public class AnalysisService
                 }
             }
 
-            // ── 10. Update dataset row in DB with real paths ──────────────
-            // Update the placeholder row with real original CSV path
+            // ── 10. Update DB ─────────────────────────────────────────────
             await _datasets.UpdateOriginalCsvPathAsync(userId, originalCsvPath);
 
-            // Write chart URLs and set status=done
             var chartUrlsJson = JsonSerializer.Serialize(chartMeta);
             await _datasets.UpdateChartUrlsAsync(userId, chartUrlsJson);
             await _datasets.UpdateStatusAsync(userId, "done",
                 cleanedCsvUrl: cleanedCsvPath,
                 pdfReportUrl:  pdfPath);
 
-            // ── 11. Clean up temp file ────────────────────────────────────
             File.Delete(tempPath);
             _logger.LogInformation("[Analysis] Complete for user {UserId}", userId);
         }

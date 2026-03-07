@@ -94,7 +94,7 @@ def call_gemini(stats: StatsSummary, confidence_note: str, was_cleaned: bool, ap
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
             "temperature":     0.3,
-            "maxOutputTokens": 4096,
+            "maxOutputTokens": 8192,
             "topP":            0.8,
         }
     }).encode("utf-8")

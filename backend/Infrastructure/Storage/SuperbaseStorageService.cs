@@ -29,12 +29,12 @@ public class SupabaseStorageService : IStorageService
         return await UploadAsync(file, $"users/{userId}/original.csv");
     }
 
-    // Used by AnalysisService — saves bytes directly (original or cleaned)
     public async Task<string> SaveCleanedCsvAsync(Guid userId, byte[] csvBytes, string fileName = "cleaned.csv")
         => await UploadBytesAsync(csvBytes, $"users/{userId}/{fileName}", "text/csv");
 
     public async Task<string> SavePdfReportAsync(Guid userId, byte[] pdfBytes)
-        => await UploadBytesAsync(pdfBytes, $"users/{userId}/report.pdf", "application/pdf");
+        // FIX: Supabase does not allow application/pdf — use octet-stream
+        => await UploadBytesAsync(pdfBytes, $"users/{userId}/report.pdf", "application/octet-stream");
 
     public async Task<string> SaveChartAsync(Guid userId, int index, byte[] pngBytes)
         => await UploadBytesAsync(pngBytes, $"users/{userId}/chart_{index}.png", "image/png");
@@ -56,9 +56,11 @@ public class SupabaseStorageService : IStorageService
             };
             await _client.Storage.From(_bucket).Remove(paths);
         }
-        catch { /* ignore — files may not exist */ }
+        catch { /* ignore */ }
     }
 
+    // FIX: expects a relative storage path like "users/{userId}/report.pdf"
+    // NOT a full URL — callers must pass the path returned by Save* methods trimmed to relative
     public async Task<string> GetSignedUrlAsync(string storagePath, int expiresInSeconds = 3600)
         => await _client.Storage.From(_bucket).CreateSignedUrl(storagePath, expiresInSeconds);
 
@@ -73,7 +75,9 @@ public class SupabaseStorageService : IStorageService
     {
         var options = new Supabase.Storage.FileOptions { ContentType = contentType, Upsert = true };
         await _client.Storage.From(_bucket).Upload(bytes, storagePath, options);
-        return $"{_supabaseUrl}/storage/v1/object/public/{_bucket}/{storagePath}";
+        // Return ONLY the relative storage path — not the full public URL
+        // Callers that need a signed URL will call GetSignedUrlAsync separately
+        return storagePath;
     }
 
     private static void ValidateImage(IFormFile file)
