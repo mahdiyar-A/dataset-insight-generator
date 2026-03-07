@@ -14,13 +14,17 @@ public class ChatController : ControllerBase
 {
     private readonly IDatasetRepository _datasets;
     private readonly AnalysisService    _analysis;
+    private readonly IPythonAiClient    _pythonAi;
+    private readonly ILogger<ChatController> _logger;
 
     private static readonly string TempDir = Path.Combine(Path.GetTempPath(), "dig_uploads");
 
-    public ChatController(IDatasetRepository datasets, AnalysisService analysis)
+    public ChatController(IDatasetRepository datasets, AnalysisService analysis, IPythonAiClient pythonAi, ILogger<ChatController> logger)
     {
         _datasets = datasets;
         _analysis = analysis;
+        _pythonAi = pythonAi;
+        _logger   = logger;
     }
 
     private Guid GetUserId()
@@ -66,7 +70,29 @@ public class ChatController : ControllerBase
                     Condition = "not_workable", RequiresResponse = false, Done = false, Failed = true,
                 });
 
-            var condition = EvaluateCondition(req.RowCount, req.ColumnCount);
+            // ── Call Python /check to get real condition ──────────────────
+            string condition;
+            try
+            {
+                var csvBytes = await System.IO.File.ReadAllBytesAsync(tempPath);
+                var checkJson = await _pythonAi.CheckQualityAsync(csvBytes, req.FileName ?? "data.csv", userId);
+                var checkResult = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(checkJson);
+                condition = checkResult.GetProperty("condition").GetString() ?? "not_clean";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("[Chat] Python check failed: {Msg} — falling back to not_clean", ex.Message);
+                condition = "not_clean";
+            }
+
+            // If all_good — kick off analysis immediately, no yes/no needed
+            if (condition == "all_good")
+            {
+                _analysis.StartInBackground(userId, req.FileName ?? "data.csv",
+                    req.FileSizeBytes ?? new System.IO.FileInfo(tempPath).Length,
+                    req.RowCount ?? 0, req.ColumnCount ?? 0,
+                    userWantsCleaning: false, userConfirmedLow: true);
+            }
 
             return Ok(condition switch
             {
@@ -134,13 +160,6 @@ public class ChatController : ControllerBase
         });
     }
 
-    private static string EvaluateCondition(int? rowCount, int? columnCount)
-    {
-        if (rowCount    != null && rowCount    < 5) return "not_workable";
-        if (columnCount != null && columnCount < 2) return "not_workable";
-        if (rowCount    != null && rowCount    < 30) return "low_accuracy";
-        return "not_clean";
-    }
 }
 
 public class ChatMessageRequest

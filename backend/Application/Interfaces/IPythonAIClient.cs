@@ -4,5 +4,6 @@ namespace backend.Application.Interfaces;
 
 public interface IPythonAiClient
 {
-    public Task<string> CallPythonAiAsync(AnalyzeRequestDto request);
+    Task<string> CallPythonAiAsync(AnalyzeRequestDto request);
+    Task<string> CheckQualityAsync(byte[] csvBytes, string fileName, Guid sessionId);
 }

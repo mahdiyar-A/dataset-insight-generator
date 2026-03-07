@@ -50,6 +50,9 @@ public class PythonAiClient : IPythonAiClient
                     content.Add(new StringContent(request.CsvUrl), "csv_url");
                 }
 
+                content.Add(new StringContent(request.UserWantsCleaning.ToString().ToLower()), "user_wants_cleaning");
+                content.Add(new StringContent(request.UserConfirmedLow.ToString().ToLower()),  "user_confirmed_low");
+
                 var response = await _http.PostAsync($"{baseUrl}/analyze", content);
                 response.EnsureSuccessStatusCode();
                 return await response.Content.ReadAsStringAsync();
@@ -66,5 +69,21 @@ public class PythonAiClient : IPythonAiClient
         }
 
         throw new HttpRequestException($"Python AI service failed after {retries} attempts.");
+    }
+
+    public async Task<string> CheckQualityAsync(byte[] csvBytes, string fileName, Guid sessionId)
+    {
+        var baseUrl = _config["AIService:BaseUrl"]
+            ?? throw new InvalidOperationException("AIService:BaseUrl not configured.");
+
+        using var content    = new MultipartFormDataContent();
+        var byteContent      = new ByteArrayContent(csvBytes);
+        byteContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/csv");
+        content.Add(byteContent, "file", fileName);
+        content.Add(new StringContent(sessionId.ToString()), "session_id");
+
+        var response = await _http.PostAsync($"{baseUrl}/check", content);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsStringAsync();
     }
 }

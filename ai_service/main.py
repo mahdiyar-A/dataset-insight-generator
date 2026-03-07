@@ -5,10 +5,66 @@ load_dotenv()
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
 from ai_engine.core.pipeline import run_pipeline
+from ai_engine.quality.quality_checker import check_data_quality
+from ai_engine.quality.confidence_engine import evaluate_confidence
+import io
+import pandas as pd
 
 app = FastAPI(title="DIG AI Engine", version="1.0.0")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
+
+def _load_dataframe(file_bytes: bytes, file_name: str) -> pd.DataFrame:
+    name_lower = file_name.lower()
+    if name_lower.endswith(".xlsx") or name_lower.endswith(".xls"):
+        return pd.read_excel(io.BytesIO(file_bytes))
+    for enc in ("utf-8", "latin-1", "cp1252"):
+        try:
+            return pd.read_csv(io.BytesIO(file_bytes), encoding=enc)
+        except UnicodeDecodeError:
+            continue
+    raise ValueError("Could not decode file.")
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "gemini_key_set": bool(GEMINI_API_KEY)}
+
+
+@app.post("/check")
+async def check(
+    file: UploadFile = File(...),
+    session_id: str = Form(...),
+):
+    """
+    Quick quality check — no LLM, no PDF.
+    Returns condition so C# chatbot can ask the right question.
+    """
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="Empty file.")
+
+    try:
+        df = _load_dataframe(file_bytes, file.filename or "dataset.csv")
+    except Exception as e:
+        return JSONResponse({"condition": "not_workable", "error": str(e)})
+
+    quality = check_data_quality(df)
+
+    if not quality.isUsable:
+        return JSONResponse({"condition": "not_workable", "error": "; ".join(quality.errors)})
+
+    confidence = evaluate_confidence(df, quality)
+
+    if quality.needsCleaning:
+        condition = "not_clean"
+    elif confidence.requiresUserConfirmation:
+        condition = "low_accuracy"
+    else:
+        condition = "all_good"
+
+    return JSONResponse({"condition": condition, "error": None})
 
 
 @app.get("/health")
