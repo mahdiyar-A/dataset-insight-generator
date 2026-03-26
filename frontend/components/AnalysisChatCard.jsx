@@ -83,7 +83,7 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
       let res;
       if (guestMode) {
         const sessionId = sessionStorage.getItem("dig_guest_session") ?? "guest";
-        const response  = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/guest/chat`, {
+        const response  = await fetch(`${(process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5150").replace(/\/$/, "")}/api/guest/chat`, {
           method:  "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message, sessionId, ...meta }),
@@ -109,15 +109,23 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
         setStage(2);
         setAwaitingResponse(false);
       } else {
-        // If backend set status=processing (user said yes/no and analysis kicked off)
-        if (!needsResp && !done && !failed && cond === null) {
+        // FIX: trigger polling when analysis kicks off — when user said yes/no and backend is processing
+        if (!needsResp && !done && !failed) {
           onAnalysisStarted?.();
         }
         setAwaitingResponse(needsResp);
       }
     } catch (err) {
-      // Backend not ready yet — use stub condition responses
-      handleStubFlow(message);
+      if (guestMode) {
+        // In guest mode, show the real error — don't silently stub
+        console.error("[Guest chat error]", err);
+        addMsg("assistant", `Connection error: ${err?.message ?? "Could not reach server"}. Make sure the backend is running on port 5150.`);
+        setStage(0);
+        setAwaitingResponse(false);
+      } else {
+        // Authenticated mode — use stub flow as fallback
+        handleStubFlow(message);
+      }
     } finally {
       setSending(false);
     }

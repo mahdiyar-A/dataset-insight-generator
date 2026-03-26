@@ -75,78 +75,108 @@ public class GuestController : ControllerBase
     }
 
     // ── POST /api/guest/chat ──────────────────────────────────────────────
-    // Identical logic to ChatController but no auth required
     [HttpPost("chat")]
-    public IActionResult Chat([FromBody] GuestChatRequest req)
+    public async Task<IActionResult> Chat([FromBody] GuestChatRequest req)
     {
         if (string.IsNullOrWhiteSpace(req.Message))
             return BadRequest(new { error = "EMPTY_MESSAGE" });
 
         var message = req.Message.Trim().ToLowerInvariant();
 
-        // Check temp file exists
-        if ((message == "start_analysis" || message == "yes" || message == "no"))
-        {
-            var tempPath = FindTempFile(req.SessionId);
-            if (tempPath == null)
-                return Ok(new GuestChatResponse
-                {
-                    Reply = "No dataset found. Please upload a CSV file first.",
-                    Condition = null, RequiresResponse = false, Done = false, Failed = true,
-                });
-        }
+        // Check temp file exists for all analysis messages
+        var tempPath = FindTempFile(req.SessionId);
+        if ((message == "start_analysis" || message == "yes" || message == "no") && tempPath == null)
+            return Ok(new GuestChatResponse
+            {
+                Reply = "No dataset found. Please upload a CSV file first.",
+                Condition = null, RequiresResponse = false, Done = false, Failed = true,
+            });
 
+        // ── start_analysis: call Python /check for REAL condition ─────────
         if (message == "start_analysis")
         {
-            var condition = EvaluateCondition(req.RowCount, req.ColumnCount);
-            return Ok(condition switch
+            try
             {
-                "not_workable" => new GuestChatResponse
+                var csvBytes  = await System.IO.File.ReadAllBytesAsync(tempPath!);
+                var sessionId = Guid.TryParse(req.SessionId, out var g) ? g : Guid.NewGuid();
+                var fileName  = req.FileName ?? "data.csv";
+
+                var checkJson = await _pythonAi.CheckQualityAsync(csvBytes, fileName, sessionId);
+                var check     = System.Text.Json.JsonSerializer.Deserialize<CheckResponse>(
+                    checkJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                var condition = check?.Condition ?? "all_good";
+
+                // all_good → fire analysis immediately, no yes/no needed
+                if (condition == "all_good")
                 {
-                    Reply = "Your dataset cannot be processed — too sparse or missing headers.",
-                    Condition = "not_workable", RequiresResponse = false, Done = false, Failed = true,
-                },
-                "not_clean" => new GuestChatResponse
+                    _ = Task.Run(() => RunGuestAnalysisAsync(
+                        req.SessionId ?? "guest", tempPath!, fileName, false, true));
+
+                    return Ok(new GuestChatResponse
+                    {
+                        Reply = "Your dataset looks great — starting full analysis now. This may take a minute.",
+                        Condition = "all_good", RequiresResponse = false, Done = false, Failed = false,
+                    });
+                }
+
+                return Ok(condition switch
                 {
-                    Reply = "Your dataset has quality issues — missing values or duplicates detected. Would you like me to clean it automatically?",
-                    Condition = "not_clean", RequiresResponse = true, Done = false, Failed = false,
-                },
-                "low_accuracy" => new GuestChatResponse
+                    "not_workable" => new GuestChatResponse
+                    {
+                        Reply = "Your dataset cannot be processed — it may be too sparse or missing headers.",
+                        Condition = "not_workable", RequiresResponse = false, Done = false, Failed = true,
+                    },
+                    "not_clean" => new GuestChatResponse
+                    {
+                        Reply = "Your dataset has quality issues — missing values or duplicates detected. Would you like me to clean it automatically?",
+                        Condition = "not_clean", RequiresResponse = true, Done = false, Failed = false,
+                    },
+                    "low_accuracy" => new GuestChatResponse
+                    {
+                        Reply = "Your dataset may produce lower-accuracy insights due to limited data. Would you like to proceed anyway?",
+                        Condition = "low_accuracy", RequiresResponse = true, Done = false, Failed = false,
+                    },
+                    _ => new GuestChatResponse
+                    {
+                        Reply = "Your dataset looks great — starting full analysis now. This may take a minute.",
+                        Condition = "all_good", RequiresResponse = false, Done = false, Failed = false,
+                    },
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Guest] Python check failed for session {SessionId}", req.SessionId);
+                return Ok(new GuestChatResponse
                 {
-                    Reply = "Your dataset may produce lower-accuracy insights due to limited rows. Would you like to proceed anyway?",
-                    Condition = "low_accuracy", RequiresResponse = true, Done = false, Failed = false,
-                },
-                _ => new GuestChatResponse
-                {
-                    Reply = "Your dataset looks great — starting full analysis now. This may take a minute.",
-                    Condition = "all_good", RequiresResponse = false, Done = false, Failed = false,
-                },
-            });
+                    Reply = "Could not reach the analysis service. Please make sure it is running.",
+                    Condition = null, RequiresResponse = false, Done = false, Failed = true,
+                });
+            }
         }
 
+        // ── yes/no: user responded to not_clean or low_accuracy ──────────
         if (message == "yes" || message == "no")
         {
             bool userWantsCleaning = message == "yes" && req.PendingCondition == "not_clean";
             bool userConfirmedLow  = message == "yes" && req.PendingCondition == "low_accuracy";
 
-            if (req.PendingCondition == "all_good" || req.PendingCondition == null)
+            if (message == "no" && req.PendingCondition == "not_clean")
             {
+                // User declined cleaning — still run analysis on raw data
                 userWantsCleaning = false;
                 userConfirmedLow  = true;
             }
 
-            // For guest — fire off analysis in background, frontend polls /api/guest/status/{sessionId}
-            var tempPath = FindTempFile(req.SessionId);
-            if (tempPath != null)
-                _ = Task.Run(() => RunGuestAnalysisAsync(
-                    req.SessionId ?? "guest", tempPath,
-                    req.FileName ?? "data.csv",
-                    userWantsCleaning, userConfirmedLow
-                ));
+            _ = Task.Run(() => RunGuestAnalysisAsync(
+                req.SessionId ?? "guest", tempPath!,
+                req.FileName ?? "data.csv",
+                userWantsCleaning, userConfirmedLow
+            ));
 
             var reply = message == "yes"
                 ? "Running the full analysis pipeline now. Your report and charts will appear when done."
-                : "Skipping that step and running analysis as-is. Results will appear shortly.";
+                : "Running analysis on the original data. Results will appear shortly.";
 
             return Ok(new GuestChatResponse
             {
@@ -159,6 +189,13 @@ public class GuestController : ControllerBase
             Reply = "I didn't understand that. Use Start Analysis or reply Yes/No.",
             Condition = null, RequiresResponse = false, Done = false, Failed = false,
         });
+    }
+
+    // Helper DTO for Python /check response
+    private class CheckResponse
+    {
+        public string Condition { get; set; } = "all_good";
+        public string? Error    { get; set; }
     }
 
     // ── GET /api/guest/status/{sessionId} ────────────────────────────────
@@ -279,13 +316,6 @@ public class GuestController : ControllerBase
         return null;
     }
 
-    private static string EvaluateCondition(int? rowCount, int? columnCount)
-    {
-        if (rowCount    != null && rowCount    < 5)  return "not_workable";
-        if (columnCount != null && columnCount < 2)  return "not_workable";
-        if (rowCount    != null && rowCount    < 30) return "low_accuracy";
-        return "not_clean";
-    }
 }
 
 // ── DTOs ──────────────────────────────────────────────────────────────────
