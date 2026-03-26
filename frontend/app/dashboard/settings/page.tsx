@@ -143,7 +143,6 @@ export default function SettingsPage() {
     </div>
   );
 }
-
 const pageStyle        = { minHeight: "100vh", background: "radial-gradient(circle at top, #020617 0, #020617 45%, #000 100%)", padding: "32px 20px", fontFamily: "system-ui, -apple-system, sans-serif", color: "#e5e7eb" };
 const wrapStyle        = { maxWidth: "620px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "20px" };
 const backBtnStyle     = { display: "flex", alignItems: "center", gap: "6px", background: "transparent", border: "none", color: "#6b7280", cursor: "pointer", fontSize: "0.82rem", fontWeight: 500, padding: 0, width: "fit-content" };

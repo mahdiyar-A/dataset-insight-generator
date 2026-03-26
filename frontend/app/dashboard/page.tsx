@@ -208,7 +208,7 @@ export default function DashboardPage() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <button className="sidebar-link" onClick={() => router.push("/dashboard/editProfile")} title="Settings">
+          <button className="sidebar-link" onClick={() => router.push("/dashboard/settings")} title="Settings">
             <span className="sidebar-icon"><IconSettings /></span>
             <span className="sidebar-label">Settings</span>
           </button>
