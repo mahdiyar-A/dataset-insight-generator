@@ -438,6 +438,36 @@ html.reduced-motion *::after {
     animation: none !important;
 }
 
+/* Homepage: always dark + blue regardless of theme setting */
+.homepage-root,
+.homepage-root * {
+    --bg: #020617;
+    --bg-elevated: #070e1f;
+    --panel: #0d1729;
+    --panel2: #020617;
+    --panel-alt: #111827;
+    --accent: #3b82f6;
+    --accent2: #6366f1;
+    --accent-rgb: 59,130,246;
+    --accent2-rgb: 99,102,241;
+    --accent-soft: rgba(59,130,246,0.2);
+    --accent-gradient: linear-gradient(90deg, #3b82f6, #6366f1);
+    --text: #e5e7eb;
+    --text-soft: #9ca3af;
+    --muted: #6b7280;
+    --border: #1f2937;
+    --card-hover: rgba(255,255,255,0.04);
+    --danger: #f97373;
+    --shadow-soft: 0 18px 45px rgba(15,23,42,0.85);
+    --sidebar-bg: #020617;
+    --sidebar-border: rgba(31,41,55,0.8);
+}
+
+.homepage-root {
+    background: #020617;
+    color: #e5e7eb;
+}
+
 /* Simple dark helper: adjust panel backgrounds when html.dark is set */
 html.dark body {
     color: var(--text);

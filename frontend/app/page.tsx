@@ -1,7 +1,7 @@
 // app/page.tsx
 export default function HomePage() {
   return (
-    <div className="container">
+    <div className="container homepage-root">
       {/* Navbar */}
       <header className="navbar">
         <div className="logo">
