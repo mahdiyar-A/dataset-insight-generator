@@ -36,7 +36,7 @@ const CONDITION_STUBS = {
   all_good:     "Your dataset looks great! No significant issues found. Ready to generate your full report and visualizations.",
 };
 
-export default function AnalysisAssistantCard({ dataset, reportReady, onViewReport, onAnalysisStarted, guestMode = false }) {
+export default function AnalysisAssistantCard({ dataset, reportReady, onViewReport, onAnalysisStarted, guestMode = false, guestSessionId = null }) {
   const { token } = useAuth();
 
   const [stage,            setStage]            = useState(0);   // 0=idle 1=running 2=ready
@@ -82,7 +82,7 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
 
       let res;
       if (guestMode) {
-        const sessionId = sessionStorage.getItem("dig_guest_session") ?? "guest";
+        const sessionId = guestSessionId ?? sessionStorage.getItem("dig_guest_session") ?? "guest";
         const response  = await fetch(`${(process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5150").replace(/\/$/, "")}/api/guest/chat`, {
           method:  "POST",
           headers: { "Content-Type": "application/json" },
@@ -92,7 +92,6 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
       } else {
         res = await BackendAPI.sendChatMessage(token, message, meta);
       }
-      // Expected: { reply, condition, done, failed, requiresResponse }
       const reply     = res?.reply ?? res?.content ?? "Processing…";
       const cond      = res?.condition ?? null;
       const done      = res?.done      ?? false;
@@ -109,21 +108,26 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
         setStage(2);
         setAwaitingResponse(false);
       } else {
-        // FIX: trigger polling when analysis kicks off — when user said yes/no and backend is processing
-        if (!needsResp && !done && !failed) {
+        // Only trigger polling when analysis actually kicks off:
+        // - message was "yes"/"no" (user confirmed)
+        // - OR message was "start_analysis" and condition is "all_good" (no confirmation needed)
+        const analysisKickingOff = !needsResp && !done && !failed &&
+          (message === "yes" || message === "no" ||
+           (message === "start_analysis" && cond === "all_good"));
+        if (analysisKickingOff) {
           onAnalysisStarted?.();
         }
         setAwaitingResponse(needsResp);
       }
     } catch (err) {
       if (guestMode) {
-        // In guest mode, show the real error — don't silently stub
         console.error("[Guest chat error]", err);
-        addMsg("assistant", `Connection error: ${err?.message ?? "Could not reach server"}. Make sure the backend is running on port 5150.`);
+        console.error("[Guest chat] message was:", message);
+        console.error("[Guest chat] sessionId:", sessionStorage.getItem("dig_guest_session"));
+        addMsg("assistant", `Connection error: ${err?.message ?? "Could not reach server"}. Check browser console for details.`);
         setStage(0);
         setAwaitingResponse(false);
       } else {
-        // Authenticated mode — use stub flow as fallback
         handleStubFlow(message);
       }
     } finally {

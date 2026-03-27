@@ -30,21 +30,40 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const TOKEN_KEY = 'dig_token';
-const USER_KEY  = 'dig_user';
+const TOKEN_KEY   = 'dig_token';
+const USER_KEY    = 'dig_user';
+
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp * 1000 < Date.now();
+  } catch { return true; }
+}
+
+function clearAllSessionState() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+  localStorage.removeItem('dig_report_ready');
+  sessionStorage.clear();
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token,     setToken]     = useState<string | null>(null);
   const [user,      setUser]      = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Rehydrate from localStorage
+  // Rehydrate from localStorage — check token expiry
   useEffect(() => {
     try {
       const savedToken = localStorage.getItem(TOKEN_KEY);
       const savedUser  = localStorage.getItem(USER_KEY);
-      if (savedToken) setToken(savedToken);
-      if (savedUser)  setUser(JSON.parse(savedUser));
+      if (savedToken && !isTokenExpired(savedToken)) {
+        setToken(savedToken);
+        if (savedUser) setUser(JSON.parse(savedUser));
+      } else if (savedToken) {
+        // Token expired — clear everything
+        clearAllSessionState();
+      }
     } catch { /* ignore */ }
     finally { setIsLoading(false); }
   }, []);
@@ -89,8 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     setToken(null);
     setUser(null);
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
+    clearAllSessionState();
   };
 
   // Optimistically update local state, then refresh from backend

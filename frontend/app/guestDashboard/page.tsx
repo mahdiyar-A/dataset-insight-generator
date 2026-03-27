@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import UploadCard         from "@/components/UploadCard";
 import AnalysisAssistantCard from "@/components/AnalysisChatCard";
@@ -17,59 +17,69 @@ function getGuestSessionId() {
   return id;
 }
 
-const SESSION_ID = getGuestSessionId();
+// ── Guest-specific BackendAPI — takes sessionId as parameter ─────────────
+function makeGuestAPI(sessionId) {
+  return {
+    async uploadDataset(file, rowCount, columnCount) {
+      const form = new FormData();
+      form.append("file",       file);
+      form.append("sessionId",  sessionId);
+      form.append("rows",       String(rowCount));
+      form.append("columns",    String(columnCount));
+      const res = await fetch(`${API_BASE}/api/guest/upload`, { method: "POST", body: form });
+      if (!res.ok) throw new Error("Upload failed");
+      return await res.json();
+    },
 
-// ── Guest-specific BackendAPI (no auth token, uses /api/guest/* endpoints) ─
-const GuestAPI = {
-  async uploadDataset(file, rowCount, columnCount) {
-    const form = new FormData();
-    form.append("file",       file);
-    form.append("sessionId",  SESSION_ID);
-    form.append("rows",       String(rowCount));
-    form.append("columns",    String(columnCount));
-    const res = await fetch(`${API_BASE}/api/guest/upload`, { method: "POST", body: form });
-    if (!res.ok) throw new Error("Upload failed");
-    return await res.json();
-  },
+    async sendChatMessage(message, meta = {}) {
+      const res = await fetch(`${API_BASE}/api/guest/chat`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message,
+          sessionId,
+          fileName:         meta.fileName         ?? null,
+          fileSizeBytes:    meta.fileSizeBytes     ?? null,
+          rowCount:         meta.rowCount          ?? null,
+          columnCount:      meta.columnCount       ?? null,
+          pendingCondition: meta.pendingCondition  ?? null,
+        }),
+      });
+      if (!res.ok) throw new Error("Chat failed");
+      return await res.json();
+    },
 
-  async sendChatMessage(message, meta = {}) {
-    const res = await fetch(`${API_BASE}/api/guest/chat`, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message,
-        sessionId:        SESSION_ID,
-        fileName:         meta.fileName         ?? null,
-        fileSizeBytes:    meta.fileSizeBytes     ?? null,
-        rowCount:         meta.rowCount          ?? null,
-        columnCount:      meta.columnCount       ?? null,
-        pendingCondition: meta.pendingCondition  ?? null,
-      }),
-    });
-    if (!res.ok) throw new Error("Chat failed");
-    return await res.json();
-  },
-
-  async getStatus() {
-    const res = await fetch(`${API_BASE}/api/guest/status/${SESSION_ID}`);
-    if (!res.ok) throw new Error("Status check failed");
-    return await res.json();
-  },
-};
+    async getStatus() {
+      const res = await fetch(`${API_BASE}/api/guest/status/${sessionId}`);
+      if (!res.ok) throw new Error("Status check failed");
+      return await res.json();
+    },
+  };
+}
 
 export default function GuestDashboardPage() {
   const router = useRouter();
 
+  // ── Fresh session ID on every page mount — clears previous guest interaction ──
+  const [sessionId, setSessionId] = useState(() => {
+    const id = crypto.randomUUID();
+    if (typeof window !== "undefined") sessionStorage.setItem("dig_guest_session", id);
+    return id;
+  });
+
   // ── State ────────────────────────────────────────────────────────────
-  const [dataset,        setDataset]        = useState(null);   // metadata after upload
+  const [dataset,        setDataset]        = useState(null);
   const [reportReady,    setReportReady]     = useState(false);
-  const [pdfBase64,      setPdfBase64]       = useState(null);   // in memory
+  const [pdfBase64,      setPdfBase64]       = useState(null);
   const [cleanedCsvB64,  setCleanedCsvB64]   = useState(null);
   const [charts,         setCharts]          = useState([]);
   const [analysisKey,    setAnalysisKey]     = useState(0);
   const [uploadResetKey, setUploadResetKey]  = useState(0);
   const [activeSection,  setActiveSection]   = useState("top");
   const pollingRef = useRef(null);
+
+  // ── GuestAPI bound to this session's ID ──────────────────────────────
+  const GuestAPI = useMemo(() => makeGuestAPI(sessionId), [sessionId]);
 
   // ── Refs ─────────────────────────────────────────────────────────────
   const topRef      = useRef(null);
@@ -78,6 +88,29 @@ export default function GuestDashboardPage() {
   const chartsRef   = useRef(null);
   const downloadRef = useRef(null);
   const helpRef     = useRef(null);
+
+  // ── Reset all state on every fresh mount ─────────────────────────────
+  useEffect(() => {
+    setDataset(null);
+    setReportReady(false);
+    setPdfBase64(null);
+    setCleanedCsvB64(null);
+    setCharts([]);
+    setAnalysisKey(0);
+    setUploadResetKey(k => k + 1);
+    stopPolling();
+  }, []); // runs once on mount
+
+  // ── Block browser back button — redirect to landing ──────────────────
+  useEffect(() => {
+    window.history.pushState(null, "", window.location.href);
+    const handlePopState = () => {
+      window.history.pushState(null, "", window.location.href);
+      router.push("/");
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   // ── Intersection observer for sidebar active state ───────────────────
   useEffect(() => {
@@ -115,19 +148,18 @@ export default function GuestDashboardPage() {
         if (s.status === "done" || s.status === "failed") {
           stopPolling();
           if (s.status === "done") {
-            // Store everything in memory — no DB
             setPdfBase64(s.pdfReportBase64   ?? null);
             setCleanedCsvB64(s.cleanedCsvBase64 ?? null);
             setCharts(s.charts ?? []);
             setReportReady(true);
             setDataset(prev => prev ? { ...prev, status: "done", isPending: false, hasPdfReport: !!s.pdfReportBase64, hasCleanedCsv: !!s.cleanedCsvBase64 } : prev);
           }
+          // Only bump analysisKey to reset chatbot — don't reset upload card
           setAnalysisKey(k => k + 1);
-          setUploadResetKey(k => k + 1);
         }
       } catch { /* polling errors are non-fatal */ }
     }, 8000);
-  }, [stopPolling]);
+  }, [stopPolling, GuestAPI]);
 
   useEffect(() => () => stopPolling(), [stopPolling]);
 
@@ -280,7 +312,7 @@ export default function GuestDashboardPage() {
             onUploadSuccess={handleUploadSuccess}
             resetKey={uploadResetKey}
             guestMode={true}
-            guestSessionId={SESSION_ID}
+            guestSessionId={sessionId}
           />
           <AnalysisAssistantCard
             key={analysisKey}
@@ -289,6 +321,7 @@ export default function GuestDashboardPage() {
             onViewReport={scrollToReport}
             onAnalysisStarted={handleAnalysisStarted}
             guestMode={true}
+            guestSessionId={sessionId}
           />
         </section>
 

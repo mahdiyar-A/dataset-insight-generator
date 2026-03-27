@@ -28,11 +28,25 @@ export default function DashboardPage() {
   const router = useRouter();
   const { logout, currentUser, token, refreshUser } = useAuth();
 
-  const [dataset,       setDataset]       = useState(null);
-  const [datasetStatus, setDatasetStatus] = useState(null);
-  const [reportReady,   setReportReady]   = useState(false);
-  const [analysisKey,   setAnalysisKey]   = useState(0);
-  const [uploadResetKey, setUploadResetKey] = useState(0);  // incremented on new upload to remount chatbot
+  // Block browser back button — push /login so back never exposes dashboard
+  useEffect(() => {
+    window.history.pushState(null, "", window.location.href);
+    const handlePopState = () => {
+      window.history.pushState(null, "", window.location.href);
+      router.push("/login");
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const handleSignOut = () => { logout(); router.push("/"); };
+
+  const [dataset,          setDataset]          = useState(null);
+  const [datasetStatus,    setDatasetStatus]    = useState(null);
+  const [reportReady,      setReportReady]      = useState(false);
+  const [hasPdfReport,     setHasPdfReport]     = useState(false);
+  const [analysisKey,      setAnalysisKey]      = useState(0);
+  const [uploadResetKey,   setUploadResetKey]   = useState(0);
 
   const topRef      = useRef(null);
   const uploadRef   = useRef(null);
@@ -67,7 +81,8 @@ export default function DashboardPage() {
 
       const status = data.status ?? "pending";
       setDatasetStatus(status);
-      setReportReady(data.hasPdfReport === true);
+      setHasPdfReport(data.hasPdfReport === true);
+      // NOTE: reportReady stays false on initial load — only set true when analysis completes THIS session
 
       // Don't resurface a failed status from a previous session
       // Only show failed if it just happened this session (polling detected it)
@@ -92,9 +107,10 @@ export default function DashboardPage() {
   // Only store as tempMeta so chatbot knows file name/size for greeting
   const handleUploadSuccess = useCallback(async (tempMeta) => {
     stopPolling();
-    setDataset({ ...tempMeta, isPending: true }); // chatbot reads this, HistoryCard ignores isPending
+    setDataset({ ...tempMeta, isPending: true });
     setDatasetStatus("pending");
-    setReportReady(false);
+    setReportReady(false);   // reset banner on new upload
+    setHasPdfReport(false);
     setAnalysisKey(k => k + 1);
   }, []);
 
@@ -118,9 +134,12 @@ export default function DashboardPage() {
           stopPolling();
           const updated = await BackendAPI.getCurrentDataset(token);
           setDataset(updated);
-          if (updated?.hasPdfReport) setReportReady(true);
-          setAnalysisKey(k => k + 1);    // remount chatbot → back to idle
-          setUploadResetKey(k => k + 1); // clear UploadCard file
+          if (updated?.hasPdfReport) {
+            setReportReady(true);   // show green banner — analysis just finished THIS session
+            setHasPdfReport(true);
+          }
+          setAnalysisKey(k => k + 1);
+          setUploadResetKey(k => k + 1);
         }
       } catch { /* network blip — keep polling */ }
     }, 10_000);
@@ -164,7 +183,6 @@ export default function DashboardPage() {
 
   const scrollTo      = (id, ref) => { ref?.current?.scrollIntoView({ behavior: "smooth" }); setActiveSection(id); };
   const scrollToReport = () => scrollTo("section-download", downloadRef);
-  const handleSignOut  = () => { logout(); router.push("/login"); };
 
   // ── User display ─────────────────────────────────────────────────────────
   const firstName    = currentUser?.firstName ?? "";
@@ -309,7 +327,7 @@ export default function DashboardPage() {
 
         {/* 4. Report */}
         <section id="section-download" ref={downloadRef}>
-          <DownloadsCard dataset={dataset} />
+          <DownloadsCard dataset={dataset ? { ...dataset, hasPdfReport: hasPdfReport } : null} />
         </section>
 
         {/* 5. Help */}

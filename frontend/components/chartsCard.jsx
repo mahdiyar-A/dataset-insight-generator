@@ -186,20 +186,27 @@ const SVG_FALLBACKS = [
   },
 ];
 
-export default function ChartsCard({ dataset }) {
+export default function ChartsCard({ dataset, charts: guestCharts = null, reportReady: guestReportReady = false }) {
   const { token } = useAuth();
   const [charts, setCharts] = useState([]);
   const [active, setActive] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Re-fetch whenever dataset changes (new upload clears, existing load pulls)
+  // Guest mode: sync directly from prop
   useEffect(() => {
-    if (!token) {
+    if (guestCharts !== null) {
+      setCharts(guestCharts ?? []);
+      setActive(0);
       setLoading(false);
-      return;
     }
+  }, [guestCharts]);
+
+  // Authenticated mode: fetch from backend
+  useEffect(() => {
+    if (guestCharts !== null) return; // guest mode — skip
+    if (!token) { setLoading(false); return; }
     fetchCharts();
-  }, [token, dataset?.id]);
+  }, [token, dataset?.id]); // eslint-disable-line
 
   const fetchCharts = async () => {
     setLoading(true);

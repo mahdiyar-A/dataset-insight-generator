@@ -40,6 +40,11 @@ export default function LoginPage() {
   return (
     <div className="auth-body">
       <div className="auth-container">
+        <button
+          onClick={() => router.push("/")}
+          style={{ background:"none", border:"none", color:"#64748b", cursor:"pointer", fontSize:"0.85rem", alignSelf:"flex-start", marginBottom:"8px", padding:"0" }}>
+          ← Back
+        </button>
         <h2>Login</h2>
 
         <input

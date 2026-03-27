@@ -40,7 +40,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await register(fn, ln, em, password); // auto-login happens inside AuthContext
-      router.push('/'); // auth-only for now
+      router.push('/dashboard');
     } catch (err: any) {
       setError(err?.message || 'Registration failed');
     } finally {
@@ -51,6 +51,11 @@ export default function RegisterPage() {
   return (
     <div className="auth-body">
       <div className="auth-container">
+        <button
+          onClick={() => router.push("/")}
+          style={{ background:"none", border:"none", color:"#64748b", cursor:"pointer", fontSize:"0.85rem", alignSelf:"flex-start", marginBottom:"8px", padding:"0" }}>
+          ← Back
+        </button>
         <h2>Create Account</h2>
 
         <div className="name-row">
