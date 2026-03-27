@@ -208,7 +208,7 @@ export default function DashboardPage() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <button className="sidebar-link" onClick={() => router.push("/dashboard/editProfile")} title="Settings">
+          <button className="sidebar-link" onClick={() => router.push("/dashboard/settings")} title="Settings">
             <span className="sidebar-icon"><IconSettings /></span>
             <span className="sidebar-label">Settings</span>
           </button>
@@ -268,9 +268,9 @@ export default function DashboardPage() {
         )}
 
         {showProcessingBanner && (
-          <div style={{ padding:"12px 24px", background:"rgba(37,99,235,0.08)", borderBottom:"1px solid rgba(37,99,235,0.2)", display:"flex", alignItems:"center", gap:"10px" }}>
+          <div style={{ padding:"12px 24px", background:"var(--accent-soft)", borderBottom:"1px solid rgba(var(--accent-rgb),0.2)", display:"flex", alignItems:"center", gap:"10px" }}>
             <span>⏳</span>
-            <span style={{ fontSize:"0.85rem", color:"#93c5fd" }}>
+            <span style={{ fontSize:"0.85rem", color:"var(--accent)" }}>
               Analysis running — charts and report will appear when done…
             </span>
           </div>

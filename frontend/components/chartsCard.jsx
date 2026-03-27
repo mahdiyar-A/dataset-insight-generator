@@ -7,6 +7,7 @@ import BackendAPI from "@/lib/BackendAPI";
 
 /* ── Fallback SVG renderers (shown when backend returns image URLs we can display inline) ── */
 function BarChart({ color = "#3b82f6" }) {
+  const acc = (typeof window !== "undefined") ? (getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#3b82f6') : '#3b82f6';
   const bars = [40, 65, 30, 80, 55, 70, 45, 90, 35, 60];
   return (
     <svg viewBox="0 0 220 130" width="100%" height="100%">
@@ -27,7 +28,7 @@ function BarChart({ color = "#3b82f6" }) {
         y1="129"
         x2="220"
         y2="129"
-        stroke="rgba(31,41,55,0.8)"
+        stroke="var(--border)"
         strokeWidth="1"
       />
     </svg>
@@ -66,7 +67,10 @@ function LineChart({ color = "#8b5cf6" }) {
   );
 }
 function Heatmap() {
-  const palette = ["#0f172a", "#1e3a5f", "#1d4ed8", "#3b82f6", "#93c5fd"];
+  const s = (typeof window !== "undefined") ? getComputedStyle(document.documentElement) : null;
+  const acc = s ? (s.getPropertyValue('--accent').trim() || '#3b82f6') : '#3b82f6';
+  const acc2 = s ? (s.getPropertyValue('--accent2').trim() || '#6366f1') : '#6366f1';
+  const palette = ["#0f172a", acc2, acc, acc, acc2];
   const cells = Array.from({ length: 25 }, (_, i) => {
     const v = Math.abs(Math.sin(i * 0.7 + 1.3));
     return palette[Math.floor(v * palette.length)];
@@ -103,7 +107,7 @@ function ScatterPlot({ color = "#f59e0b" }) {
         y1="129"
         x2="220"
         y2="129"
-        stroke="rgba(31,41,55,0.8)"
+        stroke="var(--border)"
         strokeWidth="1"
       />
       <line
@@ -111,7 +115,7 @@ function ScatterPlot({ color = "#f59e0b" }) {
         y1="0"
         x2="1"
         y2="130"
-        stroke="rgba(31,41,55,0.8)"
+        stroke="var(--border)"
         strokeWidth="1"
       />
     </svg>
@@ -186,20 +190,45 @@ const SVG_FALLBACKS = [
   },
 ];
 
-export default function ChartsCard({ dataset }) {
+export default function ChartsCard({ dataset, charts: propCharts = [], reportReady: propReportReady = false }) {
   const { token } = useAuth();
   const [charts, setCharts] = useState([]);
   const [active, setActive] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Re-fetch whenever dataset changes (new upload clears, existing load pulls)
+  // If a `dataset` and token exist (authenticated flow), fetch from backend.
+  // Otherwise (guest flow) accept `propCharts` passed from parent and use that.
+  // Use `propCharts?.length` as the dependency instead of the array reference to
+  // avoid an infinite loop: a new [] on every parent render would otherwise
+  // cause setCharts([]) → re-render → new [] → setCharts([]) → ...
+  const propChartsLen = propCharts?.length ?? 0;
   useEffect(() => {
-    if (!token) {
-      setLoading(false);
+    if (dataset && token) {
+      fetchCharts();
       return;
     }
-    fetchCharts();
-  }, [token, dataset?.id]);
+    // Guest / prop-driven flow
+    if (propCharts && propCharts.length > 0) {
+      setLoading(false);
+      // Normalize any base64 fields into data URLs and merge with fallbacks.
+      // Accept both `imageBase64` and `image_base64` keys from backend.
+      const merged = propCharts.slice(0, 5).map((c, i) => {
+        const base = { ...SVG_FALLBACKS[i % SVG_FALLBACKS.length], ...c };
+        const b64 = c.imageBase64 || c.image_base64 || c.base64 || null;
+        // If backend returned image bytes as base64, convert to a data: URL for immediate rendering
+        // but only when there isn't already a server-provided `url` (signed/public URL preferred).
+        if (b64 && !c.url) base.url = `data:image/png;base64,${b64}`;
+        return base;
+      });
+      setCharts(merged);
+    } else {
+      // Functional update: return existing state when already empty so React
+      // skips the re-render rather than setting a new [] reference each time.
+      setCharts(prev => (prev.length === 0 ? prev : []));
+      setLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, dataset?.id, propChartsLen]);
 
   const fetchCharts = async () => {
     setLoading(true);
@@ -207,7 +236,6 @@ export default function ChartsCard({ dataset }) {
     try {
       // Backend returns array of up to 5:
       // [{ type, label, url, desc, color? }, ...]
-      // If analysis not done yet → empty array → we show "pending" state
       const data = await BackendAPI.getVisualizations(token);
 
       if (!data || data.length === 0) {
@@ -233,7 +261,10 @@ export default function ChartsCard({ dataset }) {
   }, [charts]);
 
   const current = charts[active];
-  const currentColor = current?.color || "#3b82f6";
+  const s = (typeof window !== "undefined") ? getComputedStyle(document.documentElement) : null;
+  const accent = s ? (s.getPropertyValue('--accent').trim() || '#3b82f6') : '#3b82f6';
+  const accentRgb = s ? (s.getPropertyValue('--accent-rgb').trim() || '59,130,246') : '59,130,246';
+  const currentColor = current?.color || accent;
   const hasUrl = !!current?.url;
 
   return (
@@ -244,9 +275,9 @@ export default function ChartsCard({ dataset }) {
           <span
             className="pill"
             style={{
-              borderColor: `${currentColor}44`,
+              borderColor: currentColor,
               color: currentColor,
-              background: `${currentColor}14`,
+              background: `rgba(${accentRgb},0.08)`,
             }}
           >
             {current.label}
@@ -261,10 +292,9 @@ export default function ChartsCard({ dataset }) {
       {/* Chart display area */}
       <div
         style={{
-          background:
-            "radial-gradient(circle at top, rgba(37,99,235,0.06), rgba(15,23,42,0.96))",
+          background: `radial-gradient(circle at top, rgba(${accentRgb},0.06), var(--panel2))`,
           borderRadius: "14px",
-          border: "1px solid rgba(31,41,55,0.9)",
+          border: "1px solid var(--border)",
           minHeight: "200px",
           display: "flex",
           flexDirection: "column",
@@ -371,7 +401,8 @@ export default function ChartsCard({ dataset }) {
               style={{ flex: 1, padding: "12px 16px 16px", minHeight: "160px" }}
             >
               {hasUrl ? (
-                /* Real image from Supabase Storage */
+                /* Real image from storage or signed URL (preferred) */
+                // Prefer `current.url` which may be a signed storage URL; if absent we fall back to SVG renderer above.
                 <img
                   src={current.url}
                   alt={current.label}
@@ -407,7 +438,7 @@ export default function ChartsCard({ dataset }) {
           }}
         >
           {charts.map((c, i) => {
-            const dotColor = c.color || "#3b82f6";
+            const dotColor = c.color || accent;
             const isActive = active === i;
             return (
               <button
@@ -418,7 +449,7 @@ export default function ChartsCard({ dataset }) {
                   width: isActive ? "26px" : "10px",
                   height: "10px",
                   borderRadius: "5px",
-                  border: `2px solid ${isActive ? dotColor : "rgba(55,65,81,0.8)"}`,
+                  border: `2px solid ${isActive ? dotColor : "var(--border)"}`,
                   background: isActive ? dotColor : "transparent",
                   cursor: "pointer",
                   padding: 0,
@@ -441,7 +472,7 @@ export default function ChartsCard({ dataset }) {
           }}
         >
           {charts.map((c, i) => {
-            const tabColor = c.color || "#3b82f6";
+            const tabColor = c.color || accent;
             const isActive = active === i;
             return (
               <button

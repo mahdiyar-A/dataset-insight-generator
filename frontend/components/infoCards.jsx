@@ -66,7 +66,7 @@ function DocModal({ doc, onClose }) {
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(2,6,23,0.75)",
+        background: "rgba(0,0,0,0.45)",
         backdropFilter: "blur(6px)",
         display: "flex",
         alignItems: "center",
@@ -78,8 +78,8 @@ function DocModal({ doc, onClose }) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#020617",
-          border: "1px solid rgba(31,41,55,0.9)",
+          background: "var(--panel)",
+          border: "1px solid var(--border)",
           borderRadius: "18px",
           padding: "28px",
           maxWidth: "540px",
@@ -87,7 +87,7 @@ function DocModal({ doc, onClose }) {
           display: "flex",
           flexDirection: "column",
           gap: "20px",
-          boxShadow: "0 24px 60px rgba(0,0,0,0.55)",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.35)",
           maxHeight: "85vh",
           overflowY: "auto",
         }}
@@ -99,8 +99,8 @@ function DocModal({ doc, onClose }) {
               width: "44px",
               height: "44px",
               borderRadius: "10px",
-              background: "rgba(37,99,235,0.12)",
-              border: "1px solid rgba(37,99,235,0.3)",
+              background: "var(--accent-soft)",
+              border: "1px solid rgba(0,0,0,0.06)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -117,11 +117,11 @@ function DocModal({ doc, onClose }) {
           <button
             onClick={onClose}
             style={{
-              background: "rgba(15,23,42,0.9)",
-              border: "1px solid rgba(55,65,81,0.8)",
+              background: "var(--panel)",
+              border: "1px solid var(--border)",
               borderRadius: "8px",
               padding: "7px",
-              color: "#6b7280",
+              color: "var(--muted)",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -145,18 +145,18 @@ function DocModal({ doc, onClose }) {
                 alignItems: "flex-start",
                 padding: "10px 12px",
                 borderRadius: "10px",
-                background: "rgba(15,23,42,0.9)",
-                border: "1px solid rgba(31,41,55,0.8)",
+                background: "var(--panel)",
+                border: "1px solid var(--border)",
               }}
             >
               <div
-                style={{
+                  style={{
                   width: "22px",
                   height: "22px",
                   borderRadius: "50%",
-                  background: "rgba(37,99,235,0.15)",
-                  border: "1px solid rgba(37,99,235,0.35)",
-                  color: "#bfdbfe",
+                  background: "var(--accent-soft)",
+                  border: "1px solid rgba(0,0,0,0.06)",
+                  color: "var(--accent)",
                   fontSize: "0.72rem",
                   fontWeight: 700,
                   display: "flex",
@@ -179,10 +179,10 @@ function DocModal({ doc, onClose }) {
         </div>
 
         {/* Footer */}
-        <div style={{ borderTop: "1px solid rgba(31,41,55,0.8)", paddingTop: "14px" }}>
+        <div style={{ borderTop: "1px solid var(--border)", paddingTop: "14px" }}>
           <p className="muted-small">
             Still need help?{" "}
-            <a href="mailto:support.dig@proton.me" style={{ color: "#93c5fd", textDecoration: "none" }}>
+            <a href="mailto:support.dig@proton.me" style={{ color: "var(--accent)", textDecoration: "none" }}>
               support.dig@proton.me
             </a>
           </p>
@@ -218,27 +218,27 @@ export default function InfoCards() {
                   alignItems: "center",
                   gap: "10px",
                   padding: "10px 12px",
-                  background: "rgba(15,23,42,0.9)",
-                  border: "1px solid rgba(31,41,55,0.9)",
+                  background: "var(--panel)",
+                  border: "1px solid var(--border)",
                   borderRadius: "10px",
                   cursor: "pointer",
                   textAlign: "left",
-                  color: "#d1d5db",
+                  color: "var(--text)",
                   fontSize: "0.82rem",
                   transition: "border-color 0.15s, background 0.15s",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(37,99,235,0.45)";
-                  e.currentTarget.style.background = "rgba(37,99,235,0.08)";
+                  e.currentTarget.style.borderColor = "var(--accent)";
+                  e.currentTarget.style.background = "var(--accent-soft)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(31,41,55,0.9)";
-                  e.currentTarget.style.background = "rgba(15,23,42,0.9)";
+                  e.currentTarget.style.borderColor = "var(--border)";
+                  e.currentTarget.style.background = "var(--panel)";
                 }}
               >
                 <span style={{ fontSize: "15px" }}>{doc.icon}</span>
                 <span style={{ flex: 1, fontWeight: 500 }}>{doc.title}</span>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4b5563" strokeWidth="2.2">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2.2">
                   <polyline points="9 18 15 12 9 6" />
                 </svg>
               </button>
@@ -261,10 +261,10 @@ export default function InfoCards() {
               alignItems: "center",
               gap: "10px",
               padding: "12px 14px",
-              background: "rgba(22,163,74,0.1)",
-              border: "1px solid rgba(34,197,94,0.35)",
+              background: "var(--accent-soft)",
+              border: "1px solid rgba(0,0,0,0.06)",
               borderRadius: "10px",
-              color: "#bbf7d0",
+              color: "var(--success)",
               textDecoration: "none",
               fontSize: "0.88rem",
               fontWeight: 600,
