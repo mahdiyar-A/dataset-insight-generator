@@ -35,8 +35,8 @@ function DocModal({ docIdx, icon, onClose }) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#020617",
-          border: "1px solid rgba(31,41,55,0.9)",
+          background: "var(--bg-elevated)",
+          border: "1px solid var(--border)",
           borderRadius: "18px",
           padding: "28px",
           maxWidth: "540px",
@@ -56,8 +56,8 @@ function DocModal({ docIdx, icon, onClose }) {
               width: "44px",
               height: "44px",
               borderRadius: "10px",
-              background: "rgba(37,99,235,0.12)",
-              border: "1px solid rgba(37,99,235,0.3)",
+              background: "var(--accent-soft)",
+              border: "1px solid rgba(var(--accent-rgb),0.3)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -68,17 +68,17 @@ function DocModal({ docIdx, icon, onClose }) {
             {icon}
           </div>
           <div style={{ flex: 1 }}>
-            <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "#e5e7eb" }}>{t(`doc${docIdx}Title`)}</h3>
+            <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "var(--text)" }}>{t(`doc${docIdx}Title`)}</h3>
             <p className="muted-small" style={{ marginTop: "4px", lineHeight: "1.55" }}>{t(`doc${docIdx}Summary`)}</p>
           </div>
           <button
             onClick={onClose}
             style={{
-              background: "rgba(15,23,42,0.9)",
-              border: "1px solid rgba(55,65,81,0.8)",
+              background: "var(--panel)",
+              border: "1px solid var(--border)",
               borderRadius: "8px",
               padding: "7px",
-              color: "#6b7280",
+              color: "var(--muted)",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -102,8 +102,8 @@ function DocModal({ docIdx, icon, onClose }) {
                 alignItems: "flex-start",
                 padding: "10px 12px",
                 borderRadius: "10px",
-                background: "rgba(15,23,42,0.9)",
-                border: "1px solid rgba(31,41,55,0.8)",
+                background: "var(--panel)",
+                border: "1px solid var(--border)",
               }}
             >
               <div
@@ -111,9 +111,9 @@ function DocModal({ docIdx, icon, onClose }) {
                   width: "22px",
                   height: "22px",
                   borderRadius: "50%",
-                  background: "rgba(37,99,235,0.15)",
-                  border: "1px solid rgba(37,99,235,0.35)",
-                  color: "#bfdbfe",
+                  background: "rgba(var(--accent-rgb),0.15)",
+                  border: "1px solid rgba(var(--accent-rgb),0.35)",
+                  color: "var(--accent)",
                   fontSize: "0.72rem",
                   fontWeight: 700,
                   display: "flex",
@@ -127,7 +127,7 @@ function DocModal({ docIdx, icon, onClose }) {
               </div>
               <p
                 className="muted-small"
-                style={{ margin: 0, lineHeight: "1.6", color: "#d1d5db" }}
+                style={{ margin: 0, lineHeight: "1.6", color: "var(--text-soft)" }}
               >
                 {t(`doc${docIdx}Step${i}`)}
               </p>
@@ -136,7 +136,7 @@ function DocModal({ docIdx, icon, onClose }) {
         </div>
 
         {/* Footer */}
-        <div style={{ borderTop: "1px solid rgba(31,41,55,0.8)", paddingTop: "14px" }}>
+        <div style={{ borderTop: "1px solid var(--border)", paddingTop: "14px" }}>
           <p className="muted-small">
             {t("stillNeedHelp")}{" "}
             <a href={`mailto:${t("supportEmail")}`} style={{ color: "#93c5fd", textDecoration: "none" }}>
@@ -177,27 +177,27 @@ export default function InfoCards() {
                   alignItems: "center",
                   gap: "10px",
                   padding: "10px 12px",
-                  background: "rgba(15,23,42,0.9)",
-                  border: "1px solid rgba(31,41,55,0.9)",
+                  background: "var(--panel)",
+                  border: "1px solid var(--border)",
                   borderRadius: "10px",
                   cursor: "pointer",
                   textAlign: "left",
-                  color: "#d1d5db",
+                  color: "var(--text)",
                   fontSize: "0.82rem",
                   transition: "border-color 0.15s, background 0.15s",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(37,99,235,0.45)";
-                  e.currentTarget.style.background = "rgba(37,99,235,0.08)";
+                  e.currentTarget.style.borderColor = "rgba(var(--accent-rgb),0.45)";
+                  e.currentTarget.style.background = "rgba(var(--accent-rgb),0.08)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(31,41,55,0.9)";
-                  e.currentTarget.style.background = "rgba(15,23,42,0.9)";
+                  e.currentTarget.style.borderColor = "var(--border)";
+                  e.currentTarget.style.background = "var(--panel)";
                 }}
               >
                 <span style={{ fontSize: "15px" }}>{doc.icon}</span>
                 <span style={{ flex: 1, fontWeight: 500 }}>{t(`doc${idx}Title`)}</span>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4b5563" strokeWidth="2.2">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-soft)" strokeWidth="2.2">
                   <polyline points="9 18 15 12 9 6" />
                 </svg>
               </button>

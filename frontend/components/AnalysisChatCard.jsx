@@ -220,7 +220,11 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
         <h2>{t("title")}</h2>
         {stage === 0 && <span className="pill">{t("pillReady")}</span>}
         {stage === 1 && conditionStyle ? (
-          <span className="pill" style={{ borderColor: conditionStyle.border, color: conditionStyle.color, background: conditionStyle.bg }}>
+          <span className={`pill ${
+            condition === "all_good" ? "badge-success" :
+            condition === "not_clean" ? "badge-warning" :
+            "badge-danger"
+          }`}>
             { condition === "not_clean"    && t("conditionNeedsClean")   }
             { condition === "low_accuracy" && t("conditionLowAccuracy")  }
             { condition === "not_workable" && t("conditionNotWorkable")  }
@@ -230,9 +234,7 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
           <span className="pill live-pill">{t("pillRunning")}</span>
         ) : null}
         {stage === 2 && (
-          <span className="pill" style={{ borderColor:"rgba(34,197,94,0.6)", color:"#bbf7d0", background:"rgba(22,163,74,0.1)" }}>
-            {t("pillComplete")}
-          </span>
+          <span className="pill badge-success">{t("pillComplete")}</span>
         )}
       </div>
 
@@ -251,13 +253,13 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
 
       {/* ── STAGE 0: idle ── */}
       {stage === 0 && (
-        <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:"12px", padding:"28px 20px", border:"1px dashed rgba(55,65,81,0.8)", borderRadius:"14px", background:"radial-gradient(circle at top, rgba(37,99,235,0.06), transparent)", textAlign:"center" }}>
-          <div style={{ width:"52px", height:"52px", borderRadius:"50%", background:"rgba(37,99,235,0.12)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="1.6">
+        <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:"12px", padding:"28px 20px", border:"1px dashed var(--border)", borderRadius:"14px", background:"radial-gradient(circle at top, var(--accent-soft), transparent)", textAlign:"center" }}>
+          <div style={{ width:"52px", height:"52px", borderRadius:"50%", background:"var(--accent-soft)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.6">
               <polygon points="5 3 19 12 5 21 5 3"/>
             </svg>
           </div>
-          <p style={{ margin:0, fontSize:"0.9rem", fontWeight:600, color:"#e5e7eb" }}>{t("readyTitle")}</p>
+          <p style={{ margin:0, fontSize:"0.9rem", fontWeight:600, color:"var(--text)" }}>{t("readyTitle")}</p>
           <p className="muted-small" style={{ maxWidth:"260px", lineHeight:"1.6" }}>
             {dataset ? t("readyDescDataset") : t("readyDescNoDataset")}
           </p>
@@ -293,12 +295,12 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
 
             {awaitingResponse && !sending && (
               <>
-                <button className="chip-btn subtle" onClick={handleNo}
-                  style={{ fontSize:"0.8rem", padding:"6px 16px", borderColor:"rgba(249,115,115,0.4)", color:"#f97373", background:"rgba(127,29,29,0.15)" }}>
+                <button className="chip-btn chip-no" onClick={handleNo}
+                  style={{ fontSize:"0.8rem", padding:"6px 16px" }}>
                   {t("noBtn")}
                 </button>
-                <button className="chip-btn subtle" onClick={handleYes}
-                  style={{ fontSize:"0.8rem", padding:"6px 16px", borderColor:"rgba(34,197,94,0.4)", color:"#bbf7d0", background:"rgba(22,163,74,0.12)" }}>
+                <button className="chip-btn chip-yes" onClick={handleYes}
+                  style={{ fontSize:"0.8rem", padding:"6px 16px" }}>
                   {t("yesBtn")}
                 </button>
               </>

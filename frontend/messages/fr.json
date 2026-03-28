@@ -98,9 +98,8 @@
     "bannerFailed": "L'analyse a échoué. Veuillez réessayer d'importer votre jeu de données."
   },
   "settings": {
-    "title": "Paramètres du site",
-    "desc": "Personnalisez votre expérience DIG. Tous les paramètres arrivent bientôt — rien n'est encore enregistré.",
-    "tbaBanner": "Ces paramètres sont des espaces réservés — la mise en œuvre est prévue pour une version future.",
+    "title": "Paramètres",
+    "desc": "Personnalisez votre expérience DIG — les modifications s'appliquent immédiatement et persistent par appareil.",
     "backToDashboard": "Retour au tableau de bord",
     "footer": "Les paramètres sont par appareil et stockés localement une fois mis en œuvre.",
     "groupAppearance": "Apparence",

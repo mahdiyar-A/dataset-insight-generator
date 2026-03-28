@@ -807,6 +807,7 @@ html.dark .chip-no {
 .dropzone-title {
     margin: 0;
     font-size: 1.5rem;
+    color: var(--text);
 }
 
 .upload-status-bar {
@@ -842,8 +843,11 @@ html.dark .chip-no {
 
 .status-pill.ready {
     border-color: #22c55e;
-    color: #bbf7d0;
+    color: #15803d;
     background: rgba(34, 197, 94, 0.15);
+}
+html.dark .status-pill.ready {
+    color: #bbf7d0;
 }
 
 .progress-track {
@@ -958,8 +962,11 @@ html.dark .chip-no {
 
 .live-pill {
     border-color: rgba(74, 222, 128, 0.6);
-    color: #bbf7d0;
+    color: #15803d;
     background: rgba(22, 163, 74, 0.1);
+}
+html.dark .live-pill {
+    color: #bbf7d0;
 }
 
 .charts-column {

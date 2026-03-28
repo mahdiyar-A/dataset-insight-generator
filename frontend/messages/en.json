@@ -98,9 +98,8 @@
     "bannerFailed": "Analysis failed. Please try uploading your dataset again."
   },
   "settings": {
-    "title": "Website Settings",
-    "desc": "Customize your DIG experience. All settings are coming soon — nothing is saved yet.",
-    "tbaBanner": "These settings are placeholders — implementation is planned for a future release.",
+    "title": "Settings",
+    "desc": "Customize your DIG experience — changes apply immediately and persist per-device.",
     "backToDashboard": "Back to Dashboard",
     "footer": "Settings are per-device and stored locally once implemented.",
     "groupAppearance": "Appearance",

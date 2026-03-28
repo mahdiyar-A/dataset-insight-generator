@@ -77,16 +77,16 @@ export default function HistoryCard({ dataset, onDelete }) {
             <tr>
               <td>
                 <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
-                  <span style={{ display:"inline-flex", padding:"4px", background:"rgba(31,41,55,0.6)", borderRadius:"6px" }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4b5563" strokeWidth="2">
+                  <span style={{ display:"inline-flex", padding:"4px", background:"var(--panel-alt)", borderRadius:"6px" }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-soft)" strokeWidth="2">
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                       <polyline points="14 2 14 8 20 8"/>
                     </svg>
                   </span>
-                  <span style={{ color:"#4b5563", fontSize:"0.82rem" }}>{t("noAnalysis")}</span>
+                  <span style={{ color:"var(--text-soft)", fontSize:"0.82rem" }}>{t("noAnalysis")}</span>
                 </div>
               </td>
-              {["—","—","—"].map((v,i) => <td key={i} style={{ color:"#374151" }}>{v}</td>)}
+              {["—","—","—"].map((v,i) => <td key={i} style={{ color:"var(--muted)" }}>{v}</td>)}
               <td className="actions-cell">
                 <button className="table-action" disabled style={{ opacity:0.3, cursor:"not-allowed" }}>{t("downloadBtn")}</button>
                 <button className="table-action delete" disabled style={{ opacity:0.3, cursor:"not-allowed" }}>{t("deleteBtn")}</button>
@@ -96,13 +96,13 @@ export default function HistoryCard({ dataset, onDelete }) {
             <tr>
               <td>
                 <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
-                  <span style={{ display:"inline-flex", padding:"4px", background:"rgba(37,99,235,0.12)", borderRadius:"6px", flexShrink:0 }}>
+                  <span style={{ display:"inline-flex", padding:"4px", background:"var(--accent-soft)", borderRadius:"6px", flexShrink:0 }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2">
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                       <polyline points="14 2 14 8 20 8"/>
                     </svg>
                   </span>
-                  <span style={{ fontWeight:500, color:"#e5e7eb" }}>{dataset.fileName ?? "—"}</span>
+                  <span style={{ fontWeight:500, color:"var(--text)" }}>{dataset.fileName ?? "—"}</span>
                 </div>
               </td>
               <td>{dataset.rowCount    ?? "—"}</td>
@@ -110,7 +110,7 @@ export default function HistoryCard({ dataset, onDelete }) {
               <td>{formatSize(dataset.fileSizeBytes)}</td>
               <td className="actions-cell">
                 <button className="table-action" onClick={() => handleDownload("original", dataset.fileName)}
-                  style={{ borderColor:"rgba(37,99,235,0.35)", color:"#93c5fd" }}>
+                  style={{ borderColor:"var(--accent-soft)", color:"var(--accent)" }}>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ verticalAlign:"middle", marginRight:"4px" }}>
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                     <polyline points="7 10 12 15 17 10"/>

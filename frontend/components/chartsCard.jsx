@@ -8,7 +8,6 @@ import BackendAPI from "@/lib/BackendAPI";
 
 /* ── Fallback SVG renderers (shown when backend returns image URLs we can display inline) ── */
 function BarChart({ color = "#3b82f6" }) {
-  const acc = (typeof window !== "undefined") ? (getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#3b82f6') : '#3b82f6';
   const bars = [40, 65, 30, 80, 55, 70, 45, 90, 35, 60];
   return (
     <svg viewBox="0 0 220 130" width="100%" height="100%">
@@ -263,9 +262,19 @@ export default function ChartsCard({ dataset, charts: propCharts = [], reportRea
   }, [charts]);
 
   const current = charts[active];
-  const s = (typeof window !== "undefined") ? getComputedStyle(document.documentElement) : null;
-  const accent = s ? (s.getPropertyValue('--accent').trim() || '#3b82f6') : '#3b82f6';
-  const accentRgb = s ? (s.getPropertyValue('--accent-rgb').trim() || '59,130,246') : '59,130,246';
+
+  // Read CSS custom properties on the client only, after hydration.
+  // Start with the default Blue values so server and client initial renders match.
+  const [accent, setAccentState] = useState('#3b82f6');
+  const [accentRgb, setAccentRgbState] = useState('59,130,246');
+  useEffect(() => {
+    const s = getComputedStyle(document.documentElement);
+    const a = s.getPropertyValue('--accent').trim();
+    const ar = s.getPropertyValue('--accent-rgb').trim();
+    if (a)  setAccentState(a);
+    if (ar) setAccentRgbState(ar);
+  }, []);
+
   const currentColor = current?.color || accent;
   const hasUrl = !!current?.url;
 
@@ -335,7 +344,7 @@ export default function ChartsCard({ dataset, charts: propCharts = [], reportRea
               height="40"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="rgba(55,65,81,0.8)"
+              stroke="var(--border)"
               strokeWidth="1.4"
             >
               <line x1="18" y1="20" x2="18" y2="10" />
@@ -347,7 +356,7 @@ export default function ChartsCard({ dataset, charts: propCharts = [], reportRea
                 <p
                   style={{
                     margin: 0,
-                    color: "#4b5563",
+                    color: "var(--text-soft)",
                     fontSize: "0.85rem",
                     fontWeight: 600,
                   }}
@@ -363,7 +372,7 @@ export default function ChartsCard({ dataset, charts: propCharts = [], reportRea
                 <p
                   style={{
                     margin: 0,
-                    color: "#4b5563",
+                    color: "var(--text-soft)",
                     fontSize: "0.85rem",
                     fontWeight: 600,
                   }}
@@ -391,7 +400,7 @@ export default function ChartsCard({ dataset, charts: propCharts = [], reportRea
                 style={{
                   fontSize: "0.8rem",
                   fontWeight: 600,
-                  color: "#9ca3af",
+                  color: "var(--text-soft)",
                 }}
               >
                 {t("chartCount", { current: active + 1, total: charts.length })} — {current.label}
@@ -469,7 +478,7 @@ export default function ChartsCard({ dataset, charts: propCharts = [], reportRea
         <div
           style={{
             display: "flex",
-            borderTop: "1px solid rgba(31,41,55,0.9)",
+            borderTop: "1px solid var(--border)",
             marginTop: "4px",
           }}
         >
@@ -488,7 +497,7 @@ export default function ChartsCard({ dataset, charts: propCharts = [], reportRea
                   borderBottom: isActive
                     ? `2px solid ${tabColor}`
                     : "2px solid transparent",
-                  color: isActive ? tabColor : "#4b5563",
+                  color: isActive ? tabColor : "var(--muted)",
                   fontSize: "0.72rem",
                   fontWeight: isActive ? 700 : 500,
                   cursor: "pointer",
