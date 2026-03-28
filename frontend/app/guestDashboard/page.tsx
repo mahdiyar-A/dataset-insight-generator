@@ -3,11 +3,11 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import UploadCard         from "@/components/UploadCard";
 import AnalysisAssistantCard from "@/components/AnalysisChatCard";
 import ChartsCard         from "@/components/chartsCard";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 // Stable guest session ID for this browser tab
 function getGuestSessionId() {
@@ -59,12 +59,13 @@ const GuestAPI = {
 
 export default function GuestDashboardPage() {
   const router = useRouter();
+  const t = useTranslations("guestDashboard");
+  const td = useTranslations("dashboard");
 
   // ── State ────────────────────────────────────────────────────────────
   const [dataset,        setDataset]        = useState(null);   // metadata after upload
   const [reportReady,    setReportReady]     = useState(false);
   const [pdfBase64,      setPdfBase64]       = useState(null);   // in memory
-  const [pdfUrl,         setPdfUrl]          = useState(null);   // signed/public URL from backend
   const [cleanedCsvB64,  setCleanedCsvB64]   = useState(null);
   const [charts,         setCharts]          = useState([]);
   const [analysisKey,    setAnalysisKey]     = useState(0);
@@ -115,24 +116,11 @@ export default function GuestDashboardPage() {
         const s = await GuestAPI.getStatus();
         if (s.status === "done" || s.status === "failed") {
           stopPolling();
-            if (s.status === "done") {
+          if (s.status === "done") {
             // Store everything in memory — no DB
             setPdfBase64(s.pdfReportBase64   ?? null);
-            setPdfUrl(s.pdfReportUrl ?? s.pdf_report_url ?? null);
             setCleanedCsvB64(s.cleanedCsvBase64 ?? null);
-            // Normalize chart entries: accept multiple backend naming conventions
-            // and expose `url` so the ChartsCard can render either a signed URL or data URL.
-            const chartsRaw = s.charts ?? [];
-            const normalized = chartsRaw.map(c => ({
-              ...c,
-              // backend might return image_base64 or imageBase64 or base64
-              imageBase64: c.imageBase64 || c.image_base64 || c.base64 || null,
-              // backend might return an image URL under several keys; prefer any of them
-              imageUrl:    c.imageUrl    || c.image_url    || c.url    || null,
-              // ensure `url` is populated for ChartsCard usage
-              url:         c.imageUrl    || c.image_url    || c.url    || null,
-            }));
-            setCharts(normalized);
+            setCharts(s.charts ?? []);
             setReportReady(true);
             setDataset(prev => prev ? { ...prev, status: "done", isPending: false, hasPdfReport: !!s.pdfReportBase64, hasCleanedCsv: !!s.cleanedCsvBase64 } : prev);
           }
@@ -175,18 +163,12 @@ export default function GuestDashboardPage() {
 
   // ── Download helpers (from memory — no Supabase) ──────────────────────
   const downloadPdf = () => {
-    // Prefer server-provided URL if available (signed/public URL)
-    if (pdfUrl) {
-      window.open(pdfUrl, "_blank");
-      return;
-    }
     if (!pdfBase64) return;
     const bytes = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
     const blob  = new Blob([bytes], { type: "application/pdf" });
     const a = Object.assign(document.createElement("a"), {
       href: URL.createObjectURL(blob),
       download: `dig_report_${dataset?.fileName ?? "report"}.pdf`,
-      target: "_blank",
     });
     a.click(); URL.revokeObjectURL(a.href);
   };
@@ -206,12 +188,12 @@ export default function GuestDashboardPage() {
 
   // ── Nav items ─────────────────────────────────────────────────────────
   const navItems = [
-    { id: "top",              label: "Dashboard",   icon: <IconGrid />,    ref: topRef },
-    { id: "section-upload",   label: "Upload",      icon: <IconUpload />,  ref: uploadRef },
-    { id: "section-history",  label: "History",     icon: <IconHistory />, ref: historyRef },
-    { id: "section-charts",   label: "AI Insights", icon: <IconChart />,   ref: chartsRef },
-    { id: "section-download", label: "Report",      icon: <IconReport />,  ref: downloadRef },
-    { id: "section-help",     label: "Help",        icon: <IconHelp />,    ref: helpRef },
+    { id: "top",              label: td("navDashboard"),   icon: <IconGrid />,    ref: topRef },
+    { id: "section-upload",   label: td("navUpload"),      icon: <IconUpload />,  ref: uploadRef },
+    { id: "section-history",  label: td("navHistory"),     icon: <IconHistory />, ref: historyRef },
+    { id: "section-charts",   label: td("navAIInsights"),  icon: <IconChart />,   ref: chartsRef },
+    { id: "section-download", label: td("navReport"),      icon: <IconReport />,  ref: downloadRef },
+    { id: "section-help",     label: td("navHelp"),        icon: <IconHelp />,    ref: helpRef },
   ];
 
   const showDataset = dataset && !dataset.isPending && dataset.status === "done";
@@ -236,13 +218,9 @@ export default function GuestDashboardPage() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <button className="sidebar-link" onClick={() => router.push("/dashboard/settings?from=guest")} title="Settings">
-            <span className="sidebar-icon"><IconSettings /></span>
-            <span className="sidebar-label">Settings</span>
-          </button>
-          <button className="sidebar-link" onClick={() => router.push("/login")} title="Log in">
+          <button className="sidebar-link" onClick={() => router.push("/login")} title={t("navLogIn")}>
             <span className="sidebar-icon"><IconSignIn /></span>
-            <span className="sidebar-label">Log in</span>
+            <span className="sidebar-label">{t("navLogIn")}</span>
           </button>
         </div>
       </aside>
@@ -253,48 +231,48 @@ export default function GuestDashboardPage() {
         {/* Top bar */}
         <header className="dig-topbar" id="top" ref={topRef}>
           <div>
-            <h1>Dashboard</h1>
+            <h1>{t("topbarTitle")}</h1>
             <p className="subtitle">
               {dataset
-                ? `${dataset.fileName} · ${dataset.rowCount} rows · ${dataset.columnCount} columns`
-                : "Upload a dataset to generate instant insights."}
+                ? t("subtitleUploaded", { fileName: dataset.fileName, rowCount: dataset.rowCount, columnCount: dataset.columnCount })
+                : t("subtitleDefault")}
             </p>
           </div>
           <div className="topbar-right">
             <div className="profile-wrapper">
-              <div className="avatar" style={{ background: "linear-gradient(135deg, var(--accent), var(--accent2))", color: "var(--accent2)", fontSize: "0.85rem", fontWeight: 800 }}>G</div>
+              <div className="avatar" style={{ background: "linear-gradient(135deg, #78350f, #92400e)", color: "#fbbf24", fontSize: "0.85rem", fontWeight: 800 }}>G</div>
               <div className="profile-text">
-                <span className="profile-name">Guest</span>
-                <span className="profile-role">Guest session</span>
+                <span className="profile-name">{t("guestName")}</span>
+                <span className="profile-role">{t("guestRole")}</span>
               </div>
               <div className="profile-dropdown-icon">▾</div>
               <div className="profile-dropdown" style={{ minWidth: "210px" }}>
-                <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", cursor: "default" }}>
-                  <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--text-soft)", lineHeight: 1.6 }}>
-                    You're browsing as a guest.<br />Your session is not saved.
+                <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(31,41,55,0.8)", cursor: "default" }}>
+                  <p style={{ margin: 0, fontSize: "0.75rem", color: "#6b7280", lineHeight: 1.6 }}>
+                    {t("guestDropdownNotice")}<br />{t("guestDropdownSessionNote")}
                   </p>
                 </div>
-                <a onClick={() => router.push("/register")} style={{ cursor: "pointer", color: "var(--accent)", fontWeight: 600 }}>Create free account →</a>
-                <a onClick={() => router.push("/login")}    style={{ cursor: "pointer", color: "var(--text)", marginLeft: "6px" }}>Log in to existing account</a>
+                <a onClick={() => router.push("/register")} style={{ cursor: "pointer", color: "#93c5fd", fontWeight: 600 }}>{t("guestDropdownCreateAccount")}</a>
+                <a onClick={() => router.push("/login")}    style={{ cursor: "pointer" }}>{t("guestDropdownLogin")}</a>
               </div>
             </div>
           </div>
         </header>
 
         {/* Guest notice bar */}
-        <div style={{ padding: "9px 24px", background: "rgba(var(--accent-rgb),0.12)", borderBottom: "1px solid rgba(var(--accent-rgb),0.18)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
-          <span style={{ fontSize: "0.79rem", color: "var(--accent2)" }}>👤 Guest session — all data is lost when you close this tab.</span>
+        <div style={{ padding: "9px 24px", background: "rgba(120,53,15,0.12)", borderBottom: "1px solid rgba(180,83,9,0.2)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+          <span style={{ fontSize: "0.79rem", color: "#fbbf24" }}>{t("guestNoticeBanner")}</span>
           <div style={{ display: "flex", gap: "8px" }}>
-            <button onClick={() => router.push("/register")} style={{ padding: "5px 14px", borderRadius: "999px", border: "1px solid rgba(var(--accent-rgb),0.35)", background: "rgba(var(--accent-rgb),0.12)", color: "var(--accent)", fontSize: "0.74rem", fontWeight: 600, cursor: "pointer" }}>Sign up free</button>
-            <button onClick={() => router.push("/login")}    style={{ padding: "5px 12px", borderRadius: "999px", border: "1px solid var(--border)", background: "transparent", color: "var(--text-soft)", fontSize: "0.74rem", cursor: "pointer" }}>Log in</button>
+            <button onClick={() => router.push("/register")} style={{ padding: "5px 14px", borderRadius: "999px", border: "1px solid rgba(37,99,235,0.4)", background: "rgba(37,99,235,0.12)", color: "#93c5fd", fontSize: "0.74rem", fontWeight: 600, cursor: "pointer" }}>{t("guestSignUpFree")}</button>
+            <button onClick={() => router.push("/login")}    style={{ padding: "5px 12px", borderRadius: "999px", border: "1px solid rgba(55,65,81,0.5)", background: "transparent", color: "#6b7280", fontSize: "0.74rem", cursor: "pointer" }}>{t("guestLogIn")}</button>
           </div>
         </div>
 
         {/* Report-ready banner */}
         {reportReady && (
           <div style={{ padding: "12px 24px", background: "linear-gradient(90deg, rgba(22,163,74,0.12), rgba(22,163,74,0.06))", borderBottom: "1px solid rgba(34,197,94,0.2)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
-            <span style={{ fontSize: "0.85rem", color: "#bbf7d0", fontWeight: 600 }}>✅ Analysis complete — your report is ready.</span>
-            <button onClick={scrollToReport} style={{ padding: "6px 16px", borderRadius: "999px", border: "1px solid rgba(34,197,94,0.4)", background: "rgba(22,163,74,0.15)", color: "#86efac", fontSize: "0.78rem", fontWeight: 700, cursor: "pointer" }}>View Report →</button>
+            <span style={{ fontSize: "0.85rem", color: "#bbf7d0", fontWeight: 600 }}>{t("reportReadyBanner")}</span>
+            <button onClick={scrollToReport} style={{ padding: "6px 16px", borderRadius: "999px", border: "1px solid rgba(34,197,94,0.4)", background: "rgba(22,163,74,0.15)", color: "#86efac", fontSize: "0.78rem", fontWeight: 700, cursor: "pointer" }}>{t("viewReport")}</button>
           </div>
         )}
 
@@ -320,41 +298,41 @@ export default function GuestDashboardPage() {
         <section className="dataset-management-grid" id="section-history" ref={historyRef}>
           <div className="card table-card">
             <div className="card-header">
-              <h2>Current Dataset</h2>
-              <span className="pill">{showDataset ? "1 dataset" : "No upload yet"}</span>
+              <h2>{t("tableTitle")}</h2>
+              <span className="pill">{showDataset ? t("tablePillDataset") : t("tablePillNoUpload")}</span>
             </div>
             <table className="dataset-table">
               <thead>
-                <tr><th>Dataset name</th><th>Rows</th><th>Columns</th><th>Size</th><th>Actions</th></tr>
+                <tr><th>{t("tableColName")}</th><th>{t("tableColRows")}</th><th>{t("tableColColumns")}</th><th>{t("tableColSize")}</th><th>{t("tableColActions")}</th></tr>
               </thead>
               <tbody>
                 {!showDataset ? (
                   <tr>
-                    <td><span style={{ color: "#4b5563", fontSize: "0.82rem" }}>No dataset uploaded yet</span></td>
+                    <td><span style={{ color: "#4b5563", fontSize: "0.82rem" }}>{t("tableNoDataset")}</span></td>
                     <td style={{ color: "#374151" }}>—</td>
                     <td style={{ color: "#374151" }}>—</td>
                     <td style={{ color: "#374151" }}>—</td>
                     <td className="actions-cell">
-                      <button className="table-action" disabled style={{ opacity: 0.3, cursor: "not-allowed" }}>Download</button>
-                      <button className="table-action delete" disabled style={{ opacity: 0.3, cursor: "not-allowed" }}>Delete</button>
+                      <button className="table-action" disabled style={{ opacity: 0.3, cursor: "not-allowed" }}>{t("downloadBtn")}</button>
+                      <button className="table-action delete" disabled style={{ opacity: 0.3, cursor: "not-allowed" }}>{t("deleteBtn")}</button>
                     </td>
                   </tr>
                 ) : (
                   <tr>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span style={{ display: "inline-flex", padding: "4px", background: "rgba(var(--accent-rgb),0.12)", borderRadius: "6px" }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        <span style={{ display: "inline-flex", padding: "4px", background: "rgba(37,99,235,0.12)", borderRadius: "6px" }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                         </span>
-                        <span style={{ fontWeight: 500, color: "var(--text)" }}>{dataset.fileName}</span>
+                        <span style={{ fontWeight: 500, color: "#e5e7eb" }}>{dataset.fileName}</span>
                       </div>
                     </td>
                     <td>{dataset.rowCount}</td>
                     <td>{dataset.columnCount}</td>
                     <td>{dataset.fileSizeBytes ? `${(dataset.fileSizeBytes / 1024).toFixed(1)} KB` : "—"}</td>
                     <td className="actions-cell">
-                      <button className="table-action" onClick={downloadPdf} disabled={!pdfBase64 && !pdfUrl} style={{ opacity: pdfBase64 || pdfUrl ? 1 : 0.4, borderColor: "rgba(var(--accent-rgb),0.35)", color: "var(--accent)" }}>Download</button>
-                      <button className="table-action delete" onClick={handleDelete}>Delete</button>
+                      <button className="table-action" onClick={downloadPdf} disabled={!pdfBase64} style={{ opacity: pdfBase64 ? 1 : 0.4, borderColor: "rgba(37,99,235,0.35)", color: "#93c5fd" }}>{t("downloadBtn")}</button>
+                      <button className="table-action delete" onClick={handleDelete}>{t("deleteBtn")}</button>
                     </td>
                   </tr>
                 )}
@@ -383,8 +361,8 @@ export default function GuestDashboardPage() {
                 : "Run analysis to generate your report."}
             </p>
 
-            <button className="primary-btn-lg" disabled={!reportReady || (!pdfBase64 && !pdfUrl)} onClick={downloadPdf}
-              style={{ opacity: reportReady && (pdfBase64 || pdfUrl) ? 1 : 0.4, cursor: reportReady && (pdfBase64 || pdfUrl) ? "pointer" : "not-allowed" }}>
+            <button className="primary-btn-lg" disabled={!reportReady || !pdfBase64} onClick={downloadPdf}
+              style={{ opacity: reportReady && pdfBase64 ? 1 : 0.4, cursor: reportReady && pdfBase64 ? "pointer" : "not-allowed" }}>
               ↓ Download PDF Report
             </button>
 
@@ -446,5 +424,4 @@ function IconHistory() { return <svg width="17" height="17" viewBox="0 0 24 24" 
 function IconChart()   { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>; }
 function IconReport()  { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>; }
 function IconHelp()    { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>; }
-function IconSettings() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>; }
 function IconSignIn()  { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>; }

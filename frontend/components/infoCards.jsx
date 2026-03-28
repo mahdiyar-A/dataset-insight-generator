@@ -2,71 +2,28 @@
 "use client";
 
 import React, { useState } from "react";
+import { useTranslations } from "next-intl";
 
+// Only structural data — all strings come from translations
 const DOCS = [
-  {
-    id: "upload",
-    title: "How to Upload a Dataset",
-    icon: "⬆",
-    summary: "Upload a CSV file to get started with DIG analysis.",
-    steps: [
-      "Drag and drop your .csv file onto the Upload card, or click to browse your files.",
-      "DIG supports files up to 50 MB. The file must be a valid comma-separated CSV.",
-      "Once uploaded, DIG instantly shows a preview of the first 10 rows and 10 columns.",
-      "Stats are calculated client-side: row count, column count, and missing value count.",
-      "Upload time is captured the moment the file lands — this is stored server-side on upload, so it persists when you sign in later.",
-    ],
-  },
-  {
-    id: "run",
-    title: "Running the Analysis Model",
-    icon: "▶",
-    summary: "Use the Analysis Assistant to clean your data and generate AI insights.",
-    steps: [
-      "After uploading a dataset, locate the Analysis Assistant card beside the upload.",
-      "Press the bold Start button to begin the full analysis pipeline.",
-      "The assistant will scan for data quality issues and prompt you with yes/no questions.",
-      "Use Yes to approve a step, No to skip it, or Cancel to stop the pipeline entirely.",
-      "Once all steps complete, a 'Report Ready' banner appears — click it to jump to your report.",
-    ],
-  },
-  {
-    id: "chatbot",
-    title: "Using the Chatbot",
-    icon: "💬",
-    summary: "Ask natural language questions about your data during analysis.",
-    steps: [
-      "The chat input is active during the Analysis phase only (after pressing Start).",
-      "Type any question about your data and press Enter or the Send button.",
-      "Examples: 'What columns have the most missing values?' or 'Summarise outliers in column A'.",
-      "Use the Yes / No buttons to respond to prompts from the assistant instead of typing.",
-      "Chat history is preserved for the current session.",
-    ],
-  },
-  {
-    id: "report",
-    title: "Downloading Your Report",
-    icon: "📄",
-    summary: "Your PDF report is a complete AI-generated analysis document.",
-    steps: [
-      "Once analysis completes, navigate to the Report & Exports section.",
-      "Click Download PDF Report to save the full analysis document.",
-      "You can also download the cleaned CSV, view the report online, or email it to yourself.",
-      "The PDF includes: data overview, quality analysis, statistical insights, AI commentary, cleaning log, and all visualisations.",
-      "Each dataset generates its own report — re-run analysis on a new upload to get a fresh report.",
-    ],
-  },
+  { id: "upload",  icon: "⬆" },
+  { id: "run",     icon: "▶" },
+  { id: "chatbot", icon: "💬" },
+  { id: "report",  icon: "📄" },
 ];
 
-function DocModal({ doc, onClose }) {
-  if (!doc) return null;
+const STEP_COUNT = 5; // each doc has exactly 5 steps
+
+function DocModal({ docIdx, icon, onClose }) {
+  const t = useTranslations("help");
+  if (docIdx === null) return null;
   return (
     <div
       onClick={onClose}
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.45)",
+        background: "rgba(2,6,23,0.75)",
         backdropFilter: "blur(6px)",
         display: "flex",
         alignItems: "center",
@@ -78,8 +35,8 @@ function DocModal({ doc, onClose }) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "var(--panel)",
-          border: "1px solid var(--border)",
+          background: "#020617",
+          border: "1px solid rgba(31,41,55,0.9)",
           borderRadius: "18px",
           padding: "28px",
           maxWidth: "540px",
@@ -87,7 +44,7 @@ function DocModal({ doc, onClose }) {
           display: "flex",
           flexDirection: "column",
           gap: "20px",
-          boxShadow: "0 24px 60px rgba(0,0,0,0.35)",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.55)",
           maxHeight: "85vh",
           overflowY: "auto",
         }}
@@ -99,8 +56,8 @@ function DocModal({ doc, onClose }) {
               width: "44px",
               height: "44px",
               borderRadius: "10px",
-              background: "var(--accent-soft)",
-              border: "1px solid rgba(0,0,0,0.06)",
+              background: "rgba(37,99,235,0.12)",
+              border: "1px solid rgba(37,99,235,0.3)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -108,20 +65,20 @@ function DocModal({ doc, onClose }) {
               flexShrink: 0,
             }}
           >
-            {doc.icon}
+            {icon}
           </div>
           <div style={{ flex: 1 }}>
-            <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "#e5e7eb" }}>{doc.title}</h3>
-            <p className="muted-small" style={{ marginTop: "4px", lineHeight: "1.55" }}>{doc.summary}</p>
+            <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "#e5e7eb" }}>{t(`doc${docIdx}Title`)}</h3>
+            <p className="muted-small" style={{ marginTop: "4px", lineHeight: "1.55" }}>{t(`doc${docIdx}Summary`)}</p>
           </div>
           <button
             onClick={onClose}
             style={{
-              background: "var(--panel)",
-              border: "1px solid var(--border)",
+              background: "rgba(15,23,42,0.9)",
+              border: "1px solid rgba(55,65,81,0.8)",
               borderRadius: "8px",
               padding: "7px",
-              color: "var(--muted)",
+              color: "#6b7280",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -136,7 +93,7 @@ function DocModal({ doc, onClose }) {
 
         {/* Steps */}
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          {doc.steps.map((step, i) => (
+          {Array.from({ length: STEP_COUNT }, (_, i) => (
             <div
               key={i}
               style={{
@@ -145,18 +102,18 @@ function DocModal({ doc, onClose }) {
                 alignItems: "flex-start",
                 padding: "10px 12px",
                 borderRadius: "10px",
-                background: "var(--panel)",
-                border: "1px solid var(--border)",
+                background: "rgba(15,23,42,0.9)",
+                border: "1px solid rgba(31,41,55,0.8)",
               }}
             >
               <div
-                  style={{
+                style={{
                   width: "22px",
                   height: "22px",
                   borderRadius: "50%",
-                  background: "var(--accent-soft)",
-                  border: "1px solid rgba(0,0,0,0.06)",
-                  color: "var(--accent)",
+                  background: "rgba(37,99,235,0.15)",
+                  border: "1px solid rgba(37,99,235,0.35)",
+                  color: "#bfdbfe",
                   fontSize: "0.72rem",
                   fontWeight: 700,
                   display: "flex",
@@ -172,18 +129,18 @@ function DocModal({ doc, onClose }) {
                 className="muted-small"
                 style={{ margin: 0, lineHeight: "1.6", color: "#d1d5db" }}
               >
-                {step}
+                {t(`doc${docIdx}Step${i}`)}
               </p>
             </div>
           ))}
         </div>
 
         {/* Footer */}
-        <div style={{ borderTop: "1px solid var(--border)", paddingTop: "14px" }}>
+        <div style={{ borderTop: "1px solid rgba(31,41,55,0.8)", paddingTop: "14px" }}>
           <p className="muted-small">
-            Still need help?{" "}
-            <a href="mailto:support.dig@proton.me" style={{ color: "var(--accent)", textDecoration: "none" }}>
-              support.dig@proton.me
+            {t("stillNeedHelp")}{" "}
+            <a href={`mailto:${t("supportEmail")}`} style={{ color: "#93c5fd", textDecoration: "none" }}>
+              {t("supportEmail")}
             </a>
           </p>
         </div>
@@ -193,52 +150,54 @@ function DocModal({ doc, onClose }) {
 }
 
 export default function InfoCards() {
-  const [activeDoc, setActiveDoc] = useState(null);
+  const t = useTranslations("help");
+  const [activeDocIdx, setActiveDocIdx] = useState(null);
+  const activeDoc = activeDocIdx !== null ? DOCS[activeDocIdx] : null;
 
   return (
     <>
-      {activeDoc && <DocModal doc={activeDoc} onClose={() => setActiveDoc(null)} />}
+      {activeDoc && <DocModal docIdx={activeDocIdx} icon={activeDoc.icon} onClose={() => setActiveDocIdx(null)} />}
 
       <div className="lower-grid">
 
         {/* ── Help Center ── */}
         <div className="card info-card">
-          <h2>Help Center</h2>
+          <h2>{t("helpCenterTitle")}</h2>
           <p className="muted-small" style={{ marginBottom: "14px" }}>
-            Click a topic below for a step-by-step guide.
+            {t("helpCenterDesc")}
           </p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            {DOCS.map((doc) => (
+            {DOCS.map((doc, idx) => (
               <button
                 key={doc.id}
-                onClick={() => setActiveDoc(doc)}
+                onClick={() => setActiveDocIdx(idx)}
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: "10px",
                   padding: "10px 12px",
-                  background: "var(--panel)",
-                  border: "1px solid var(--border)",
+                  background: "rgba(15,23,42,0.9)",
+                  border: "1px solid rgba(31,41,55,0.9)",
                   borderRadius: "10px",
                   cursor: "pointer",
                   textAlign: "left",
-                  color: "var(--text)",
+                  color: "#d1d5db",
                   fontSize: "0.82rem",
                   transition: "border-color 0.15s, background 0.15s",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "var(--accent)";
-                  e.currentTarget.style.background = "var(--accent-soft)";
+                  e.currentTarget.style.borderColor = "rgba(37,99,235,0.45)";
+                  e.currentTarget.style.background = "rgba(37,99,235,0.08)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "var(--border)";
-                  e.currentTarget.style.background = "var(--panel)";
+                  e.currentTarget.style.borderColor = "rgba(31,41,55,0.9)";
+                  e.currentTarget.style.background = "rgba(15,23,42,0.9)";
                 }}
               >
                 <span style={{ fontSize: "15px" }}>{doc.icon}</span>
-                <span style={{ flex: 1, fontWeight: 500 }}>{doc.title}</span>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2.2">
+                <span style={{ flex: 1, fontWeight: 500 }}>{t(`doc${idx}Title`)}</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4b5563" strokeWidth="2.2">
                   <polyline points="9 18 15 12 9 6" />
                 </svg>
               </button>
@@ -248,9 +207,9 @@ export default function InfoCards() {
 
         {/* ── Contact Support ── */}
         <div className="card info-card" style={{ gridColumn: "2 / span 2" }}>
-          <h2>Contact Support</h2>
+          <h2>{t("contactSupportTitle")}</h2>
           <p className="muted-small" style={{ marginBottom: "14px" }}>
-            We typically reply within 1–2 business days.
+            {t("contactSupportDesc")}
           </p>
 
           {/* Email button */}
@@ -261,10 +220,10 @@ export default function InfoCards() {
               alignItems: "center",
               gap: "10px",
               padding: "12px 14px",
-              background: "var(--accent-soft)",
-              border: "1px solid rgba(0,0,0,0.06)",
+              background: "rgba(22,163,74,0.1)",
+              border: "1px solid rgba(34,197,94,0.35)",
               borderRadius: "10px",
-              color: "var(--success)",
+              color: "#bbf7d0",
               textDecoration: "none",
               fontSize: "0.88rem",
               fontWeight: 600,

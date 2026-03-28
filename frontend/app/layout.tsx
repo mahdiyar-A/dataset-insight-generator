@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { AuthProvider } from "./contexts/AuthContext";
-import ThemeWrapper from "../lib/ThemeWrapper";
+import { LanguageProvider } from "./contexts/LanguageContext";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,11 +15,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ThemeWrapper>
+        <LanguageProvider>
           <AuthProvider>
             {children}
           </AuthProvider>
-        </ThemeWrapper>
+        </LanguageProvider>
       </body>
     </html>
   );

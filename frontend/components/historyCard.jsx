@@ -3,6 +3,7 @@
 
 import React, { useState } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { useTranslations } from "next-intl";
 import BackendAPI from "@/lib/BackendAPI";
 
 function formatSize(bytes) {
@@ -22,6 +23,7 @@ function formatDate(iso) {
 // onDelete callback tells dashboard to clear its state
 export default function HistoryCard({ dataset, onDelete }) {
   const { token } = useAuth();
+  const t = useTranslations("history");
   const [deleting, setDeleting] = useState(false);
 
   // Only show datasets that have been through analysis (isPending=false and status=done)
@@ -36,18 +38,18 @@ export default function HistoryCard({ dataset, onDelete }) {
       a.target = "_blank";
       a.click();
     } catch (err) {
-      alert("Download failed: " + err.message);
+      alert(t("downloadFailed") + err.message);
     }
   };
 
   const handleDelete = async () => {
-    if (!confirm("Delete this dataset? This cannot be undone.")) return;
+    if (!confirm(t("deleteConfirm"))) return;
     setDeleting(true);
     try {
       await BackendAPI.deleteCurrentDataset(token);
       onDelete?.();
     } catch (err) {
-      alert("Delete failed: " + err.message);
+      alert(t("deleteFailed") + err.message);
     } finally {
       setDeleting(false);
     }
@@ -56,18 +58,18 @@ export default function HistoryCard({ dataset, onDelete }) {
   return (
     <div className="card table-card">
       <div className="card-header">
-        <h2>Current Dataset</h2>
-        <span className="pill">{dataset ? "1 dataset" : "No upload yet"}</span>
+        <h2>{t("title")}</h2>
+        <span className="pill">{dataset ? t("pillDataset") : t("pillNoUpload")}</span>
       </div>
 
       <table className="dataset-table">
         <thead>
           <tr>
-            <th>Dataset name</th>
-            <th>Rows</th>
-            <th>Columns</th>
-            <th>Size</th>
-            <th>Actions</th>
+            <th>{t("colName")}</th>
+            <th>{t("colRows")}</th>
+            <th>{t("colColumns")}</th>
+            <th>{t("colSize")}</th>
+            <th>{t("colActions")}</th>
           </tr>
         </thead>
         <tbody>
@@ -81,13 +83,13 @@ export default function HistoryCard({ dataset, onDelete }) {
                       <polyline points="14 2 14 8 20 8"/>
                     </svg>
                   </span>
-                  <span style={{ color:"#4b5563", fontSize:"0.82rem" }}>No completed analysis yet</span>
+                  <span style={{ color:"#4b5563", fontSize:"0.82rem" }}>{t("noAnalysis")}</span>
                 </div>
               </td>
               {["—","—","—"].map((v,i) => <td key={i} style={{ color:"#374151" }}>{v}</td>)}
               <td className="actions-cell">
-                <button className="table-action" disabled style={{ opacity:0.3, cursor:"not-allowed" }}>Download</button>
-                <button className="table-action delete" disabled style={{ opacity:0.3, cursor:"not-allowed" }}>Delete</button>
+                <button className="table-action" disabled style={{ opacity:0.3, cursor:"not-allowed" }}>{t("downloadBtn")}</button>
+                <button className="table-action delete" disabled style={{ opacity:0.3, cursor:"not-allowed" }}>{t("deleteBtn")}</button>
               </td>
             </tr>
           ) : (
@@ -114,7 +116,7 @@ export default function HistoryCard({ dataset, onDelete }) {
                     <polyline points="7 10 12 15 17 10"/>
                     <line x1="12" y1="15" x2="12" y2="3"/>
                   </svg>
-                  Download
+                  {t("downloadBtn")}
                 </button>
                 <button className="table-action delete" onClick={handleDelete} disabled={deleting}
                   style={{ opacity: deleting ? 0.5 : 1 }}>
@@ -124,7 +126,7 @@ export default function HistoryCard({ dataset, onDelete }) {
                         <polyline points="3 6 5 6 21 6"/>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
                       </svg>
-                      Delete
+                      {t("deleteBtn")}
                     </>
                   )}
                 </button>
@@ -139,12 +141,12 @@ export default function HistoryCard({ dataset, onDelete }) {
         <div style={{ marginTop:"10px", display:"flex", gap:"8px", flexWrap:"wrap" }}>
           <button className="secondary-btn" style={{ fontSize:"0.78rem", padding:"6px 14px" }}
             onClick={() => handleDownload("cleaned", `cleaned_${dataset.fileName}`)}>
-            ↓ Download cleaned CSV
+            {t("cleanedCsvBtn")}
           </button>
           {dataset.hasPdfReport && (
             <button className="secondary-btn" style={{ fontSize:"0.78rem", padding:"6px 14px" }}
               onClick={() => handleDownload("report", dataset.reportFileName)}>
-              ↓ Download PDF report — {dataset.reportFileName}
+              {t("pdfReportBtn", { fileName: dataset.reportFileName })}
             </button>
           )}
         </div>

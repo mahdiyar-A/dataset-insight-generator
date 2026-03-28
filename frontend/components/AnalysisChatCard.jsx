@@ -3,8 +3,8 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { useTranslations } from "next-intl";
 import BackendAPI from "@/lib/BackendAPI";
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "";
 
 /*
   4 dataset conditions returned by backend:
@@ -22,23 +22,28 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC
   6. When done → show green "Go to Report" button
 */
 
-const STAGES = [
-  { key: "upload",   label: "Upload"       },
-  { key: "analysis", label: "Analysis"     },
-  { key: "ready",    label: "Report Ready" },
+const STUB_FLOW = [
+  { condition: "not_clean",    requiresResponse: true  },
+  { condition: "low_accuracy", requiresResponse: true  },
+  { condition: "all_good",     requiresResponse: false },
 ];
-
-// Condition messages shown while chatbot is unavailable (backend not wired yet)
-// These mirror what the backend will eventually return
-const CONDITION_STUBS = {
-  not_clean:    "Your dataset has quality issues — missing values, duplicates, or formatting inconsistencies were found. Would you like me to clean it automatically?",
-  low_accuracy: "Your dataset may produce low-accuracy insights due to limited data points or high variance. Would you like to proceed anyway?",
-  not_workable: "Unfortunately, your dataset cannot be processed. It may be too sparse, use an unsupported structure, or contain no usable columns.",
-  all_good:     "Your dataset looks great! No significant issues found. Ready to generate your full report and visualizations.",
-};
 
 export default function AnalysisAssistantCard({ dataset, reportReady, onViewReport, onAnalysisStarted, guestMode = false }) {
   const { token } = useAuth();
+  const t = useTranslations("analysis");
+
+  const STAGES = [
+    { key: "upload",   label: t("stageUpload")   },
+    { key: "analysis", label: t("stageAnalysis") },
+    { key: "ready",    label: t("stageReady")    },
+  ];
+
+  const getConditionMsg = (cond) => ({
+    not_clean:    t("conditionNotClean"),
+    low_accuracy: t("conditionLowAccuracyMsg"),
+    not_workable: t("conditionNotWorkableMsg"),
+    all_good:     t("conditionAllGoodMsg"),
+  }[cond] ?? "");
 
   const [stage,            setStage]            = useState(0);   // 0=idle 1=running 2=ready
   const [messages,         setMessages]         = useState([]);
@@ -59,7 +64,7 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
   useEffect(() => {
     if (reportReady && stage < 2) {
       setStage(2);
-      addMsg("assistant", "✅ Your report is ready! Click below to view it.");
+      addMsg("assistant", t("reportReadyMsg"));
     }
   }, [reportReady]);
 
@@ -84,7 +89,7 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
       let res;
       if (guestMode) {
         const sessionId = sessionStorage.getItem("dig_guest_session") ?? "guest";
-        const response  = await fetch(`${API_BASE}/api/guest/chat`, {
+        const response  = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/guest/chat`, {
           method:  "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message, sessionId, ...meta }),
@@ -127,16 +132,11 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
   // ── Stub flow: used when backend chat API isn't wired yet ──
   // Simulates the 4 conditions so UI is testable
   const [stubStep, setStubStep] = useState(0);
-  const STUB_FLOW = [
-    { condition: "not_clean",    requiresResponse: true  },
-    { condition: "low_accuracy", requiresResponse: true  },
-    { condition: "all_good",     requiresResponse: false },
-  ];
 
   const handleStubFlow = (message) => {
     if (message === "start_analysis") {
       const step = STUB_FLOW[0];
-      addMsg("assistant", CONDITION_STUBS[step.condition]);
+      addMsg("assistant", getConditionMsg(step.condition));
       setCondition(step.condition);
       setAwaitingResponse(step.requiresResponse);
       setStubStep(1);
@@ -147,12 +147,12 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
       const next = STUB_FLOW[stubStep];
       if (!next) {
         // Done
-        addMsg("assistant", "✅ Analysis complete! Your report is being generated.");
+        addMsg("assistant", t("analysisCompleteMsg"));
         setStage(2);
         setAwaitingResponse(false);
         return;
       }
-      addMsg("assistant", CONDITION_STUBS[next.condition]);
+      addMsg("assistant", getConditionMsg(next.condition));
       setCondition(next.condition);
       setAwaitingResponse(next.requiresResponse);
       setStubStep(s => s + 1);
@@ -162,7 +162,7 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
         setAwaitingResponse(false);
         onAnalysisStarted?.();
         timerRef.current = setTimeout(() => {
-          addMsg("assistant", "✅ Analysis complete! Your report is being generated.");
+          addMsg("assistant", t("analysisCompleteMsg"));
           setStage(2);
         }, 1200);
       }
@@ -177,7 +177,7 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
     setCondition(null);
     setStubStep(0);
     const name = dataset?.fileName ?? "your dataset";
-    addMsg("assistant", `We've received "${name}" — starting analysis now. Please wait…`);
+    addMsg("assistant", t("receivedFile", { fileName: name }));
     timerRef.current = setTimeout(() => sendMessage("start_analysis"), 800);
   };
 
@@ -204,33 +204,35 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
     sendMessage("no", condition);
   };
 
-  // Condition badge CSS class (light + dark aware via globals.css)
-  const conditionClass = {
-    not_clean:    "badge-warning",
-    low_accuracy: "badge-danger",
-    not_workable: "badge-danger",
-    all_good:     "badge-success",
-  }[condition] ?? "";
+  // Condition badge color
+  const conditionStyle = {
+    not_clean:    { color: "#fbbf24", bg: "rgba(120,53,15,0.2)",   border: "rgba(180,83,9,0.3)"   },
+    low_accuracy: { color: "#f97373", bg: "rgba(127,29,29,0.15)",  border: "rgba(249,115,115,0.3)" },
+    not_workable: { color: "#f97373", bg: "rgba(127,29,29,0.2)",   border: "rgba(249,115,115,0.4)" },
+    all_good:     { color: "#bbf7d0", bg: "rgba(22,163,74,0.1)",   border: "rgba(34,197,94,0.3)"  },
+  }[condition] ?? null;
 
   return (
     <div className="card analysis-chat-card">
 
       {/* Header */}
       <div className="card-header">
-        <h2>Analysis Assistant</h2>
-        {stage === 0 && <span className="pill">Ready</span>}
-        {stage === 1 && conditionClass ? (
-          <span className={`pill ${conditionClass}`}>
-            { condition === "not_clean"    && "⚠ Needs cleaning"    }
-            { condition === "low_accuracy" && "⚠ Low accuracy"      }
-            { condition === "not_workable" && "✕ Not workable"       }
-            { condition === "all_good"     && "✓ All good"           }
+        <h2>{t("title")}</h2>
+        {stage === 0 && <span className="pill">{t("pillReady")}</span>}
+        {stage === 1 && conditionStyle ? (
+          <span className="pill" style={{ borderColor: conditionStyle.border, color: conditionStyle.color, background: conditionStyle.bg }}>
+            { condition === "not_clean"    && t("conditionNeedsClean")   }
+            { condition === "low_accuracy" && t("conditionLowAccuracy")  }
+            { condition === "not_workable" && t("conditionNotWorkable")  }
+            { condition === "all_good"     && t("conditionAllGood")      }
           </span>
         ) : stage === 1 ? (
-          <span className="pill live-pill">Running…</span>
+          <span className="pill live-pill">{t("pillRunning")}</span>
         ) : null}
         {stage === 2 && (
-          <span className="pill badge-success">Complete</span>
+          <span className="pill" style={{ borderColor:"rgba(34,197,94,0.6)", color:"#bbf7d0", background:"rgba(22,163,74,0.1)" }}>
+            {t("pillComplete")}
+          </span>
         )}
       </div>
 
@@ -249,21 +251,19 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
 
       {/* ── STAGE 0: idle ── */}
       {stage === 0 && (
-        <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:"12px", padding:"28px 20px", border:"1px dashed var(--border)", borderRadius:"14px", background:"radial-gradient(circle at top, rgba(var(--accent-rgb),0.06), transparent)", textAlign:"center" }}>
-          <div style={{ width:"52px", height:"52px", borderRadius:"50%", background:"var(--accent-soft)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.6">
+        <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:"12px", padding:"28px 20px", border:"1px dashed rgba(55,65,81,0.8)", borderRadius:"14px", background:"radial-gradient(circle at top, rgba(37,99,235,0.06), transparent)", textAlign:"center" }}>
+          <div style={{ width:"52px", height:"52px", borderRadius:"50%", background:"rgba(37,99,235,0.12)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="1.6">
               <polygon points="5 3 19 12 5 21 5 3"/>
             </svg>
           </div>
-          <p style={{ margin:0, fontSize:"0.9rem", fontWeight:600, color:"var(--text)" }}>Ready to analyse</p>
+          <p style={{ margin:0, fontSize:"0.9rem", fontWeight:600, color:"#e5e7eb" }}>{t("readyTitle")}</p>
           <p className="muted-small" style={{ maxWidth:"260px", lineHeight:"1.6" }}>
-            {dataset
-              ? <>Press <strong style={{ color:"var(--accent)" }}>Start</strong> to begin the analysis pipeline.</>
-                : "Upload a CSV above first, then start the analysis."}
+            {dataset ? t("readyDescDataset") : t("readyDescNoDataset")}
           </p>
           <button className="primary-btn" style={{ fontWeight:800, marginTop:"4px", display:"flex", alignItems:"center", gap:"7px", opacity: dataset ? 1 : 0.4, cursor: dataset ? "pointer" : "not-allowed" }} onClick={dataset ? handleStart : undefined} disabled={!dataset}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            Start
+            {t("startBtn")}
           </button>
         </div>
       )}
@@ -288,18 +288,18 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
 
           <div style={{ display:"flex", gap:"8px", flexWrap:"wrap", alignItems:"center" }}>
             <button className="chip-btn subtle" onClick={handleCancel} style={{ fontSize:"0.8rem", padding:"6px 14px" }}>
-              Cancel
+              {t("cancelBtn")}
             </button>
 
             {awaitingResponse && !sending && (
               <>
-                <button className="chip-btn chip-no" onClick={handleNo}
-                  style={{ fontSize:"0.8rem", padding:"6px 16px" }}>
-                  No
+                <button className="chip-btn subtle" onClick={handleNo}
+                  style={{ fontSize:"0.8rem", padding:"6px 16px", borderColor:"rgba(249,115,115,0.4)", color:"#f97373", background:"rgba(127,29,29,0.15)" }}>
+                  {t("noBtn")}
                 </button>
-                <button className="chip-btn chip-yes" onClick={handleYes}
-                  style={{ fontSize:"0.8rem", padding:"6px 16px" }}>
-                  Yes
+                <button className="chip-btn subtle" onClick={handleYes}
+                  style={{ fontSize:"0.8rem", padding:"6px 16px", borderColor:"rgba(34,197,94,0.4)", color:"#bbf7d0", background:"rgba(22,163,74,0.12)" }}>
+                  {t("yesBtn")}
                 </button>
               </>
             )}
@@ -325,7 +325,7 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <polyline points="6 9 12 15 18 9"/>
             </svg>
-            Go to Report
+            {t("goToReport")}
           </button>
         </>
       )}

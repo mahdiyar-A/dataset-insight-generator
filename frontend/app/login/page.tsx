@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { useTranslations } from "next-intl";
 import "./login.css";
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
@@ -11,6 +12,7 @@ const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
+  const t = useTranslations("auth");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,15 +25,15 @@ export default function LoginPage() {
 
     const e = email.trim();
     if (!isValidEmail(e))
-      return setError("Enter a valid email (must include @).");
-    if (!password) return setError("Password is required.");
+      return setError(t("errorInvalidEmail"));
+    if (!password) return setError(t("errorPasswordRequired"));
 
     setLoading(true);
     try {
       await login(e, password);
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err?.message || "Login failed");
+      setError(err?.message || t("errorLoginFailed"));
     } finally {
       setLoading(false);
     }
@@ -40,18 +42,18 @@ export default function LoginPage() {
   return (
     <div className="auth-body">
       <div className="auth-container">
-        <h2>Login</h2>
+        <h2>{t("loginTitle")}</h2>
 
         <input
           type="email"
-          placeholder="Email"
+          placeholder={t("emailPlaceholder")}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
 
         <input
           type="password"
-          placeholder="Password"
+          placeholder={t("passwordPlaceholder")}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
@@ -59,15 +61,15 @@ export default function LoginPage() {
         {error && <p className="auth-error">{error}</p>}
 
         <div className="forgot-password">
-          <Link href="/login/forgotPassword">Forgot password?</Link>
+          <Link href="/login/forgotPassword">{t("forgotPassword")}</Link>
         </div>
 
         <button className="auth-btn" onClick={handleLogin} disabled={loading}>
-          {loading ? "Logging in…" : "Login"}
+          {loading ? t("loginBtnLoading") : t("loginBtn")}
         </button>
 
         <div className="auth-footer">
-          Don&apos;t have an account? <Link href="/register">Register</Link>
+          {t("noAccount")} <Link href="/register">{t("registerLink")}</Link>
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { useTranslations } from "next-intl";
 import BackendAPI from "@/lib/BackendAPI";
 
 /* ── Fallback SVG renderers (shown when backend returns image URLs we can display inline) ── */
@@ -192,6 +193,7 @@ const SVG_FALLBACKS = [
 
 export default function ChartsCard({ dataset, charts: propCharts = [], reportReady: propReportReady = false }) {
   const { token } = useAuth();
+  const t = useTranslations("charts");
   const [charts, setCharts] = useState([]);
   const [active, setActive] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -270,7 +272,7 @@ export default function ChartsCard({ dataset, charts: propCharts = [], reportRea
   return (
     <div className="card chart-card">
       <div className="card-header">
-        <h2>Visualizations</h2>
+        <h2>{t("title")}</h2>
         {current ? (
           <span
             className="pill"
@@ -284,7 +286,7 @@ export default function ChartsCard({ dataset, charts: propCharts = [], reportRea
           </span>
         ) : (
           <span className="pill">
-            {loading ? "Loading…" : dataset ? "Pending analysis" : "No dataset"}
+            {loading ? t("loading") : dataset ? t("pendingAnalysis") : t("noDataset")}
           </span>
         )}
       </div>
@@ -311,7 +313,7 @@ export default function ChartsCard({ dataset, charts: propCharts = [], reportRea
               minHeight: "200px",
             }}
           >
-            <p className="muted-small">Loading…</p>
+            <p className="muted-small">{t("loading")}</p>
           </div>
         ) : charts.length === 0 ? (
           /* ── No charts: different messages for no-dataset vs pending analysis ── */
@@ -350,10 +352,10 @@ export default function ChartsCard({ dataset, charts: propCharts = [], reportRea
                     fontWeight: 600,
                   }}
                 >
-                  No visualizations yet
+                  {t("noVisualizationsTitle")}
                 </p>
                 <p className="muted-small">
-                  Upload and analyse a dataset to generate charts.
+                  {t("noVisualizationsDesc")}
                 </p>
               </>
             ) : (
@@ -366,10 +368,10 @@ export default function ChartsCard({ dataset, charts: propCharts = [], reportRea
                     fontWeight: 600,
                   }}
                 >
-                  Charts pending
+                  {t("chartsPendingTitle")}
                 </p>
                 <p className="muted-small">
-                  Run the analysis to generate up to 5 visualizations.
+                  {t("chartsPendingDesc")}
                 </p>
               </>
             )}
@@ -392,7 +394,7 @@ export default function ChartsCard({ dataset, charts: propCharts = [], reportRea
                   color: "#9ca3af",
                 }}
               >
-                Chart {active + 1} of {charts.length} — {current.label}
+                {t("chartCount", { current: active + 1, total: charts.length })} — {current.label}
               </span>
               <span className="muted-small">{current.desc}</span>
             </div>

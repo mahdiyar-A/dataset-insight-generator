@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/app/contexts/AuthContext';
+import { useTranslations } from 'next-intl';
 import './register.css';
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
@@ -13,6 +14,7 @@ const isPasswordOk = (v: string) => v.length >= 8 && /\d/.test(v); // >=8 + digi
 export default function RegisterPage() {
   const router = useRouter();
   const { register } = useAuth();
+  const t = useTranslations('auth');
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -30,19 +32,19 @@ export default function RegisterPage() {
     const ln = lastName.trim();
     const em = email.trim();
 
-    if (!isNameOk(fn)) return setError('First name must be letters only (max 30).');
-    if (!isNameOk(ln)) return setError('Last name must be letters only (max 30).');
-    if (!isValidEmail(em)) return setError('Enter a valid email (must include @).');
+    if (!isNameOk(fn)) return setError(t('errorFirstName'));
+    if (!isNameOk(ln)) return setError(t('errorLastName'));
+    if (!isValidEmail(em)) return setError(t('errorInvalidEmail'));
     if (!isPasswordOk(password))
-      return setError('Password must be at least 8 characters and contain at least 1 number.');
-    if (password !== confirmPassword) return setError('Passwords do not match.');
+      return setError(t('errorPasswordWeak'));
+    if (password !== confirmPassword) return setError(t('errorPasswordMatch'));
 
     setLoading(true);
     try {
-      await register(fn, ln, em, password); // auto-login happens inside AuthContext
-      router.push('/'); // auth-only for now
+      await register(fn, ln, em, password);
+      router.push('/');
     } catch (err: any) {
-      setError(err?.message || 'Registration failed');
+      setError(err?.message || t('errorRegisterFailed'));
     } finally {
       setLoading(false);
     }
@@ -51,24 +53,24 @@ export default function RegisterPage() {
   return (
     <div className="auth-body">
       <div className="auth-container">
-        <h2>Create Account</h2>
+        <h2>{t('registerTitle')}</h2>
 
         <div className="name-row">
           <div className="input-group">
-            <label>First Name</label>
+            <label>{t('firstNameLabel')}</label>
             <input
               type="text"
-              placeholder="Enter your first name"
+              placeholder={t('firstNamePlaceholder')}
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
             />
           </div>
 
           <div className="input-group">
-            <label>Last Name</label>
+            <label>{t('lastNameLabel')}</label>
             <input
               type="text"
-              placeholder="Enter your last name"
+              placeholder={t('lastNamePlaceholder')}
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
             />
@@ -76,30 +78,30 @@ export default function RegisterPage() {
         </div>
 
         <div className="input-group">
-          <label>Email</label>
+          <label>{t('emailLabel')}</label>
           <input
             type="email"
-            placeholder="Enter your email"
+            placeholder={t('emailPlaceholderFull')}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
         </div>
 
         <div className="input-group">
-          <label>Password</label>
+          <label>{t('passwordLabel')}</label>
           <input
             type="password"
-            placeholder="Enter your password"
+            placeholder={t('passwordPlaceholderFull')}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
 
         <div className="input-group">
-          <label>Confirm Password</label>
+          <label>{t('confirmPasswordLabel')}</label>
           <input
             type="password"
-            placeholder="Confirm your password"
+            placeholder={t('confirmPasswordPlaceholder')}
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
           />
@@ -108,11 +110,11 @@ export default function RegisterPage() {
         {error && <p className="auth-error">{error}</p>}
 
         <button className="auth-btn" onClick={handleRegister} disabled={loading}>
-          {loading ? 'Creating account…' : 'Register'}
+          {loading ? t('registerBtnLoading') : t('registerBtn')}
         </button>
 
         <div className="auth-footer">
-          Already have an account? <Link href="/login">Login</Link>
+          {t('alreadyHaveAccount')} <Link href="/login">{t('loginLink')}</Link>
         </div>
       </div>
     </div>

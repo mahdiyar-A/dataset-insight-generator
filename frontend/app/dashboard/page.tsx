@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { useTranslations } from "next-intl";
 import BackendAPI from "@/lib/BackendAPI";
 import UploadCard from "@/components/UploadCard";
 import AnalysisAssistantCard from "@/components/AnalysisChatCard";
@@ -27,6 +28,7 @@ export default function DashboardPage() {
   const [activeSection, setActiveSection] = useState("top");
   const router = useRouter();
   const { logout, currentUser, token, refreshUser } = useAuth();
+  const t = useTranslations("dashboard");
 
   const [dataset,       setDataset]       = useState(null);
   const [datasetStatus, setDatasetStatus] = useState(null);
@@ -178,12 +180,12 @@ export default function DashboardPage() {
     : null;
 
   const navItems = [
-    { id: "top",              label: "Dashboard",   icon: <IconGrid />,    ref: topRef },
-    { id: "section-upload",   label: "Upload",      icon: <IconUpload />,  ref: uploadRef },
-    { id: "section-history",  label: "History",     icon: <IconHistory />, ref: historyRef },
-    { id: "section-charts",   label: "AI Insights", icon: <IconChart />,   ref: chartsRef },
-    { id: "section-download", label: "Report",      icon: <IconReport />,  ref: downloadRef },
-    { id: "section-help",     label: "Help",        icon: <IconHelp />,    ref: helpRef },
+    { id: "top",              label: t("navDashboard"),   icon: <IconGrid />,    ref: topRef },
+    { id: "section-upload",   label: t("navUpload"),      icon: <IconUpload />,  ref: uploadRef },
+    { id: "section-history",  label: t("navHistory"),     icon: <IconHistory />, ref: historyRef },
+    { id: "section-charts",   label: t("navAIInsights"),  icon: <IconChart />,   ref: chartsRef },
+    { id: "section-download", label: t("navReport"),      icon: <IconReport />,  ref: downloadRef },
+    { id: "section-help",     label: t("navHelp"),        icon: <IconHelp />,    ref: helpRef },
   ];
 
   const showProcessingBanner = (datasetStatus === "processing" || datasetStatus === "pending") && !reportReady && !!dataset;
@@ -208,13 +210,13 @@ export default function DashboardPage() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <button className="sidebar-link" onClick={() => router.push("/dashboard/settings")} title="Settings">
+          <button className="sidebar-link" onClick={() => router.push("/dashboard/settings")} title={t("navSettings")}>
             <span className="sidebar-icon"><IconSettings /></span>
-            <span className="sidebar-label">Settings</span>
+            <span className="sidebar-label">{t("navSettings")}</span>
           </button>
-          <button className="sidebar-link" onClick={handleSignOut} title="Sign out">
+          <button className="sidebar-link" onClick={handleSignOut} title={t("navSignOut")}>
             <span className="sidebar-icon"><IconSignOut /></span>
-            <span className="sidebar-label">Sign out</span>
+            <span className="sidebar-label">{t("navSignOut")}</span>
           </button>
         </div>
       </aside>
@@ -225,11 +227,11 @@ export default function DashboardPage() {
         {/* Topbar */}
         <header className="dig-topbar" id="top" ref={topRef}>
           <div>
-            <h1>Dashboard</h1>
+            <h1>{t("topbarTitle")}</h1>
             <p className="subtitle">
               {dataset
-                ? `Last upload: ${dataset.fileName} · ${dataset.rowCount ?? "?"} rows`
-                : "Upload a dataset to get started."}
+                ? t("subtitleLastUpload", { fileName: dataset.fileName, rowCount: dataset.rowCount ?? "?" })
+                : t("subtitleUpload")}
             </p>
           </div>
           <div className="topbar-right">
@@ -241,12 +243,12 @@ export default function DashboardPage() {
               </div>
               <div className="profile-text">
                 <span className="profile-name">{displayName}</span>
-                <span className="profile-role">{memberSince ? `Member since ${memberSince}` : "Member"}</span>
+                <span className="profile-role">{memberSince ? t("memberSince", { date: memberSince }) : t("memberLabel")}</span>
               </div>
               <div className="profile-dropdown-icon">▾</div>
               <div className="profile-dropdown">
-                <a href="/dashboard/profileView">View profile</a>
-                <a href="/dashboard/editProfile">Account settings</a>
+                <a href="/dashboard/profileView">{t("profileDropdownView")}</a>
+                <a href="/dashboard/editProfile">{t("profileDropdownSettings")}</a>
               </div>
             </div>
           </div>
@@ -258,20 +260,20 @@ export default function DashboardPage() {
             <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
               <span>✅</span>
               <span style={{ fontSize:"0.85rem", color:"#bbf7d0", fontWeight:600 }}>
-                Analysis complete — report, charts, and cleaned dataset are ready.
+                {t("bannerAnalysisComplete")}
               </span>
             </div>
             <button onClick={scrollToReport} style={{ padding:"7px 16px", borderRadius:"999px", border:"1px solid rgba(34,197,94,0.4)", background:"rgba(22,163,74,0.15)", color:"#86efac", fontSize:"0.78rem", fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
-              View Report →
+              {t("bannerViewReport")}
             </button>
           </div>
         )}
 
         {showProcessingBanner && (
-          <div style={{ padding:"12px 24px", background:"var(--accent-soft)", borderBottom:"1px solid rgba(var(--accent-rgb),0.2)", display:"flex", alignItems:"center", gap:"10px" }}>
+          <div style={{ padding:"12px 24px", background:"rgba(37,99,235,0.08)", borderBottom:"1px solid rgba(37,99,235,0.2)", display:"flex", alignItems:"center", gap:"10px" }}>
             <span>⏳</span>
-            <span style={{ fontSize:"0.85rem", color:"var(--accent)" }}>
-              Analysis running — charts and report will appear when done…
+            <span style={{ fontSize:"0.85rem", color:"#93c5fd" }}>
+              {t("bannerRunning")}
             </span>
           </div>
         )}
@@ -280,7 +282,7 @@ export default function DashboardPage() {
           <div style={{ padding:"12px 24px", background:"rgba(127,29,29,0.12)", borderBottom:"1px solid rgba(249,115,115,0.2)", display:"flex", alignItems:"center", gap:"10px" }}>
             <span>❌</span>
             <span style={{ fontSize:"0.85rem", color:"#fca5a5" }}>
-              Analysis failed. Please try uploading your dataset again.
+              {t("bannerFailed")}
             </span>
           </div>
         )}
