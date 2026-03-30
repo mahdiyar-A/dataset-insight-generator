@@ -15,6 +15,18 @@ BRAND_MUTED = (148, 163, 184)
 WHITE       = (255, 255, 255)
 ACCENT_GOLD = (251, 191, 36)
 
+# One color per insight/chart slot — cycles if more than 5
+INSIGHT_COLORS = [
+    (59,  130, 246),   # blue
+    (168,  85, 247),   # purple
+    (16,  185, 129),   # green
+    (249, 115,  22),   # orange
+    (236,  72, 153),   # pink
+]
+
+# Safe bottom margin — don't draw closer than this to the footer
+PAGE_BOTTOM = 260  # mm from top of page (A4 = 297mm, footer at ~284mm)
+
 
 def _s(text: str) -> str:
     """Sanitize any text to latin-1 safe for fpdf Helvetica."""
@@ -46,10 +58,8 @@ class DigReport(FPDF):
         self.set_margins(20, 20, 20)
 
     def header(self):
-        # Paint full page background first
         self.set_fill_color(*BRAND_DARK)
         self.rect(0, 0, 210, 297, "F")
-        # Top bar
         self.set_fill_color(*BRAND_MID)
         self.rect(0, 0, 210, 14, "F")
         self.set_y(3)
@@ -87,58 +97,93 @@ class DigReport(FPDF):
         self.multi_cell(0, 5, _s(text))
         self.ln(1)
 
-    def insight_block(self, rank: int, title: str, body: str):
-        self.set_fill_color(*BRAND_MID)
-        self.set_draw_color(*BRAND_BLUE)
-        self.set_line_width(0.3)
-        self.rect(20, self.get_y(), 170, 7 + self._estimate_text_height(body, 160) + 6, "DF")
-
-        y_start = self.get_y() + 2
-        self.set_xy(22, y_start)
-        self.set_font("Helvetica", "B", 8)
-        # FIX: ACCENT_GOLD is a tuple, not a function
-        self.set_text_color(*ACCENT_GOLD if rank == 1 else BRAND_MUTED)
-        self.cell(12, 5, f"#{rank}", ln=False)
-
-        self.set_font("Helvetica", "B", 11)
-        self.set_text_color(*BRAND_TEXT)
-        self.multi_cell(155, 6, _s(title))
-
-        self.set_x(22)
-        self.set_font("Helvetica", "", 10)
-        self.set_text_color(180, 190, 205)
-        self.multi_cell(165, 5.5, _s(body))
-        self.ln(4)
-
     def _estimate_text_height(self, text: str, width_mm: float) -> float:
-        chars_per_line = int(width_mm / 2.1)
-        lines = max(1, len(text) // chars_per_line + text.count("\n"))
+        """Rough estimate of how many mm a block of text will occupy."""
+        chars_per_line = max(1, int(width_mm / 2.1))
+        lines = max(1, len(text) // chars_per_line + text.count("\n") + 1)
         return lines * 5.5
 
-    def embed_chart(self, img_b64: str, title: str, desc: str):
+    def insight_block(self, rank: int, title: str, body: str, color_rgb: tuple):
+        """
+        Draw a styled insight box. Shifts to a new page if the block won't fit,
+        preventing mid-block page splits.
+        """
+        title_h    = 10
+        body_h     = self._estimate_text_height(body, 160)
+        padding    = 10
+        total_h    = title_h + body_h + padding
+
+        # If block won't fit on remaining page — start a new one
+        if self.get_y() + total_h > PAGE_BOTTOM:
+            self.add_page()
+
+        accent_r, accent_g, accent_b = color_rgb
+
+        # Left accent bar
+        bar_y = self.get_y()
+        self.set_fill_color(accent_r, accent_g, accent_b)
+        self.rect(20, bar_y, 3, total_h, "F")
+
+        # Block background
+        self.set_fill_color(*BRAND_MID)
+        self.set_draw_color(accent_r, accent_g, accent_b)
+        self.set_line_width(0.2)
+        self.rect(23, bar_y, 167, total_h, "DF")
+
+        # Rank badge
+        y_start = bar_y + 3
+        self.set_xy(25, y_start)
+        self.set_font("Helvetica", "B", 8)
+        badge_color = ACCENT_GOLD if rank == 1 else (accent_r, accent_g, accent_b)
+        self.set_text_color(*badge_color)
+        self.cell(12, 5, f"#{rank}", ln=False)
+
+        # Title
+        self.set_font("Helvetica", "B", 11)
+        self.set_text_color(*BRAND_TEXT)
+        self.multi_cell(152, 6, _s(title))
+
+        # Body text
+        self.set_x(25)
+        self.set_font("Helvetica", "", 10)
+        self.set_text_color(180, 190, 205)
+        self.multi_cell(162, 5.5, _s(body))
+        self.ln(5)
+
+    def embed_chart(self, img_b64: str, title: str, desc: str, color_rgb: tuple = BRAND_BLUE):
+        """
+        Embed a chart image. Always starts on a new page if less than 80mm remains,
+        preventing the title from being orphaned at the bottom.
+        """
         try:
             img_bytes = base64.b64decode(img_b64)
             with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
                 tmp.write(img_bytes)
                 tmp_path = tmp.name
 
-            if self.get_y() > 220:
+            # Estimate chart block height: title(8) + image(~90) + caption(~12) + padding
+            needed_h = 115
+            if self.get_y() + needed_h > PAGE_BOTTOM:
                 self.add_page()
 
+            accent_r, accent_g, accent_b = color_rgb
+
+            # Chart title with colored accent
             self.set_font("Helvetica", "B", 9)
-            self.set_text_color(*BRAND_MUTED)
-            self.cell(0, 5, _s(f">> {title}"), ln=True)
+            self.set_text_color(accent_r, accent_g, accent_b)
+            self.cell(0, 6, _s(f">> {title}"), ln=True)
             self.ln(1)
 
             img_w = 160
             self.image(tmp_path, x=25, w=img_w)
             self.ln(2)
 
+            # Caption
             self.set_font("Helvetica", "I", 8)
             self.set_text_color(*BRAND_MUTED)
             self.set_x(25)
             self.multi_cell(160, 4.5, _s(desc))
-            self.ln(5)
+            self.ln(6)
 
             os.unlink(tmp_path)
         except Exception as e:
@@ -155,7 +200,7 @@ def build_pdf(
     pdf = DigReport()
     pdf.add_page()
 
-    # Cover
+    # ── Cover page ───────────────────────────────────────────────────────
     pdf.set_fill_color(*BRAND_DARK)
     pdf.rect(0, 0, 210, 297, "F")
 
@@ -181,20 +226,19 @@ def build_pdf(
     pdf.set_text_color(71, 85, 105)
     pdf.cell(0, 5, "Generated by DIG AI Engine  |  Powered by Gemini", align="C", ln=True)
 
-    # Executive Summary
+    # ── Executive Summary ────────────────────────────────────────────────
     pdf.add_page()
     pdf.section_title("Executive Summary")
     pdf.body_text(report.executiveSummary)
 
     if report.confidenceNote:
         pdf.ln(2)
+        h = 8 + max(1, len(report.confidenceNote) // 80) * 5
+        if pdf.get_y() + h > PAGE_BOTTOM:
+            pdf.add_page()
         pdf.set_fill_color(30, 41, 59)
         pdf.set_draw_color(251, 191, 36)
         pdf.set_line_width(0.4)
-        h = 8 + max(1, len(report.confidenceNote) // 80) * 5
-        # FIX: check page boundary before drawing box
-        if pdf.get_y() + h > 270:
-            pdf.add_page()
         pdf.rect(20, pdf.get_y(), 170, h, "DF")
         pdf.set_xy(24, pdf.get_y() + 3)
         pdf.set_font("Helvetica", "B", 9)
@@ -206,7 +250,7 @@ def build_pdf(
         pdf.multi_cell(162, 5, _s(report.confidenceNote))
         pdf.ln(6)
 
-    # Insights + Charts
+    # ── Key Insights + Charts ────────────────────────────────────────────
     pdf.section_title("Key Insights")
 
     charts_by_insight: Dict[int, List] = {}
@@ -220,22 +264,39 @@ def build_pdf(
         body    = ins.get("body", "")
         ins_idx = ins.get("insight_index", rank)
 
-        pdf.insight_block(rank, title, body)
+        # Pick a color that cycles with the insight rank (1-based → 0-indexed)
+        color_rgb = INSIGHT_COLORS[(rank - 1) % len(INSIGHT_COLORS)]
+
+        pdf.insight_block(rank, title, body, color_rgb)
 
         for ch in charts_by_insight.get(ins_idx, []):
             img = ch.get("image_base64")
             if img:
-                pdf.embed_chart(img, ch.get("label", ""), ch.get("desc", ""))
+                # Use the chart's own color if provided, else fall back to insight color
+                chart_color_hex = ch.get("color", "")
+                chart_color_rgb = color_rgb
+                if chart_color_hex and chart_color_hex.startswith("#") and len(chart_color_hex) == 7:
+                    try:
+                        chart_color_rgb = (
+                            int(chart_color_hex[1:3], 16),
+                            int(chart_color_hex[3:5], 16),
+                            int(chart_color_hex[5:7], 16),
+                        )
+                    except ValueError:
+                        pass
+                pdf.embed_chart(img, ch.get("label", ""), ch.get("desc", ""), chart_color_rgb)
 
+    # Any charts not linked to a specific insight
     unmatched = charts_by_insight.get(0, [])
     if unmatched:
         pdf.section_title("Additional Visualizations")
-        for ch in unmatched:
+        for i, ch in enumerate(unmatched):
             img = ch.get("image_base64")
             if img:
-                pdf.embed_chart(img, ch.get("label", ""), ch.get("desc", ""))
+                color_rgb = INSIGHT_COLORS[i % len(INSIGHT_COLORS)]
+                pdf.embed_chart(img, ch.get("label", ""), ch.get("desc", ""), color_rgb)
 
-    # Data Quality
+    # ── Data Quality & Methodology ───────────────────────────────────────
     pdf.add_page()
     pdf.section_title("Data Quality & Methodology")
 

@@ -204,7 +204,9 @@ public class GuestController : ControllerBase
     [HttpGet("status/{sessionId}")]
     public IActionResult GetStatus(string sessionId)
     {
-        if (_guestResults.TryGetValue(sessionId, out var result))
+        GuestResult? result;
+        lock (_guestResults) { _guestResults.TryGetValue(sessionId, out result); }
+        if (result != null)
         {
             return Ok(new
             {
@@ -218,7 +220,8 @@ public class GuestController : ControllerBase
         }
 
         // Check if still processing
-        if (_guestProcessing.Contains(sessionId))
+        bool processing; lock (_guestProcessing) { processing = _guestProcessing.Contains(sessionId); }
+        if (processing)
             return Ok(new { status = "processing" });
 
         return Ok(new { status = "pending" });

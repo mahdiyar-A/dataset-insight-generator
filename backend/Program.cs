@@ -1,12 +1,12 @@
 using backend.Application.Interfaces;
 using backend.Application.Services;
+using backend.Infrastructure.Email;
 using backend.Infrastructure.Http;
 using backend.Infrastructure.Repositories;
 using backend.Infrastructure.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
 
 Console.WriteLine("[DIG] Starting...");
 
@@ -16,7 +16,7 @@ builder.WebHost.UseUrls("http://localhost:5150");
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
-// Supabase
+// ── Supabase ──────────────────────────────────────────────────────────────────
 var supabaseUrl    = builder.Configuration["Supabase:Url"]!;
 var supabaseSecret = builder.Configuration["Supabase:SecretKey"]!;
 
@@ -42,7 +42,7 @@ builder.Services.AddSwaggerGen(c =>
         Type         = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
         Scheme       = "Bearer",
         In           = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Description  = "Enter your JWT token"
+        Description  = "Paste your Supabase access_token here"
     });
     c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
     {
@@ -60,50 +60,94 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Repositories
+// ── Repositories & Services ───────────────────────────────────────────────────
 builder.Services.AddScoped<IUserRepository,    UserRepository>();
 builder.Services.AddScoped<IDatasetRepository, DatasetRepository>();
-
-// Storage
-builder.Services.AddScoped<IStorageService, SupabaseStorageService>();
-
-// App Services
-builder.Services.AddScoped<AuthService>();
-builder.Services.AddScoped<JwtTokenService>();
-builder.Services.AddScoped<IUserProfileService, UserProfileService>(); // was missing!
+builder.Services.AddScoped<IStorageService,    SupabaseStorageService>();
+builder.Services.AddScoped<IEmailService,      SmtpEmailService>();
+builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 builder.Services.AddHttpClient<IPythonAiClient, PythonAiClient>();
 builder.Services.AddScoped<AnalysisService>();
 builder.Services.AddScoped<IAiService, AiService>();
 
-// JWT
-var jwtSecret = builder.Configuration["Jwt:Secret"]
-    ?? "DigEEEMMM74443-pppqhgwiuervhbwoibgqpi4utqb222225y43tij";
-    
+// ── JWT ── Use JWKS endpoint — never hardcode the ECC key ─────────────────────
+// Supabase publishes rotating public keys at: {supabaseUrl}/auth/v1/.well-known/jwks.json
+var supabaseIssuer = $"{supabaseUrl.TrimEnd('/')}/auth/v1";
+var jwksUri        = $"{supabaseIssuer}/.well-known/jwks.json";
+
+Console.WriteLine($"[DIG] JWT issuer : {supabaseIssuer}");
+Console.WriteLine($"[DIG] JWKS URI   : {jwksUri}");
+
+// Cache for JWKS keys — fetched once, reused, auto-refreshes on failure
+JsonWebKeySet? cachedJwks = null;
+DateTime       jwksFetchedAt = DateTime.MinValue;
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        options.RequireHttpsMetadata = false; // localhost is HTTP — set true in production
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer           = true,
             ValidateAudience         = true,
             ValidateLifetime         = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer              = builder.Configuration["Jwt:Issuer"]  ?? "dig",
-            ValidAudience            = builder.Configuration["Jwt:Audience"] ?? "dig",
-            IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
+            ValidIssuer              = supabaseIssuer,
+            ValidAudience            = "authenticated",
+
+            IssuerSigningKeyResolver = (token, securityToken, kid, parameters) =>
+            {
+                // Refresh JWKS cache every 60 minutes
+                if (cachedJwks == null || (DateTime.UtcNow - jwksFetchedAt).TotalMinutes > 60)
+                {
+                    try
+                    {
+                        using var http = new System.Net.Http.HttpClient();
+                        http.Timeout = TimeSpan.FromSeconds(10);
+                        var json = http.GetStringAsync(jwksUri).GetAwaiter().GetResult();
+                        cachedJwks    = new JsonWebKeySet(json);
+                        jwksFetchedAt = DateTime.UtcNow;
+                        Console.WriteLine("[JWT] JWKS refreshed successfully");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[JWT] JWKS fetch failed: {ex.Message}");
+                        return cachedJwks?.GetSigningKeys() ?? Enumerable.Empty<SecurityKey>();
+                    }
+                }
+                return cachedJwks?.GetSigningKeys() ?? Enumerable.Empty<SecurityKey>();
+            }
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = ctx =>
+            {
+                if (ctx.Exception is SecurityTokenMalformedException)
+                    Console.WriteLine("[JWT] Auth failed: malformed token — frontend is likely sending anon key instead of session access_token");
+                else
+                    Console.WriteLine($"[JWT] Auth failed: {ctx.Exception.GetType().Name}: {ctx.Exception.Message[..Math.Min(ctx.Exception.Message.Length, 100)]}");
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = ctx =>
+            {
+                Console.WriteLine("[JWT] Token validated successfully");
+                return Task.CompletedTask;
+            }
         };
     });
 
 builder.Services.AddCors(options =>
     options.AddPolicy("dev", p =>
-        p.WithOrigins("http://localhost:3000")
+        p.WithOrigins("http://localhost:3000","http://localhost:3001","http://127.0.0.1:3000")
          .AllowAnyHeader()
-         .AllowAnyMethod()));
+         .AllowAnyMethod()
+         .AllowCredentials()));
 
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
-
 Console.WriteLine("[DIG] App built. Starting middleware...");
 
 if (app.Environment.IsDevelopment())

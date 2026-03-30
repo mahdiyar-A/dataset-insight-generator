@@ -14,8 +14,9 @@ public class UserRow : BaseModel
     [Column("last_name")]           public string    LastName          { get; set; } = "";
     [Column("email")]               public string    Email             { get; set; } = "";
     [Column("password_hash")]       public string    PasswordHash      { get; set; } = "";
-    [Column("phone_number")]        public string?   PhoneNumber       { get; set; }   // ← NEW
+    [Column("phone_number")]        public string?   PhoneNumber       { get; set; }
     [Column("profile_picture_url")] public string?   ProfilePictureUrl { get; set; }
+    [Column("is_email_verified")]   public bool?     IsEmailVerified   { get; set; }
     [Column("created_at")]          public DateTime  CreatedAt         { get; set; }
     [Column("last_login_at")]       public DateTime? LastLoginAt       { get; set; }
 }
@@ -43,7 +44,18 @@ public class UserRepository : IUserRepository
 
     public async Task AddAsync(User user)
     {
-        await _db.From<UserRow>().Insert(ToRow(user));
+        // Upsert instead of Insert — if the row already exists (same id OR email),
+        // this is a no-op rather than throwing a 23505 duplicate key error.
+        // This eliminates the race condition where two concurrent SIGNED_IN events
+        // both check "row exists? no" and then both try to insert simultaneously.
+        await _db.From<UserRow>().Upsert(ToRow(user));
+    }
+
+    public async Task DeleteAsync(Guid id)
+    {
+        await _db.From<UserRow>()
+            .Filter("id", Operator.Equals, id.ToString())
+            .Delete();
     }
 
     public async Task UpdateAsync(User user)
@@ -69,15 +81,16 @@ public class UserRepository : IUserRepository
     private static User ToDomain(UserRow r)
     {
         return User.Restore(
-            id:             Guid.Parse(r.Id),
-            userName:       $"{r.FirstName} {r.LastName}".Trim(),
-            email:          r.Email,
-            passwordHash:   r.PasswordHash,
-            profilePicture: r.ProfilePictureUrl,
-            phoneNumber:    r.PhoneNumber,
-            isActive:       true,
-            createdAt:      r.CreatedAt,
-            lastLoginAt:    r.LastLoginAt
+            id:              Guid.Parse(r.Id),
+            userName:        $"{r.FirstName} {r.LastName}".Trim(),
+            email:           r.Email,
+            passwordHash:    r.PasswordHash,
+            profilePicture:  r.ProfilePictureUrl,
+            phoneNumber:     r.PhoneNumber,
+            isActive:        true,
+            isEmailVerified: r.IsEmailVerified ?? false,
+            createdAt:       r.CreatedAt,
+            lastLoginAt:     r.LastLoginAt
         );
     }
 

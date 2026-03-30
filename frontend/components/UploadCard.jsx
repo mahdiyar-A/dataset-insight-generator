@@ -5,7 +5,7 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
 
-export default function UploadCard({ onUploadSuccess, resetKey, guestMode = false, guestSessionId = null }) {
+export default function UploadCard({ onUploadSuccess, onUploadStart, resetKey, guestMode = false, guestSessionId = null }) {
   const { token } = useAuth();
   const fileInputRef = useRef(null);
 
@@ -63,6 +63,7 @@ export default function UploadCard({ onUploadSuccess, resetKey, guestMode = fals
       return;
     }
 
+    onUploadStart?.();           // notify parent before fetch — fires on success AND fail
     setFile(selectedFile);
     setStatus("uploading");
     setErrorMsg("");
@@ -91,7 +92,7 @@ export default function UploadCard({ onUploadSuccess, resetKey, guestMode = fals
         form.append("sessionId", guestSessionId ?? "guest");
         form.append("rows",      String(parsed?.totalRows ?? 0));
         form.append("columns",   String(parsed?.totalCols ?? 0));
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/guest/upload`, { method: "POST", body: form });
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5150"}/api/guest/upload`, { method: "POST", body: form });
         if (!res.ok) throw new Error("Upload failed");
         result = await res.json();
       } else {

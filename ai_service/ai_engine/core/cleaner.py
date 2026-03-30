@@ -17,6 +17,7 @@ def clean_dataset(df: pd.DataFrame, quality: DataQualityResult) -> pd.DataFrame:
     df.drop_duplicates(inplace=True)
 
     # ── Handle missing values per column ─────────────────────────────────
+    cols_to_drop = []
     for col in df.columns:
         missing_ratio = df[col].isnull().mean()
         if missing_ratio == 0:
@@ -24,20 +25,21 @@ def clean_dataset(df: pd.DataFrame, quality: DataQualityResult) -> pd.DataFrame:
 
         # Drop column if >80% missing
         if missing_ratio > 0.8:
-            df.drop(columns=[col], inplace=True)
+            cols_to_drop.append(col)
             continue
 
         # Numeric: fill with median (robust to outliers)
         if pd.api.types.is_numeric_dtype(df[col]):
             median_val = df[col].median()
-            df[col].fillna(median_val, inplace=True)
+            df[col] = df[col].fillna(median_val)   # FIX: assign back instead of inplace on slice
         else:
             # Categorical: fill with mode
             mode_val = df[col].mode()
-            if not mode_val.empty:
-                df[col].fillna(mode_val[0], inplace=True)
-            else:
-                df[col].fillna("Unknown", inplace=True)
+            fill_val = mode_val[0] if not mode_val.empty else "Unknown"
+            df[col] = df[col].fillna(fill_val)     # FIX: assign back
+
+    if cols_to_drop:
+        df.drop(columns=cols_to_drop, inplace=True)
 
     # ── Cap extreme outliers (Winsorize at 1.5 IQR) ───────────────────────
     numeric_cols = df.select_dtypes(include=[np.number]).columns

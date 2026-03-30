@@ -67,11 +67,6 @@ async def check(
     return JSONResponse({"condition": condition, "error": None})
 
 
-@app.get("/health")
-def health():
-    return {"status": "ok", "gemini_key_set": bool(GEMINI_API_KEY)}
-
-
 @app.post("/analyze")
 async def analyze(
     file:                UploadFile = File(...),

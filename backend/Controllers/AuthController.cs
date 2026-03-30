@@ -1,6 +1,7 @@
-using backend.Application.Services;
+using backend.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Concurrent;
 using System.Security.Claims;
 
 namespace backend.Controllers;
@@ -9,65 +10,98 @@ namespace backend.Controllers;
 [Route("api/auth")]
 public class AuthController : ControllerBase
 {
-    private readonly AuthService _auth;
-    private readonly JwtTokenService _jwt;
+    private readonly IUserRepository _users;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(AuthService auth, JwtTokenService jwt)
+    // Per-user semaphore — prevents duplicate SIGNED_IN events from racing each other
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _syncLocks = new();
+
+    public AuthController(IUserRepository users, ILogger<AuthController> logger)
     {
-        _auth = auth;
-        _jwt = jwt;
+        _users  = users;
+        _logger = logger;
     }
 
-    public record RegisterDto(string FirstName, string LastName, string Email, string Password);
-    public record LoginDto(string Email, string Password);
+    public record SyncUserDto(string FirstName, string LastName, string Email);
 
-    [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterDto dto)
+    [Authorize]
+    [HttpPost("sync-supabase-user")]
+    public async Task<IActionResult> SyncSupabaseUser([FromBody] SyncUserDto dto)
     {
-        var (user, code, message) = await _auth.RegisterAsync(
-            dto.FirstName, dto.LastName, dto.Email, dto.Password);
+        var supabaseId = User.FindFirstValue("sub")
+                      ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-        if (user == null)
+        if (string.IsNullOrEmpty(supabaseId))
+            return Unauthorized(new { error = "Missing user ID in token" });
+
+        if (!Guid.TryParse(supabaseId, out var supabaseGuid))
+            return Unauthorized(new { error = "Invalid user ID format in token" });
+
+        // Per-user lock prevents concurrent SIGNED_IN double-fire issues
+        var sem = _syncLocks.GetOrAdd(supabaseId, _ => new SemaphoreSlim(1, 1));
+        await sem.WaitAsync();
+        try
         {
-            if (code == "EMAIL_EXISTS")
-                return Conflict(new { code, message });
-
-            return BadRequest(new { code, message });
+            return await RunSyncAsync(supabaseGuid, dto);
         }
-
-        return Ok(new
+        finally
         {
-            user = new { id = user.Id, email = user.Email, userName = user.UserName }
-        });
+            sem.Release();
+            _syncLocks.TryRemove(supabaseId, out _);
+        }
     }
 
-    [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginDto dto)
+    private async Task<IActionResult> RunSyncAsync(Guid supabaseGuid, SyncUserDto dto)
     {
-        var (user, code, message) = await _auth.LoginAsync(dto.Email, dto.Password);
+        _logger.LogInformation("[Auth] Sync — JWT sub={Sub}, email={Email}", supabaseGuid, dto.Email);
 
-        if (user == null)
-            return Unauthorized(new { code, message });
-
-        var token = _jwt.Create(user);
-
-        return Ok(new
+        try
         {
-            token,
-            user = new { id = user.Id, email = user.Email, userName = user.UserName }
-        });
+            // Fast path: correct row already exists
+            var existing = await _users.GetByIdAsync(supabaseGuid);
+            if (existing != null)
+            {
+                _logger.LogInformation("[Auth] Already synced — id={Id}", supabaseGuid);
+                return Ok(new { message = "User already exists", id = existing.Id });
+            }
+
+            // Stale row with same email but old UUID — clean it up first
+            // This happens when the Supabase project is reset or user is deleted/recreated
+            var staleByEmail = await _users.GetByEmailAsync(dto.Email);
+            if (staleByEmail != null && staleByEmail.Id != supabaseGuid)
+            {
+                _logger.LogWarning("[Auth] Stale row — email={Email}, wrongId={WrongId}, correctId={CorrectId}",
+                    dto.Email, staleByEmail.Id, supabaseGuid);
+
+                await _users.DeleteAsync(staleByEmail.Id);
+                _logger.LogInformation("[Auth] Stale row removed — email={Email}", dto.Email);
+            }
+
+            // Insert (or upsert — UserRepository.AddAsync uses Upsert, so concurrent calls are safe)
+            var user = backend.Domain.Entities.User.CreateWithId(
+                supabaseGuid,
+                $"{dto.FirstName} {dto.LastName}".Trim(),
+                dto.Email,
+                "supabase-auth"
+            );
+
+            await _users.AddAsync(user);
+            _logger.LogInformation("[Auth] User synced — email={Email}, id={Id}", dto.Email, supabaseGuid);
+            return Ok(new { message = "User synced", id = user.Id });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Auth] Sync failed — email={Email}, id={Id}", dto.Email, supabaseGuid);
+            return StatusCode(500, new { error = "Failed to sync user", detail = ex.Message });
+        }
     }
 
-    // Checkpoint B: verify token works
-    // Frontend calls this after login using: Authorization: Bearer <token>
     [Authorize]
     [HttpGet("me")]
     public IActionResult Me()
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var email = User.FindFirstValue(ClaimTypes.Email);
-        var username = User.FindFirstValue("username");
-
-        return Ok(new { userId, email, username });
+        var userId = User.FindFirstValue("sub") ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var email  = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("email");
+        return Ok(new { userId, email });
     }
 }

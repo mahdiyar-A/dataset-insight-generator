@@ -7,7 +7,7 @@ from ai_engine.models.models import StatsSummary, LLMReport, ChartInstruction
 
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 
-CHART_COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444"]
+CHART_COLORS = ["#3b82f6", "#a855f7", "#10b981", "#f97316", "#ec4899"]
 CHART_TYPES  = ["bar", "line", "scatter", "histogram", "heatmap", "box"]
 
 
@@ -143,7 +143,7 @@ def call_gemini(stats: StatsSummary, confidence_note: str, was_cleaned: bool, ap
             yColumn=c.get("y_column"),
             description=c.get("description", ""),
             insightIndex=c.get("insight_index", 1),
-            color=c.get("color", CHART_COLORS[i % len(CHART_COLORS)]),
+            color=CHART_COLORS[i % len(CHART_COLORS)],  # force cycling — Gemini always returns the example blue
         ))
 
     return LLMReport(

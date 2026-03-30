@@ -27,9 +27,18 @@ public class UserProfileController : ControllerBase
     [HttpGet("me")]
     public async Task<IActionResult> GetMe()
     {
-        var id  = GetCurrentUserId();
-        var dto = await _svc.GetMeAsync(id);
-        return Ok(dto);
+        var id = GetCurrentUserId();
+        try
+        {
+            var dto = await _svc.GetMeAsync(id);
+            return Ok(dto);
+        }
+        catch (InvalidOperationException ex) when (ex.Message == "User not found")
+        {
+            // User authenticated but not yet synced to public.users
+            // Return 404 so frontend can retry
+            return NotFound(new { error = "NOT_SYNCED", message = "User profile not ready yet." });
+        }
     }
 
     // ── PATCH /api/user/me/username ──────────────────────────────────────

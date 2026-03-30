@@ -32,7 +32,7 @@ def build_stats_summary(df: pd.DataFrame, quality: DataQualityResult) -> StatsSu
             "q3":     round(float(s.quantile(0.75)), 4),
             "skew":   round(skewness, 3),
             "kurtosis": round(kurtosis, 3),
-            "outlier_pct": round(quality.outlierColumns.count(col) * 100 / max(len(quality.outlierColumns), 1), 1),
+            "outlier_pct": round(float(((numeric_df[col].dropna() < numeric_df[col].dropna().quantile(0.25) - 3*(numeric_df[col].dropna().quantile(0.75)-numeric_df[col].dropna().quantile(0.25))) | (numeric_df[col].dropna() > numeric_df[col].dropna().quantile(0.75) + 3*(numeric_df[col].dropna().quantile(0.75)-numeric_df[col].dropna().quantile(0.25)))).mean() * 100), 1),
         }
 
     # ── Top correlations (up to 5) ────────────────────────────────────────

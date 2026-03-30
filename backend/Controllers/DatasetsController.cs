@@ -26,7 +26,7 @@ public class DatasetsController : ControllerBase
 
     private Guid GetUserId()
     {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+        var claim = User.FindFirstValue("sub") ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(claim) || !Guid.TryParse(claim, out var id))
             throw new UnauthorizedAccessException("Missing user id claim");
         return id;

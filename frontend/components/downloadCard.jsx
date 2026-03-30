@@ -164,10 +164,10 @@ export default function DownloadCard({ dataset }) {
           Sent from dataset_insight_generator.ai@proton.me to your registered address.
         </p>
 
-        {/* What's included */}
-        <div className="report-preview">
-          <h3 style={{ fontSize:"0.78rem", color:"#6b7280", marginBottom:"10px", letterSpacing:"0.05em", textTransform:"uppercase" }}>
-            What's included in your report
+        {/* What's included — always shown so users know what they're getting */}
+        <div style={{ marginTop:"8px" }}>
+          <h3 style={{ fontSize:"0.78rem", color:"#6b7280", marginBottom:"10px", letterSpacing:"0.05em", textTransform:"uppercase", margin:"0 0 10px 0" }}>
+            What&apos;s included in your report
           </h3>
           <div style={{ display:"flex", flexDirection:"column", gap:"7px" }}>
             {REPORT_SECTIONS.map((s,i) => (

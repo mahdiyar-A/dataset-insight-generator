@@ -26,18 +26,35 @@ import InfoCards from "@/components/infoCards";
 export default function DashboardPage() {
   const [activeSection, setActiveSection] = useState("top");
   const router = useRouter();
-  const { logout, currentUser, token, refreshUser } = useAuth();
+  const { logout, currentUser, token, refreshUser, isLoading } = useAuth();
 
-  // Block browser back button — push /login so back never exposes dashboard
+  // ── Auth guard — wait for session to load before redirecting ─────────
   useEffect(() => {
-    window.history.pushState(null, "", window.location.href);
-    const handlePopState = () => {
-      window.history.pushState(null, "", window.location.href);
-      router.push("/login");
+    if (!isLoading && !token) {
+      router.replace('/login');
+    }
+  }, [token, isLoading]);
+
+  // Block browser back button from leaving the dashboard to an unauthed page.
+  // Strategy: on mount push a sentinel entry, then on popstate (back/forward) re-push
+  // and redirect to login. This avoids the Next.js router conflict of the old approach.
+  useEffect(() => {
+    // Push a sentinel so there's always something to pop back to
+    window.history.pushState({ dashboard: true }, "");
+
+    const handlePopState = (e: PopStateEvent) => {
+      // If the user navigated back OUT of the dashboard sentinel, send them to login
+      if (!e.state?.dashboard) {
+        router.replace("/login");
+      } else {
+        // Re-push so the next back press is also caught
+        window.history.pushState({ dashboard: true }, "");
+      }
     };
+
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
+  }, [router]);
 
   const handleSignOut = () => { logout(); router.push("/"); };
 
@@ -206,6 +223,9 @@ export default function DashboardPage() {
 
   const showProcessingBanner = (datasetStatus === "processing" || datasetStatus === "pending") && !reportReady && !!dataset;
   const showFailedBanner     = datasetStatus === "failed";
+
+  if (isLoading) return null;
+  if (!token) return null;
 
   return (
     <div className="dig-body" style={{ display: "flex", minHeight: "100vh" }}>

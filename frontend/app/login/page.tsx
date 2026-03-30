@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { useAuth } from "@/app/contexts/AuthContext";
-import "./login.css";
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useAuth } from '@/app/contexts/AuthContext';
+import './login.css';
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
@@ -12,26 +12,27 @@ export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [email,    setEmail]    = useState('');
+  const [password, setPassword] = useState('');
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState('');
 
   const handleLogin = async () => {
-    setError("");
-
-    const e = email.trim();
-    if (!isValidEmail(e))
-      return setError("Enter a valid email (must include @).");
-    if (!password) return setError("Password is required.");
+    setError('');
+    if (!isValidEmail(email.trim())) return setError('Enter a valid email.');
+    if (!password) return setError('Password is required.');
 
     setLoading(true);
     try {
-      await login(e, password);
-      router.push("/dashboard");
+      await login(email.trim(), password);
+      router.push('/dashboard');
     } catch (err: any) {
-      setError(err?.message || "Login failed");
+      // Supabase returns "Email not confirmed" if user hasn't verified
+      if (err?.message?.includes('Email not confirmed')) {
+        setError('Please verify your email before logging in. Check your inbox.');
+      } else {
+        setError(err?.message || 'Login failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -40,35 +41,23 @@ export default function LoginPage() {
   return (
     <div className="auth-body">
       <div className="auth-container">
-        <button
-          onClick={() => router.push("/")}
-          style={{ background:"none", border:"none", color:"#64748b", cursor:"pointer", fontSize:"0.85rem", alignSelf:"flex-start", marginBottom:"8px", padding:"0" }}>
+        <button onClick={() => router.push('/')}
+          style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '0.85rem', alignSelf: 'flex-start', marginBottom: '8px', padding: '0' }}>
           ← Back
         </button>
         <h2>Login</h2>
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
+        <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
 
         {error && <p className="auth-error">{error}</p>}
 
         <div className="forgot-password">
-          <Link href="/login/forgotPassword">Forgot password?</Link>
+          <Link href="/forgot-password">Forgot password?</Link>
         </div>
 
         <button className="auth-btn" onClick={handleLogin} disabled={loading}>
-          {loading ? "Logging in…" : "Login"}
+          {loading ? 'Logging in…' : 'Login'}
         </button>
 
         <div className="auth-footer">

@@ -1,25 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Auth is handled by AuthContext + Supabase session on the client side.
+// Middleware just passes everything through — no cookie checks needed.
 export function middleware(request: NextRequest) {
-  const pathname = request.nextUrl.pathname;
-  
-  // Public routes that don't need authentication
-  const publicRoutes = ['/', '/login', '/register', '/guestDashboard'];
-  const isPublicRoute = publicRoutes.some(route => 
-    pathname === route || pathname.startsWith(route + '/')
-  );
-
-  if (isPublicRoute) {
-    return NextResponse.next();
-  }
-
-  // Check for auth token for protected routes
-  const token = request.cookies.get('authToken')?.value;
-
-  if (!token && pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
   return NextResponse.next();
 }
 

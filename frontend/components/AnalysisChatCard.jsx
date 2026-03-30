@@ -102,7 +102,8 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
       setCondition(cond);
 
       if (failed) {
-        setStage(0);
+        // Stay at stage 1 so the error message stays visible in the chat log.
+        // The chatbot resets automatically when the user uploads a new file.
         setAwaitingResponse(false);
       } else if (done) {
         setStage(2);
@@ -122,13 +123,17 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
     } catch (err) {
       if (guestMode) {
         console.error("[Guest chat error]", err);
-        console.error("[Guest chat] message was:", message);
-        console.error("[Guest chat] sessionId:", sessionStorage.getItem("dig_guest_session"));
-        addMsg("assistant", `Connection error: ${err?.message ?? "Could not reach server"}. Check browser console for details.`);
-        setStage(0);
+        addMsg("assistant", "⚠️ Could not reach the analysis service. Please make sure the backend is running, then upload your file again to retry.");
         setAwaitingResponse(false);
+        // Stay at stage 1 — chat log stays visible. Next upload resets the chatbot.
       } else {
-        handleStubFlow(message);
+        // For logged-in users: show error in chat, stay visible. Fall back to stub only in dev.
+        if (process.env.NODE_ENV === "development") {
+          handleStubFlow(message);
+        } else {
+          addMsg("assistant", "⚠️ Could not reach the analysis service. Please try uploading your file again.");
+          setAwaitingResponse(false);
+        }
       }
     } finally {
       setSending(false);
