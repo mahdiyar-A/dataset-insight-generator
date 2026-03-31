@@ -42,12 +42,18 @@ def check_data_quality(df: pd.DataFrame) -> DataQualityResult:
         if df[col].nunique(dropna=True) <= 1:
             warnings.append(f"Column '{col}' has no variance — all values are the same.")
 
-    # Mixed type columns
+    # Mixed type columns — object columns that are mostly numeric but stored as strings
+    # (e.g. "C" suppressed entries mixed with real numbers like "979594")
     for col in df.select_dtypes(include="object").columns:
         coerced = pd.to_numeric(df[col], errors="coerce")
         numeric_ratio = coerced.notnull().mean()
-        if 0.2 < numeric_ratio < 0.85:
-            warnings.append(f"Column '{col}' has mixed numeric and text values ({round(numeric_ratio*100)}% numeric).")
+        if numeric_ratio > 0.5:
+            # More than half the values are numeric — column should be numeric dtype
+            non_numeric_count = int((coerced.isnull() & df[col].notnull()).sum())
+            warnings.append(
+                f"Column '{col}' should be numeric but is stored as text "
+                f"({round(numeric_ratio*100, 1)}% parseable, {non_numeric_count} non-numeric entries will become missing)."
+            )
 
     # Fully empty rows
     empty_rows = int(df.isnull().all(axis=1).sum())

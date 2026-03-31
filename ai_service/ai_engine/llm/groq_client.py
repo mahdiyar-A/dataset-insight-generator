@@ -20,6 +20,7 @@ Phase 6  →  judge_insights(report_json, chart_instructions, stats, domain, api
 
 import json
 import re
+import time
 import urllib.request
 import urllib.error
 from typing import Dict, Any, List, Optional
@@ -56,13 +57,38 @@ def _groq_call(messages: List[Dict], api_key: str,
         },
         method="POST",
     )
-    try:
-        with urllib.request.urlopen(req, timeout=45) as resp:
-            raw = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        raise RuntimeError(f"Groq API {e.code}: {e.read().decode()}")
-    except urllib.error.URLError as e:
-        raise RuntimeError(f"Groq connection failed: {e.reason}")
+    # Retry on 429 (rate limit) with exponential backoff — Groq free tier is tight
+    max_retries = 3
+    last_err    = None
+    for attempt in range(max_retries):
+        try:
+            with urllib.request.urlopen(req, timeout=45) as resp:
+                raw = json.loads(resp.read().decode("utf-8"))
+            break   # success
+        except urllib.error.HTTPError as e:
+            body = e.read().decode()
+            if e.code == 429:
+                wait = 2 ** attempt * 5   # 5s, 10s, 20s
+                print(f"[Groq] Rate limited (429) — waiting {wait}s before retry {attempt+1}/{max_retries}")
+                time.sleep(wait)
+                last_err = RuntimeError(f"Groq rate limit after {max_retries} retries")
+                # Re-build request (consumed after first urlopen attempt)
+                req = urllib.request.Request(
+                    GROQ_API_URL, data=payload,
+                    headers={
+                        "Content-Type":  "application/json",
+                        "Authorization": f"Bearer {api_key}",
+                        "User-Agent":    "Mozilla/5.0 (compatible; DIG-AI/1.0)",
+                        "Accept":        "application/json",
+                    },
+                    method="POST",
+                )
+                continue
+            raise RuntimeError(f"Groq API {e.code}: {body}")
+        except urllib.error.URLError as e:
+            raise RuntimeError(f"Groq connection failed: {e.reason}")
+    else:
+        raise last_err
 
     try:
         return raw["choices"][0]["message"]["content"]

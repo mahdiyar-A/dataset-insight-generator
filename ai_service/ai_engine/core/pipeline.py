@@ -140,17 +140,21 @@ def run_pipeline(
     """
 
     # ── Phase 0: Load + basic quality gate ───────────────────────────────
+    print(f"[Pipeline] Phase 0 — Loading file: {file_name}", flush=True)
     try:
         df_original = _load_dataframe(file_bytes, file_name)
     except Exception as e:
         return _fail("not_workable", f"Could not read file: {e}")
 
+    print(f"[Pipeline] Loaded {len(df_original):,} rows × {len(df_original.columns)} cols", flush=True)
     quality = check_data_quality(df_original)
     if not quality.isUsable:
         return _fail("not_workable", f"Dataset cannot be processed: {'; '.join(quality.errors)}")
 
     # ── Phase 1: Groq — domain, column decisions, cleaning directives ─────
+    print(f"[Pipeline] Phase 1 — Groq domain classification...", flush=True)
     domain = _run_domain_gate(df_original, groq_api_key)
+    print(f"[Pipeline] Domain: {domain.domain} | analyzable: {domain.is_analyzable}", flush=True)
 
     if not domain.is_analyzable:
         return _fail("not_workable", f"Dataset rejected: {domain.rejection_reason}")
@@ -164,6 +168,7 @@ def run_pipeline(
     # Confidence is determined later by Gemini (Phase 5) and audited by Groq judge (Phase 6).
 
     # ── Phase 3: Context-aware cleaning ───────────────────────────────────
+    print(f"[Pipeline] Phase 3 — Cleaning (user_wants={user_wants_cleaning}, needs={quality.needsCleaning})...", flush=True)
     was_cleaned     = False
     cleaned_csv_b64 = None
     df_work         = df_original
@@ -193,9 +198,14 @@ def run_pipeline(
             df_work = df_work.drop(columns=cols_to_drop)
 
     # ── Phase 4: Enhanced statistical engine ─────────────────────────────
+    print(f"[Pipeline] Phase 4 — Statistical engine running on {len(df_work):,} rows...", flush=True)
     stats = build_stats_summary(df_work, quality)
+    print(f"[Pipeline] Stats done. Numeric cols: {len(stats.numericStats)}, Correlations: {len(stats.topCorrelations)}", flush=True)
 
     # ── Phase 5: Gemini — insights + report + chart instructions ─────────
+    print(f"[Pipeline] Phase 5 — Gemini insight agent...", flush=True)
+    # call_gemini never raises — on any failure it returns a stats-only fallback report.
+    # The outer try/except is a last-resort safety net.
     try:
         llm_report = call_gemini(
             stats=stats,
@@ -205,13 +215,10 @@ def run_pipeline(
             api_key=gemini_api_key,
         )
     except Exception as e:
-        _log(stats, domain, None, was_cleaned, user_wants_cleaning, 0, 0,
-             "failed", str(e), session_id, groq_drops, groq_methods, [], {})
-        return PipelineResult(
-            status="failed", condition="all_good",
-            error=f"AI analysis failed: {e}",
-            cleanedCsvBase64=cleaned_csv_b64, pdfReportBase64=None, charts=[],
-        ).to_response()
+        # This should not happen, but if it does — build fallback inline
+        print(f"[Pipeline] Unexpected Gemini exception: {e} — building fallback report")
+        from ai_engine.llm.gemini_client import _build_fallback_report
+        llm_report = _build_fallback_report(stats, domain)
 
     # Build the report dict to send to judge (before chart generation)
     report_for_judge = {
@@ -233,7 +240,10 @@ def run_pipeline(
         "conclusion": llm_report.conclusion,
     }
 
+    print(f"[Pipeline] Phase 5 done. Insights: {len(llm_report.insights)}, Charts: {len(llm_report.chartInstructions)}", flush=True)
+
     # ── Phase 6: Groq judge — audit, corrections, confidence score ────────
+    print(f"[Pipeline] Phase 6 — Groq judge...", flush=True)
     judge = _run_judge(
         report_for_judge, stats, domain.domain,
         domain.attribute_interpretations,
@@ -252,12 +262,16 @@ def run_pipeline(
             gemini_note = llm_report.confidenceNote
             llm_report.confidenceNote = judge.judge_statement
 
+    print(f"[Pipeline] Phase 6 done. Judge confidence: {judge.confidence_score}/10 ({judge.confidence_level})", flush=True)
+
     # ── Phase 7: Chart generation (post-judge, using corrected instructions) ──
+    print(f"[Pipeline] Phase 7 — Generating {len(llm_report.chartInstructions)} chart(s)...", flush=True)
     try:
         charts = generate_charts(df_work, llm_report.chartInstructions)
     except Exception as e:
-        print(f"[Pipeline] Chart generation error: {e}")
+        print(f"[Pipeline] Chart generation error: {e}", flush=True)
         charts = []
+    print(f"[Pipeline] Charts done: {len(charts)} generated", flush=True)
 
     chart_types_chosen = [c.chartType for c in llm_report.chartInstructions]
     judge_changes = {
@@ -267,6 +281,7 @@ def run_pipeline(
     }
 
     # ── PDF build ─────────────────────────────────────────────────────────
+    print(f"[Pipeline] Phase 7 — Building PDF...", flush=True)
     try:
         pdf_b64 = build_pdf(
             report=llm_report,
@@ -290,6 +305,8 @@ def run_pipeline(
             cleanedCsvBase64=cleaned_csv_b64, pdfReportBase64=None, charts=charts,
         ).to_response()
 
+    print(f"[Pipeline] PDF built successfully.", flush=True)
+
     # ── Phase 8: Training log ─────────────────────────────────────────────
     _log(stats, domain, judge, was_cleaned, user_wants_cleaning,
          len(llm_report.insights), len(charts),
@@ -310,6 +327,7 @@ def run_pipeline(
     # Low confidence advisory — report IS generated, but C# asks user if they want to see it
     low_conf_warning = final_score <= LOW_CONFIDENCE_THRESHOLD
 
+    print(f"[Pipeline] Done. Status=done, condition={condition}, low_conf={low_conf_warning}", flush=True)
     return PipelineResult(
         status="done",
         condition=condition,

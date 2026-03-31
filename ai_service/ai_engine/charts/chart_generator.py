@@ -46,20 +46,30 @@ def _safe_col(df: pd.DataFrame, col: str) -> str | None:
     return lower_map.get(col.lower())
 
 
+def _infer_top_n(title: str, default: int = 10) -> int:
+    """Extract 'Top N' from chart title if present (e.g. 'Top 5 Industries' → 5)."""
+    import re
+    m = re.search(r"\btop\s+(\d+)\b", title, re.IGNORECASE)
+    if m:
+        return min(int(m.group(1)), 20)   # cap at 20 regardless
+    return default
+
+
 def _bar_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
     x = _safe_col(df, instr.xColumn)
     y = _safe_col(df, instr.yColumn)
     if not x:
         return None
 
+    top_n = _infer_top_n(instr.title)
     fig, ax = plt.subplots(figsize=(8, 4.5))
 
     if y and pd.api.types.is_numeric_dtype(df[y]):
-        data = df.groupby(x)[y].mean().sort_values(ascending=False).head(15)
+        data = df.groupby(x)[y].mean().sort_values(ascending=False).head(top_n)
         ax.bar(data.index.astype(str), data.values, color=instr.color, alpha=0.85, edgecolor="#0f172a", linewidth=0.5)
         ax.set_ylabel(y)
     else:
-        data = df[x].value_counts().head(15)
+        data = df[x].value_counts().head(top_n)
         ax.bar(data.index.astype(str), data.values, color=instr.color, alpha=0.85, edgecolor="#0f172a", linewidth=0.5)
         ax.set_ylabel("Count")
 

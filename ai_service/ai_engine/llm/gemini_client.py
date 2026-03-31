@@ -8,10 +8,15 @@ One comprehensive call that:
   4. Specifies chart instructions (type / X / Y / placement) — charts NOT generated here
   5. Writes a 2-3 paragraph Data Quality & Methodology section
   6. Assigns its own confidence score 1-10 (later reviewed by Groq judge)
+
+Reliability guarantee: if Gemini fails for any reason (429, timeout, safety block,
+bad JSON), a fallback stats-only report is returned instead of raising — so the
+pipeline always produces a PDF.
 """
 
 import json
 import re
+import time
 import urllib.request
 import urllib.error
 from typing import List, Dict, Any, Optional
@@ -229,6 +234,174 @@ Respond ONLY with JSON. No markdown code blocks. No text before or after the JSO
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Fallback report — used when Gemini is unavailable
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _build_fallback_report(stats: StatsSummary, domain: DomainResult) -> LLMReport:
+    """
+    Stats-only minimal report. Used when Gemini fails after all retries
+    (rate limit, safety block, network error, bad JSON).
+    Ensures the pipeline always produces a PDF rather than returning an error.
+    Confidence score is set to 4 to signal reduced analytical depth.
+    """
+    insights = []
+
+    # Insight 1: Dataset scope
+    insights.append({
+        "rank": 1,
+        "title": f"Dataset Overview: {stats.rowCount:,} Records Across {stats.columnCount} Attributes",
+        "body": (
+            f"This {domain.domain} dataset comprises {stats.rowCount:,} records and "
+            f"{stats.columnCount} attributes. Automated statistical processing completed successfully. "
+            f"AI-powered narrative interpretation was unavailable for this run due to service constraints — "
+            f"statistical outputs are presented directly."
+        ),
+        "insight_index": 1,
+    })
+
+    # Insight 2: Top correlation if available
+    if stats.topCorrelations:
+        corr = stats.topCorrelations[0]
+        col1 = corr.get("col1", "a key variable")
+        col2 = corr.get("col2", "a related measure")
+        r_val = corr.get("correlation", 0)
+        insights.append({
+            "rank": 2,
+            "title": "Significant Statistical Relationship Identified",
+            "body": (
+                f"Correlation analysis identified a notable relationship between {col1} and {col2} "
+                f"(Pearson r = {r_val:.2f}). "
+                f"This association warrants further investigation to determine its practical significance "
+                f"within the {domain.domain} context."
+            ),
+            "insight_index": 2,
+        })
+
+    # Insight 3: Missing data warning if meaningful
+    significant_missing = {k: v for k, v in stats.missingPercentages.items() if v > 5}
+    if significant_missing:
+        worst_col, worst_pct = max(significant_missing.items(), key=lambda x: x[1])
+        insights.append({
+            "rank": 3,
+            "title": "Data Completeness Limitations Identified",
+            "body": (
+                f"{len(significant_missing)} attribute(s) exhibit meaningful missing data. "
+                f"The most affected attribute — {worst_col} — is missing in {worst_pct:.1f}% of records. "
+                f"Findings derived from these attributes should be interpreted with appropriate caution."
+            ),
+            "insight_index": 3,
+        })
+
+    # Insight 4: Outliers if detected
+    if stats.outlierSummary:
+        high_outlier = max(stats.outlierSummary.items(), key=lambda x: x[1], default=None)
+        if high_outlier and high_outlier[1] > 2:
+            insights.append({
+                "rank": 4,
+                "title": "Outlier Concentrations Detected in Key Attributes",
+                "body": (
+                    f"Statistical outlier detection flagged elevated anomaly rates in {len(stats.outlierSummary)} attribute(s). "
+                    f"The highest concentration is observed in {high_outlier[0]} at {high_outlier[1]:.1f}% of records. "
+                    f"These values may represent genuine extremes or data entry anomalies — manual review is recommended."
+                ),
+                "insight_index": 4,
+            })
+
+    # Build basic chart instructions from available columns
+    numeric_cols = list(stats.numericStats.keys()) if stats.numericStats else []
+    cat_cols = list(stats.categoricalSummaries.keys()) if stats.categoricalSummaries else []
+
+    chart_instructions: List[ChartInstruction] = []
+    chart_idx = 1
+
+    if numeric_cols:
+        chart_instructions.append(ChartInstruction(
+            index=chart_idx,
+            chartType="histogram",
+            title=f"Distribution: {numeric_cols[0]}",
+            xColumn=numeric_cols[0],
+            yColumn=None,
+            description=f"Frequency distribution of the primary numeric attribute.",
+            insightIndex=1,
+            color=CHART_COLORS[0],
+            chartSubtype="",
+            groupColumn=None,
+            yColumns=[],
+        ))
+        chart_idx += 1
+
+    if len(numeric_cols) >= 2:
+        chart_instructions.append(ChartInstruction(
+            index=chart_idx,
+            chartType="scatter",
+            title=f"{numeric_cols[0]} vs {numeric_cols[1]}",
+            xColumn=numeric_cols[0],
+            yColumn=numeric_cols[1],
+            description=f"Relationship between the two primary numeric attributes.",
+            insightIndex=2 if len(insights) >= 2 else 1,
+            color=CHART_COLORS[1],
+            chartSubtype="",
+            groupColumn=None,
+            yColumns=[],
+        ))
+        chart_idx += 1
+
+    if cat_cols and numeric_cols:
+        chart_instructions.append(ChartInstruction(
+            index=chart_idx,
+            chartType="bar",
+            title=f"{numeric_cols[0]} by {cat_cols[0]}",
+            xColumn=cat_cols[0],
+            yColumn=numeric_cols[0],
+            description=f"Average {numeric_cols[0]} broken down by {cat_cols[0]}.",
+            insightIndex=1,
+            color=CHART_COLORS[2],
+            chartSubtype="",
+            groupColumn=None,
+            yColumns=[],
+        ))
+        chart_idx += 1
+
+    missing_count = len([k for k, v in stats.missingPercentages.items() if v > 0])
+    quality_note = (
+        f"The dataset contains {stats.rowCount:,} rows and {stats.columnCount} columns. "
+        + (f"{missing_count} attribute(s) contain missing values. " if missing_count else "No missing values were detected. ")
+        + "Standard statistical quality checks were performed. Results reflect the data as provided."
+    )
+
+    return LLMReport(
+        reportTitle=f"{domain.domain.title()} Dataset Statistical Analysis",
+        introduction=(
+            f"This report presents automated statistical analysis of a {domain.domain} dataset "
+            f"comprising {stats.rowCount:,} records across {stats.columnCount} attributes. "
+            f"Statistical processing completed successfully. AI narrative interpretation was "
+            f"unavailable for this run; quantitative findings are presented directly."
+        ),
+        executiveSummary=(
+            f"Statistical processing of the {domain.domain} dataset completed across all {stats.columnCount} attributes. "
+            + (f"Correlation analysis identified {len(stats.topCorrelations)} notable relationships between attributes. " if stats.topCorrelations else "")
+            + f"Manual review of the outputs is recommended to draw domain-specific conclusions."
+        ),
+        insights=insights,
+        chartInstructions=chart_instructions,
+        dataQualitySection=quality_note,
+        geminiConfidenceScore=4,
+        confidenceNote=(
+            "This report was generated using statistical computation only. "
+            "AI-powered narrative interpretation was unavailable for this run — "
+            "confidence is reduced accordingly."
+        ),
+        conclusion=(
+            f"Statistical analysis of the {domain.domain} dataset has been completed successfully. "
+            f"The outputs reflect automated computation from the provided data. "
+            f"For comprehensive AI-assisted insights and executive narrative, "
+            f"re-running the analysis when service availability is restored is recommended."
+        ),
+        rawResponse="[fallback report — Gemini service unavailable]",
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # API call
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -239,49 +412,123 @@ def call_gemini(
     dropped_columns: List[str],
     api_key: str,
 ) -> LLMReport:
-    """Phase 4: Insight agent + report writer. Returns full LLMReport."""
+    """
+    Phase 4: Insight agent + report writer. Returns full LLMReport.
+
+    Never raises — on any failure (429, timeout, safety block, bad JSON)
+    returns a stats-only fallback report so the pipeline always produces a PDF.
+    """
     prompt = _build_prompt(stats, domain, was_cleaned, dropped_columns)
 
-    payload = json.dumps({
+    payload_dict = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
             "temperature":     0.2,
             "maxOutputTokens": 8192,
             "topP":            0.9,
         },
-    }).encode("utf-8")
+    }
 
     url = f"{GEMINI_API_URL}?key={api_key}"
-    req = urllib.request.Request(
-        url, data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
 
+    MAX_RETRIES = 3
+    RETRY_DELAYS = [8, 15]        # seconds between attempts (only 2 gaps for 3 tries)
+    TIMEOUT_SECS = 90             # per-attempt timeout — fail fast, use fallback
+    raw = None
+    last_error = None
+
+    for attempt in range(MAX_RETRIES):
+        print(f"[Gemini] Calling API (attempt {attempt + 1}/{MAX_RETRIES})...", flush=True)
+        payload = json.dumps(payload_dict).encode("utf-8")
+        req = urllib.request.Request(
+            url, data=payload,
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent":   "Mozilla/5.0 (compatible; DIG-AI/1.0)",
+            },
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=TIMEOUT_SECS) as resp:
+                raw = json.loads(resp.read().decode("utf-8"))
+            print(f"[Gemini] Response received OK", flush=True)
+            break  # success — exit retry loop
+
+        except urllib.error.HTTPError as e:
+            body = ""
+            try:
+                body = e.read().decode()
+            except Exception:
+                pass
+            last_error = f"Gemini HTTP {e.code}: {body[:200]}"
+            print(f"[Gemini] HTTP {e.code}: {body[:120]}", flush=True)
+
+            if e.code in (429, 503) and attempt < MAX_RETRIES - 1:
+                wait = RETRY_DELAYS[attempt]
+                print(f"[Gemini] Waiting {wait}s before retry...", flush=True)
+                time.sleep(wait)
+                continue
+            # Non-retriable HTTP error or exhausted retries
+            break
+
+        except urllib.error.URLError as e:
+            last_error = f"Gemini connection error: {e.reason}"
+            print(f"[Gemini] URLError: {e.reason}", flush=True)
+            if attempt < MAX_RETRIES - 1:
+                wait = RETRY_DELAYS[attempt]
+                print(f"[Gemini] Waiting {wait}s before retry...", flush=True)
+                time.sleep(wait)
+                continue
+            break
+
+        except Exception as e:
+            last_error = f"Gemini unexpected error: {e}"
+            print(f"[Gemini] Unexpected error: {e}", flush=True)
+            break
+
+    # ── All retries exhausted or non-retriable error ───────────────────────
+    if raw is None:
+        print(f"[Gemini] Failed after {MAX_RETRIES} attempts: {last_error} — using fallback report")
+        return _build_fallback_report(stats, domain)
+
+    # ── Safety block: empty candidates array ──────────────────────────────
+    candidates = raw.get("candidates", [])
+    if not candidates:
+        block_reason = raw.get("promptFeedback", {}).get("blockReason", "unknown")
+        print(f"[Gemini] Empty candidates — blockReason: {block_reason} — using fallback report")
+        return _build_fallback_report(stats, domain)
+
+    # ── Extract text from first candidate ─────────────────────────────────
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            raw = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        raise RuntimeError(f"Gemini API {e.code}: {e.read().decode()}")
-    except urllib.error.URLError as e:
-        raise RuntimeError(f"Gemini connection failed: {e.reason}")
+        candidate = candidates[0]
+        finish_reason = candidate.get("finishReason", "STOP")
+        if finish_reason not in ("STOP", "MAX_TOKENS"):
+            print(f"[Gemini] Unexpected finishReason: {finish_reason} — using fallback report")
+            return _build_fallback_report(stats, domain)
+        text = candidate["content"]["parts"][0]["text"]
+    except (KeyError, IndexError) as e:
+        print(f"[Gemini] Could not extract text from candidate: {e} — using fallback report")
+        return _build_fallback_report(stats, domain)
 
-    try:
-        text = raw["candidates"][0]["content"]["parts"][0]["text"]
-    except (KeyError, IndexError):
-        raise RuntimeError(f"Unexpected Gemini response format: {raw}")
-
-    # Strip markdown fences
+    # ── Strip markdown fences ─────────────────────────────────────────────
     text = re.sub(r"```(?:json)?", "", text).strip().strip("`").strip()
 
+    # ── Parse JSON ────────────────────────────────────────────────────────
+    parsed = None
     try:
         parsed = json.loads(text)
     except json.JSONDecodeError:
         match = re.search(r"\{.*\}", text, re.DOTALL)
         if match:
-            parsed = json.loads(match.group())
-        else:
-            raise RuntimeError(f"Could not parse Gemini response as JSON:\n{text[:800]}")
+            try:
+                parsed = json.loads(match.group())
+            except json.JSONDecodeError:
+                pass
+
+    if parsed is None:
+        print(f"[Gemini] JSON parse failed — using fallback report. Raw (first 400): {text[:400]}")
+        return _build_fallback_report(stats, domain)
 
     # ── Parse chart instructions ──────────────────────────────────────────
     chart_instructions: List[ChartInstruction] = []
@@ -303,8 +550,18 @@ def call_gemini(
             yColumns=c.get("y_columns") or [],
         ))
 
+    # If Gemini returned no chart instructions, build basic fallback charts
+    if not chart_instructions:
+        print("[Gemini] No chart instructions in response — building basic fallback charts")
+        fallback = _build_fallback_report(stats, domain)
+        chart_instructions = fallback.chartInstructions
+
     # Gemini confidence score — clamp to 1-10
-    g_score = int(parsed.get("gemini_confidence_score", 6))
+    g_score = parsed.get("gemini_confidence_score", 6)
+    try:
+        g_score = int(g_score)
+    except (TypeError, ValueError):
+        g_score = 6
     g_score = max(1, min(10, g_score))
 
     return LLMReport(

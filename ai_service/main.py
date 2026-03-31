@@ -135,16 +135,11 @@ async def analyze(
         session_id=session_id,
     )
 
-    # Map to C# AnalyzeResponseDto shape
-    return JSONResponse({
-        "session_id":          session_id,
-        "status":              result["status"],
-        "condition":           result["condition"],
-        "error":               result.get("error"),
-        "cleaned_csv_base64":  result.get("cleaned_csv_base64"),
-        "pdf_report_base64":   result.get("pdf_report_base64"),
-        "charts":              result.get("charts", []),
-    })
+    # Return the full pipeline result dict directly — includes all fields
+    # (status, condition, error, cleaned_csv_base64, pdf_report_base64,
+    #  charts, low_confidence_warning, confidence_score)
+    result["session_id"] = session_id
+    return JSONResponse(result)
 
 
 if __name__ == "__main__":

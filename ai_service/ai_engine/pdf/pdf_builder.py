@@ -237,7 +237,8 @@ def build_pdf(
     pdf.ln(3)
     pdf.set_font("Helvetica", "", 13)
     pdf.set_text_color(*BRAND_MUTED)
-    pdf.cell(0, 8, _s(report.reportTitle), align="C", ln=True)
+    pdf.set_x(20)
+    pdf.multi_cell(0, 8, _s(report.reportTitle), align="C")
 
     pdf.ln(6)
     pdf.set_font("Helvetica", "", 10)
@@ -359,9 +360,11 @@ def build_pdf(
         pdf.cell(0, 6, "Issues identified in the original dataset:", ln=True)
         pdf.ln(1)
         for issue in all_issues:
+            pdf.set_x(20)                          # always reset to left margin
             pdf.set_font("Helvetica", "", 9)
             pdf.set_text_color(*BRAND_MUTED)
             pdf.cell(8, 5, "-", ln=False)
+            pdf.set_x(28)                          # pin text start after dash
             pdf.multi_cell(158, 5, _s(issue))
         pdf.ln(3)
 
@@ -389,17 +392,21 @@ def build_pdf(
         if domain and domain.cleaning_methods:
             for m in domain.cleaning_methods:
                 if m in METHOD_EXPLANATIONS:
+                    pdf.set_x(20)
                     pdf.set_font("Helvetica", "", 9)
                     pdf.set_text_color(180, 190, 205)
                     pdf.cell(8, 5, "-", ln=False)
+                    pdf.set_x(28)
                     pdf.multi_cell(158, 5, _s(METHOD_EXPLANATIONS[m]))
                 elif ":" in m:
                     mname, col = m.split(":", 1)
                     template = METHOD_TEMPLATES.get(mname)
                     if template:
+                        pdf.set_x(20)
                         pdf.set_font("Helvetica", "", 9)
                         pdf.set_text_color(180, 190, 205)
                         pdf.cell(8, 5, "-", ln=False)
+                        pdf.set_x(28)
                         pdf.multi_cell(158, 5, _s(template(col)))
 
         # Columns dropped

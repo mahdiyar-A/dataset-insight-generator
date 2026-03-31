@@ -44,12 +44,24 @@ def clean_dataset(
             df.drop(columns=to_drop, inplace=True)
             print(f"[Cleaner] Dropped {len(to_drop)} irrelevant column(s): {to_drop}")
 
-    # ── Step 2: General always-on cleaning ────────────────────────────────
+    # ── Step 2: Coerce mixed-type numeric columns ─────────────────────────
+    # Object columns that are >50% numeric (e.g. "C" suppressed entries mixed
+    # with real numbers) get converted to float. Non-parseable values → NaN,
+    # which the fallback step below will then impute.
+    for col in df.select_dtypes(include="object").columns:
+        coerced = pd.to_numeric(df[col], errors="coerce")
+        numeric_ratio = coerced.notnull().mean()
+        if numeric_ratio > 0.5:
+            n_converted = int((coerced.isnull() & df[col].notnull()).sum())
+            df[col] = coerced
+            print(f"[Cleaner] Coerced '{col}' to numeric ({n_converted} non-numeric → NaN)")
+
+    # ── Step 3: General always-on cleaning ────────────────────────────────
     df.dropna(how="all", inplace=True)
     df.drop_duplicates(inplace=True)
     df.replace([float("inf"), float("-inf")], float("nan"), inplace=True)
 
-    # ── Step 3: Apply Groq-directed per-column methods ────────────────────
+    # ── Step 4: Apply Groq-directed per-column methods ────────────────────
     groq_handled_cols = set()
 
     for method in (groq_methods or []):
@@ -97,7 +109,7 @@ def clean_dataset(
                 df.drop(columns=[col_name], inplace=True)
                 groq_handled_cols.add(col_name)
 
-    # ── Step 4: Default fallback for remaining missing values ─────────────
+    # ── Step 5: Default fallback for remaining missing values ─────────────
     # Handle any columns that still have NaNs but weren't explicitly directed
     cols_to_drop_fallback = []
 

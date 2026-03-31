@@ -62,8 +62,8 @@ coverage/
 ####################################
 # Secrets
 ####################################
-backend/appsettings.json
-backend/appsettings.Development.json
+backend/appsettings*.json
+!backend/appsettings.example.json
 
 ####################################
 # Python
@@ -81,3 +81,26 @@ venv/
 ####################################
 backend/storage/
 backend/App_Data/
+
+####################################
+# AI training data (generated at runtime — never commit)
+####################################
+ai_service/training_data/*.jsonl
+ai_service/training_data/*.json
+ai_service/training_data/*.csv
+ai_service/model_trainer/*.pkl
+ai_service/model_trainer/*.pt
+ai_service/model_trainer/*.pth
+ai_service/model_trainer/*.h5
+ai_service/model_trainer/trained_*/
+# Keep the placeholder so the folder exists in the repo
+!ai_service/training_data/.gitkeep
+
+####################################
+# Python (extras)
+####################################
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.pyc
+*.pyo
