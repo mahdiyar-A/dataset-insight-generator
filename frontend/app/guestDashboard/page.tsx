@@ -3,11 +3,55 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import UploadCard         from "@/components/UploadCard";
+import UploadCard            from "@/components/UploadCard";
 import AnalysisAssistantCard from "@/components/AnalysisChatCard";
-import ChartsCard         from "@/components/chartsCard";
+import ChartsCard            from "@/components/chartsCard";
+import InfoCards             from "@/components/infoCards";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5150").replace(/\/$/, "");
+
+const REPORT_SECTIONS = [
+  { emoji: "📊", title: "Data Overview",         desc: "Row/column counts, data types, and a plain-language summary of your dataset." },
+  { emoji: "🔍", title: "Data Quality Analysis", desc: "Missing values, duplicates, and anomalies found — and how each was handled." },
+  { emoji: "📈", title: "Statistical Insights",  desc: "Distributions, outliers, skewness, and correlations with charts and explanations." },
+  { emoji: "🤖", title: "AI Commentary",         desc: "Natural language interpretation of patterns and trends written by the assistant." },
+  { emoji: "🧹", title: "Cleaning Log",          desc: "Every transformation applied — dropped rows, filled nulls, renamed columns." },
+  { emoji: "📉", title: "Visualizations",        desc: "All charts embedded with captions: bar charts, heatmaps, scatter plots, trend lines." },
+];
+
+function PDFModal({ reportFileName, pdfUrl, onClose }) {
+  return (
+    <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(2,6,23,0.8)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:"20px" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:"#020617", border:"1px solid rgba(31,41,55,0.9)", borderRadius:"18px", padding:"16px", width:"min(1000px, 95vw)", height:"min(85vh, 900px)", display:"flex", flexDirection:"column", gap:"12px", boxShadow:"0 24px 60px rgba(0,0,0,0.6)", overflow:"hidden" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
+            <div style={{ width:"38px", height:"38px", borderRadius:"8px", background:"rgba(239,68,68,0.15)", border:"1px solid rgba(239,68,68,0.3)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="1.6">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+            </div>
+            <div>
+              <h3 style={{ margin:0, fontSize:"0.95rem", fontWeight:700, color:"#e5e7eb" }}>{reportFileName}</h3>
+              <p className="muted-small" style={{ marginTop:"2px" }}>Live report preview</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background:"rgba(15,23,42,0.9)", border:"1px solid rgba(55,65,81,0.8)", borderRadius:"8px", padding:"7px", color:"#6b7280", cursor:"pointer", display:"flex" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div style={{ flex:1, borderRadius:"12px", overflow:"hidden", border:"1px solid rgba(31,41,55,0.8)" }}>
+          <iframe title="PDF preview" src={pdfUrl} style={{ width:"100%", height:"100%", border:0, background:"#fff" }}/>
+        </div>
+        <p className="muted-small" style={{ textAlign:"center", margin:0 }}>If the preview doesn&apos;t load, use &quot;Download PDF Report&quot;.</p>
+      </div>
+    </div>
+  );
+}
 
 // Stable guest session ID for this browser tab
 function getGuestSessionId() {
@@ -76,6 +120,9 @@ export default function GuestDashboardPage() {
   const [analysisKey,    setAnalysisKey]     = useState(0);
   const [uploadResetKey, setUploadResetKey]  = useState(0);
   const [activeSection,  setActiveSection]   = useState("top");
+  const [showPdfModal,   setShowPdfModal]    = useState(false);
+  const [pdfBlobUrl,     setPdfBlobUrl]      = useState(null);
+  const [pdfLoading,     setPdfLoading]      = useState(false);
   const pollingRef = useRef(null);
 
   // ── GuestAPI bound to this session's ID ──────────────────────────────
@@ -192,15 +239,33 @@ export default function GuestDashboardPage() {
   }, [stopPolling]);
 
   // ── Download helpers (from memory — no Supabase) ──────────────────────
+  const reportFileName = dataset?.fileName ? `dig_report_${dataset.fileName}.pdf` : "analysis_report.pdf";
+
   const downloadPdf = () => {
     if (!pdfBase64) return;
     const bytes = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
     const blob  = new Blob([bytes], { type: "application/pdf" });
     const a = Object.assign(document.createElement("a"), {
       href: URL.createObjectURL(blob),
-      download: `dig_report_${dataset?.fileName ?? "report"}.pdf`,
+      download: reportFileName,
     });
     a.click(); URL.revokeObjectURL(a.href);
+  };
+
+  const handleViewPdf = () => {
+    if (!pdfBase64) return;
+    setPdfLoading(true);
+    const bytes = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
+    const blob  = new Blob([bytes], { type: "application/pdf" });
+    const url   = URL.createObjectURL(blob);
+    setPdfBlobUrl(url);
+    setShowPdfModal(true);
+    setPdfLoading(false);
+  };
+
+  const handleClosePdf = () => {
+    setShowPdfModal(false);
+    if (pdfBlobUrl) { URL.revokeObjectURL(pdfBlobUrl); setPdfBlobUrl(null); }
   };
 
   const downloadCleanedCsv = () => {
@@ -229,7 +294,11 @@ export default function GuestDashboardPage() {
   const showDataset = dataset && !dataset.isPending && dataset.status === "done";
 
   return (
-    <div className="dig-body" style={{ display: "flex", minHeight: "100vh" }}>
+    <>
+    {showPdfModal && pdfBlobUrl && (
+      <PDFModal reportFileName={reportFileName} pdfUrl={pdfBlobUrl} onClose={handleClosePdf} />
+    )}
+    <div className="dig-body" style={{ display: "flex", minHeight: "100vh", width: "100%" }}>
 
       {/* ── SIDEBAR ── */}
       <aside className="dig-sidebar">
@@ -392,9 +461,27 @@ export default function GuestDashboardPage() {
                 : "Run analysis to generate your report."}
             </p>
 
+            {/* PDF file row */}
+            <div style={{ display:"flex", alignItems:"center", gap:"12px", padding:"12px 14px", borderRadius:"12px", background:"rgba(15,23,42,0.9)", border:"1px solid rgba(31,41,55,0.9)" }}>
+              <div style={{ width:"38px", height:"38px", borderRadius:"8px", background: reportReady ? "rgba(239,68,68,0.15)" : "rgba(31,41,55,0.8)", border:`1px solid ${reportReady ? "rgba(239,68,68,0.3)" : "rgba(55,65,81,0.8)"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={reportReady ? "#f87171" : "#4b5563"} strokeWidth="1.6">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+              </div>
+              <div style={{ flex:1 }}>
+                <p style={{ margin:0, fontSize:"0.82rem", fontWeight:600, color: reportReady ? "#e5e7eb" : "#4b5563" }}>{reportFileName}</p>
+                <p className="muted-small">{reportReady ? "Ready" : "Pending analysis"}</p>
+              </div>
+              <button disabled={!reportReady || !pdfBase64 || pdfLoading} onClick={handleViewPdf}
+                style={{ background:"rgba(37,99,235,0.12)", border:"1px solid rgba(37,99,235,0.3)", borderRadius:"8px", padding:"6px 12px", color:(!reportReady||!pdfBase64||pdfLoading) ? "#374151" : "#93c5fd", fontSize:"0.75rem", fontWeight:600, cursor:(!reportReady||!pdfBase64||pdfLoading) ? "not-allowed" : "pointer", opacity:(!reportReady||!pdfBase64||pdfLoading) ? 0.45 : 1 }}>
+                {pdfLoading ? "Loading…" : "View PDF"}
+              </button>
+            </div>
+
             <button className="primary-btn-lg" disabled={!reportReady || !pdfBase64} onClick={downloadPdf}
               style={{ opacity: reportReady && pdfBase64 ? 1 : 0.4, cursor: reportReady && pdfBase64 ? "pointer" : "not-allowed" }}>
-              ↓ Download PDF Report
+              ↓ Download PDF Report — {reportFileName}
             </button>
 
             <div className="export-buttons">
@@ -413,39 +500,35 @@ export default function GuestDashboardPage() {
                 <button onClick={() => router.push("/login")}    style={{ padding: "8px 16px", borderRadius: "999px", border: "1px solid rgba(55,65,81,0.8)", background: "transparent", color: "#9ca3af", fontSize: "0.82rem", cursor: "pointer" }}>Log in</button>
               </div>
             </div>
+
+            {/* What's included */}
+            <div style={{ marginTop:"8px" }}>
+              <h3 style={{ fontSize:"0.78rem", color:"#6b7280", letterSpacing:"0.05em", textTransform:"uppercase", margin:"0 0 10px 0" }}>
+                What&apos;s included in your report
+              </h3>
+              <div style={{ display:"flex", flexDirection:"column", gap:"7px" }}>
+                {REPORT_SECTIONS.map((s,i) => (
+                  <div key={i} style={{ display:"flex", gap:"10px", alignItems:"flex-start", padding:"9px 12px", borderRadius:"10px", background:"rgba(15,23,42,0.9)", border:"1px solid rgba(31,41,55,0.8)" }}>
+                    <span style={{ fontSize:"15px", flexShrink:0, marginTop:"1px" }}>{s.emoji}</span>
+                    <div>
+                      <p style={{ margin:0, fontSize:"0.8rem", fontWeight:600, color:"#d1d5db" }}>{s.title}</p>
+                      <p className="muted-small" style={{ marginTop:"2px", lineHeight:"1.5" }}>{s.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
 
         {/* ── Help ── */}
         <section id="section-help" ref={helpRef}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-            <div className="card info-card">
-              <h2>Help Center</h2>
-              <table><thead><tr><th>Topic</th><th>Status</th></tr></thead>
-                <tbody>
-                  <tr><td>Uploading CSV files</td><td>Updated</td></tr>
-                  <tr><td>Supported formats</td><td>Updated</td></tr>
-                  <tr><td>AI-generated summaries</td><td>Beta</td></tr>
-                  <tr><td>Download options</td><td>Updated</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <div className="card info-card">
-              <h2>Contact Support</h2>
-              <table><thead><tr><th>Channel</th><th>Response</th></tr></thead>
-                <tbody>
-                  <tr><td>Email</td><td>1–2 business days</td></tr>
-                  <tr><td>Live chat</td><td>Coming soon</td></tr>
-                  <tr><td>GitHub</td><td>Within 48 hours</td></tr>
-                </tbody>
-              </table>
-              <a href="mailto:support.dig@proton.me" className="muted-link">support.dig@proton.me →</a>
-            </div>
-          </div>
+          <InfoCards />
         </section>
 
       </div>
     </div>
+    </>
   );
 }
 

@@ -228,7 +228,7 @@ export default function DashboardPage() {
   if (!token) return null;
 
   return (
-    <div className="dig-body" style={{ display: "flex", minHeight: "100vh" }}>
+    <div className="dig-body" style={{ display: "flex", minHeight: "100vh", width: "100%" }}>
 
       {/* ── SIDEBAR ── */}
       <aside className="dig-sidebar">
@@ -272,19 +272,20 @@ export default function DashboardPage() {
           </div>
           <div className="topbar-right">
             <div className="profile-wrapper">
-              <div className="avatar" style={avatarUrl ? { padding:0, overflow:"hidden" } : {}}>
+              <div className="avatar" style={{ ...(avatarUrl ? { padding:0, overflow:"hidden" } : {}), cursor:"pointer" }}
+                onClick={() => router.push("/dashboard/profileView")}>
                 {avatarUrl
                   ? <img src={avatarUrl} alt={displayName} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                   : avatarLetter}
               </div>
-              <div className="profile-text">
+              <div className="profile-text" style={{ cursor:"pointer" }} onClick={() => router.push("/dashboard/profileView")}>
                 <span className="profile-name">{displayName}</span>
                 <span className="profile-role">{memberSince ? `Member since ${memberSince}` : "Member"}</span>
               </div>
               <div className="profile-dropdown-icon">▾</div>
               <div className="profile-dropdown">
-                <a href="/dashboard/profileView">View profile</a>
-                <a href="/dashboard/editProfile">Account settings</a>
+                <a onClick={(e) => { e.preventDefault(); router.push("/dashboard/profileView"); }}>View profile</a>
+                <a onClick={(e) => { e.preventDefault(); router.push("/dashboard/editProfile"); }}>Account settings</a>
               </div>
             </div>
           </div>

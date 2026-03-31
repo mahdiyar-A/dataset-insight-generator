@@ -377,6 +377,13 @@ body.dig-body {
     display: flex;
 }
 
+/* Ensure the div wrapper used in dashboard pages also behaves as a full-width flex container */
+.dig-body {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+}
+
 /* sidebar */
 
 
@@ -386,6 +393,7 @@ body.dig-body {
 
 .dig-main {
     flex: 1;
+    min-width: 0; /* prevent flex child from overflowing its container */
     min-height: 100vh;
     padding: 22px 28px;
     display: flex;
@@ -1423,6 +1431,7 @@ body.dig-body {
 /* Main content offset */
 .dig-main {
     margin-left: 64px;
+    min-width: 0;
     transition: margin-left 0.25s ease;
 }
 .info-card {
