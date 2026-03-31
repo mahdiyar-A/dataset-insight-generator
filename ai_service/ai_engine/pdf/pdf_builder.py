@@ -98,19 +98,24 @@ class DigReport(FPDF):
         self.ln(1)
 
     def _estimate_text_height(self, text: str, width_mm: float) -> float:
-        """Rough estimate of how many mm a block of text will occupy."""
-        chars_per_line = max(1, int(width_mm / 2.1))
-        lines = max(1, len(text) // chars_per_line + text.count("\n") + 1)
-        return lines * 5.5
+        """
+        Conservative estimate of text height. Uses ~2.4mm per char-width
+        (Helvetica 10pt is ~2.1mm average, but narrow letters pull the average
+        down — real text wraps earlier). Adds two extra lines for safety.
+        """
+        chars_per_line = max(1, int(width_mm / 2.4))
+        lines = max(1, len(text) // chars_per_line + text.count("\n") + 2)
+        return lines * 6.0   # 6mm per line (multi_cell uses 5.5 + inter-line gap)
 
     def insight_block(self, rank: int, title: str, body: str, color_rgb: tuple):
         """
         Draw a styled insight box. Shifts to a new page if the block won't fit,
         preventing mid-block page splits.
         """
-        title_h    = 10
-        body_h     = self._estimate_text_height(body, 160)
-        padding    = 10
+        # Allow up to 2 title lines (long titles can wrap)
+        title_h    = self._estimate_text_height(title, 152) + 4
+        body_h     = self._estimate_text_height(body, 162)
+        padding    = 16          # generous bottom padding so text never bleeds out
         total_h    = title_h + body_h + padding
 
         # If block won't fit on remaining page — start a new one
@@ -152,8 +157,8 @@ class DigReport(FPDF):
 
     def embed_chart(self, img_b64: str, title: str, desc: str, color_rgb: tuple = BRAND_BLUE):
         """
-        Embed a chart image. Always starts on a new page if less than 80mm remains,
-        preventing the title from being orphaned at the bottom.
+        Embed a chart image. Measures the actual pixel dimensions of the PNG so
+        the rendered height at w=160mm is known precisely — preventing overlaps.
         """
         try:
             img_bytes = base64.b64decode(img_b64)
@@ -161,8 +166,17 @@ class DigReport(FPDF):
                 tmp.write(img_bytes)
                 tmp_path = tmp.name
 
-            # Estimate chart block height: title(8) + image(~90) + caption(~12) + padding
-            needed_h = 115
+            # ── Compute real rendered height from actual image dimensions ──
+            try:
+                from PIL import Image as _PILImage
+                with _PILImage.open(tmp_path) as pil_img:
+                    px_w, px_h = pil_img.size
+                img_rendered_h = 160.0 * (px_h / px_w) if px_w > 0 else 90.0
+            except Exception:
+                img_rendered_h = 90.0  # safe fallback
+
+            # title(8) + gap(2) + image + caption(~14) + bottom padding(8)
+            needed_h = 8 + 2 + img_rendered_h + 14 + 8
             if self.get_y() + needed_h > PAGE_BOTTOM:
                 self.add_page()
 

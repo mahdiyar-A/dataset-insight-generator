@@ -16,14 +16,42 @@ def _load_dataframe(file_bytes: bytes, file_name: str) -> pd.DataFrame:
     name_lower = file_name.lower()
     if name_lower.endswith(".xlsx") or name_lower.endswith(".xls"):
         return pd.read_excel(io.BytesIO(file_bytes))
-    else:
-        # Try common encodings
-        for enc in ("utf-8", "latin-1", "cp1252"):
+
+    # ── CSV / TSV / DSV — try encodings × delimiters ─────────────────────
+    # Order matters: utf-8 first, then latin-1/cp1252 for European files
+    encodings  = ("utf-8", "utf-8-sig", "latin-1", "cp1252", "iso-8859-1")
+    # sep=None + engine='python' lets pandas sniff the delimiter automatically.
+    # We also try explicit common delimiters as a fallback in case sniffing fails.
+    delimiters = [None, ",", ";", "\t", "|", " "]
+
+    last_err = None
+    for enc in encodings:
+        for sep in delimiters:
             try:
-                return pd.read_csv(io.BytesIO(file_bytes), encoding=enc)
-            except UnicodeDecodeError:
+                kwargs = dict(encoding=enc, on_bad_lines="skip")
+                if sep is None:
+                    # Auto-sniff: pandas examines the first few lines
+                    kwargs["sep"]    = None
+                    kwargs["engine"] = "python"
+                else:
+                    kwargs["sep"] = sep
+                df = pd.read_csv(io.BytesIO(file_bytes), **kwargs)
+                # Reject single-column results for multi-delimiter files
+                # (means the wrong separator was used)
+                if len(df.columns) == 1 and sep not in (None, " "):
+                    continue
+                if df.empty or len(df.columns) == 0:
+                    continue
+                return df
+            except (UnicodeDecodeError, pd.errors.ParserError) as e:
+                last_err = e
                 continue
-        raise ValueError("Could not decode file — try saving as UTF-8 CSV.")
+
+    raise ValueError(
+        f"Could not parse file as a tabular dataset. "
+        f"Supported formats: CSV (comma, semicolon, tab, pipe separated), TSV, Excel. "
+        f"Last error: {last_err}"
+    )
 
 
 def run_pipeline(
