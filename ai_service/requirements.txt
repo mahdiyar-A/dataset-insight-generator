@@ -7,5 +7,7 @@ matplotlib
 seaborn
 fpdf2
 openpyxl
-google-generativeai
 scipy
+scikit-learn
+Pillow
+python-dotenv

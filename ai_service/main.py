@@ -7,38 +7,71 @@ from fastapi.responses import JSONResponse
 from ai_engine.core.pipeline import run_pipeline
 from ai_engine.quality.quality_checker import check_data_quality
 from ai_engine.quality.confidence_engine import evaluate_confidence
+from ai_engine.training.training_logger import get_training_stats
 import io
 import pandas as pd
 
-app = FastAPI(title="DIG AI Engine", version="1.0.0")
+app = FastAPI(title="DIG AI Engine", version="2.0.0")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GROQ_API_KEY   = os.getenv("GROQ_API_KEY",   "")
 
 
 def _load_dataframe(file_bytes: bytes, file_name: str) -> pd.DataFrame:
     name_lower = file_name.lower()
     if name_lower.endswith(".xlsx") or name_lower.endswith(".xls"):
         return pd.read_excel(io.BytesIO(file_bytes))
-    for enc in ("utf-8", "latin-1", "cp1252"):
-        try:
-            return pd.read_csv(io.BytesIO(file_bytes), encoding=enc)
-        except UnicodeDecodeError:
-            continue
-    raise ValueError("Could not decode file.")
+
+    encodings  = ("utf-8", "utf-8-sig", "latin-1", "cp1252", "iso-8859-1")
+    delimiters = [None, ",", ";", "\t", "|", " "]
+
+    last_err = None
+    for enc in encodings:
+        for sep in delimiters:
+            try:
+                kwargs = dict(encoding=enc, on_bad_lines="skip")
+                if sep is None:
+                    kwargs["sep"]    = None
+                    kwargs["engine"] = "python"
+                else:
+                    kwargs["sep"] = sep
+                df = pd.read_csv(io.BytesIO(file_bytes), **kwargs)
+                if len(df.columns) == 1 and sep not in (None, " "):
+                    continue
+                if df.empty or len(df.columns) == 0:
+                    continue
+                return df
+            except (UnicodeDecodeError, pd.errors.ParserError) as e:
+                last_err = e
+                continue
+
+    raise ValueError(f"Could not decode file. Last error: {last_err}")
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "gemini_key_set": bool(GEMINI_API_KEY)}
+    return {
+        "status":          "ok",
+        "version":         "2.0.0",
+        "gemini_key_set":  bool(GEMINI_API_KEY),
+        "groq_key_set":    bool(GROQ_API_KEY),
+        "pipeline":        "7-phase (Groq gate → Gemini agent → Groq judge)",
+    }
+
+
+@app.get("/training-stats")
+def training_stats():
+    """Returns a summary of the local training log."""
+    return JSONResponse(get_training_stats())
 
 
 @app.post("/check")
 async def check(
-    file: UploadFile = File(...),
-    session_id: str = Form(...),
+    file:       UploadFile = File(...),
+    session_id: str        = Form(...),
 ):
     """
-    Quick quality check — no LLM, no PDF.
+    Quick quality check — no LLM calls.
     Returns condition so C# chatbot can ask the right question.
     """
     file_bytes = await file.read()
@@ -76,16 +109,17 @@ async def analyze(
     user_confirmed_low:  bool = Form(False),
 ):
     """
-    Receives CSV/XLSX from C# backend and runs full analysis pipeline.
+    Full 7-phase analysis pipeline.
 
     C# sends:
-      - file: the raw CSV bytes
-      - session_id: user UUID
-      - user_wants_cleaning: true if user said yes to cleaning
-      - user_confirmed_low: true if user said yes to proceed despite low confidence
+      - file:                the raw CSV/XLSX bytes
+      - session_id:          user UUID
+      - dataset_id:          optional dataset identifier
+      - user_wants_cleaning: true if user agreed to auto-clean
+      - user_confirmed_low:  true if user confirmed proceed despite low confidence
     """
     if not GEMINI_API_KEY:
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not set in environment.")
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured.")
 
     file_bytes = await file.read()
     if not file_bytes:
@@ -97,6 +131,8 @@ async def analyze(
         user_wants_cleaning=user_wants_cleaning,
         user_confirmed_low=user_confirmed_low,
         gemini_api_key=GEMINI_API_KEY,
+        groq_api_key=GROQ_API_KEY,
+        session_id=session_id,
     )
 
     # Map to C# AnalyzeResponseDto shape

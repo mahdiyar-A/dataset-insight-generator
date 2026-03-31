@@ -206,38 +206,133 @@ def _heatmap(df: pd.DataFrame, instr: ChartInstruction) -> str:
     return _to_png_base64(fig)
 
 
+def _grouped_bar_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
+    """Grouped bar chart — compares a metric across two categorical dimensions."""
+    x = _safe_col(df, instr.xColumn)
+    y = _safe_col(df, instr.yColumn)
+    g = _safe_col(df, instr.groupColumn) if instr.groupColumn else None
+
+    if not x or not y:
+        return _bar_chart(df, instr)   # graceful fallback
+
+    if g and g in df.columns and df[g].nunique() <= 12:
+        fig, ax = plt.subplots(figsize=(10, 5))
+        groups     = df[g].dropna().unique()[:6]
+        x_vals     = df[x].dropna().unique()[:12]
+        n_groups   = len(groups)
+        x_indices  = np.arange(len(x_vals))
+        bar_width  = 0.8 / max(n_groups, 1)
+        colors     = plt.cm.Blues(np.linspace(0.4, 0.9, n_groups))
+
+        for gi, (grp, col) in enumerate(zip(groups, colors)):
+            subset = df[df[g] == grp]
+            means  = [subset[subset[x] == xv][y].mean() if xv in subset[x].values else 0
+                      for xv in x_vals]
+            offset = (gi - n_groups / 2 + 0.5) * bar_width
+            ax.bar(x_indices + offset, means, bar_width * 0.9,
+                   label=str(grp), color=col, alpha=0.85, edgecolor="#0f172a", linewidth=0.4)
+
+        ax.set_xticks(x_indices)
+        ax.set_xticklabels([str(v) for v in x_vals], rotation=35, ha="right", fontsize=8)
+        ax.set_xlabel(x)
+        ax.set_ylabel(y)
+        ax.set_title(instr.title, fontsize=12, fontweight="bold", pad=12)
+        ax.legend(title=str(g), fontsize=7, title_fontsize=8)
+        ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:,.0f}"))
+        ax.grid(axis="y", alpha=0.3)
+        fig.tight_layout()
+        return _to_png_base64(fig)
+    else:
+        return _bar_chart(df, instr)
+
+
+def _multi_line_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
+    """Multi-line chart — multiple numeric series over the same temporal axis."""
+    x = _safe_col(df, instr.xColumn)
+    if not x:
+        return None
+
+    # Resolve y_columns list
+    y_cols = [_safe_col(df, c) for c in (instr.yColumns or []) if _safe_col(df, c)]
+
+    # Fallback: if no y_columns, use single yColumn
+    if not y_cols and instr.yColumn:
+        yc = _safe_col(df, instr.yColumn)
+        if yc:
+            y_cols = [yc]
+
+    if not y_cols:
+        return _line_chart(df, instr)
+
+    colors_cycle = [instr.color, "#a855f7", "#10b981", "#f97316", "#ec4899"]
+    fig, ax = plt.subplots(figsize=(9, 5))
+
+    for i, yc in enumerate(y_cols[:5]):
+        if not pd.api.types.is_numeric_dtype(df[yc]):
+            continue
+        if pd.api.types.is_numeric_dtype(df[x]):
+            sorted_df = df[[x, yc]].dropna().sort_values(x)
+            ax.plot(sorted_df[x], sorted_df[yc],
+                    color=colors_cycle[i % len(colors_cycle)],
+                    linewidth=2, marker="o", markersize=3, label=yc)
+        else:
+            data = df.groupby(x)[yc].mean()
+            ax.plot(data.index.astype(str), data.values,
+                    color=colors_cycle[i % len(colors_cycle)],
+                    linewidth=2, marker="o", markersize=3, label=yc)
+
+    ax.set_xlabel(x)
+    ax.set_ylabel("Value")
+    ax.set_title(instr.title, fontsize=12, fontweight="bold", pad=12)
+    ax.legend(fontsize=8)
+    plt.xticks(rotation=35, ha="right", fontsize=8)
+    ax.grid(alpha=0.3)
+    fig.tight_layout()
+    return _to_png_base64(fig)
+
+
 _CHART_BUILDERS = {
-    "bar":       _bar_chart,
-    "line":      _line_chart,
-    "scatter":   _scatter_chart,
-    "histogram": _histogram,
-    "box":       _box_chart,
-    "heatmap":   _heatmap,
+    "bar":         _bar_chart,
+    "line":        _line_chart,
+    "scatter":     _scatter_chart,
+    "histogram":   _histogram,
+    "box":         _box_chart,
+    "heatmap":     _heatmap,
+    "grouped_bar": _grouped_bar_chart,
+    "multi_line":  _multi_line_chart,
 }
 
 
 def generate_charts(df: pd.DataFrame, instructions: List[ChartInstruction]) -> List[Dict[str, Any]]:
     """
     Generate charts from LLM instructions.
-    Returns list of {type, label, desc, color, image_base64} — max 5 charts.
+    Routes to correct builder including complex types (grouped_bar, multi_line).
+    Also routes simple bar/line charts with subtype/groupColumn to the complex builders.
+    Returns list of {type, label, desc, color, insight_index, image_base64} — max 5 charts.
     """
     results = []
     for instr in instructions[:5]:
         chart_type = instr.chartType.lower()
-        builder    = _CHART_BUILDERS.get(chart_type, _bar_chart)
+
+        # Route subtypes even when base type is simple
+        if chart_type == "bar" and instr.chartSubtype == "grouped" and instr.groupColumn:
+            chart_type = "grouped_bar"
+        elif chart_type == "line" and (instr.chartSubtype == "multi_line" or instr.yColumns):
+            chart_type = "multi_line"
+
+        builder = _CHART_BUILDERS.get(chart_type, _bar_chart)
         try:
             img_b64 = builder(df, instr)
             if img_b64:
                 results.append({
-                    "type":         chart_type,
-                    "label":        instr.title,
-                    "desc":         instr.description,
-                    "color":        instr.color,
+                    "type":          chart_type,
+                    "label":         instr.title,
+                    "desc":          instr.description,
+                    "color":         instr.color,
                     "insight_index": instr.insightIndex,
-                    "image_base64": img_b64,
+                    "image_base64":  img_b64,
                 })
         except Exception as e:
-            # Chart failed — skip it, don't fail the whole pipeline
             print(f"[Chart] Failed to generate '{instr.title}': {e}")
 
     return results

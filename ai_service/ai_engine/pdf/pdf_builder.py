@@ -1,12 +1,25 @@
+"""
+PDF Report Builder  —  Phase 7
+
+Page structure:
+  1. Cover page
+  2. Executive Summary  (+ inline confidence note)
+  3. Key Insights  (insight blocks interleaved with their charts)
+  4. Conclusion
+  5. Data Quality & Methodology  (last page — confidence score badge, Gemini assessment,
+                                   cleaning details, dropped columns, judge verdict)
+"""
+
 import io
 import base64
 import tempfile
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from fpdf import FPDF
-from ai_engine.models.models import LLMReport
+from ai_engine.models.models import LLMReport, DomainResult
 
 
+# ── Brand palette ─────────────────────────────────────────────────────────────
 BRAND_DARK  = (15,  23,  42)
 BRAND_MID   = (30,  41,  59)
 BRAND_BLUE  = (59, 130, 246)
@@ -14,22 +27,24 @@ BRAND_TEXT  = (255, 255, 255)
 BRAND_MUTED = (148, 163, 184)
 WHITE       = (255, 255, 255)
 ACCENT_GOLD = (251, 191, 36)
+GREEN_RGB   = (16,  185, 129)
+ORANGE_RGB  = (249, 115,  22)
+RED_RGB     = (239,  68,  68)
 
-# One color per insight/chart slot — cycles if more than 5
 INSIGHT_COLORS = [
-    (59,  130, 246),   # blue
-    (168,  85, 247),   # purple
-    (16,  185, 129),   # green
-    (249, 115,  22),   # orange
-    (236,  72, 153),   # pink
+    (59,  130, 246),
+    (168,  85, 247),
+    (16,  185, 129),
+    (249, 115,  22),
+    (236,  72, 153),
 ]
 
-# Safe bottom margin — don't draw closer than this to the footer
-PAGE_BOTTOM = 260  # mm from top of page (A4 = 297mm, footer at ~284mm)
+PAGE_BOTTOM = 268   # mm — safe lower bound before footer
 
 
+# ── Text sanitizer ────────────────────────────────────────────────────────────
 def _s(text: str) -> str:
-    """Sanitize any text to latin-1 safe for fpdf Helvetica."""
+    """Sanitize to latin-1 safe for FPDF Helvetica."""
     if not text:
         return ""
     replacements = {
@@ -38,19 +53,24 @@ def _s(text: str) -> str:
         "\u201c": '"', "\u201d": '"',
         "\u2022": "-", "\u2023": "-",
         "\u2026": "...",
-        "\u00b7": "-",
+        "\u00b7": "-", "\u00d7": "x", "\u00f7": "/",
         "\u2192": "->", "\u2190": "<-",
         "\u2191": "^",  "\u2193": "v",
         "\u21d2": "=>",
-        "\u26a0": "!",
+        "\u2265": ">=", "\u2264": "<=",
+        "\u2260": "!=",
+        "\u26a0": "(!)",
         "\u2713": "OK", "\u2714": "OK",
         "\u2717": "X",  "\u2718": "X",
+        "\u00b1": "+/-",
+        "\u00b2": "^2", "\u00b3": "^3",
     }
-    for char, replacement in replacements.items():
-        text = text.replace(char, replacement)
+    for char, rep in replacements.items():
+        text = text.replace(char, rep)
     return text.encode("latin-1", errors="replace").decode("latin-1")
 
 
+# ── FPDF subclass ─────────────────────────────────────────────────────────────
 class DigReport(FPDF):
     def __init__(self):
         super().__init__(orientation="P", unit="mm", format="A4")
@@ -97,174 +117,179 @@ class DigReport(FPDF):
         self.multi_cell(0, 5, _s(text))
         self.ln(1)
 
-    def _estimate_text_height(self, text: str, width_mm: float) -> float:
+    def _estimate_text_height(self, text: str, width_mm: float,
+                               line_h: float = 5.5, char_w: float = 1.85) -> float:
         """
-        Conservative estimate of text height. Uses ~2.4mm per char-width
-        (Helvetica 10pt is ~2.1mm average, but narrow letters pull the average
-        down — real text wraps earlier). Adds two extra lines for safety.
+        Estimate rendered height of text in a multi_cell.
+        char_w: average character width in mm at 10pt Helvetica (~1.85mm).
+        For 11pt bold title use char_w=2.0.
         """
-        chars_per_line = max(1, int(width_mm / 2.4))
-        lines = max(1, len(text) // chars_per_line + text.count("\n") + 2)
-        return lines * 6.0   # 6mm per line (multi_cell uses 5.5 + inter-line gap)
+        chars_per_line = max(1, int(width_mm / char_w))
+        lines = max(1, len(text) // chars_per_line + text.count("\n") + 1)
+        return lines * line_h
 
+    # ── Insight block ─────────────────────────────────────────────────────
     def insight_block(self, rank: int, title: str, body: str, color_rgb: tuple):
-        """
-        Draw a styled insight box. Shifts to a new page if the block won't fit,
-        preventing mid-block page splits.
-        """
-        # Allow up to 2 title lines (long titles can wrap)
-        title_h    = self._estimate_text_height(title, 152) + 4
-        body_h     = self._estimate_text_height(body, 162)
-        padding    = 16          # generous bottom padding so text never bleeds out
-        total_h    = title_h + body_h + padding
+        # Use accurate per-font estimates:
+        # title  = 11pt bold  → char_w≈2.0, line_h=6.0
+        # body   = 10pt reg   → char_w≈1.85, line_h=5.5
+        title_h = self._estimate_text_height(title, 152, line_h=6.0, char_w=2.0) + 6
+        body_h  = self._estimate_text_height(body,  162, line_h=5.5, char_w=1.85)
+        padding = 10
+        total_h = title_h + body_h + padding
 
-        # If block won't fit on remaining page — start a new one
         if self.get_y() + total_h > PAGE_BOTTOM:
             self.add_page()
 
-        accent_r, accent_g, accent_b = color_rgb
+        ar, ag, ab = color_rgb
 
-        # Left accent bar
         bar_y = self.get_y()
-        self.set_fill_color(accent_r, accent_g, accent_b)
+        self.set_fill_color(ar, ag, ab)
         self.rect(20, bar_y, 3, total_h, "F")
 
-        # Block background
         self.set_fill_color(*BRAND_MID)
-        self.set_draw_color(accent_r, accent_g, accent_b)
+        self.set_draw_color(ar, ag, ab)
         self.set_line_width(0.2)
         self.rect(23, bar_y, 167, total_h, "DF")
 
-        # Rank badge
-        y_start = bar_y + 3
+        y_start = bar_y + 4
         self.set_xy(25, y_start)
         self.set_font("Helvetica", "B", 8)
-        badge_color = ACCENT_GOLD if rank == 1 else (accent_r, accent_g, accent_b)
+        badge_color = ACCENT_GOLD if rank == 1 else (ar, ag, ab)
         self.set_text_color(*badge_color)
         self.cell(12, 5, f"#{rank}", ln=False)
 
-        # Title
         self.set_font("Helvetica", "B", 11)
         self.set_text_color(*BRAND_TEXT)
         self.multi_cell(152, 6, _s(title))
 
-        # Body text
         self.set_x(25)
         self.set_font("Helvetica", "", 10)
         self.set_text_color(180, 190, 205)
         self.multi_cell(162, 5.5, _s(body))
-        self.ln(5)
 
+        # Always advance cursor to BELOW the drawn rectangle, not wherever text ended.
+        # This prevents charts from rendering inside (overlapping) the insight box.
+        self.set_y(bar_y + total_h + 3)
+
+    # ── Chart embed ───────────────────────────────────────────────────────
     def embed_chart(self, img_b64: str, title: str, desc: str, color_rgb: tuple = BRAND_BLUE):
-        """
-        Embed a chart image. Measures the actual pixel dimensions of the PNG so
-        the rendered height at w=160mm is known precisely — preventing overlaps.
-        """
         try:
             img_bytes = base64.b64decode(img_b64)
             with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
                 tmp.write(img_bytes)
                 tmp_path = tmp.name
 
-            # ── Compute real rendered height from actual image dimensions ──
             try:
-                from PIL import Image as _PILImage
-                with _PILImage.open(tmp_path) as pil_img:
+                from PIL import Image as _PIL
+                with _PIL.open(tmp_path) as pil_img:
                     px_w, px_h = pil_img.size
-                img_rendered_h = 160.0 * (px_h / px_w) if px_w > 0 else 90.0
+                img_rendered_h = 150.0 * (px_h / px_w) if px_w > 0 else 85.0
             except Exception:
-                img_rendered_h = 90.0  # safe fallback
+                img_rendered_h = 85.0
 
-            # title(8) + gap(2) + image + caption(~14) + bottom padding(8)
-            needed_h = 8 + 2 + img_rendered_h + 14 + 8
+            needed_h = 6 + img_rendered_h + 12
             if self.get_y() + needed_h > PAGE_BOTTOM:
                 self.add_page()
 
-            accent_r, accent_g, accent_b = color_rgb
-
-            # Chart title with colored accent
+            ar, ag, ab = color_rgb
             self.set_font("Helvetica", "B", 9)
-            self.set_text_color(accent_r, accent_g, accent_b)
+            self.set_text_color(ar, ag, ab)
             self.cell(0, 6, _s(f">> {title}"), ln=True)
             self.ln(1)
-
-            img_w = 160
-            self.image(tmp_path, x=25, w=img_w)
+            self.image(tmp_path, x=25, w=150)
             self.ln(2)
-
-            # Caption
             self.set_font("Helvetica", "I", 8)
             self.set_text_color(*BRAND_MUTED)
             self.set_x(25)
             self.multi_cell(160, 4.5, _s(desc))
             self.ln(6)
-
             os.unlink(tmp_path)
         except Exception as e:
             print(f"[PDF] Failed to embed chart '{title}': {e}")
 
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main build function
+# ─────────────────────────────────────────────────────────────────────────────
+
 def build_pdf(
-    report: LLMReport,
-    charts: List[Dict[str, Any]],
-    stats_summary: Dict,
-    was_cleaned: bool,
-    file_name: str,
+    report:                 LLMReport,
+    charts:                 List[Dict[str, Any]],
+    stats_summary:          Dict,
+    was_cleaned:            bool,
+    file_name:              str,
+    domain:                 Optional[DomainResult] = None,
+    judge_confidence_score: int = 6,
+    judge_confidence_level: str = "MEDIUM",
+    dropped_columns:        Optional[List[str]] = None,
 ) -> str:
     pdf = DigReport()
     pdf.add_page()
 
-    # ── Cover page ───────────────────────────────────────────────────────
-    pdf.set_fill_color(*BRAND_DARK)
-    pdf.rect(0, 0, 210, 297, "F")
-
-    pdf.set_y(60)
-    pdf.set_font("Helvetica", "B", 28)
+    # ── 1. Cover page ────────────────────────────────────────────────────
+    pdf.set_y(55)
+    pdf.set_font("Helvetica", "B", 26)
     pdf.set_text_color(*BRAND_BLUE)
     pdf.cell(0, 14, "DATASET INSIGHT REPORT", align="C", ln=True)
 
-    pdf.ln(4)
+    pdf.ln(3)
     pdf.set_font("Helvetica", "", 13)
     pdf.set_text_color(*BRAND_MUTED)
-    pdf.cell(0, 8, _s(file_name), align="C", ln=True)
-
-    pdf.ln(8)
-    pdf.set_font("Helvetica", "", 10)
-    pdf.set_text_color(*BRAND_MUTED)
-    rows = stats_summary.get("rowCount", "?")
-    cols = stats_summary.get("columnCount", "?")
-    pdf.cell(0, 6, f"{rows} rows  |  {cols} columns  |  {'Cleaned' if was_cleaned else 'Original'} dataset", align="C", ln=True)
+    pdf.cell(0, 8, _s(report.reportTitle), align="C", ln=True)
 
     pdf.ln(6)
+    pdf.set_font("Helvetica", "", 10)
+    rows = stats_summary.get("rowCount", "?")
+    cols = stats_summary.get("columnCount", "?")
+    domain_label = domain.domain.upper() if domain else "GENERAL"
+    cleaned_label = "Cleaned & Analyzed" if was_cleaned else "Analyzed (Original)"
+    pdf.cell(0, 6, f"{rows} records  |  {cols} attributes  |  {domain_label}  |  {cleaned_label}", align="C", ln=True)
+
+    pdf.ln(4)
     pdf.set_font("Helvetica", "I", 9)
     pdf.set_text_color(71, 85, 105)
-    pdf.cell(0, 5, "Generated by DIG AI Engine  |  Powered by Gemini", align="C", ln=True)
+    pdf.cell(0, 5, _s(file_name), align="C", ln=True)
 
-    # ── Executive Summary ────────────────────────────────────────────────
+    pdf.ln(3)
+    pdf.set_font("Helvetica", "I", 8)
+    pdf.set_text_color(55, 70, 90)
+    pdf.cell(0, 5, "Generated by DIG AI Engine  |  Gemini 2.5 Flash + Groq Llama 3.3 70B", align="C", ln=True)
+
+    # ── Intro section on cover page ───────────────────────────────────────
+    if report.introduction:
+        pdf.ln(10)
+        pdf.set_x(30)
+        pdf.set_font("Helvetica", "I", 10)
+        pdf.set_text_color(*BRAND_MUTED)
+        pdf.multi_cell(150, 6, _s(report.introduction))
+
+    # ── 2. Executive Summary ─────────────────────────────────────────────
     pdf.add_page()
     pdf.section_title("Executive Summary")
     pdf.body_text(report.executiveSummary)
 
     if report.confidenceNote:
         pdf.ln(2)
-        h = 8 + max(1, len(report.confidenceNote) // 80) * 5
-        if pdf.get_y() + h > PAGE_BOTTOM:
+        note_h = 8 + max(1, len(report.confidenceNote) // 80) * 5
+        if pdf.get_y() + note_h > PAGE_BOTTOM:
             pdf.add_page()
-        pdf.set_fill_color(30, 41, 59)
-        pdf.set_draw_color(251, 191, 36)
+        pdf.set_fill_color(*BRAND_MID)
+        pdf.set_draw_color(*ACCENT_GOLD)
         pdf.set_line_width(0.4)
-        pdf.rect(20, pdf.get_y(), 170, h, "DF")
+        pdf.rect(20, pdf.get_y(), 170, note_h, "DF")
         pdf.set_xy(24, pdf.get_y() + 3)
         pdf.set_font("Helvetica", "B", 9)
         pdf.set_text_color(*ACCENT_GOLD)
-        pdf.cell(0, 5, "! Analyst Confidence Note", ln=True)
+        pdf.cell(0, 5, "Analyst Assessment", ln=True)
         pdf.set_x(24)
         pdf.set_font("Helvetica", "I", 9)
         pdf.set_text_color(200, 200, 200)
         pdf.multi_cell(162, 5, _s(report.confidenceNote))
         pdf.ln(6)
 
-    # ── Key Insights + Charts ────────────────────────────────────────────
+    # ── 3. Key Insights + Charts ─────────────────────────────────────────
     pdf.section_title("Key Insights")
 
     charts_by_insight: Dict[int, List] = {}
@@ -277,8 +302,6 @@ def build_pdf(
         title   = ins.get("title", "")
         body    = ins.get("body", "")
         ins_idx = ins.get("insight_index", rank)
-
-        # Pick a color that cycles with the insight rank (1-based → 0-indexed)
         color_rgb = INSIGHT_COLORS[(rank - 1) % len(INSIGHT_COLORS)]
 
         pdf.insight_block(rank, title, body, color_rgb)
@@ -286,56 +309,211 @@ def build_pdf(
         for ch in charts_by_insight.get(ins_idx, []):
             img = ch.get("image_base64")
             if img:
-                # Use the chart's own color if provided, else fall back to insight color
-                chart_color_hex = ch.get("color", "")
-                chart_color_rgb = color_rgb
-                if chart_color_hex and chart_color_hex.startswith("#") and len(chart_color_hex) == 7:
+                chart_hex   = ch.get("color", "")
+                chart_color = color_rgb
+                if chart_hex and chart_hex.startswith("#") and len(chart_hex) == 7:
                     try:
-                        chart_color_rgb = (
-                            int(chart_color_hex[1:3], 16),
-                            int(chart_color_hex[3:5], 16),
-                            int(chart_color_hex[5:7], 16),
+                        chart_color = (
+                            int(chart_hex[1:3], 16),
+                            int(chart_hex[3:5], 16),
+                            int(chart_hex[5:7], 16),
                         )
                     except ValueError:
                         pass
-                pdf.embed_chart(img, ch.get("label", ""), ch.get("desc", ""), chart_color_rgb)
+                pdf.embed_chart(img, ch.get("label", ""), ch.get("desc", ""), chart_color)
 
-    # Any charts not linked to a specific insight
+    # Unmatched charts
     unmatched = charts_by_insight.get(0, [])
     if unmatched:
         pdf.section_title("Additional Visualizations")
         for i, ch in enumerate(unmatched):
             img = ch.get("image_base64")
             if img:
-                color_rgb = INSIGHT_COLORS[i % len(INSIGHT_COLORS)]
-                pdf.embed_chart(img, ch.get("label", ""), ch.get("desc", ""), color_rgb)
+                pdf.embed_chart(img, ch.get("label", ""), ch.get("desc", ""),
+                                INSIGHT_COLORS[i % len(INSIGHT_COLORS)])
 
-    # ── Data Quality & Methodology ───────────────────────────────────────
+    # ── 4. Conclusion ────────────────────────────────────────────────────
+    if report.conclusion:
+        if pdf.get_y() + 40 > PAGE_BOTTOM:
+            pdf.add_page()
+        pdf.section_title("Conclusion")
+        pdf.body_text(report.conclusion)
+
+    # ── 5. Data Quality & Methodology  (always last page) ────────────────
     pdf.add_page()
     pdf.section_title("Data Quality & Methodology")
 
-    issues = stats_summary.get("detectedIssues", [])
-    if issues:
+    # ── Gemini's analytical assessment (2-3 paragraphs) ─────────────────
+    if report.dataQualitySection:
+        pdf.body_text(report.dataQualitySection)
+        pdf.ln(2)
+
+    # ── Critical issues Groq identified ──────────────────────────────────
+    key_issues = (domain.key_issues if domain else []) or []
+    detected_issues = stats_summary.get("detectedIssues", [])
+    all_issues = key_issues + [i for i in detected_issues if i not in key_issues]
+
+    if all_issues:
         pdf.set_font("Helvetica", "B", 10)
         pdf.set_text_color(*BRAND_TEXT)
-        pdf.cell(0, 6, "Issues detected in original dataset:", ln=True)
+        pdf.cell(0, 6, "Issues identified in the original dataset:", ln=True)
         pdf.ln(1)
-        for issue in issues:
+        for issue in all_issues:
             pdf.set_font("Helvetica", "", 9)
             pdf.set_text_color(*BRAND_MUTED)
-            pdf.cell(6, 5, "-", ln=False)
-            pdf.multi_cell(160, 5, _s(issue))
-    else:
-        pdf.body_text("No significant data quality issues were detected.")
-
-    if was_cleaned:
+            pdf.cell(8, 5, "-", ln=False)
+            pdf.multi_cell(158, 5, _s(issue))
         pdf.ln(3)
-        pdf.body_text(
-            "The dataset was automatically cleaned prior to analysis: missing values were "
-            "imputed using column medians (numeric) and mode (categorical), duplicate rows "
-            "were removed, and extreme outliers were capped using the IQR method."
-        )
 
+    # ── Cleaning section ─────────────────────────────────────────────────
+    if was_cleaned:
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_text_color(*BRAND_TEXT)
+        pdf.cell(0, 6, "Data preparation procedure:", ln=True)
+        pdf.ln(1)
+
+        # What was cleaned and why — per-method explanations
+        METHOD_EXPLANATIONS = {
+            "remove_empty_rows":  "Fully empty rows were removed — rows with no values carry no information and inflate the record count without contributing to analysis.",
+            "remove_duplicates":  "Exact duplicate records were removed to prevent double-counting in aggregations and statistical measures.",
+            "remove_infinity":    "Infinite values were replaced with NaN and subsequently imputed — infinite values break statistical computations and indicate data entry errors.",
+        }
+        METHOD_TEMPLATES = {
+            "impute_median":  lambda col: f"Missing values in {col} were imputed using the column median — median imputation is preferred for skewed or outlier-prone distributions as it is robust to extreme values.",
+            "impute_mode":    lambda col: f"Missing categorical values in {col} were filled using the most frequent observed value (mode imputation) — this preserves the dominant pattern without introducing artificial variation.",
+            "impute_zero":    lambda col: f"Missing values in {col} were filled with zero — appropriate where absence of a value implies a zero quantity in this domain context.",
+            "cap_outliers":   lambda col: f"Extreme outliers in {col} were capped at 1.5x the interquartile range (Winsorisation) — this limits the distorting effect of extreme observations while preserving the full record.",
+            "drop_column":    lambda col: f"Attribute '{col}' was excluded from analysis — classified as carrying insufficient analytical signal for the identified domain.",
+        }
+
+        if domain and domain.cleaning_methods:
+            for m in domain.cleaning_methods:
+                if m in METHOD_EXPLANATIONS:
+                    pdf.set_font("Helvetica", "", 9)
+                    pdf.set_text_color(180, 190, 205)
+                    pdf.cell(8, 5, "-", ln=False)
+                    pdf.multi_cell(158, 5, _s(METHOD_EXPLANATIONS[m]))
+                elif ":" in m:
+                    mname, col = m.split(":", 1)
+                    template = METHOD_TEMPLATES.get(mname)
+                    if template:
+                        pdf.set_font("Helvetica", "", 9)
+                        pdf.set_text_color(180, 190, 205)
+                        pdf.cell(8, 5, "-", ln=False)
+                        pdf.multi_cell(158, 5, _s(template(col)))
+
+        # Columns dropped
+        if dropped_columns:
+            pdf.ln(2)
+            pdf.set_font("Helvetica", "B", 9)
+            pdf.set_text_color(*BRAND_TEXT)
+            pdf.cell(0, 5, "Attributes excluded from analysis:", ln=True)
+            pdf.set_font("Helvetica", "", 9)
+            pdf.set_text_color(*BRAND_MUTED)
+            cols_str = ", ".join(dropped_columns)
+            pdf.multi_cell(0, 5, _s(
+                f"{cols_str} — these attributes were identified as non-contributory "
+                f"to analytical objectives in the {domain.domain if domain else 'identified'} domain."
+            ))
+    else:
+        # Not cleaned — explain what was detected and implications
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_text_color(*BRAND_TEXT)
+        pdf.cell(0, 6, "Dataset preparation status:", ln=True)
+        pdf.ln(1)
+        pdf.set_font("Helvetica", "", 9)
+        pdf.set_text_color(180, 190, 205)
+        pdf.multi_cell(0, 5, _s(
+            "This analysis was conducted on the original dataset as provided, without automated preprocessing. "
+            "The quality characteristics identified above were present throughout the analysis. "
+            "Findings should be interpreted with these data quality conditions in mind — "
+            "particularly where missing values, mixed data types, or outlier concentrations are noted."
+        ))
+        if all_issues:
+            pdf.ln(2)
+            pdf.set_font("Helvetica", "I", 9)
+            pdf.set_text_color(*BRAND_MUTED)
+            pdf.multi_cell(0, 5, _s(
+                "Applying the recommended cleaning procedures prior to analysis could improve the reliability "
+                "of statistical findings, particularly for correlation and group comparison results."
+            ))
+
+    # ── Analysis confidence ───────────────────────────────────────────────
+    pdf.ln(5)
+    if pdf.get_y() + 22 > PAGE_BOTTOM:
+        pdf.add_page()
+
+    # Subtle horizontal rule
+    pdf.set_draw_color(*BRAND_MID)
+    pdf.set_line_width(0.3)
+    pdf.line(20, pdf.get_y(), 190, pdf.get_y())
+    pdf.ln(4)
+
+    # Determine color based on score
+    if judge_confidence_score >= 8:
+        conf_rgb = GREEN_RGB
+        conf_bar_label = "High"
+    elif judge_confidence_score >= 5:
+        conf_rgb = ORANGE_RGB
+        conf_bar_label = "Medium"
+    else:
+        conf_rgb = RED_RGB
+        conf_bar_label = "Low"
+
+    cr, cg, cb = conf_rgb
+
+    # Score line — subtle, not a big badge
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.set_text_color(*BRAND_MUTED)
+    pdf.cell(55, 5, "Analysis confidence rating:", ln=False)
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.set_text_color(cr, cg, cb)
+    pdf.cell(20, 5, f"{judge_confidence_score}/10  ({conf_bar_label})", ln=False)
+
+    # Inline mini bar
+    bar_start_x = pdf.get_x() + 4
+    bar_y       = pdf.get_y() + 1
+    for i in range(10):
+        bx = bar_start_x + i * 6
+        pdf.set_fill_color(cr, cg, cb) if i < judge_confidence_score else pdf.set_fill_color(40, 55, 75)
+        pdf.rect(bx, bar_y, 5, 3, "F")
+    pdf.ln(7)
+
+    # Analytical note for low-confidence results
+    if judge_confidence_score <= 4:
+        if pdf.get_y() + 18 > PAGE_BOTTOM:
+            pdf.add_page()
+        pdf.ln(2)
+        pdf.set_fill_color(35, 45, 65)
+        pdf.set_draw_color(*BRAND_MUTED)
+        pdf.set_line_width(0.3)
+        warn_h = 20
+        pdf.rect(20, pdf.get_y(), 170, warn_h, "DF")
+        pdf.set_xy(25, pdf.get_y() + 3)
+        pdf.set_font("Helvetica", "B", 9)
+        pdf.set_text_color(*BRAND_MUTED)
+        pdf.cell(0, 5, "Analytical Note", ln=True)
+        pdf.set_x(25)
+        pdf.set_font("Helvetica", "", 8)
+        pdf.set_text_color(180, 190, 205)
+        pdf.multi_cell(160, 4.5, _s(
+            f"The confidence rating for this analysis is {judge_confidence_score}/10. "
+            "This reflects limitations in the underlying dataset — such as sample size, data completeness, or statistical significance of key findings. "
+            "The observations presented are valid but should be treated as directional indicators rather than definitive conclusions. "
+            "Supplementing with additional data would improve reliability."
+        ))
+        pdf.ln(6)
+
+    # Judge and Gemini attribution
+    g_score = getattr(report, "geminiConfidenceScore", None)
+    pdf.set_font("Helvetica", "I", 7)
+    pdf.set_text_color(*BRAND_MUTED)
+    note = f"Confidence assessed independently by Groq Llama 3.3 70B (final: {judge_confidence_score}/10)."
+    if g_score:
+        note += f" Initial AI self-assessment by Gemini 2.5 Flash: {g_score}/10."
+    pdf.multi_cell(0, 4, _s(note))
+
+    # ── Output ────────────────────────────────────────────────────────────
     pdf_bytes = pdf.output(dest="S")
     if isinstance(pdf_bytes, str):
         pdf_bytes = pdf_bytes.encode("latin-1")
