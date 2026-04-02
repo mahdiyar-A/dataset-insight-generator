@@ -38,9 +38,27 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5150').replace(/\/$/, '');
 
+// ── Terminal-style logger ─────────────────────────────────────────────────────
+const log  = (tag: string, msg: string, data?: unknown) => {
+  const ts = new Date().toISOString().slice(11, 23); // HH:MM:SS.mmm
+  if (data !== undefined) {
+    console.log(`[${ts}] [Auth:${tag}] ${msg}`, data);
+  } else {
+    console.log(`[${ts}] [Auth:${tag}] ${msg}`);
+  }
+};
+const warn = (tag: string, msg: string, data?: unknown) =>
+  console.warn(`[Auth:${tag}] ⚠ ${msg}`, ...(data !== undefined ? [data] : []));
+const err  = (tag: string, msg: string, data?: unknown) =>
+  console.error(`[Auth:${tag}] ✗ ${msg}`, ...(data !== undefined ? [data] : []));
+
 // ── Helper: sync user to public.users via backend ────────────────────────────
 async function syncUser(token: string, firstName: string, lastName: string, email: string): Promise<void> {
-  if (!token || token === 'null' || token === 'undefined') return;
+  if (!token || token === 'null' || token === 'undefined') {
+    warn('Sync', 'Skipping sync — token is empty');
+    return;
+  }
+  log('Sync', `POST ${API_BASE}/api/auth/sync-supabase-user`, { email });
   try {
     const res = await fetch(`${API_BASE}/api/auth/sync-supabase-user`, {
       method: 'POST',
@@ -51,16 +69,24 @@ async function syncUser(token: string, firstName: string, lastName: string, emai
       body: JSON.stringify({ firstName, lastName, email }),
     });
     const text = await res.text();
-    console.log('[Sync] status:', res.status, text);
-  } catch (err) {
-    console.error('[Sync] failed:', err);
+    if (res.ok) {
+      log('Sync', `✓ ${res.status} — ${text}`);
+    } else {
+      warn('Sync', `✗ ${res.status} — ${text}`);
+    }
+  } catch (e) {
+    err('Sync', 'Network error', e);
   }
 }
 
 // ── Helper: fetch full profile from backend with retry ───────────────────────
 async function fetchProfile(token: string, retries = 5, delayMs = 800): Promise<Profile | null> {
-  // Guard: never send a request with a null/empty/literal-"null" token — causes malformed JWT errors
-  if (!token || token === 'null' || token === 'undefined') return null;
+  if (!token || token === 'null' || token === 'undefined') {
+    warn('Profile', 'Skipping fetch — token is empty');
+    return null;
+  }
+
+  log('Profile', `GET ${API_BASE}/api/user/me (up to ${retries} attempts)`);
 
   for (let i = 0; i < retries; i++) {
     try {
@@ -69,21 +95,23 @@ async function fetchProfile(token: string, retries = 5, delayMs = 800): Promise<
       });
 
       if (res.status === 404) {
-        console.warn(`[Profile] Not found (attempt ${i + 1}/${retries}), retrying in ${delayMs}ms...`);
+        warn('Profile', `Not synced yet (attempt ${i + 1}/${retries}), retrying in ${delayMs}ms...`);
         if (i < retries - 1) {
           await new Promise(r => setTimeout(r, delayMs));
-          delayMs = Math.min(delayMs * 1.5, 3000); // back off gently
+          delayMs = Math.min(delayMs * 1.5, 3000);
           continue;
         }
+        warn('Profile', 'All retry attempts exhausted — user not synced');
         return null;
       }
 
       if (!res.ok) {
-        console.error('[Profile] Unexpected status:', res.status);
+        err('Profile', `Unexpected status ${res.status}`);
         return null;
       }
 
       const data = await res.json();
+      log('Profile', `✓ Loaded profile for ${data.email}`);
       return {
         id:              data.id,
         email:           data.email,
@@ -96,8 +124,8 @@ async function fetchProfile(token: string, retries = 5, delayMs = 800): Promise<
         isActive:        data.isActive,
         isEmailVerified: data.isEmailVerified,
       };
-    } catch (err) {
-      console.error('[Profile] fetch error:', err);
+    } catch (e) {
+      err('Profile', 'Network error', e);
       return null;
     }
   }
@@ -112,16 +140,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const token = session?.access_token ?? null;
 
-  // ── Listen to Supabase auth state changes ────────────────────────────────
+  // ── Listen to Supabase auth state changes ────────────────────────────
   useEffect(() => {
+    log('Init', 'Checking existing session...');
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user && !session.user.email_confirmed_at) {
+        warn('Init', 'Session found but email not confirmed — signing out');
         await supabase.auth.signOut();
         setSession(null);
         setUser(null);
         setIsLoading(false);
         return;
       }
+
+      if (session) {
+        log('Init', `✓ Existing session found — user: ${session.user?.email}`);
+      } else {
+        log('Init', 'No existing session');
+      }
+
       setSession(session);
       if (session?.access_token) {
         const profile = await fetchProfile(session.access_token);
@@ -131,7 +168,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      log('StateChange', `Event: ${event}`, { email: session?.user?.email });
+
       if (session?.user && !session.user.email_confirmed_at) {
+        warn('StateChange', 'Email not confirmed — signing out');
         await supabase.auth.signOut();
         setSession(null);
         setUser(null);
@@ -142,29 +182,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (session?.access_token) {
         if (event === 'SIGNED_IN') {
+          log('StateChange', 'SIGNED_IN — running user sync...');
           const u = session.user;
           const firstName = u.user_metadata?.first_name ?? u.email?.split('@')[0] ?? 'User';
           const lastName  = u.user_metadata?.last_name  ?? '';
           const email     = u.email ?? '';
-
-          // Sync first, THEN fetch profile — ensures row exists before we look it up
           await syncUser(session.access_token, firstName, lastName, email);
         }
 
         const profile = await fetchProfile(session.access_token);
-        if (profile) setUser(profile);
+        if (profile) {
+          setUser(profile);
+          log('StateChange', `✓ Profile set for ${profile.email}`);
+        }
       } else {
+        log('StateChange', 'No session — clearing user state');
         setUser(null);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      log('Init', 'Unsubscribing from auth state changes');
+      subscription.unsubscribe();
+    };
   }, []);
 
-  // ── Register ──────────────────────────────────────────────────────────────
+  // ── Register ──────────────────────────────────────────────────────────
   const register = useCallback(async (
     firstName: string, lastName: string, email: string, password: string
   ): Promise<{ needsVerification: boolean }> => {
+    log('Register', `Registering new user: ${email}`);
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -178,69 +225,108 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     });
 
-    if (error) throw new Error(error.message);
-
-    // Only sync here if Supabase gave us a session immediately (email confirmation disabled)
-    // If email confirmation is required, session is null — sync happens on SIGNED_IN after verification
-    if (data.session?.access_token) {
-      await syncUser(data.session.access_token, firstName, lastName, email);
+    if (error) {
+      err('Register', error.message);
+      throw new Error(error.message);
     }
 
-    return { needsVerification: !data.session };
+    if (data.session?.access_token) {
+      log('Register', 'Session issued immediately — syncing user');
+      await syncUser(data.session.access_token, firstName, lastName, email);
+    } else {
+      log('Register', 'Email verification required — no immediate session');
+    }
+
+    const needsVerification = !data.session;
+    log('Register', `✓ Registration complete — needsVerification: ${needsVerification}`);
+    return { needsVerification };
   }, []);
 
-  // ── Login ─────────────────────────────────────────────────────────────────
+  // ── Login ─────────────────────────────────────────────────────────────
   const login = useCallback(async (email: string, password: string) => {
+    log('Login', `Attempting login for: ${email}`);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw new Error(error.message);
+
+    if (error) {
+      err('Login', error.message);
+      throw new Error(error.message);
+    }
 
     if (!data.user?.email_confirmed_at) {
+      warn('Login', 'Email not confirmed — rejecting session');
       await supabase.auth.signOut();
       throw new Error('Please verify your email before logging in. Check your inbox.');
     }
+
+    log('Login', `✓ Login successful — user: ${data.user?.email}`);
     // onAuthStateChange fires SIGNED_IN and handles sync + profile fetch
   }, []);
 
-  // ── Logout ────────────────────────────────────────────────────────────────
+  // ── Logout ────────────────────────────────────────────────────────────
   const logout = useCallback(async () => {
+    log('Logout', 'Signing out...');
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
+    log('Logout', '✓ Signed out');
   }, []);
 
-  // ── Refresh profile from backend ──────────────────────────────────────────
+  // ── Refresh profile from backend ──────────────────────────────────────
   const refreshUser = useCallback(async () => {
-    if (!token) return;
+    if (!token) {
+      warn('Refresh', 'No token — skipping refresh');
+      return;
+    }
+    log('Refresh', 'Refreshing profile from backend...');
     const profile = await fetchProfile(token);
-    if (profile) setUser(profile);
+    if (profile) {
+      setUser(profile);
+      log('Refresh', `✓ Profile refreshed for ${profile.email}`);
+    }
   }, [token]);
 
-  // ── Optimistic update ─────────────────────────────────────────────────────
+  // ── Optimistic update ─────────────────────────────────────────────────
   const updateUser = useCallback((partial: Partial<Profile>) => {
+    log('Update', 'Optimistic profile update', Object.keys(partial));
     setUser(prev => prev ? { ...prev, ...partial } : prev);
   }, []);
 
-  // ── Reset password ────────────────────────────────────────────────────────
+  // ── Reset password ────────────────────────────────────────────────────
   const resetPassword = useCallback(async (email: string) => {
+    log('ResetPw', `Sending reset email to ${email}`);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
-    if (error) throw new Error(error.message);
+    if (error) {
+      err('ResetPw', error.message);
+      throw new Error(error.message);
+    }
+    log('ResetPw', '✓ Reset email sent');
   }, []);
 
-  // ── Update email ──────────────────────────────────────────────────────────
+  // ── Update email ──────────────────────────────────────────────────────
   const updateEmail = useCallback(async (newEmail: string) => {
+    log('UpdateEmail', `Updating email to ${newEmail}`);
     const { error } = await supabase.auth.updateUser(
       { email: newEmail },
       { emailRedirectTo: `${window.location.origin}/verify-email-change` }
     );
-    if (error) throw new Error(error.message);
+    if (error) {
+      err('UpdateEmail', error.message);
+      throw new Error(error.message);
+    }
+    log('UpdateEmail', '✓ Confirmation email sent');
   }, []);
 
-  // ── Update phone ──────────────────────────────────────────────────────────
+  // ── Update phone ──────────────────────────────────────────────────────
   const updatePhone = useCallback(async (phone: string) => {
+    log('UpdatePhone', `Updating phone to ${phone}`);
     const { error } = await supabase.auth.updateUser({ phone });
-    if (error) throw new Error(error.message);
+    if (error) {
+      err('UpdatePhone', error.message);
+      throw new Error(error.message);
+    }
+    log('UpdatePhone', '✓ Phone updated');
   }, []);
 
   const value = useMemo(() => ({

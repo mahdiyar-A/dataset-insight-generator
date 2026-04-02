@@ -1,9 +1,12 @@
 import os
+import time
+from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from ai_engine.core.pipeline import run_pipeline
 from ai_engine.quality.quality_checker import check_data_quality
 from ai_engine.quality.confidence_engine import evaluate_confidence
@@ -11,12 +14,36 @@ from ai_engine.training.training_logger import get_training_stats
 import io
 import pandas as pd
 
-app = FastAPI(title="DIG AI Engine", version="2.0.0")
+# ── Startup banner ────────────────────────────────────────────────────────────
+print("╔══════════════════════════════════════════════╗", flush=True)
+print("║   DIG — AI Engine  ·  FastAPI  ·  Port 8000 ║", flush=True)
+print("║   Python  ·  7-Phase Analysis Pipeline      ║", flush=True)
+print("╚══════════════════════════════════════════════╝", flush=True)
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GROQ_API_KEY   = os.getenv("GROQ_API_KEY",   "")
 
+print(f"[AI] Gemini key : {'✓ set' if GEMINI_API_KEY else '✗ NOT SET — /analyze will fail'}", flush=True)
+print(f"[AI] Groq key   : {'✓ set' if GROQ_API_KEY   else '✗ NOT SET — domain gate will use fallback'}", flush=True)
 
+app = FastAPI(title="DIG AI Engine", version="2.0.0")
+
+
+# ── Request logging middleware ────────────────────────────────────────────────
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    ts    = datetime.now().strftime("%H:%M:%S.%f")[:12]
+    start = time.perf_counter()
+    print(f"[{ts}] [HTTP] → {request.method} {request.url.path}", flush=True)
+    response = await call_next(request)
+    elapsed  = (time.perf_counter() - start) * 1000
+    status   = response.status_code
+    symbol   = "✓" if status < 400 else "✗"
+    print(f"[{ts}] [HTTP] {symbol} {status} {request.url.path}  ({elapsed:.0f}ms)", flush=True)
+    return response
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
 def _load_dataframe(file_bytes: bytes, file_name: str) -> pd.DataFrame:
     name_lower = file_name.lower()
     if name_lower.endswith(".xlsx") or name_lower.endswith(".xls"):
@@ -48,8 +75,11 @@ def _load_dataframe(file_bytes: bytes, file_name: str) -> pd.DataFrame:
     raise ValueError(f"Could not decode file. Last error: {last_err}")
 
 
+# ── Endpoints ─────────────────────────────────────────────────────────────────
+
 @app.get("/health")
 def health():
+    print("[Health] Health check requested", flush=True)
     return {
         "status":          "ok",
         "version":         "2.0.0",
@@ -62,6 +92,7 @@ def health():
 @app.get("/training-stats")
 def training_stats():
     """Returns a summary of the local training log."""
+    print("[TrainingStats] Fetching training stats", flush=True)
     return JSONResponse(get_training_stats())
 
 
@@ -74,18 +105,31 @@ async def check(
     Quick quality check — no LLM calls.
     Returns condition so C# chatbot can ask the right question.
     """
+    print(f"\n{'='*52}", flush=True)
+    print(f"[Check] ▶ Received file: {file.filename}  session={session_id}", flush=True)
+
     file_bytes = await file.read()
     if not file_bytes:
+        print("[Check] ✗ Empty file received", flush=True)
         raise HTTPException(status_code=400, detail="Empty file.")
+
+    print(f"[Check] File size: {len(file_bytes):,} bytes", flush=True)
 
     try:
         df = _load_dataframe(file_bytes, file.filename or "dataset.csv")
+        print(f"[Check] Loaded DataFrame: {len(df):,} rows × {len(df.columns)} cols", flush=True)
     except Exception as e:
+        print(f"[Check] ✗ Could not parse file: {e}", flush=True)
         return JSONResponse({"condition": "not_workable", "error": str(e)})
 
     quality = check_data_quality(df)
+    print(f"[Check] Quality — usable={quality.isUsable}, needsCleaning={quality.needsCleaning}", flush=True)
+    if quality.warnings:
+        for w in quality.warnings:
+            print(f"[Check]   ⚠ {w}", flush=True)
 
     if not quality.isUsable:
+        print(f"[Check] ✗ Dataset not usable: {'; '.join(quality.errors)}", flush=True)
         return JSONResponse({"condition": "not_workable", "error": "; ".join(quality.errors)})
 
     confidence = evaluate_confidence(df, quality)
@@ -97,6 +141,7 @@ async def check(
     else:
         condition = "all_good"
 
+    print(f"[Check] ✓ Condition: {condition}", flush=True)
     return JSONResponse({"condition": condition, "error": None})
 
 
@@ -118,13 +163,25 @@ async def analyze(
       - user_wants_cleaning: true if user agreed to auto-clean
       - user_confirmed_low:  true if user confirmed proceed despite low confidence
     """
+    print(f"\n{'='*52}", flush=True)
+    print(f"[Analyze] ▶ Pipeline start", flush=True)
+    print(f"[Analyze]   file     : {file.filename}", flush=True)
+    print(f"[Analyze]   session  : {session_id}", flush=True)
+    print(f"[Analyze]   cleaning : {user_wants_cleaning}", flush=True)
+    print(f"[Analyze]   low_conf : {user_confirmed_low}", flush=True)
+
     if not GEMINI_API_KEY:
+        print("[Analyze] ✗ GEMINI_API_KEY not set — aborting", flush=True)
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured.")
 
     file_bytes = await file.read()
     if not file_bytes:
+        print("[Analyze] ✗ Empty file received", flush=True)
         raise HTTPException(status_code=400, detail="Empty file received.")
 
+    print(f"[Analyze] File size: {len(file_bytes):,} bytes ({len(file_bytes)/1_048_576:.2f} MB)", flush=True)
+
+    t_start = time.perf_counter()
     result = run_pipeline(
         file_bytes=file_bytes,
         file_name=file.filename or "dataset.csv",
@@ -134,10 +191,22 @@ async def analyze(
         groq_api_key=GROQ_API_KEY,
         session_id=session_id,
     )
+    elapsed = time.perf_counter() - t_start
 
-    # Return the full pipeline result dict directly — includes all fields
-    # (status, condition, error, cleaned_csv_base64, pdf_report_base64,
-    #  charts, low_confidence_warning, confidence_score)
+    status = result.get("status", "unknown")
+    has_pdf = bool(result.get("pdf_report_base64"))
+    has_csv = bool(result.get("cleaned_csv_base64"))
+    n_charts = len(result.get("charts") or [])
+    confidence = result.get("confidence_score", "?")
+
+    print(f"[Analyze] ✓ Pipeline complete in {elapsed:.1f}s", flush=True)
+    print(f"[Analyze]   status     : {status}", flush=True)
+    print(f"[Analyze]   pdf        : {'✓' if has_pdf else '✗'}", flush=True)
+    print(f"[Analyze]   cleaned csv: {'✓' if has_csv else '—'}", flush=True)
+    print(f"[Analyze]   charts     : {n_charts}", flush=True)
+    print(f"[Analyze]   confidence : {confidence}/10", flush=True)
+    print(f"{'='*52}\n", flush=True)
+
     result["session_id"] = session_id
     return JSONResponse(result)
 

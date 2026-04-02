@@ -12,8 +12,13 @@ namespace backend.Controllers;
 public class UserProfileController : ControllerBase
 {
     private readonly IUserProfileService _svc;
+    private readonly ILogger<UserProfileController> _logger;
 
-    public UserProfileController(IUserProfileService svc) => _svc = svc;
+    public UserProfileController(IUserProfileService svc, ILogger<UserProfileController> logger)
+    {
+        _svc    = svc;
+        _logger = logger;
+    }
 
     private Guid GetCurrentUserId()
     {
@@ -28,15 +33,17 @@ public class UserProfileController : ControllerBase
     public async Task<IActionResult> GetMe()
     {
         var id = GetCurrentUserId();
+        _logger.LogInformation("[Profile] GET /me — user {UserId}", id);
         try
         {
             var dto = await _svc.GetMeAsync(id);
+            _logger.LogInformation("[Profile] ✓ Returning profile for {Email}", dto.Email);
             return Ok(dto);
         }
         catch (InvalidOperationException ex) when (ex.Message == "User not found")
         {
-            // User authenticated but not yet synced to public.users
-            // Return 404 so frontend can retry
+            // User authenticated but not yet synced to public.users — frontend will retry
+            _logger.LogWarning("[Profile] User {UserId} authenticated but not yet synced to DB", id);
             return NotFound(new { error = "NOT_SYNCED", message = "User profile not ready yet." });
         }
     }
@@ -47,6 +54,7 @@ public class UserProfileController : ControllerBase
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
         var id = GetCurrentUserId();
+        _logger.LogInformation("[Profile] PATCH username — user {UserId} → '{Name}'", id, req.UserName);
         try
         {
             var dto = await _svc.UpdateUserNameAsync(id, req.UserName);
@@ -129,6 +137,7 @@ public class UserProfileController : ControllerBase
     {
         if (file == null) return BadRequest(new { error = "INVALID", message = "file required" });
         var id = GetCurrentUserId();
+        _logger.LogInformation("[Profile] POST profile-picture — user {UserId}, file: {Name} ({Size} bytes)", id, file.FileName, file.Length);
         try
         {
             var path = await _svc.UploadProfilePictureAsync(id, file);
@@ -149,7 +158,9 @@ public class UserProfileController : ControllerBase
     public async Task<IActionResult> DeleteMe()
     {
         var id = GetCurrentUserId();
+        _logger.LogWarning("[Profile] DELETE /me — user {UserId} deactivating account", id);
         await _svc.DeactivateAsync(id);
+        _logger.LogInformation("[Profile] ✓ Account deactivated for {UserId}", id);
         return NoContent();
     }
 }

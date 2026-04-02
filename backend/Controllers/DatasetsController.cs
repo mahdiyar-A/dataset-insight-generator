@@ -12,15 +12,17 @@ namespace backend.Controllers;
 [Authorize]
 public class DatasetsController : ControllerBase
 {
-    private readonly IDatasetRepository _datasets;
-    private readonly IStorageService    _storage;
+    private readonly IDatasetRepository      _datasets;
+    private readonly IStorageService         _storage;
+    private readonly ILogger<DatasetsController> _logger;
 
     private static readonly string TempDir = Path.Combine(Path.GetTempPath(), "dig_uploads");
 
-    public DatasetsController(IDatasetRepository datasets, IStorageService storage)
+    public DatasetsController(IDatasetRepository datasets, IStorageService storage, ILogger<DatasetsController> logger)
     {
         _datasets = datasets;
         _storage  = storage;
+        _logger   = logger;
         Directory.CreateDirectory(TempDir);
     }
 
@@ -41,6 +43,8 @@ public class DatasetsController : ControllerBase
         [FromForm] int? rows,
         [FromForm] int? columns)
     {
+        _logger.LogInformation("[Upload] Incoming file: {Name} ({Size} bytes)", file?.FileName, file?.Length);
+
         if (file == null || file.Length == 0)
             return BadRequest(new { error = "NO_FILE", message = "No file provided." });
 
@@ -51,6 +55,7 @@ public class DatasetsController : ControllerBase
             return BadRequest(new { error = "TOO_LARGE", message = "File exceeds 50 MB limit." });
 
         var userId   = GetUserId();
+        _logger.LogInformation("[Upload] User {UserId} uploading {Name} ({SizeMB:0.##} MB)", userId, file.FileName, file.Length / 1_048_576.0);
         var tempPath = Path.Combine(TempDir, $"{userId}.csv");
 
         using (var stream = System.IO.File.Create(tempPath))
@@ -67,6 +72,7 @@ public class DatasetsController : ControllerBase
             columnCount = lines.Length > 0 ? lines[0].Split(',').Length : 0;
         }
 
+        _logger.LogInformation("[Upload] ✓ Saved to temp — rows={Rows}, cols={Cols}", rowCount, columnCount);
         return Ok(new
         {
             fileName      = file.FileName,
@@ -86,9 +92,11 @@ public class DatasetsController : ControllerBase
     public async Task<IActionResult> GetCurrent()
     {
         var userId  = GetUserId();
+        _logger.LogInformation("[Datasets] GET current — user {UserId}", userId);
         var dataset = await _datasets.GetByUserIdAsync(userId);
         if (dataset == null)
             return NotFound(new { error = "NO_DATASET" });
+        _logger.LogInformation("[Datasets] Returning dataset {Id} status={Status}", dataset.Id, dataset.Status);
         return Ok(ToDto(dataset));
     }
 

@@ -8,7 +8,12 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 
-Console.WriteLine("[DIG] Starting...");
+Console.WriteLine("╔══════════════════════════════════════════════╗");
+Console.WriteLine("║   DIG — Dataset Insight Generator Backend   ║");
+Console.WriteLine("║   ASP.NET Core 8  ·  Port 5150              ║");
+Console.WriteLine("╚══════════════════════════════════════════════╝");
+Console.WriteLine($"[DIG] Environment : {Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}");
+Console.WriteLine($"[DIG] Process PID : {Environment.ProcessId}");
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,16 +25,40 @@ builder.Logging.AddConsole();
 var supabaseUrl    = builder.Configuration["Supabase:Url"]!;
 var supabaseSecret = builder.Configuration["Supabase:SecretKey"]!;
 
+// Detect key format for diagnostic logging
+var keyFormat = supabaseSecret.StartsWith("sb_secret_") ? "sb_secret (new format)"
+              : supabaseSecret.StartsWith("eyJ")        ? "JWT (legacy format)"
+              : "unknown format";
+Console.WriteLine($"[Supabase] URL       : {supabaseUrl}");
+Console.WriteLine($"[Supabase] Key format: {keyFormat}");
+Console.WriteLine($"[Supabase] Key prefix: {supabaseSecret[..Math.Min(20, supabaseSecret.Length)]}...");
+
 builder.Services.AddSingleton(provider =>
 {
-    var client = new Supabase.Client(supabaseUrl, supabaseSecret, new Supabase.SupabaseOptions
+    Console.WriteLine("[Supabase] Initializing client...");
+    try
     {
-        AutoRefreshToken    = false,
-        AutoConnectRealtime = false
-    });
-    client.InitializeAsync().GetAwaiter().GetResult();
-    Console.WriteLine("[DIG] Supabase connected");
-    return client;
+        var client = new Supabase.Client(supabaseUrl, supabaseSecret, new Supabase.SupabaseOptions
+        {
+            AutoRefreshToken    = false,
+            AutoConnectRealtime = false,
+            // Explicitly set apikey header — ensures it's sent regardless of key format
+            Headers = new Dictionary<string, string>
+            {
+                ["apikey"]       = supabaseSecret,
+                ["Authorization"] = $"Bearer {supabaseSecret}"
+            }
+        });
+        client.InitializeAsync().GetAwaiter().GetResult();
+        Console.WriteLine("[Supabase] ✓ Client initialized successfully");
+        return client;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Supabase] ✗ Init failed: {ex.Message}");
+        Console.WriteLine($"[Supabase]   Check that Supabase:Url and Supabase:SecretKey are correct in appsettings.json");
+        throw;
+    }
 });
 
 builder.Services.AddControllers();
@@ -172,8 +201,11 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { status = "ok", db = "supabase" }));
 
-Console.WriteLine("[DIG] Listening on http://localhost:5150");
-Console.WriteLine("[DIG] Swagger at  http://localhost:5150/swagger");
+Console.WriteLine("══════════════════════════════════════════════════");
+Console.WriteLine("[DIG] ✓ Listening on  http://localhost:5150");
+Console.WriteLine("[DIG] ✓ Swagger at    http://localhost:5150/swagger");
+Console.WriteLine("[DIG] ✓ Health check  http://localhost:5150/health");
+Console.WriteLine("══════════════════════════════════════════════════");
 
 try { app.Run(); }
 catch (Exception ex)
