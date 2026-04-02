@@ -129,16 +129,6 @@ export default function HomePage() {
         <p style={{ fontSize: '0.8rem', color: '#9ca3af' }}>Project Manager · Full Stack</p>
         <a href="https://www.linkedin.com/in/mahdiyar-ashrafioun/" target="_blank" style={{ fontSize: '0.78rem', color: '#60a5fa' }}>LinkedIn →</a>
       </div>
-      <div>
-        <p style={{ fontWeight: 600, color: '#f9fafb' }}>Harmanroop Singh</p>
-        <p style={{ fontSize: '0.8rem', color: '#9ca3af' }}>Frontend Developer</p>
-        <a href="https://www.linkedin.com/in/harmanroop-singh/" target="_blank" style={{ fontSize: '0.78rem', color: '#60a5fa' }}>LinkedIn →</a>
-      </div>
-      <div>
-        <p style={{ fontWeight: 600, color: '#f9fafb' }}>Muhammad Ibad Hassan</p>
-        <p style={{ fontSize: '0.8rem', color: '#9ca3af' }}>Frontend Developer </p>
-        <a href="http://linkedin.com/in/muhammad-ibad-hassan-331a37241" target="_blank" style={{ fontSize: '0.78rem', color: '#60a5fa' }}>LinkedIn →</a>
-      </div>
     </div>
   </div>
 </section>
