@@ -21,58 +21,19 @@ builder.WebHost.UseUrls("http://localhost:5150");
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
-// ── Supabase ──────────────────────────────────────────────────────────────────
-var supabaseUrl    = builder.Configuration["Supabase:Url"]!;
-var supabaseSecret = builder.Configuration["Supabase:SecretKey"]!;
-
-// Detect key format for diagnostic logging
-var keyFormat = supabaseSecret.StartsWith("sb_secret_") ? "sb_secret (new format)"
-              : supabaseSecret.StartsWith("eyJ")        ? "JWT (legacy format)"
-              : "unknown format";
-Console.WriteLine($"[Supabase] URL       : {supabaseUrl}");
-Console.WriteLine($"[Supabase] Key format: {keyFormat}");
-Console.WriteLine($"[Supabase] Key prefix: {supabaseSecret[..Math.Min(20, supabaseSecret.Length)]}...");
-
-builder.Services.AddSingleton(provider =>
-{
-    Console.WriteLine("[Supabase] Initializing client...");
-    try
-    {
-        var client = new Supabase.Client(supabaseUrl, supabaseSecret, new Supabase.SupabaseOptions
-        {
-            AutoRefreshToken    = false,
-            AutoConnectRealtime = false,
-            // Explicitly set apikey header — ensures it's sent regardless of key format
-            Headers = new Dictionary<string, string>
-            {
-                ["apikey"]       = supabaseSecret,
-                ["Authorization"] = $"Bearer {supabaseSecret}"
-            }
-        });
-        client.InitializeAsync().GetAwaiter().GetResult();
-        Console.WriteLine("[Supabase] ✓ Client initialized successfully");
-        return client;
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"[Supabase] ✗ Init failed: {ex.Message}");
-        Console.WriteLine($"[Supabase]   Check that Supabase:Url and Supabase:SecretKey are correct in appsettings.json");
-        throw;
-    }
-});
-
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
-        Name         = "Authorization",
-        Type         = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
-        Scheme       = "Bearer",
-        In           = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Description  = "Paste your Supabase access_token here"
+        Name = "Authorization",
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Paste your Supabase access_token here"
     });
+
     c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
     {
         {
@@ -81,7 +42,7 @@ builder.Services.AddSwaggerGen(c =>
                 Reference = new Microsoft.OpenApi.Models.OpenApiReference
                 {
                     Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
-                    Id   = "Bearer"
+                    Id = "Bearer"
                 }
             },
             Array.Empty<string>()
@@ -89,54 +50,100 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// ── Repositories & Services ───────────────────────────────────────────────────
-builder.Services.AddScoped<IUserRepository,    UserRepository>();
+// ── Supabase config ───────────────────────────────────────────────────────────
+var supabaseUrl = builder.Configuration["Supabase:Url"];
+var supabaseSecret = builder.Configuration["Supabase:SecretKey"];
+
+if (string.IsNullOrWhiteSpace(supabaseUrl))
+    throw new InvalidOperationException("Missing configuration: Supabase:Url");
+
+if (string.IsNullOrWhiteSpace(supabaseSecret))
+    throw new InvalidOperationException("Missing configuration: Supabase:SecretKey");
+
+var keyFormat =
+    supabaseSecret.StartsWith("sb_secret_") ? "sb_secret (new format)" :
+    supabaseSecret.StartsWith("eyJ") ? "JWT (legacy format)" :
+    "unknown format";
+
+Console.WriteLine($"[Supabase] URL       : {supabaseUrl}");
+Console.WriteLine($"[Supabase] Key format: {keyFormat}");
+// Do NOT log the key or even a prefix of it.
+
+builder.Services.AddSingleton(provider =>
+{
+    Console.WriteLine("[Supabase] Initializing client...");
+
+    try
+    {
+        var client = new Supabase.Client(
+            supabaseUrl,
+            supabaseSecret,
+            new Supabase.SupabaseOptions
+            {
+                AutoRefreshToken = false,
+                AutoConnectRealtime = false
+            }
+        );
+
+        client.InitializeAsync().GetAwaiter().GetResult();
+
+        Console.WriteLine("[Supabase] ✓ Client initialized successfully");
+        return client;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Supabase] ✗ Init failed: {ex.Message}");
+        throw;
+    }
+});
+
+// ── Repositories & services ──────────────────────────────────────────────────
+builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IDatasetRepository, DatasetRepository>();
-builder.Services.AddScoped<IStorageService,    SupabaseStorageService>();
-builder.Services.AddScoped<IEmailService,      SmtpEmailService>();
+builder.Services.AddScoped<IStorageService, SupabaseStorageService>();
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 builder.Services.AddHttpClient<IPythonAiClient, PythonAiClient>();
 builder.Services.AddScoped<AnalysisService>();
 builder.Services.AddScoped<IAiService, AiService>();
 
-// ── JWT ── Use JWKS endpoint — never hardcode the ECC key ─────────────────────
-// Supabase publishes rotating public keys at: {supabaseUrl}/auth/v1/.well-known/jwks.json
+// ── JWT / Supabase JWKS ──────────────────────────────────────────────────────
 var supabaseIssuer = $"{supabaseUrl.TrimEnd('/')}/auth/v1";
-var jwksUri        = $"{supabaseIssuer}/.well-known/jwks.json";
+var jwksUri = $"{supabaseIssuer}/.well-known/jwks.json";
 
 Console.WriteLine($"[DIG] JWT issuer : {supabaseIssuer}");
 Console.WriteLine($"[DIG] JWKS URI   : {jwksUri}");
 
-// Cache for JWKS keys — fetched once, reused, auto-refreshes on failure
 JsonWebKeySet? cachedJwks = null;
-DateTime       jwksFetchedAt = DateTime.MinValue;
+DateTime jwksFetchedAt = DateTime.MinValue;
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.RequireHttpsMetadata = false; // localhost is HTTP — set true in production
+        options.RequireHttpsMetadata = false;
 
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer           = true,
-            ValidateAudience         = true,
-            ValidateLifetime         = true,
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer              = supabaseIssuer,
-            ValidAudience            = "authenticated",
+            ValidIssuer = supabaseIssuer,
+            ValidAudience = "authenticated",
 
             IssuerSigningKeyResolver = (token, securityToken, kid, parameters) =>
             {
-                // Refresh JWKS cache every 60 minutes
                 if (cachedJwks == null || (DateTime.UtcNow - jwksFetchedAt).TotalMinutes > 60)
                 {
                     try
                     {
-                        using var http = new System.Net.Http.HttpClient();
+                        using var http = new HttpClient();
                         http.Timeout = TimeSpan.FromSeconds(10);
+
                         var json = http.GetStringAsync(jwksUri).GetAwaiter().GetResult();
-                        cachedJwks    = new JsonWebKeySet(json);
+                        cachedJwks = new JsonWebKeySet(json);
                         jwksFetchedAt = DateTime.UtcNow;
+
                         Console.WriteLine("[JWT] JWKS refreshed successfully");
                     }
                     catch (Exception ex)
@@ -145,6 +152,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                         return cachedJwks?.GetSigningKeys() ?? Enumerable.Empty<SecurityKey>();
                     }
                 }
+
                 return cachedJwks?.GetSigningKeys() ?? Enumerable.Empty<SecurityKey>();
             }
         };
@@ -154,9 +162,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             OnAuthenticationFailed = ctx =>
             {
                 if (ctx.Exception is SecurityTokenMalformedException)
-                    Console.WriteLine("[JWT] Auth failed: malformed token — frontend is likely sending anon key instead of session access_token");
+                {
+                    Console.WriteLine("[JWT] Auth failed: malformed token");
+                }
                 else
-                    Console.WriteLine($"[JWT] Auth failed: {ctx.Exception.GetType().Name}: {ctx.Exception.Message[..Math.Min(ctx.Exception.Message.Length, 100)]}");
+                {
+                    Console.WriteLine($"[JWT] Auth failed: {ctx.Exception.GetType().Name}: {ctx.Exception.Message[..Math.Min(ctx.Exception.Message.Length, 150)]}");
+                }
+
                 return Task.CompletedTask;
             },
             OnTokenValidated = ctx =>
@@ -168,11 +181,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddCors(options =>
-    options.AddPolicy("dev", p =>
-        p.WithOrigins("http://localhost:3000","http://localhost:3001","http://127.0.0.1:3000")
-         .AllowAnyHeader()
-         .AllowAnyMethod()
-         .AllowCredentials()));
+{
+    options.AddPolicy("dev", policy =>
+    {
+        policy
+            .WithOrigins(
+                "http://localhost:3000",
+                "http://localhost:3001",
+                "http://127.0.0.1:3000"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
 
 builder.Services.AddAuthorization();
 
@@ -187,10 +209,11 @@ if (app.Environment.IsDevelopment())
 
 var storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
 Directory.CreateDirectory(storagePath);
+
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(storagePath),
-    RequestPath  = "/storage"
+    RequestPath = "/storage"
 });
 
 app.UseRouting();
@@ -207,10 +230,13 @@ Console.WriteLine("[DIG] ✓ Swagger at    http://localhost:5150/swagger");
 Console.WriteLine("[DIG] ✓ Health check  http://localhost:5150/health");
 Console.WriteLine("══════════════════════════════════════════════════");
 
-try { app.Run(); }
+try
+{
+    app.Run();
+}
 catch (Exception ex)
 {
     Console.WriteLine("[DIG] FATAL: " + ex.Message);
     Console.WriteLine(ex.StackTrace);
-    Console.ReadKey();
+    throw;
 }
