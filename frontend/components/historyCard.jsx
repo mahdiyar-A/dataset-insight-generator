@@ -3,7 +3,56 @@
 
 import React, { useState } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { useSettings } from "@/app/contexts/SettingsContext";
 import BackendAPI from "@/lib/BackendAPI";
+
+const T = {
+  en: {
+    title: "Current Dataset",
+    oneDataset: "1 dataset",
+    noUpload: "No upload yet",
+    headers: { name: "Dataset name", rows: "Rows", cols: "Columns", size: "Size", actions: "Actions" },
+    noAnalysis: "No completed analysis yet",
+    download: "Download",
+    delete: "Delete",
+    deleting: "…",
+    cleanedCsv: "↓ Download cleaned CSV",
+    pdfReport: (name) => `↓ Download PDF report — ${name}`,
+    confirmDelete: "Delete this dataset? This cannot be undone.",
+    downloadFailed: (msg) => "Download failed: " + msg,
+    deleteFailed: (msg) => "Delete failed: " + msg,
+  },
+  fr: {
+    title: "Jeu de données actuel",
+    oneDataset: "1 jeu de données",
+    noUpload: "Aucun fichier importé",
+    headers: { name: "Nom du jeu de données", rows: "Lignes", cols: "Colonnes", size: "Taille", actions: "Actions" },
+    noAnalysis: "Aucune analyse complétée",
+    download: "Télécharger",
+    delete: "Supprimer",
+    deleting: "…",
+    cleanedCsv: "↓ Télécharger le CSV nettoyé",
+    pdfReport: (name) => `↓ Télécharger le rapport PDF — ${name}`,
+    confirmDelete: "Supprimer ce jeu de données ? Cette action est irréversible.",
+    downloadFailed: (msg) => "Échec du téléchargement : " + msg,
+    deleteFailed: (msg) => "Échec de la suppression : " + msg,
+  },
+  fa: {
+    title: "مجموعه داده جاری",
+    oneDataset: "۱ مجموعه داده",
+    noUpload: "هنوز فایلی بارگذاری نشده",
+    headers: { name: "نام مجموعه داده", rows: "ردیف‌ها", cols: "ستون‌ها", size: "حجم", actions: "عملیات" },
+    noAnalysis: "هنوز تحلیلی کامل نشده",
+    download: "دانلود",
+    delete: "حذف",
+    deleting: "…",
+    cleanedCsv: "↓ دانلود CSV پاک‌شده",
+    pdfReport: (name) => `↓ دانلود گزارش PDF — ${name}`,
+    confirmDelete: "این مجموعه داده حذف شود؟ این عملیات قابل بازگشت نیست.",
+    downloadFailed: (msg) => "خطا در دانلود: " + msg,
+    deleteFailed: (msg) => "خطا در حذف: " + msg,
+  },
+};
 
 function formatSize(bytes) {
   if (!bytes) return "—";
@@ -22,6 +71,8 @@ function formatDate(iso) {
 // onDelete callback tells dashboard to clear its state
 export default function HistoryCard({ dataset, onDelete }) {
   const { token } = useAuth();
+  const { lang } = useSettings();
+  const t = T[lang] || T.en;
   const [deleting, setDeleting] = useState(false);
 
   // Only show datasets that have been through analysis (isPending=false and status=done)
@@ -36,18 +87,18 @@ export default function HistoryCard({ dataset, onDelete }) {
       a.target = "_blank";
       a.click();
     } catch (err) {
-      alert("Download failed: " + err.message);
+      alert(t.downloadFailed(err.message));
     }
   };
 
   const handleDelete = async () => {
-    if (!confirm("Delete this dataset? This cannot be undone.")) return;
+    if (!confirm(t.confirmDelete)) return;
     setDeleting(true);
     try {
       await BackendAPI.deleteCurrentDataset(token);
       onDelete?.();
     } catch (err) {
-      alert("Delete failed: " + err.message);
+      alert(t.deleteFailed(err.message));
     } finally {
       setDeleting(false);
     }
@@ -56,18 +107,18 @@ export default function HistoryCard({ dataset, onDelete }) {
   return (
     <div className="card table-card">
       <div className="card-header">
-        <h2>Current Dataset</h2>
-        <span className="pill">{dataset ? "1 dataset" : "No upload yet"}</span>
+        <h2>{t.title}</h2>
+        <span className="pill">{dataset ? t.oneDataset : t.noUpload}</span>
       </div>
 
       <table className="dataset-table">
         <thead>
           <tr>
-            <th>Dataset name</th>
-            <th>Rows</th>
-            <th>Columns</th>
-            <th>Size</th>
-            <th>Actions</th>
+            <th>{t.headers.name}</th>
+            <th>{t.headers.rows}</th>
+            <th>{t.headers.cols}</th>
+            <th>{t.headers.size}</th>
+            <th>{t.headers.actions}</th>
           </tr>
         </thead>
         <tbody>
@@ -81,13 +132,13 @@ export default function HistoryCard({ dataset, onDelete }) {
                       <polyline points="14 2 14 8 20 8"/>
                     </svg>
                   </span>
-                  <span style={{ color:"#4b5563", fontSize:"0.82rem" }}>No completed analysis yet</span>
+                  <span style={{ color:"#4b5563", fontSize:"0.82rem" }}>{t.noAnalysis}</span>
                 </div>
               </td>
               {["—","—","—"].map((v,i) => <td key={i} style={{ color:"#374151" }}>{v}</td>)}
               <td className="actions-cell">
-                <button className="table-action" disabled style={{ opacity:0.3, cursor:"not-allowed" }}>Download</button>
-                <button className="table-action delete" disabled style={{ opacity:0.3, cursor:"not-allowed" }}>Delete</button>
+                <button className="table-action" disabled style={{ opacity:0.3, cursor:"not-allowed" }}>{t.download}</button>
+                <button className="table-action delete" disabled style={{ opacity:0.3, cursor:"not-allowed" }}>{t.delete}</button>
               </td>
             </tr>
           ) : (
@@ -114,17 +165,17 @@ export default function HistoryCard({ dataset, onDelete }) {
                     <polyline points="7 10 12 15 17 10"/>
                     <line x1="12" y1="15" x2="12" y2="3"/>
                   </svg>
-                  Download
+                  {t.download}
                 </button>
                 <button className="table-action delete" onClick={handleDelete} disabled={deleting}
                   style={{ opacity: deleting ? 0.5 : 1 }}>
-                  {deleting ? "…" : (
+                  {deleting ? t.deleting : (
                     <>
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ verticalAlign:"middle", marginRight:"4px" }}>
                         <polyline points="3 6 5 6 21 6"/>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
                       </svg>
-                      Delete
+                      {t.delete}
                     </>
                   )}
                 </button>
@@ -139,12 +190,12 @@ export default function HistoryCard({ dataset, onDelete }) {
         <div style={{ marginTop:"10px", display:"flex", gap:"8px", flexWrap:"wrap" }}>
           <button className="secondary-btn" style={{ fontSize:"0.78rem", padding:"6px 14px" }}
             onClick={() => handleDownload("cleaned", `cleaned_${dataset.fileName}`)}>
-            ↓ Download cleaned CSV
+            {t.cleanedCsv}
           </button>
           {dataset.hasPdfReport && (
             <button className="secondary-btn" style={{ fontSize:"0.78rem", padding:"6px 14px" }}
               onClick={() => handleDownload("report", dataset.reportFileName)}>
-              ↓ Download PDF report — {dataset.reportFileName}
+              {t.pdfReport(dataset.reportFileName)}
             </button>
           )}
         </div>

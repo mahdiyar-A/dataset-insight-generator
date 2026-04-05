@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useSettings } from "@/app/contexts/SettingsContext";
 
 // ─── Translations ─────────────────────────────────────────────────────────────
 const T = {
@@ -50,52 +51,29 @@ const LANGUAGES = [
   { code: "fa", label: "فارسی", flag: "🇮🇷" },
 ];
 
-function applyTheme(brightness: number) {
-  const root = document.documentElement;
-  const isLight = brightness > 65;
-  const isDark = brightness < 35;
-
-  if (isLight) {
-    root.style.setProperty("--bg", `hsl(220,20%,${88 + brightness * 0.1}%)`);
-    root.style.setProperty("--bg-elevated", `hsl(220,18%,94%)`);
-    root.style.setProperty("--panel", `rgba(255,255,255,0.9)`);
-    root.style.setProperty("--panel2", `hsl(220,20%,${88 + brightness * 0.1}%)`);
-    root.style.setProperty("--text", "#111827");
-    root.style.setProperty("--text-soft", "#4b5563");
-    root.style.setProperty("--border", "#d1d5db");
-    root.style.setProperty("--shadow-soft", "0 4px 20px rgba(0,0,0,0.08)");
-  } else if (isDark) {
-    const d = (35 - brightness) / 35;
-    root.style.setProperty("--bg", `hsl(222,${30 + d * 8}%,${3 + brightness * 0.15}%)`);
-    root.style.setProperty("--bg-elevated", `hsl(222,26%,${5 + brightness * 0.2}%)`);
-    root.style.setProperty("--panel", `hsl(220,22%,${8 + brightness * 0.3}%)`);
-    root.style.setProperty("--panel2", `hsl(222,30%,${3 + brightness * 0.15}%)`);
-    root.style.setProperty("--text", "#e5e7eb");
-    root.style.setProperty("--text-soft", "#9ca3af");
-    root.style.setProperty("--border", `hsl(220,20%,${10 + brightness * 0.25}%)`);
-    root.style.setProperty("--shadow-soft", `0 18px 45px rgba(0,0,0,${0.9 - brightness * 0.01})`);
-  } else {
-    const pct = (brightness - 35) / 30;
-    root.style.setProperty("--bg", `hsl(222,22%,${10 + brightness * 0.35}%)`);
-    root.style.setProperty("--bg-elevated", `hsl(222,18%,${13 + brightness * 0.35}%)`);
-    root.style.setProperty("--panel", `hsl(220,16%,${18 + brightness * 0.45}%)`);
-    root.style.setProperty("--panel2", `hsl(222,22%,${10 + brightness * 0.35}%)`);
-    root.style.setProperty("--text", pct > 0.6 ? "#1f2937" : "#e5e7eb");
-    root.style.setProperty("--text-soft", pct > 0.6 ? "#4b5563" : "#9ca3af");
-    root.style.setProperty("--border", `hsl(220,14%,${22 + brightness * 0.38}%)`);
-    root.style.setProperty("--shadow-soft", "0 10px 32px rgba(0,0,0,0.45)");
-  }
-}
+// applyTheme is owned by SettingsContext — no local copy needed.
 
 export default function SettingsPage() {
   const router = useRouter();
   const saveTimerRef = useRef(null);
 
-  const [lang, setLang] = useState("en");
-  const [brightness, setBrightness] = useState(10);
+  // ── lang + brightness come from the shared session context ─────────────────
+  // Changes here instantly apply everywhere (landing page, dashboard, etc.)
+  // and persist for the whole tab session — cleared on logout or tab close.
+  const { lang, setLang: ctxSetLang, brightness, setBrightness: ctxSetBrightness } = useSettings();
+
   const [emailNotif, setEmailNotif] = useState(true);
   const [reportReady, setReportReady] = useState(true);
   const [savedFlash, setSavedFlash] = useState(false);
+
+  // Load non-lang/brightness settings from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const s = JSON.parse(sessionStorage.getItem("dig_settings") || "{}");
+      if (s.emailNotif !== undefined) setEmailNotif(s.emailNotif);
+      if (s.reportReady !== undefined) setReportReady(s.reportReady);
+    } catch {}
+  }, []);
 
   const t = T[lang] || T.en;
   const isLight = brightness > 65;
@@ -107,28 +85,25 @@ export default function SettingsPage() {
     ? "radial-gradient(circle at top, #dde6f0 0%, #f0f4f8 100%)"
     : `radial-gradient(circle at top, hsl(222,30%,${3 + brightness * 0.18}%) 0%, hsl(220,35%,${2 + brightness * 0.12}%) 100%)`;
 
-  useEffect(() => {
-    try {
-      const s = JSON.parse(localStorage.getItem("dig_settings") || "{}");
-      if (s.brightness !== undefined) { setBrightness(s.brightness); applyTheme(s.brightness); }
-      if (s.lang) setLang(s.lang);
-      if (s.emailNotif !== undefined) setEmailNotif(s.emailNotif);
-      if (s.reportReady !== undefined) setReportReady(s.reportReady);
-    } catch {}
-  }, []);
-
-  useEffect(() => { applyTheme(brightness); }, [brightness]);
-
-  useEffect(() => {
-    document.documentElement.setAttribute("dir", lang === "fa" ? "rtl" : "ltr");
-  }, [lang]);
-
-  function persist(patch = {}) {
-    const cur = JSON.parse(localStorage.getItem("dig_settings") || "{}");
-    localStorage.setItem("dig_settings", JSON.stringify({ ...cur, brightness, lang, emailNotif, reportReady, ...patch }));
+  function flashSaved() {
     setSavedFlash(true);
     clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => setSavedFlash(false), 1800);
+  }
+
+  function setLang(l: string) {
+    ctxSetLang(l as any);  // context persists to sessionStorage + applies dir
+    flashSaved();
+  }
+
+  function setBrightness(b: number) {
+    ctxSetBrightness(b);   // context persists to sessionStorage + applies CSS vars
+  }
+
+  function persist(patch = {}) {
+    const cur = JSON.parse(sessionStorage.getItem("dig_settings") || "{}");
+    sessionStorage.setItem("dig_settings", JSON.stringify({ ...cur, ...patch }));
+    flashSaved();
   }
 
   const rtl = lang === "fa";
@@ -184,8 +159,8 @@ export default function SettingsPage() {
               <div style={{ position: "absolute", left: 0, right: 0, height: "8px", borderRadius: "999px", background: "linear-gradient(to right,#020617 0%,#1e3a5f 20%,#374151 42%,#6b7280 60%,#cbd5e1 80%,#f8fafc 100%)", boxShadow: "inset 0 1px 3px rgba(0,0,0,0.5)" }} />
               <input type="range" min={0} max={100} value={brightness}
                 onChange={e => setBrightness(Number(e.target.value))}
-                onMouseUp={() => persist({ brightness })}
-                onTouchEnd={() => persist({ brightness })}
+                onMouseUp={() => flashSaved()}
+                onTouchEnd={() => flashSaved()}
                 style={{ position: "absolute", width: "100%", height: "8px", appearance: "none", WebkitAppearance: "none", background: "transparent", cursor: "pointer", margin: 0, padding: 0 }}
               />
             </div>
@@ -204,7 +179,7 @@ export default function SettingsPage() {
             <p style={{ margin: "0 0 14px", fontSize: "0.78rem", color: textSoft }}>{t.languageDesc}</p>
             <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" as const }}>
               {LANGUAGES.map(l => (
-                <button key={l.code} onClick={() => { setLang(l.code); persist({ lang: l.code }); }} style={{
+                <button key={l.code} onClick={() => setLang(l.code)} style={{
                   display: "flex", alignItems: "center", gap: "8px", padding: "10px 18px", borderRadius: "12px", cursor: "pointer",
                   fontSize: "0.84rem", fontWeight: lang === l.code ? 700 : 500,
                   border: lang === l.code ? "1px solid rgba(37,99,235,0.55)" : `1px solid ${cardBorder}`,
@@ -268,7 +243,7 @@ export default function SettingsPage() {
         </div>
 
         <p style={{ textAlign: "center", fontSize: "0.72rem", color: textSoft, paddingBottom: "24px" }}>
-          Settings are saved locally on this device.
+          Settings apply for this session only — they reset on refresh.
         </p>
       </div>
 

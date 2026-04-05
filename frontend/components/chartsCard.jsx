@@ -3,7 +3,53 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { useSettings } from "@/app/contexts/SettingsContext";
 import BackendAPI from "@/lib/BackendAPI";
+
+const T = {
+  en: {
+    title: "Visualizations",
+    loading: "Loading…",
+    pendingAnalysis: "Pending analysis",
+    noDataset: "No dataset",
+    noVizYet: "No visualizations yet",
+    uploadHint: "Upload and analyse a dataset to generate charts.",
+    chartsPending: "Charts pending",
+    runHint: "Run the analysis to generate up to 5 visualizations.",
+    chartOf: (a, b) => `Chart ${a} of ${b}`,
+    clickZoom: "click to zoom",
+    zoom: "Zoom",
+    escClose: "Press Esc or click outside to close",
+  },
+  fr: {
+    title: "Visualisations",
+    loading: "Chargement…",
+    pendingAnalysis: "Analyse en attente",
+    noDataset: "Aucun jeu de données",
+    noVizYet: "Aucune visualisation pour l'instant",
+    uploadHint: "Importez et analysez un jeu de données pour générer des graphiques.",
+    chartsPending: "Graphiques en attente",
+    runHint: "Lancez l'analyse pour générer jusqu'à 5 visualisations.",
+    chartOf: (a, b) => `Graphique ${a} sur ${b}`,
+    clickZoom: "cliquer pour zoomer",
+    zoom: "Zoom",
+    escClose: "Appuyez sur Échap ou cliquez en dehors pour fermer",
+  },
+  fa: {
+    title: "تصویرسازی‌ها",
+    loading: "در حال بارگذاری…",
+    pendingAnalysis: "در انتظار تحلیل",
+    noDataset: "مجموعه داده‌ای وجود ندارد",
+    noVizYet: "هنوز تصویرسازی‌ای وجود ندارد",
+    uploadHint: "یک مجموعه داده بارگذاری و تحلیل کنید تا نمودارها تولید شوند.",
+    chartsPending: "نمودارها در انتظار",
+    runHint: "تحلیل را اجرا کنید تا حداکثر ۵ تصویرسازی تولید شود.",
+    chartOf: (a, b) => `نمودار ${a} از ${b}`,
+    clickZoom: "برای بزرگ‌نمایی کلیک کنید",
+    zoom: "بزرگ‌نمایی",
+    escClose: "Esc را فشار دهید یا بیرون از کادر کلیک کنید تا بسته شود",
+  },
+};
 
 /* ── Fallback SVG renderers ────────────────────────────────────────────────── */
 function BarChart({ color = "#3b82f6" }) {
@@ -90,7 +136,7 @@ const SVG_FALLBACKS = [
 ];
 
 /* ── Zoom / lightbox modal ─────────────────────────────────────────────────── */
-function ZoomModal({ chart, imgSrc, onClose }) {
+function ZoomModal({ chart, imgSrc, onClose, escClose }) {
   // close on Escape
   useEffect(() => {
     const handler = (e) => { if (e.key === "Escape") onClose(); };
@@ -166,7 +212,7 @@ function ZoomModal({ chart, imgSrc, onClose }) {
         </div>
 
         <p style={{ margin: 0, textAlign: "center", color: "#475569", fontSize: "0.75rem" }}>
-          Press Esc or click outside to close
+          {escClose}
         </p>
       </div>
     </div>
@@ -176,6 +222,9 @@ function ZoomModal({ chart, imgSrc, onClose }) {
 /* ── Main component ────────────────────────────────────────────────────────── */
 export default function ChartsCard({ dataset, charts: guestCharts = null, reportReady: guestReportReady = false }) {
   const { token } = useAuth();
+  const { lang } = useSettings();
+  const t = T[lang] || T.en;
+
   const [charts,    setCharts]    = useState([]);
   const [active,    setActive]    = useState(0);
   const [loading,   setLoading]   = useState(true);
@@ -241,19 +290,19 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
   return (
     <>
       {zoomedIdx !== null && (
-        <ZoomModal chart={zoomedChart} imgSrc={zoomedImgSrc} onClose={closeZoom} />
+        <ZoomModal chart={zoomedChart} imgSrc={zoomedImgSrc} onClose={closeZoom} escClose={t.escClose} />
       )}
 
       <div className="card chart-card">
         <div className="card-header">
-          <h2>Visualizations</h2>
+          <h2>{t.title}</h2>
           {current ? (
             <span className="pill" style={{ borderColor: `${currentColor}44`, color: currentColor, background: `${currentColor}14` }}>
               {current.label}
             </span>
           ) : (
             <span className="pill">
-              {loading ? "Loading…" : dataset ? "Pending analysis" : "No dataset"}
+              {loading ? t.loading : dataset ? t.pendingAnalysis : t.noDataset}
             </span>
           )}
         </div>
@@ -269,7 +318,7 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
         }}>
           {loading ? (
             <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "260px" }}>
-              <p className="muted-small">Loading…</p>
+              <p className="muted-small">{t.loading}</p>
             </div>
 
           ) : charts.length === 0 ? (
@@ -279,13 +328,13 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
               </svg>
               {!dataset ? (
                 <>
-                  <p style={{ margin: 0, color: "#4b5563", fontSize: "0.85rem", fontWeight: 600 }}>No visualizations yet</p>
-                  <p className="muted-small">Upload and analyse a dataset to generate charts.</p>
+                  <p style={{ margin: 0, color: "#4b5563", fontSize: "0.85rem", fontWeight: 600 }}>{t.noVizYet}</p>
+                  <p className="muted-small">{t.uploadHint}</p>
                 </>
               ) : (
                 <>
-                  <p style={{ margin: 0, color: "#4b5563", fontSize: "0.85rem", fontWeight: 600 }}>Charts pending</p>
-                  <p className="muted-small">Run the analysis to generate up to 5 visualizations.</p>
+                  <p style={{ margin: 0, color: "#4b5563", fontSize: "0.85rem", fontWeight: 600 }}>{t.chartsPending}</p>
+                  <p className="muted-small">{t.runHint}</p>
                 </>
               )}
             </div>
@@ -295,7 +344,7 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
               {/* Info bar */}
               <div style={{ padding: "14px 16px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#9ca3af" }}>
-                  Chart {active + 1} of {charts.length} — {current.label}
+                  {t.chartOf(active + 1, charts.length)} — {current.label}
                 </span>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <span className="muted-small" style={{ maxWidth: "260px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -304,7 +353,7 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
                   {/* Zoom button */}
                   <button
                     onClick={() => setZoomedIdx(active)}
-                    title="Zoom in"
+                    title={t.zoom}
                     style={{
                       background: `${currentColor}18`, border: `1px solid ${currentColor}44`,
                       borderRadius: "6px", padding: "4px 8px", color: currentColor,
@@ -316,7 +365,7 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
                       <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
                       <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
                     </svg>
-                    Zoom
+                    {t.zoom}
                   </button>
                 </div>
               </div>
@@ -350,7 +399,7 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
                   padding: "3px 8px", color: "#94a3b8", fontSize: "0.68rem",
                   pointerEvents: "none", opacity: 0.8,
                 }}>
-                  click to zoom
+                  {t.clickZoom}
                 </div>
               </div>
             </>
@@ -364,7 +413,7 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
               const dotColor = c.color || "#3b82f6";
               const isActive = active === i;
               return (
-                <button key={i} title={`Chart ${i + 1}: ${c.label}`} onClick={() => setActive(i)}
+                <button key={i} title={`${i + 1}: ${c.label}`} onClick={() => setActive(i)}
                   style={{
                     width: isActive ? "26px" : "10px", height: "10px", borderRadius: "5px",
                     border: `2px solid ${isActive ? dotColor : "rgba(55,65,81,0.8)"}`,

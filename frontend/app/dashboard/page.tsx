@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { useSettings } from "@/app/contexts/SettingsContext";
 import BackendAPI from "@/lib/BackendAPI";
 import UploadCard from "@/components/UploadCard";
 import AnalysisAssistantCard from "@/components/AnalysisChatCard";
@@ -11,6 +12,42 @@ import HistoryCard from "@/components/historyCard";
 import ChartsCard from "@/components/chartsCard";
 import DownloadsCard from "@/components/downloadCard";
 import InfoCards from "@/components/infoCards";
+// ── Dashboard translations ────────────────────────────────────────────────────
+const DASH_T = {
+  en: {
+    title: "Dashboard",
+    noDataset: "Upload a dataset to get started.",
+    lastUpload: (name, rows) => `Last upload: ${name} · ${rows ?? "?"} rows`,
+    nav: { dashboard: "Dashboard", upload: "Upload", history: "History", charts: "AI Insights", report: "Report", help: "Help", settings: "Settings", signOut: "Sign out" },
+    profile: { view: "View profile", account: "Account settings", memberSince: (d) => `Member since ${d}` },
+    bannerDone: "Analysis complete — report, charts, and cleaned dataset are ready.",
+    bannerRunning: "Analysis running — charts and report will appear when done…",
+    bannerFailed: "Analysis failed. Please try uploading your dataset again.",
+    viewReport: "View Report →",
+  },
+  fr: {
+    title: "Tableau de bord",
+    noDataset: "Importez un dataset pour commencer.",
+    lastUpload: (name, rows) => `Dernier import : ${name} · ${rows ?? "?"} lignes`,
+    nav: { dashboard: "Tableau de bord", upload: "Import", history: "Historique", charts: "Insights IA", report: "Rapport", help: "Aide", settings: "Paramètres", signOut: "Déconnexion" },
+    profile: { view: "Voir le profil", account: "Paramètres du compte", memberSince: (d) => `Membre depuis ${d}` },
+    bannerDone: "Analyse terminée — rapport, graphiques et dataset nettoyé sont prêts.",
+    bannerRunning: "Analyse en cours — graphiques et rapport apparaîtront bientôt…",
+    bannerFailed: "Analyse échouée. Veuillez réimporter votre dataset.",
+    viewReport: "Voir le rapport →",
+  },
+  fa: {
+    title: "داشبورد",
+    noDataset: "یک دیتاست آپلود کنید تا شروع شود.",
+    lastUpload: (name, rows) => `آخرین آپلود: ${name} · ${rows ?? "?"} ردیف`,
+    nav: { dashboard: "داشبورد", upload: "آپلود", history: "تاریخچه", charts: "تحلیل‌های AI", report: "گزارش", help: "راهنما", settings: "تنظیمات", signOut: "خروج" },
+    profile: { view: "مشاهده پروفایل", account: "تنظیمات حساب", memberSince: (d) => `عضو از ${d}` },
+    bannerDone: "تحلیل کامل شد — گزارش، نمودارها و دیتاست پاکسازی‌شده آماده است.",
+    bannerRunning: "تحلیل در حال اجرا — نمودارها و گزارش به زودی نمایش می‌یابند…",
+    bannerFailed: "تحلیل ناموفق بود. لطفاً دیتاست خود را دوباره آپلود کنید.",
+    viewReport: "← مشاهده گزارش",
+  },
+};
 
 /*
   FULL CYCLE:
@@ -27,6 +64,10 @@ export default function DashboardPage() {
   const [activeSection, setActiveSection] = useState("top");
   const router = useRouter();
   const { logout, currentUser, token, refreshUser, isLoading } = useAuth();
+  const { lang, brightness } = useSettings();
+  const t = DASH_T[lang] || DASH_T.en;
+  const isLight = brightness > 65;
+  const rtl = lang === "fa";
 
   // ── Auth guard — wait for session to load before redirecting ─────────
   useEffect(() => {
@@ -213,12 +254,12 @@ export default function DashboardPage() {
     : null;
 
   const navItems = [
-    { id: "top",              label: "Dashboard",   icon: <IconGrid />,    ref: topRef },
-    { id: "section-upload",   label: "Upload",      icon: <IconUpload />,  ref: uploadRef },
-    { id: "section-history",  label: "History",     icon: <IconHistory />, ref: historyRef },
-    { id: "section-charts",   label: "AI Insights", icon: <IconChart />,   ref: chartsRef },
-    { id: "section-download", label: "Report",      icon: <IconReport />,  ref: downloadRef },
-    { id: "section-help",     label: "Help",        icon: <IconHelp />,    ref: helpRef },
+    { id: "top",              label: t.nav.dashboard, icon: <IconGrid />,    ref: topRef },
+    { id: "section-upload",   label: t.nav.upload,    icon: <IconUpload />,  ref: uploadRef },
+    { id: "section-history",  label: t.nav.history,   icon: <IconHistory />, ref: historyRef },
+    { id: "section-charts",   label: t.nav.charts,    icon: <IconChart />,   ref: chartsRef },
+    { id: "section-download", label: t.nav.report,    icon: <IconReport />,  ref: downloadRef },
+    { id: "section-help",     label: t.nav.help,      icon: <IconHelp />,    ref: helpRef },
   ];
 
   const showProcessingBanner = (datasetStatus === "processing" || datasetStatus === "pending") && !reportReady && !!dataset;
@@ -228,7 +269,7 @@ export default function DashboardPage() {
   if (!token) return null;
 
   return (
-    <div className="dig-body" style={{ display: "flex", minHeight: "100vh", width: "100%" }}>
+    <div className="dig-body" style={{ display: "flex", minHeight: "100vh", width: "100%", direction: rtl ? "rtl" : "ltr" }}>
 
       {/* ── SIDEBAR ── */}
       <aside className="dig-sidebar">
@@ -246,13 +287,13 @@ export default function DashboardPage() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <button className="sidebar-link" onClick={() => router.push("/dashboard/settings")} title="Settings">
+          <button className="sidebar-link" onClick={() => router.push("/dashboard/settings")} title={t.nav.settings}>
             <span className="sidebar-icon"><IconSettings /></span>
-            <span className="sidebar-label">Settings</span>
+            <span className="sidebar-label">{t.nav.settings}</span>
           </button>
-          <button className="sidebar-link" onClick={handleSignOut} title="Sign out">
+          <button className="sidebar-link" onClick={handleSignOut} title={t.nav.signOut}>
             <span className="sidebar-icon"><IconSignOut /></span>
-            <span className="sidebar-label">Sign out</span>
+            <span className="sidebar-label">{t.nav.signOut}</span>
           </button>
         </div>
       </aside>
@@ -263,13 +304,14 @@ export default function DashboardPage() {
         {/* Topbar */}
         <header className="dig-topbar" id="top" ref={topRef}>
           <div>
-            <h1>Dashboard</h1>
+            <h1>{t.title}</h1>
             <p className="subtitle">
               {dataset
-                ? `Last upload: ${dataset.fileName} · ${dataset.rowCount ?? "?"} rows`
-                : "Upload a dataset to get started."}
+                ? t.lastUpload(dataset.fileName, dataset.rowCount)
+                : t.noDataset}
             </p>
           </div>
+
           <div className="topbar-right">
             <div className="profile-wrapper">
               <div className="avatar" style={{ ...(avatarUrl ? { padding:0, overflow:"hidden" } : {}), cursor:"pointer" }}
@@ -280,12 +322,12 @@ export default function DashboardPage() {
               </div>
               <div className="profile-text" style={{ cursor:"pointer" }} onClick={() => router.push("/dashboard/profileView")}>
                 <span className="profile-name">{displayName}</span>
-                <span className="profile-role">{memberSince ? `Member since ${memberSince}` : "Member"}</span>
+                <span className="profile-role">{memberSince ? t.profile.memberSince(memberSince) : "Member"}</span>
               </div>
               <div className="profile-dropdown-icon">▾</div>
               <div className="profile-dropdown">
-                <a onClick={(e) => { e.preventDefault(); router.push("/dashboard/profileView"); }}>View profile</a>
-                <a onClick={(e) => { e.preventDefault(); router.push("/dashboard/editProfile"); }}>Account settings</a>
+                <a onClick={(e) => { e.preventDefault(); router.push("/dashboard/profileView"); }}>{t.profile.view}</a>
+                <a onClick={(e) => { e.preventDefault(); router.push("/dashboard/editProfile"); }}>{t.profile.account}</a>
               </div>
             </div>
           </div>
@@ -293,33 +335,33 @@ export default function DashboardPage() {
 
         {/* ── Banners ── */}
         {reportReady && (
-          <div style={{ padding:"12px 24px", background:"linear-gradient(90deg,rgba(22,163,74,0.12),rgba(22,163,74,0.06))", borderBottom:"1px solid rgba(34,197,94,0.2)", display:"flex", alignItems:"center", justifyContent:"space-between", gap:"12px" }}>
+          <div style={{ padding:"12px 24px", background: isLight ? "rgba(22,163,74,0.08)" : "linear-gradient(90deg,rgba(22,163,74,0.12),rgba(22,163,74,0.06))", borderBottom:"1px solid rgba(34,197,94,0.3)", display:"flex", alignItems:"center", justifyContent:"space-between", gap:"12px" }}>
             <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
               <span>✅</span>
-              <span style={{ fontSize:"0.85rem", color:"#bbf7d0", fontWeight:600 }}>
-                Analysis complete — report, charts, and cleaned dataset are ready.
+              <span style={{ fontSize:"0.85rem", color: isLight ? "#15803d" : "#bbf7d0", fontWeight:600 }}>
+                {t.bannerDone}
               </span>
             </div>
-            <button onClick={scrollToReport} style={{ padding:"7px 16px", borderRadius:"999px", border:"1px solid rgba(34,197,94,0.4)", background:"rgba(22,163,74,0.15)", color:"#86efac", fontSize:"0.78rem", fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
-              View Report →
+            <button onClick={scrollToReport} style={{ padding:"7px 16px", borderRadius:"999px", border: isLight ? "1px solid rgba(22,163,74,0.5)" : "1px solid rgba(34,197,94,0.4)", background: isLight ? "rgba(22,163,74,0.1)" : "rgba(22,163,74,0.15)", color: isLight ? "#15803d" : "#86efac", fontSize:"0.78rem", fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
+              {t.viewReport}
             </button>
           </div>
         )}
 
         {showProcessingBanner && (
-          <div style={{ padding:"12px 24px", background:"rgba(37,99,235,0.08)", borderBottom:"1px solid rgba(37,99,235,0.2)", display:"flex", alignItems:"center", gap:"10px" }}>
+          <div style={{ padding:"12px 24px", background: isLight ? "rgba(37,99,235,0.06)" : "rgba(37,99,235,0.08)", borderBottom:"1px solid rgba(37,99,235,0.2)", display:"flex", alignItems:"center", gap:"10px" }}>
             <span>⏳</span>
-            <span style={{ fontSize:"0.85rem", color:"#93c5fd" }}>
-              Analysis running — charts and report will appear when done…
+            <span style={{ fontSize:"0.85rem", color: isLight ? "#1d4ed8" : "#93c5fd" }}>
+              {t.bannerRunning}
             </span>
           </div>
         )}
 
         {showFailedBanner && (
-          <div style={{ padding:"12px 24px", background:"rgba(127,29,29,0.12)", borderBottom:"1px solid rgba(249,115,115,0.2)", display:"flex", alignItems:"center", gap:"10px" }}>
+          <div style={{ padding:"12px 24px", background: isLight ? "rgba(220,38,38,0.06)" : "rgba(127,29,29,0.12)", borderBottom:"1px solid rgba(249,115,115,0.2)", display:"flex", alignItems:"center", gap:"10px" }}>
             <span>❌</span>
-            <span style={{ fontSize:"0.85rem", color:"#fca5a5" }}>
-              Analysis failed. Please try uploading your dataset again.
+            <span style={{ fontSize:"0.85rem", color: isLight ? "#b91c1c" : "#fca5a5" }}>
+              {t.bannerFailed}
             </span>
           </div>
         )}

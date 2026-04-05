@@ -38,4 +38,7 @@ public class GetMeResponseDto
 
     /// <summary>Whether the account is active. Used for soft-deletes.</summary>
     public bool IsActive { get; set; }
+
+    /// <summary>Whether the user's email has been verified.</summary>
+    public bool IsEmailVerified { get; set; }
 }

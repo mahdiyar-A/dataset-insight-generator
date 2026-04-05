@@ -4,6 +4,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
+import { useSettings } from "@/app/contexts/SettingsContext";
 
 /*
   4 dataset conditions returned by backend:
@@ -36,8 +37,64 @@ const CONDITION_STUBS = {
   all_good:     "Your dataset looks great! No significant issues found. Ready to generate your full report and visualizations.",
 };
 
+const T = {
+  en: {
+    title: "Analysis Assistant",
+    pills: { ready: "Ready", running: "Running…", complete: "Complete",
+             notClean: "⚠ Needs cleaning", lowAcc: "⚠ Low accuracy",
+             notWork: "✕ Not workable", allGood: "✓ All good" },
+    stages: ["Upload", "Analysis", "Report Ready"],
+    idleTitle: "Ready to analyse",
+    idleDesc: (fileName) => fileName
+      ? <>Press <strong style={{ color:"#bfdbfe" }}>Start</strong> to begin the analysis pipeline.</>
+      : "Upload a CSV above first, then start the analysis.",
+    start: "Start",
+    cancel: "Cancel",
+    yes: "Yes",
+    no: "No",
+    goReport: "Go to Report",
+    received: (name) => `We've received "${name}" — starting analysis now. Please wait…`,
+  },
+  fr: {
+    title: "Assistant d'analyse",
+    pills: { ready: "Prêt", running: "En cours…", complete: "Terminé",
+             notClean: "⚠ Nettoyage requis", lowAcc: "⚠ Faible précision",
+             notWork: "✕ Non exploitable", allGood: "✓ Tout bon" },
+    stages: ["Import", "Analyse", "Rapport prêt"],
+    idleTitle: "Prêt à analyser",
+    idleDesc: (fileName) => fileName
+      ? <>Appuyez sur <strong style={{ color:"#bfdbfe" }}>Démarrer</strong> pour lancer l&apos;analyse.</>
+      : "Importez d'abord un CSV, puis démarrez l'analyse.",
+    start: "Démarrer",
+    cancel: "Annuler",
+    yes: "Oui",
+    no: "Non",
+    goReport: "Voir le rapport",
+    received: (name) => `Nous avons reçu « ${name} » — analyse en cours. Veuillez patienter…`,
+  },
+  fa: {
+    title: "دستیار تحلیل",
+    pills: { ready: "آماده", running: "در حال اجرا…", complete: "تکمیل شد",
+             notClean: "⚠ نیاز به پاکسازی", lowAcc: "⚠ دقت پایین",
+             notWork: "✕ قابل پردازش نیست", allGood: "✓ همه چیز خوب است" },
+    stages: ["آپلود", "تحلیل", "گزارش آماده"],
+    idleTitle: "آماده برای تحلیل",
+    idleDesc: (fileName) => fileName
+      ? <><strong style={{ color:"#bfdbfe" }}>شروع</strong> را فشار دهید تا تحلیل آغاز شود.</>
+      : "ابتدا یک فایل CSV آپلود کنید، سپس تحلیل را شروع کنید.",
+    start: "شروع",
+    cancel: "لغو",
+    yes: "بله",
+    no: "خیر",
+    goReport: "مشاهده گزارش",
+    received: (name) => `فایل "${name}" دریافت شد — تحلیل در حال شروع است. لطفاً صبر کنید…`,
+  },
+};
+
 export default function AnalysisAssistantCard({ dataset, reportReady, onViewReport, onAnalysisStarted, guestMode = false, guestSessionId = null }) {
   const { token } = useAuth();
+  const { lang } = useSettings();
+  const t = T[lang] || T.en;
 
   const [stage,            setStage]            = useState(0);   // 0=idle 1=running 2=ready
   const [messages,         setMessages]         = useState([]);
@@ -193,7 +250,7 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
     setCondition(null);
     setStubStep(0);
     const name = dataset?.fileName ?? "your dataset";
-    addMsg("assistant", `We've received "${name}" — starting analysis now. Please wait…`);
+    addMsg("assistant", t.received(name));
     timerRef.current = setTimeout(() => sendMessage("start_analysis"), 800);
   };
 
@@ -233,33 +290,34 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
 
       {/* Header */}
       <div className="card-header">
-        <h2>Analysis Assistant</h2>
-        {stage === 0 && <span className="pill">Ready</span>}
+        <h2>{t.title}</h2>
+        {stage === 0 && <span className="pill">{t.pills.ready}</span>}
         {stage === 1 && conditionStyle ? (
           <span className="pill" style={{ borderColor: conditionStyle.border, color: conditionStyle.color, background: conditionStyle.bg }}>
-            { condition === "not_clean"    && "⚠ Needs cleaning"    }
-            { condition === "low_accuracy" && "⚠ Low accuracy"      }
-            { condition === "not_workable" && "✕ Not workable"       }
-            { condition === "all_good"     && "✓ All good"           }
+            { condition === "not_clean"    && t.pills.notClean    }
+            { condition === "low_accuracy" && t.pills.lowAcc      }
+            { condition === "not_workable" && t.pills.notWork     }
+            { condition === "all_good"     && t.pills.allGood     }
           </span>
         ) : stage === 1 ? (
-          <span className="pill live-pill">Running…</span>
+          <span className="pill live-pill">{t.pills.running}</span>
         ) : null}
         {stage === 2 && (
           <span className="pill" style={{ borderColor:"rgba(34,197,94,0.6)", color:"#bbf7d0", background:"rgba(22,163,74,0.1)" }}>
-            Complete
+            {t.pills.complete}
           </span>
         )}
       </div>
 
       {/* Timeline */}
       <div className="analysis-timeline">
-        {STAGES.map((s, i) => {
+        {t.stages.map((label, i) => {
           const isDone   = i < stage;
           const isActive = i === stage;
+          const key      = ["upload","analysis","ready"][i];
           return (
-            <span key={s.key} className={`step${isDone ? " done" : isActive ? " active" : ""}`}>
-              {isDone ? "✓ " : ""}{s.label}
+            <span key={key} className={`step${isDone ? " done" : isActive ? " active" : ""}`}>
+              {isDone ? "✓ " : ""}{label}
             </span>
           );
         })}
@@ -273,15 +331,13 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
               <polygon points="5 3 19 12 5 21 5 3"/>
             </svg>
           </div>
-          <p style={{ margin:0, fontSize:"0.9rem", fontWeight:600, color:"#e5e7eb" }}>Ready to analyse</p>
+          <p style={{ margin:0, fontSize:"0.9rem", fontWeight:600, color:"#e5e7eb" }}>{t.idleTitle}</p>
           <p className="muted-small" style={{ maxWidth:"260px", lineHeight:"1.6" }}>
-            {dataset
-              ? <>Press <strong style={{ color:"#bfdbfe" }}>Start</strong> to begin the analysis pipeline.</>
-              : "Upload a CSV above first, then start the analysis."}
+            {t.idleDesc(dataset?.fileName)}
           </p>
           <button className="primary-btn" style={{ fontWeight:800, marginTop:"4px", display:"flex", alignItems:"center", gap:"7px", opacity: dataset ? 1 : 0.4, cursor: dataset ? "pointer" : "not-allowed" }} onClick={dataset ? handleStart : undefined} disabled={!dataset}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            Start
+            {t.start}
           </button>
         </div>
       )}
@@ -306,18 +362,18 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
 
           <div style={{ display:"flex", gap:"8px", flexWrap:"wrap", alignItems:"center" }}>
             <button className="chip-btn subtle" onClick={handleCancel} style={{ fontSize:"0.8rem", padding:"6px 14px" }}>
-              Cancel
+              {t.cancel}
             </button>
 
             {awaitingResponse && !sending && (
               <>
                 <button className="chip-btn subtle" onClick={handleNo}
                   style={{ fontSize:"0.8rem", padding:"6px 16px", borderColor:"rgba(249,115,115,0.4)", color:"#f97373", background:"rgba(127,29,29,0.15)" }}>
-                  No
+                  {t.no}
                 </button>
                 <button className="chip-btn subtle" onClick={handleYes}
                   style={{ fontSize:"0.8rem", padding:"6px 16px", borderColor:"rgba(34,197,94,0.4)", color:"#bbf7d0", background:"rgba(22,163,74,0.12)" }}>
-                  Yes
+                  {t.yes}
                 </button>
               </>
             )}
@@ -343,7 +399,7 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <polyline points="6 9 12 15 18 9"/>
             </svg>
-            Go to Report
+            {t.goReport}
           </button>
         </>
       )}

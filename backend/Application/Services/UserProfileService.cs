@@ -102,8 +102,9 @@ public class UserProfileService : IUserProfileService
             PhoneNumber    = u.PhoneNumber,
             ProfilePicture = u.ProfilePicture,
             CreatedAt      = u.CreatedAt,
-            LastLoginAt    = u.LastLoginAt,
-            IsActive       = u.IsActive
+            LastLoginAt      = u.LastLoginAt,
+            IsActive         = u.IsActive,
+            IsEmailVerified  = u.IsEmailVerified
         };
     }
 }

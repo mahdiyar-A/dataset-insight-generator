@@ -4,9 +4,63 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
+import { useSettings } from "@/app/contexts/SettingsContext";
+
+const T = {
+  en: {
+    title: "Upload Dataset",
+    hint: "Drag and drop your .csv file here, or click to browse. Max 50 MB.",
+    drop: "Drop your file here",
+    browse: "or click to choose a .csv file",
+    status: { idle: "Idle", uploading: "Uploading", done: "Ready", error: "Failed" },
+    statusMsg: {
+      idle: "No file selected.",
+      uploading: "Uploading…",
+      done: "Upload complete.",
+    },
+    stats: { rows: "Rows", columns: "Columns", size: "Size" },
+    preview: "Dataset Preview",
+    previewSub: (cols, total) => `First 10 rows · ${cols} of ${total} cols shown`,
+    missing: "⚠ Missing / null values shown in red — these will be addressed during analysis.",
+  },
+  fr: {
+    title: "Importer un dataset",
+    hint: "Glissez-déposez votre fichier .csv ici, ou cliquez pour parcourir. Max 50 Mo.",
+    drop: "Déposez votre fichier ici",
+    browse: "ou cliquez pour choisir un fichier .csv",
+    status: { idle: "Inactif", uploading: "Import…", done: "Prêt", error: "Échec" },
+    statusMsg: {
+      idle: "Aucun fichier sélectionné.",
+      uploading: "Import en cours…",
+      done: "Import terminé.",
+    },
+    stats: { rows: "Lignes", columns: "Colonnes", size: "Taille" },
+    preview: "Aperçu du dataset",
+    previewSub: (cols, total) => `10 premières lignes · ${cols} sur ${total} colonnes`,
+    missing: "⚠ Valeurs manquantes / nulles en rouge — elles seront traitées lors de l'analyse.",
+  },
+  fa: {
+    title: "آپلود دیتاست",
+    hint: "فایل .csv خود را اینجا بکشید و رها کنید، یا برای انتخاب کلیک کنید. حداکثر ۵۰ مگابایت.",
+    drop: "فایل خود را اینجا رها کنید",
+    browse: "یا برای انتخاب فایل .csv کلیک کنید",
+    status: { idle: "آماده", uploading: "در حال آپلود", done: "آماده", error: "خطا" },
+    statusMsg: {
+      idle: "فایلی انتخاب نشده.",
+      uploading: "در حال آپلود…",
+      done: "آپلود کامل شد.",
+    },
+    stats: { rows: "ردیف‌ها", columns: "ستون‌ها", size: "حجم" },
+    preview: "پیش‌نمایش دیتاست",
+    previewSub: (cols, total) => `۱۰ ردیف اول · ${cols} از ${total} ستون`,
+    missing: "⚠ مقادیر گم‌شده / تهی با رنگ قرمز نشان داده شده‌اند — در طول تحلیل رفع می‌شوند.",
+  },
+};
 
 export default function UploadCard({ onUploadSuccess, onUploadStart, resetKey, guestMode = false, guestSessionId = null }) {
   const { token } = useAuth();
+  const { lang } = useSettings();
+  const t = T[lang] || T.en;
   const fileInputRef = useRef(null);
 
   const [file,     setFile]     = useState(null);
@@ -119,17 +173,17 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, resetKey, g
   }, [token]);
 
   const progressWidth = { idle: "0%", uploading: "55%", done: "100%", error: "100%" };
-  const statusLabel   = { idle: "Idle", uploading: "Uploading", done: "Ready", error: "Failed" };
+  const statusLabel   = { idle: t.status.idle, uploading: t.status.uploading, done: t.status.done, error: t.status.error };
   const pillClass     = status === "done" ? "ready" : status;
 
   return (
     <div className="card upload-card">
       <div className="card-header">
-        <h2>Upload Dataset</h2>
+        <h2>{t.title}</h2>
         <span className={`status-pill ${pillClass}`}>{statusLabel[status]}</span>
       </div>
 
-      <p className="muted">Drag and drop your .csv file here, or click to browse. Max 50 MB.</p>
+      <p className="muted">{t.hint}</p>
 
       {/* Dropzone */}
       <label
@@ -162,10 +216,10 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, resetKey, g
           </div>
           <div>
             <p className="dropzone-title" style={{ fontSize: "1rem" }}>
-              {file ? file.name : "Drop your file here"}
+              {file ? file.name : t.drop}
             </p>
             <p className="muted-small">
-              {file ? `${(file.size / 1024).toFixed(1)} KB` : "or click to choose a .csv file"}
+              {file ? `${(file.size / 1024).toFixed(1)} KB` : t.browse}
             </p>
           </div>
         </div>
@@ -175,9 +229,9 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, resetKey, g
       <div className="upload-status-bar">
         <div className="status-header">
           <span style={{ color: status === "error" ? "#f97373" : undefined }}>
-            {status === "idle"      && "No file selected."}
-            {status === "uploading" && "Uploading…"}
-            {status === "done"      && "Upload complete."}
+            {status === "idle"      && t.statusMsg.idle}
+            {status === "uploading" && t.statusMsg.uploading}
+            {status === "done"      && t.statusMsg.done}
             {status === "error"     && (errorMsg || "Upload failed. Try again.")}
           </span>
           <span className={`status-pill ${pillClass}`}>{statusLabel[status]}</span>
@@ -199,9 +253,9 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, resetKey, g
       {/* Stats */}
       <div className="stats-row">
         {[
-        { label: "Rows",    value: stats.rows    ?? "–" },
-        { label: "Columns", value: stats.columns ?? "–" },
-        { label: "Size",    value: stats.size    ?? "–" },
+        { label: t.stats.rows,    value: stats.rows    ?? "–" },
+        { label: t.stats.columns, value: stats.columns ?? "–" },
+        { label: t.stats.size,    value: stats.size    ?? "–" },
       ].map((s) => (
           <div className="stat" key={s.label}>
             <div className="stat-label">{s.label}</div>
@@ -215,10 +269,10 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, resetKey, g
         <div style={{ marginTop: "4px" }}>
           <div className="card-header" style={{ marginBottom: "8px" }}>
             <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "#9ca3af" }}>
-              Dataset Preview
+              {t.preview}
             </span>
             <span className="pill">
-              First 10 rows · {preview.headers.length} of {preview.totalCols} cols shown
+              {t.previewSub(preview.headers.length, preview.totalCols)}
             </span>
           </div>
           <div style={{
@@ -260,7 +314,7 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, resetKey, g
             </table>
           </div>
           <p className="muted-small" style={{ marginTop: "6px" }}>
-            ⚠ Missing / null values shown in red — these will be addressed during analysis.
+            {t.missing}
           </p>
         </div>
       )}
