@@ -301,8 +301,8 @@ export default function HomePage() {
             width: '100%',
             textAlign: 'right',
             paddingRight: '16px',
-            paddingTop: '8px',
-            paddingBottom: '6px',
+            paddingTop: '13px',
+            paddingBottom: '10px',
             fontSize: '0.62rem',
             color: light ? 'rgba(99,102,241,0.5)' : 'rgba(148,163,184,0.4)',
             fontWeight: 600,
@@ -313,8 +313,8 @@ export default function HomePage() {
             {lang === 'fr' ? 'DIG analyse votre dataset…' : lang === 'fa' ? 'DIG در حال بررسی دیتاست شماست…' : 'DIG is searching your dataset…'}
           </div>
 
-          {/* DIG track row — DIG self-measures this container's width */}
-          <div style={{ position: 'relative', width: '100%' }}>
+          {/* DIG track row — paddingTop compensates for label moving up, keeps DIG in place */}
+          <div style={{ position: 'relative', width: '100%', paddingTop: '13px' }}>
             {/* Floor line DIG walks on */}
             <div style={{
               position: 'absolute',

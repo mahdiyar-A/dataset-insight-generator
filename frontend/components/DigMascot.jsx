@@ -86,20 +86,30 @@ export default function DigMascot({ stageWidth: propStageWidth = undefined }) {
     return () => ro.disconnect();
   }, [propStageWidth]);
 
-  const MAX_X = stageWidth - CHAR_W - 8;
+  // ── Edge padding keeps DIG fully inside the container on BOTH sides ────────
+  const EDGE_PAD = 32;
+  const MIN_X    = EDGE_PAD;                                          // left boundary
+  const MAX_X    = Math.max(MIN_X, stageWidth - CHAR_W - EDGE_PAD);  // right boundary
+
+  // ── Walk duration scales with travel distance so visual speed stays constant
+  //    60 px/s feels natural; floor at 3 500 ms so tiny screens aren't instant
+  const walkDur = Math.max(3500, Math.round(((MAX_X - MIN_X) / 60) * 1000));
+
+  // Merge dynamic walk durations into the phase-duration table
+  const Dyn = { ...D, walkR: walkDur, walkL: walkDur };
 
   const [phase,     setPhase]     = useState("idle");
-  const [x,         setX]         = useState(0);
+  const [x,         setX]         = useState(EDGE_PAD);
   const [dir,       setDir]       = useState(1);
   const [hovered,   setHovered]   = useState(false);
   const [tooltipUp, setTooltipUp] = useState(true);
   const wrapRef  = useRef(null);
   const timerRef = useRef(null);
 
-  // ── Clamp x when stage resizes to prevent DIG walking off-screen ───────────
+  // ── Clamp x within [MIN_X, MAX_X] when stage resizes ────────────────────
   useEffect(() => {
-    setX(prev => Math.min(prev, MAX_X));
-  }, [MAX_X]);
+    setX(prev => Math.max(MIN_X, Math.min(prev, MAX_X)));
+  }, [MIN_X, MAX_X]);
 
   // ── State machine ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -108,11 +118,11 @@ export default function DigMascot({ stageWidth: propStageWidth = undefined }) {
       setPhase(p => SEQ[(SEQ.indexOf(p) + 1) % SEQ.length]);
 
     if (phase === "walkR")  { setDir(1);  setX(MAX_X); }
-    if (phase === "walkL")  { setDir(-1); setX(0);     }
+    if (phase === "walkL")  { setDir(-1); setX(MIN_X); }
     if (phase === "turnL")  setDir(-1);
     if (phase === "turnR")  setDir(1);
 
-    timerRef.current = setTimeout(advance, D[phase] ?? 500);
+    timerRef.current = setTimeout(advance, Dyn[phase] ?? 500);
     return () => clearTimeout(timerRef.current);
   }, [phase, MAX_X]);
 
@@ -133,6 +143,20 @@ export default function DigMascot({ stageWidth: propStageWidth = undefined }) {
 
   const bodyRotate = examining ? 20 : 0;
   const bodyTransY = examining ? 5  : 0;
+
+  // ── Tooltip position: always clamped inside stage, arrow always at DIG head ─
+  const TOOLTIP_W  = 172;
+  const ARROW_HALF = 6;
+  const STAGE_PAD  = 12;    // min gap from stage edges
+
+  // Use the React state x (destination) — tooltip is only visible on hover,
+  // which only happens while DIG is stationary, so this is always accurate.
+  const digCX          = x + CHAR_W / 2;
+  const idealTipLeft   = digCX - TOOLTIP_W / 2;
+  const clampedTipLeft = Math.max(STAGE_PAD, Math.min(idealTipLeft, stageWidth - TOOLTIP_W - STAGE_PAD));
+  const tipLeftRel     = clampedTipLeft - x;
+  const arrowLeftInTip = Math.max(ARROW_HALF + 4,
+    Math.min(digCX - clampedTipLeft - ARROW_HALF, TOOLTIP_W - ARROW_HALF * 2 - 4));
 
   return (
     <div
@@ -155,14 +179,55 @@ export default function DigMascot({ stageWidth: propStageWidth = undefined }) {
           left: 0,
           transform: `translateX(${x}px)`,
           transition: walking
-            ? `transform ${D.walkR}ms linear`
+            ? `transform ${walkDur}ms linear`
             : arriving
-            ? `transform ${D.arriveR}ms cubic-bezier(.36,.07,.19,.97)`
+            ? `transform ${Dyn.arriveR}ms cubic-bezier(.36,.07,.19,.97)`
             : "none",
           width: `${CHAR_W}px`,
           zIndex: 9999,
         }}
       >
+        {/* ── Tooltip — OUTSIDE direction-flip so it's never mirror-flipped ── */}
+        <div style={{
+          position: "absolute",
+          ...(tooltipUp
+            ? { bottom: "88px" }
+            : { top:    "88px" }),
+          left: `${tipLeftRel}px`,       /* clamped so it never exits the stage */
+          width: `${TOOLTIP_W}px`,
+          background: "linear-gradient(135deg,rgba(15,23,42,0.97),rgba(30,27,75,0.97))",
+          color: "#e2e8f0",
+          padding: "8px 14px",
+          borderRadius: "13px",
+          fontSize: "0.71rem",
+          fontWeight: 600,
+          whiteSpace: "nowrap",
+          border: "1px solid rgba(99,102,241,0.6)",
+          backdropFilter: "blur(16px)",
+          boxShadow: "0 6px 28px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.07)",
+          pointerEvents: "none",
+          opacity: hovered ? 1 : 0,
+          transition: "opacity 0.22s",
+          zIndex: 9999,
+          textAlign: "center",
+        }}>
+          <div style={{ fontSize: "0.78rem", marginBottom: "2px" }}>{dt.hi}</div>
+          <div style={{ color: "#a5b4fc", fontSize: "0.63rem", fontWeight: 500 }}>
+            {dt.sub}
+          </div>
+          {/* Arrow — tracks DIG's head regardless of tooltip alignment */}
+          <div style={{
+            position: "absolute",
+            ...(tooltipUp
+              ? { bottom: "-6px", borderTop:    "6px solid rgba(99,102,241,0.6)", borderBottom: "none" }
+              : { top:    "-6px", borderBottom: "6px solid rgba(99,102,241,0.6)", borderTop:    "none" }),
+            left: `${arrowLeftInTip}px`,
+            width: 0, height: 0,
+            borderLeft:  "6px solid transparent",
+            borderRight: "6px solid transparent",
+          }}/>
+        </div>
+
         {/* ── Direction flip ── */}
         <div
           style={{
@@ -173,55 +238,11 @@ export default function DigMascot({ stageWidth: propStageWidth = undefined }) {
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
         >
-          {/* ── Tooltip (always on top, direction-aware) ── */}
-          <div style={{
-            position: "absolute",
-            ...(tooltipUp
-              ? { bottom: "84px" }
-              : { top:    "84px" }),
-            left: "50%",
-            transform: `translateX(-50%) scaleX(${dir})`,
-            background: "linear-gradient(135deg,rgba(15,23,42,0.97),rgba(30,27,75,0.97))",
-            color: "#e2e8f0",
-            padding: "8px 14px",
-            borderRadius: "13px",
-            fontSize: "0.71rem",
-            fontWeight: 600,
-            whiteSpace: "nowrap",
-            border: "1px solid rgba(99,102,241,0.6)",
-            backdropFilter: "blur(16px)",
-            boxShadow: "0 6px 28px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.07)",
-            pointerEvents: "none",
-            opacity: hovered ? 1 : 0,
-            transition: "opacity 0.22s",
-            zIndex: 9999,
-            minWidth: "160px",
-            textAlign: "center",
-          }}>
-            <div style={{ fontSize: "0.78rem", marginBottom: "2px" }}>{dt.hi}</div>
-            <div style={{ color: "#a5b4fc", fontSize: "0.63rem", fontWeight: 500 }}>
-              {dt.sub}
-            </div>
-            {/* Arrow */}
-            <div style={{
-              position: "absolute",
-              ...(tooltipUp
-                ? { bottom: "-6px", borderTop:    "6px solid rgba(99,102,241,0.6)", borderBottom: "none" }
-                : { top:    "-6px", borderBottom: "6px solid rgba(99,102,241,0.6)", borderTop:    "none" }),
-              left: "50%",
-              transform: "translateX(-50%)",
-              width: 0, height: 0,
-              borderLeft:  "6px solid transparent",
-              borderRight: "6px solid transparent",
-            }}/>
-          </div>
-
           {/* ── Thinking bubble during look phase ── */}
           <div style={{
             position: "absolute",
             bottom: "72px",
             left: "30px",
-            transform: `scaleX(${dir})`,
             opacity: looking ? 1 : 0,
             transition: "opacity 0.3s",
             pointerEvents: "none",
