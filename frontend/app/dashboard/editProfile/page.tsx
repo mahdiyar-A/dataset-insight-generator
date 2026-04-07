@@ -47,6 +47,8 @@ export default function AccountSettingsPage() {
 
   const avatarLetter = (form.firstName?.charAt(0) || form.lastName?.charAt(0) || currentUser?.email?.charAt(0) || "U").toUpperCase();
   const fullName     = `${form.firstName} ${form.lastName}`.trim() || currentUser?.userName || "—";
+  // Only allow https, http, or blob: URLs as image src — blocks javascript: protocol injection
+  const safeAvatarSrc = avatarUrl && /^(https?:|blob:)/i.test(avatarUrl) ? avatarUrl : null;
 
   // ── Save profile name + phone
   const handleProfileSave = async () => {
@@ -158,8 +160,8 @@ export default function AccountSettingsPage() {
         <div className="card" style={sectionStyle}>
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             <div style={avatarStyle} onClick={() => fileInputRef.current?.click()} title="Click to change picture">
-              {avatarUrl
-                ? <img src={avatarUrl} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "999px" }} />
+              {safeAvatarSrc
+                ? <img src={safeAvatarSrc} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "999px" }} />
                 : avatarLetter}
               <div style={{ position: "absolute", inset: 0, borderRadius: "999px", background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0, transition: "opacity 0.2s" }} className="avatar-overlay">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>

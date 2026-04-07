@@ -27,12 +27,14 @@ public class AiController : ControllerBase
             return Ok(response);
         }
         catch (ArgumentException ex)
-        {   
-            return BadRequest(new { error = ex.Message });
+        {
+            _logger.LogWarning(ex, "AI analyze — invalid argument");
+            return BadRequest(new { error = "Invalid request. Please check your dataset and try again." });
         }
         catch (TimeoutException ex)
         {
-            return StatusCode(StatusCodes.Status408RequestTimeout, new { error = ex.Message});
+            _logger.LogWarning(ex, "AI analyze — timeout");
+            return StatusCode(StatusCodes.Status408RequestTimeout, new { error = "Analysis timed out. Please try again with a smaller dataset." });
         }
         catch (InvalidOperationException ex)
         {

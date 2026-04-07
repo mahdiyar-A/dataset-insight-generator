@@ -119,8 +119,9 @@ async def check(
         df = _load_dataframe(file_bytes, file.filename or "dataset.csv")
         print(f"[Check] Loaded DataFrame: {len(df):,} rows × {len(df.columns)} cols", flush=True)
     except Exception as e:
+        # Log full error server-side but never expose internal details to clients
         print(f"[Check] ✗ Could not parse file: {e}", flush=True)
-        return JSONResponse({"condition": "not_workable", "error": str(e)})
+        return JSONResponse({"condition": "not_workable", "error": "Could not parse the uploaded file. Please ensure it is a valid CSV."})
 
     quality = check_data_quality(df)
     print(f"[Check] Quality — usable={quality.isUsable}, needsCleaning={quality.needsCleaning}", flush=True)

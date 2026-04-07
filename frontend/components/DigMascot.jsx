@@ -19,7 +19,9 @@
  * Uses z-index: 9999 so it's never clipped.
  *
  * Props:
- *   stageWidth  (number, default 320) — horizontal range in px
+ *   stageWidth  (number, optional) — override horizontal range in px.
+ *               If omitted, the component self-measures its container via
+ *               ResizeObserver so DIG always uses the full available width.
  */
 
 import { useState, useEffect, useRef } from "react";
@@ -53,20 +55,51 @@ const SEQ = [
   "walkL","arriveL","lookL","examL","foundL","turnR",
 ];
 
-export default function DigMascot({ stageWidth = 320 }) {
+export default function DigMascot({ stageWidth: propStageWidth = undefined }) {
   const CHAR_W = 54;
-  const MAX_X  = stageWidth - CHAR_W - 8;
+  const MIN_W  = CHAR_W + 20;
 
   const { lang } = useSettings();
   const dt = DIG_T[lang] || DIG_T.en;
 
-  const [phase,    setPhase]    = useState("idle");
-  const [x,        setX]        = useState(0);
-  const [dir,      setDir]      = useState(1);
-  const [hovered,  setHovered]  = useState(false);
+  // ── Responsive stage width ─────────────────────────────────────────────────
+  const containerRef = useRef(null);
+  const [stageWidth, setStageWidth] = useState(propStageWidth ?? 320);
+
+  useEffect(() => {
+    if (propStageWidth != null) {
+      setStageWidth(Math.max(propStageWidth, MIN_W));
+      return;
+    }
+    const el = containerRef.current;
+    if (!el) return;
+
+    const update = (w) => setStageWidth(Math.max(w, MIN_W));
+
+    // Set immediately on mount
+    update(el.offsetWidth);
+
+    const ro = new ResizeObserver(entries => {
+      for (const e of entries) update(e.contentRect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [propStageWidth]);
+
+  const MAX_X = stageWidth - CHAR_W - 8;
+
+  const [phase,     setPhase]     = useState("idle");
+  const [x,         setX]         = useState(0);
+  const [dir,       setDir]       = useState(1);
+  const [hovered,   setHovered]   = useState(false);
   const [tooltipUp, setTooltipUp] = useState(true);
   const wrapRef  = useRef(null);
   const timerRef = useRef(null);
+
+  // ── Clamp x when stage resizes to prevent DIG walking off-screen ───────────
+  useEffect(() => {
+    setX(prev => Math.min(prev, MAX_X));
+  }, [MAX_X]);
 
   // ── State machine ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -103,17 +136,19 @@ export default function DigMascot({ stageWidth = 320 }) {
 
   return (
     <div
-      ref={wrapRef}
+      ref={containerRef}
       style={{
         position: "relative",
-        width:  `${stageWidth}px`,
-        height: "82px",
+        width:    "100%",          /* always fill the parent container */
+        height:   "82px",
         pointerEvents: "all",
         flexShrink: 0,
+        overflow: "visible",       /* tooltip must never be clipped */
       }}
     >
       {/* ── Position layer (X) ── */}
       <div
+        ref={wrapRef}
         style={{
           position: "absolute",
           bottom: 0,

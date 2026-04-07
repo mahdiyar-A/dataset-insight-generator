@@ -51,9 +51,13 @@ public class AuthController : ControllerBase
         }
     }
 
+    // Strip newlines/control chars from user-supplied values before logging (log injection prevention)
+    private static string S(string? val) =>
+        val is null ? "(null)" : val.Replace("\r", "").Replace("\n", "").Replace("\t", "");
+
     private async Task<IActionResult> RunSyncAsync(Guid supabaseGuid, SyncUserDto dto)
     {
-        _logger.LogInformation("[Auth] Sync — JWT sub={Sub}, email={Email}", supabaseGuid, dto.Email);
+        _logger.LogInformation("[Auth] Sync — JWT sub={Sub}, email={Email}", supabaseGuid, S(dto.Email));
 
         try
         {
@@ -71,10 +75,10 @@ public class AuthController : ControllerBase
             if (staleByEmail != null && staleByEmail.Id != supabaseGuid)
             {
                 _logger.LogWarning("[Auth] Stale row — email={Email}, wrongId={WrongId}, correctId={CorrectId}",
-                    dto.Email, staleByEmail.Id, supabaseGuid);
+                    S(dto.Email), staleByEmail.Id, supabaseGuid);
 
                 await _users.DeleteAsync(staleByEmail.Id);
-                _logger.LogInformation("[Auth] Stale row removed — email={Email}", dto.Email);
+                _logger.LogInformation("[Auth] Stale row removed — email={Email}", S(dto.Email));
             }
 
             // Insert (or upsert — UserRepository.AddAsync uses Upsert, so concurrent calls are safe)
@@ -86,13 +90,14 @@ public class AuthController : ControllerBase
             );
 
             await _users.AddAsync(user);
-            _logger.LogInformation("[Auth] User synced — email={Email}, id={Id}", dto.Email, supabaseGuid);
+            _logger.LogInformation("[Auth] User synced — email={Email}, id={Id}", S(dto.Email), supabaseGuid);
             return Ok(new { message = "User synced", id = user.Id });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[Auth] Sync failed — email={Email}, id={Id}", dto.Email, supabaseGuid);
-            return StatusCode(500, new { error = "Failed to sync user", detail = ex.Message });
+            _logger.LogError(ex, "[Auth] Sync failed — email={Email}, id={Id}", S(dto.Email), supabaseGuid);
+            // Never expose ex.Message to clients — it can leak internal paths/queries
+            return StatusCode(500, new { error = "Failed to sync user" });
         }
     }
 
