@@ -20,6 +20,10 @@ public class UserProfileController : ControllerBase
         _logger = logger;
     }
 
+    // Strip newlines/control chars from user-supplied values before logging (log injection prevention)
+    private static string S(string? val) =>
+        val is null ? "(null)" : val.Replace("\r", "").Replace("\n", "").Replace("\t", "");
+
     private Guid GetCurrentUserId()
     {
         var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
@@ -37,7 +41,7 @@ public class UserProfileController : ControllerBase
         try
         {
             var dto = await _svc.GetMeAsync(id);
-            _logger.LogInformation("[Profile] ✓ Returning profile for {Email}", dto.Email);
+            _logger.LogInformation("[Profile] ✓ Returning profile for {Email}", S(dto.Email));
             return Ok(dto);
         }
         catch (InvalidOperationException ex) when (ex.Message == "User not found")
@@ -54,7 +58,7 @@ public class UserProfileController : ControllerBase
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
         var id = GetCurrentUserId();
-        _logger.LogInformation("[Profile] PATCH username — user {UserId} → '{Name}'", id, req.UserName);
+        _logger.LogInformation("[Profile] PATCH username — user {UserId} → '{Name}'", id, S(req.UserName));
         try
         {
             var dto = await _svc.UpdateUserNameAsync(id, req.UserName);

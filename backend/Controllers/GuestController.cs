@@ -17,6 +17,10 @@ public class GuestController : ControllerBase
     private readonly IPythonAiClient _pythonAi;
     private readonly ILogger<GuestController> _logger;
 
+    // Strip newlines/control chars from user-supplied values before logging (log injection prevention)
+    private static string S(string? val) =>
+        val is null ? "(null)" : val.Replace("\r", "").Replace("\n", "").Replace("\t", "");
+
     private static readonly string TempDir = Path.Combine(Path.GetTempPath(), "dig_guest");
 
     public GuestController(IPythonAiClient pythonAi, ILogger<GuestController> logger)
@@ -146,7 +150,7 @@ public class GuestController : ControllerBase
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[Guest] Python check failed for session {SessionId}", req.SessionId);
+                _logger.LogError(ex, "[Guest] Python check failed for session {SessionId}", S(req.SessionId));
                 return Ok(new GuestChatResponse
                 {
                     Reply = "Could not reach the analysis service. Please make sure it is running.",
@@ -282,7 +286,7 @@ public class GuestController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[Guest] Analysis failed for session {SessionId}", sessionId);
+            _logger.LogError(ex, "[Guest] Analysis failed for session {SessionId}", S(sessionId));
             lock (_guestResults)
             {
                 _guestResults[sessionId] = new GuestResult
