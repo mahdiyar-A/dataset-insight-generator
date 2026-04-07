@@ -5,6 +5,11 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Dataset Insight Generator",
+  icons: {
+    icon: "/DIG_Icon.png",
+    shortcut: "/DIG_Icon.png",
+    apple: "/DIG_Icon.png",
+  },
 };
 
 export default function RootLayout({

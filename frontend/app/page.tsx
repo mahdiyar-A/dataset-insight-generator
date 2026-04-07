@@ -285,11 +285,10 @@ export default function HomePage() {
         <div style={{
           position: 'relative',
           display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'flex-end',
-          padding: '0 0 0 0',
-          overflow: 'visible',   /* must be visible so tooltip is never clipped */
-          zIndex: 5,             /* sits above hero + features so tooltip always shows */
+          flexDirection: 'column',   /* label on top, DIG track on bottom */
+          width: '100%',
+          overflow: 'visible',       /* must be visible so tooltip is never clipped */
+          zIndex: 5,                 /* sits above hero + features so tooltip always shows */
           background: light
             ? 'linear-gradient(to bottom, #e8f0fe00, #e8f0fe40)'
             : 'linear-gradient(to bottom, transparent, rgba(99,102,241,0.04))',
@@ -297,31 +296,38 @@ export default function HomePage() {
             ? '1px solid rgba(99,102,241,0.12)'
             : '1px solid rgba(99,102,241,0.08)',
         }}>
-          {/* Floor line DIG walks on */}
+          {/* Label row — clearly ABOVE DIG's walking track, no overlap */}
           <div style={{
-            position: 'absolute',
-            bottom: 0,
-            left: '10%',
-            right: '10%',
-            height: '1px',
-            background: light
-              ? 'linear-gradient(to right, transparent, rgba(99,102,241,0.25), transparent)'
-              : 'linear-gradient(to right, transparent, rgba(99,102,241,0.18), transparent)',
-          }} />
-          {/* Small label */}
-          <div style={{
-            position: 'absolute',
-            top: '10px',
-            right: '16px',
+            width: '100%',
+            textAlign: 'right',
+            paddingRight: '16px',
+            paddingTop: '8px',
+            paddingBottom: '6px',
             fontSize: '0.62rem',
             color: light ? 'rgba(99,102,241,0.5)' : 'rgba(148,163,184,0.4)',
             fontWeight: 600,
             letterSpacing: '0.08em',
             userSelect: 'none',
+            flexShrink: 0,
           }}>
             {lang === 'fr' ? 'DIG analyse votre dataset…' : lang === 'fa' ? 'DIG در حال بررسی دیتاست شماست…' : 'DIG is searching your dataset…'}
           </div>
-          <DigMascot stageWidth={520} />
+
+          {/* DIG track row — DIG self-measures this container's width */}
+          <div style={{ position: 'relative', width: '100%' }}>
+            {/* Floor line DIG walks on */}
+            <div style={{
+              position: 'absolute',
+              bottom: 0,
+              left: '4px',
+              right: '4px',
+              height: '1px',
+              background: light
+                ? 'linear-gradient(to right, transparent, rgba(99,102,241,0.25), transparent)'
+                : 'linear-gradient(to right, transparent, rgba(99,102,241,0.18), transparent)',
+            }} />
+            <DigMascot />
+          </div>
         </div>
 
         {/* ── Features ── */}
