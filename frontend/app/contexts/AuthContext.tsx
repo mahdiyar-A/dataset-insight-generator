@@ -1,54 +1,62 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
+import React, {
+  createContext, useContext, useEffect, useMemo,
+  useState, useCallback,
+} from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import type { Session, User } from '@supabase/supabase-js';
+import type { Session } from '@supabase/supabase-js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Profile = {
-  id?: string;
-  email?: string;
-  userName?: string;
-  firstName?: string;
-  lastName?: string;
-  phoneNumber?: string;
+
+export type Profile = {
+  id?:             string;
+  email?:          string;
+  userName?:       string;
+  firstName?:      string;
+  lastName?:       string;
+  phoneNumber?:    string;
   profilePicture?: string;
-  createdAt?: string;
-  isActive?: boolean;
+  createdAt?:      string;
+  isActive?:       boolean;
   isEmailVerified?: boolean;
 };
 
 type AuthContextType = {
-  user:            Profile | null;
-  currentUser:     Profile | null;
-  token:           string | null;
-  isAuthed:        boolean;
-  isLoading:       boolean;
-  login:           (email: string, password: string) => Promise<void>;
-  register:        (firstName: string, lastName: string, email: string, password: string) => Promise<{ needsVerification: boolean }>;
-  logout:          () => Promise<void>;
-  updateUser:      (partial: Partial<Profile>) => void;
-  refreshUser:     () => Promise<void>;
-  resetPassword:   (email: string) => Promise<void>;
-  updateEmail:     (newEmail: string) => Promise<void>;
-  updatePhone:     (phone: string) => Promise<void>;
+  user:          Profile | null;   // current user profile (null = logged out)
+  token:         string | null;    // Supabase access token to pass to API calls
+  isAuthed:      boolean;          // true if session + token are both present
+  isLoading:     boolean;          // true while the initial session check runs
+  login:         (email: string, password: string) => Promise<void>;
+  register:      (firstName: string, lastName: string, email: string, password: string) => Promise<{ needsVerification: boolean }>;
+  logout:        () => Promise<void>;
+  updateUser:    (partial: Partial<Profile>) => void;
+  refreshUser:   () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updateEmail:   (newEmail: string) => Promise<void>;
+  updatePhone:   (phone: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5150').replace(/\/$/, '');
 
-// ── Helper: sync user to public.users via backend ────────────────────────────
-async function syncUser(token: string, firstName: string, lastName: string, email: string): Promise<void> {
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+// After Supabase auth succeeds, sync the user to our public.users table so DIG
+// can store profile data (phone, picture, etc.) alongside the auth record.
+async function syncUser(
+  token: string,
+  firstName: string,
+  lastName: string,
+  email: string,
+): Promise<void> {
   if (!token || token === 'null' || token === 'undefined') return;
   try {
     const res = await fetch(`${API_BASE}/api/auth/sync-supabase-user`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ firstName, lastName, email }),
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({ firstName, lastName, email }),
     });
     const text = await res.text();
     console.log('[Sync] status:', res.status, text);
@@ -57,9 +65,14 @@ async function syncUser(token: string, firstName: string, lastName: string, emai
   }
 }
 
-// ── Helper: fetch full profile from backend with retry ───────────────────────
-async function fetchProfile(token: string, retries = 5, delayMs = 800): Promise<Profile | null> {
-  // Guard: never send a request with a null/empty/literal-"null" token — causes malformed JWT errors
+// Fetch the full profile from the backend with exponential-backoff retries.
+// Retries are needed because the sync call and the profile fetch can race —
+// the profile row may not exist yet on the first attempt after a new registration.
+async function fetchProfile(
+  token: string,
+  retries = 5,
+  delayMs = 800,
+): Promise<Profile | null> {
   if (!token || token === 'null' || token === 'undefined') return null;
 
   for (let i = 0; i < retries; i++) {
@@ -69,10 +82,10 @@ async function fetchProfile(token: string, retries = 5, delayMs = 800): Promise<
       });
 
       if (res.status === 404) {
-        console.warn(`[Profile] Not found (attempt ${i + 1}/${retries}), retrying in ${delayMs}ms...`);
+        console.warn(`[Profile] Not found (attempt ${i + 1}/${retries}), retrying in ${delayMs}ms…`);
         if (i < retries - 1) {
           await new Promise(r => setTimeout(r, delayMs));
-          delayMs = Math.min(delayMs * 1.5, 3000); // back off gently
+          delayMs = Math.min(delayMs * 1.5, 3000); // gentle backoff, cap at 3s
           continue;
         }
         return null;
@@ -105,16 +118,20 @@ async function fetchProfile(token: string, retries = 5, delayMs = 800): Promise<
 }
 
 // ── Provider ──────────────────────────────────────────────────────────────────
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session,   setSession]   = useState<Session | null>(null);
   const [user,      setUser]      = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Derived from session — passed to every API call that needs auth
   const token = session?.access_token ?? null;
 
-  // ── Listen to Supabase auth state changes ────────────────────────────────
+  // ── Listen to Supabase auth events ────────────────────────────────────────
   useEffect(() => {
+    // Check if there is already a session from a previous page load
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      // If the email hasn't been confirmed yet, don't allow a session
       if (session?.user && !session.user.email_confirmed_at) {
         await supabase.auth.signOut();
         setSession(null);
@@ -130,40 +147,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user && !session.user.email_confirmed_at) {
-        await supabase.auth.signOut();
-        setSession(null);
-        setUser(null);
-        return;
-      }
-
-      setSession(session);
-
-      if (session?.access_token) {
-        if (event === 'SIGNED_IN') {
-          const u = session.user;
-          const firstName = u.user_metadata?.first_name ?? u.email?.split('@')[0] ?? 'User';
-          const lastName  = u.user_metadata?.last_name  ?? '';
-          const email     = u.email ?? '';
-
-          // Sync first, THEN fetch profile — ensures row exists before we look it up
-          await syncUser(session.access_token, firstName, lastName, email);
+    // Subscribe to all future auth state changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user && !session.user.email_confirmed_at) {
+          await supabase.auth.signOut();
+          setSession(null);
+          setUser(null);
+          return;
         }
 
-        const profile = await fetchProfile(session.access_token);
-        if (profile) setUser(profile);
-      } else {
-        setUser(null);
-      }
-    });
+        setSession(session);
+
+        if (session?.access_token) {
+          if (event === 'SIGNED_IN') {
+            // On first sign-in, sync the user to our DB before fetching profile
+            const u         = session.user;
+            const firstName = u.user_metadata?.first_name ?? u.email?.split('@')[0] ?? 'User';
+            const lastName  = u.user_metadata?.last_name  ?? '';
+            await syncUser(session.access_token, firstName, lastName, u.email ?? '');
+          }
+          const profile = await fetchProfile(session.access_token);
+          if (profile) setUser(profile);
+        } else {
+          setUser(null);
+        }
+      },
+    );
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // ── Register ──────────────────────────────────────────────────────────────
+  // ── Auth actions ──────────────────────────────────────────────────────────
+
   const register = useCallback(async (
-    firstName: string, lastName: string, email: string, password: string
+    firstName: string, lastName: string, email: string, password: string,
   ): Promise<{ needsVerification: boolean }> => {
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -180,8 +198,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (error) throw new Error(error.message);
 
-    // Only sync here if Supabase gave us a session immediately (email confirmation disabled)
-    // If email confirmation is required, session is null — sync happens on SIGNED_IN after verification
+    // If Supabase skips email confirmation (local dev), sync immediately.
+    // In production with email confirmation on, sync happens on SIGNED_IN.
     if (data.session?.access_token) {
       await syncUser(data.session.access_token, firstName, lastName, email);
     }
@@ -189,7 +207,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { needsVerification: !data.session };
   }, []);
 
-  // ── Login ─────────────────────────────────────────────────────────────────
   const login = useCallback(async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw new Error(error.message);
@@ -198,29 +215,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await supabase.auth.signOut();
       throw new Error('Please verify your email before logging in. Check your inbox.');
     }
-    // onAuthStateChange fires SIGNED_IN and handles sync + profile fetch
+    // onAuthStateChange handles the sync + profile fetch after a successful login
   }, []);
 
-  // ── Logout ────────────────────────────────────────────────────────────────
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
   }, []);
 
-  // ── Refresh profile from backend ──────────────────────────────────────────
+  // Re-fetch the profile from the backend — call this after a profile update
+  // so the navbar/avatar updates without a full page reload
   const refreshUser = useCallback(async () => {
     if (!token) return;
     const profile = await fetchProfile(token);
     if (profile) setUser(profile);
   }, [token]);
 
-  // ── Optimistic update ─────────────────────────────────────────────────────
+  // Optimistic in-memory update — use after a successful PATCH to show changes
+  // immediately without waiting for a round-trip to the backend
   const updateUser = useCallback((partial: Partial<Profile>) => {
     setUser(prev => prev ? { ...prev, ...partial } : prev);
   }, []);
 
-  // ── Reset password ────────────────────────────────────────────────────────
   const resetPassword = useCallback(async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
@@ -228,16 +245,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw new Error(error.message);
   }, []);
 
-  // ── Update email ──────────────────────────────────────────────────────────
   const updateEmail = useCallback(async (newEmail: string) => {
     const { error } = await supabase.auth.updateUser(
       { email: newEmail },
-      { emailRedirectTo: `${window.location.origin}/verify-email-change` }
+      { emailRedirectTo: `${window.location.origin}/verify-email-change` },
     );
     if (error) throw new Error(error.message);
   }, []);
 
-  // ── Update phone ──────────────────────────────────────────────────────────
   const updatePhone = useCallback(async (phone: string) => {
     const { error } = await supabase.auth.updateUser({ phone });
     if (error) throw new Error(error.message);
@@ -245,9 +260,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(() => ({
     user,
-    currentUser: user,
     token,
-    isAuthed:    !!session && !!token,
+    isAuthed:  !!session && !!token,
     isLoading,
     login,
     register,
@@ -257,8 +271,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resetPassword,
     updateEmail,
     updatePhone,
-  }), [user, session, token, isLoading, login, register, logout, updateUser, refreshUser, resetPassword, updateEmail, updatePhone]);
-                                                                                                  
+  }), [
+    user, session, token, isLoading,
+    login, register, logout, updateUser, refreshUser,
+    resetPassword, updateEmail, updatePhone,
+  ]);
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
@@ -266,4 +284,4 @@ export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>');
   return ctx;
-}                         
+}

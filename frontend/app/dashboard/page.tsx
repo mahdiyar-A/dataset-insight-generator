@@ -63,7 +63,7 @@ const DASH_T = {
 export default function DashboardPage() {
   const [activeSection, setActiveSection] = useState("top");
   const router = useRouter();
-  const { logout, currentUser, token, refreshUser, isLoading } = useAuth();
+  const { logout, user: currentUser, token, refreshUser, isLoading } = useAuth();
   const { lang, brightness } = useSettings();
   const t = DASH_T[lang] || DASH_T.en;
   const isLight = brightness > 65;

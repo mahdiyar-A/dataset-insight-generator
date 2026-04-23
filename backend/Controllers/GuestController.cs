@@ -53,6 +53,12 @@ public class GuestController : ControllerBase
         if (string.IsNullOrWhiteSpace(sessionId))
             return BadRequest(new { error = "NO_SESSION" });
 
+        // Validate sessionId is a real GUID before using it in a file path.
+        // Without this check a crafted sessionId like "../../etc/passwd" could
+        // escape the temp directory (path traversal attack).
+        if (!Guid.TryParse(sessionId, out _))
+            return BadRequest(new { error = "INVALID_SESSION", message = "sessionId must be a valid UUID." });
+
         var tempPath = Path.Combine(TempDir, $"{sessionId}{ext}");
 
         using (var stream = System.IO.File.Create(tempPath))
@@ -208,6 +214,10 @@ public class GuestController : ControllerBase
     [HttpGet("status/{sessionId}")]
     public IActionResult GetStatus(string sessionId)
     {
+        // Reject non-GUID sessionIds before doing any dictionary lookups
+        if (!Guid.TryParse(sessionId, out _))
+            return BadRequest(new { error = "INVALID_SESSION" });
+
         GuestResult? result;
         lock (_guestResults) { _guestResults.TryGetValue(sessionId, out result); }
         if (result != null)
@@ -314,7 +324,10 @@ public class GuestController : ControllerBase
 
     private string? FindTempFile(string? sessionId)
     {
-        if (string.IsNullOrWhiteSpace(sessionId)) return null;
+        // Only accept valid GUIDs — prevents any path traversal through sessionId
+        if (string.IsNullOrWhiteSpace(sessionId) || !Guid.TryParse(sessionId, out _))
+            return null;
+
         foreach (var ext in new[] { ".csv", ".xlsx" })
         {
             var p = Path.Combine(TempDir, $"{sessionId}{ext}");

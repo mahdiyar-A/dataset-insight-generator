@@ -7,7 +7,7 @@ import { useAuth } from "@/app/contexts/AuthContext";
 
 export default function ProfileViewPage() {
   const router = useRouter();
-  const { currentUser, isLoading, refreshUser } = useAuth();
+  const { user: currentUser, isLoading, refreshUser } = useAuth();
 
   // Refresh from backend every time this page is visited
   useEffect(() => { refreshUser(); }, []);

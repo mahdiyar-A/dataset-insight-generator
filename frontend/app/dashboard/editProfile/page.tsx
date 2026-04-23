@@ -8,7 +8,7 @@ import BackendAPI from "@/lib/BackendAPI";
 
 export default function AccountSettingsPage() {
   const router = useRouter();
-  const { currentUser, isLoading, updateUser, refreshUser, logout, token } = useAuth();
+  const { user: currentUser, isLoading, updateUser, refreshUser, logout, token } = useAuth();
   const fileInputRef = useRef(null);
 
   const [form, setForm] = useState({ firstName: "", lastName: "", phoneNumber: "", email: "" });
