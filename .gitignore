@@ -16,11 +16,11 @@ desktop.ini
 *.suo
 
 ####################################
-# Environment variables
+# Environment variables (secrets — never commit)
 ####################################
 .env
-.env.*
-!.env.example
+backend/.env
+ai_service/.env
 
 ####################################
 # Node / Next.js
@@ -64,9 +64,10 @@ coverage/
 ####################################
 # Secrets
 ####################################
-backend/appsettings*.json
-!backend/appsettings.example.json
-
+backend/appsettings.Development.json
+frontend/.env.local
+backend/appsettings.json
+backend/appsettings.*.json
 ####################################
 # Python
 ####################################
@@ -100,9 +101,4 @@ ai_service/model_trainer/trained_*/
 
 ####################################
 # Python (extras)
-####################################
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-*.pyc
-*.pyo
+####

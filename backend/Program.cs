@@ -10,14 +10,17 @@ using Microsoft.IdentityModel.Tokens;
 
 Console.WriteLine("╔══════════════════════════════════════════════╗");
 Console.WriteLine("║   DIG — Dataset Insight Generator Backend   ║");
-Console.WriteLine("║   ASP.NET Core 8  ·  Port 5150              ║");
+Console.WriteLine("║   ASP.NET Core 8                            ║");
 Console.WriteLine("╚══════════════════════════════════════════════╝");
 Console.WriteLine($"[DIG] Environment : {Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}");
 Console.WriteLine($"[DIG] Process PID : {Environment.ProcessId}");
+Console.WriteLine($"[DIG] Port        : {Environment.GetEnvironmentVariable("ASPNETCORE_URLS") ?? "from launchSettings"}");
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.WebHost.UseUrls("http://localhost:5150");
+// Port is NOT hardcoded here — controlled per environment:
+//   Local (dotnet run / VS) → launchSettings.json → 5150
+//   Docker                  → ASPNETCORE_URLS env var in docker-compose → 8080
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
@@ -180,16 +183,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+// CORS origins: read from ALLOWED_ORIGINS env var (comma-separated) with local fallback
+var allowedOrigins = (Environment.GetEnvironmentVariable("ALLOWED_ORIGINS")
+    ?? "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+Console.WriteLine($"[DIG] CORS origins : {string.Join(" | ", allowedOrigins)}");
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("dev", policy =>
+    options.AddPolicy("dig-cors", policy =>
     {
         policy
-            .WithOrigins(
-                "http://localhost:3000",
-                "http://localhost:3001",
-                "http://127.0.0.1:3000"
-            )
+            .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
@@ -217,17 +223,19 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 app.UseRouting();
-app.UseCors("dev");
+app.UseCors("dig-cors");
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { status = "ok", db = "supabase" }));
 
+var urls = Environment.GetEnvironmentVariable("ASPNETCORE_URLS") ?? "http://localhost:5150";
+var displayUrl = urls.Replace("0.0.0.0", "localhost");
 Console.WriteLine("══════════════════════════════════════════════════");
-Console.WriteLine("[DIG] ✓ Listening on  http://localhost:5150");
-Console.WriteLine("[DIG] ✓ Swagger at    http://localhost:5150/swagger");
-Console.WriteLine("[DIG] ✓ Health check  http://localhost:5150/health");
+Console.WriteLine($"[DIG] ✓ Listening on  {displayUrl}");
+Console.WriteLine($"[DIG] ✓ Swagger at    {displayUrl}/swagger");
+Console.WriteLine($"[DIG] ✓ Health check  {displayUrl}/health");
 Console.WriteLine("══════════════════════════════════════════════════");
 
 try

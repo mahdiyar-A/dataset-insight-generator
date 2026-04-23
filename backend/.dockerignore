@@ -1,0 +1,11 @@
+bin/
+obj/
+storage/
+*.user
+*.suo
+.vs/
+.vscode/
+**/*.pfx
+**/*.key
+.env
+appsettings.Development.json

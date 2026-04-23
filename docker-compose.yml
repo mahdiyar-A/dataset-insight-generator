@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: dig-backend
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./backend/.env
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:8080
+      AIService__BaseUrl: http://ai_service:8000
+    volumes:
+      - backend-storage:/app/storage
+    depends_on:
+      - ai_service
+    networks:
+      - dig-net
+    restart: unless-stopped
+
+  ai_service:
+    build:
+      context: ./ai_service
+      dockerfile: Dockerfile
+    container_name: dig-ai
+    # Port 8000 is NOT exposed to the host — internal only.
+    # Backend reaches it via http://ai_service:8000 on the dig-net bridge.
+    # Exposing it publicly would bypass all .NET auth (no auth on Python endpoints).
+    env_file:
+      - ./ai_service/.env
+    networks:
+      - dig-net
+    restart: unless-stopped
+
+networks:
+  dig-net:
+    driver: bridge
+
+volumes:
+  backend-storage:
