@@ -3,108 +3,135 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/app/contexts/AuthContext";
+import { useAuth }    from "@/app/contexts/AuthContext";
 import { useSettings } from "@/app/contexts/SettingsContext";
-import BackendAPI from "@/lib/BackendAPI";
-import UploadCard from "@/components/UploadCard";
+import BackendAPI      from "@/lib/BackendAPI";
+import UploadCard      from "@/components/UploadCard";
 import AnalysisAssistantCard from "@/components/AnalysisChatCard";
-import HistoryCard from "@/components/historyCard";
-import ChartsCard from "@/components/chartsCard";
-import DownloadsCard from "@/components/downloadCard";
-import InfoCards from "@/components/infoCards";
-// ── Dashboard translations ────────────────────────────────────────────────────
+import HistoryCard     from "@/components/historyCard";
+import ChartsCard      from "@/components/chartsCard";
+import DownloadsCard   from "@/components/downloadCard";
+import InfoCards       from "@/components/infoCards";
+import PlanBadge       from "@/components/PlanBadge";
+
+// ── Translations ──────────────────────────────────────────────────────────────
 const DASH_T = {
   en: {
     title: "Dashboard",
-    noDataset: "Upload a dataset to get started.",
-    lastUpload: (name, rows) => `Last upload: ${name} · ${rows ?? "?"} rows`,
-    nav: { dashboard: "Dashboard", upload: "Upload", history: "History", charts: "AI Insights", report: "Report", help: "Help", settings: "Settings", signOut: "Sign out" },
-    profile: { view: "View profile", account: "Account settings", memberSince: (d) => `Member since ${d}` },
-    bannerDone: "Analysis complete — report, charts, and cleaned dataset are ready.",
-    bannerRunning: "Analysis running — charts and report will appear when done…",
-    bannerFailed: "Analysis failed. Please try uploading your dataset again.",
-    viewReport: "View Report →",
+    subtitle: "Upload a dataset or load from history to get started.",
+    subtitleActive: (name, rows) => `${name} · ${rows?.toLocaleString() ?? "?"} rows`,
+    nav: {
+      dashboard: "Dashboard", upload: "Upload", history: "History",
+      charts: "AI Insights", report: "Report", help: "Help",
+      settings: "Settings", signOut: "Sign out",
+      team: "Team", admin: "Admin",
+    },
+    profile: {
+      view: "View profile", account: "Account settings",
+      memberSince: (d) => `Member since ${d}`,
+    },
+    bannerDone:    "Analysis complete — report, charts, and cleaned dataset are ready.",
+    bannerRunning: "Analysis running — results will appear when done…",
+    bannerFailed:  "Analysis failed. Please try uploading your dataset again.",
+    viewReport:    "View Report →",
+    newSession:    "Start new analysis",
   },
   fr: {
     title: "Tableau de bord",
-    noDataset: "Importez un dataset pour commencer.",
-    lastUpload: (name, rows) => `Dernier import : ${name} · ${rows ?? "?"} lignes`,
-    nav: { dashboard: "Tableau de bord", upload: "Import", history: "Historique", charts: "Insights IA", report: "Rapport", help: "Aide", settings: "Paramètres", signOut: "Déconnexion" },
-    profile: { view: "Voir le profil", account: "Paramètres du compte", memberSince: (d) => `Membre depuis ${d}` },
-    bannerDone: "Analyse terminée — rapport, graphiques et dataset nettoyé sont prêts.",
-    bannerRunning: "Analyse en cours — graphiques et rapport apparaîtront bientôt…",
-    bannerFailed: "Analyse échouée. Veuillez réimporter votre dataset.",
-    viewReport: "Voir le rapport →",
+    subtitle: "Importez un dataset ou chargez depuis l'historique.",
+    subtitleActive: (name, rows) => `${name} · ${rows?.toLocaleString() ?? "?"} lignes`,
+    nav: {
+      dashboard: "Tableau de bord", upload: "Import", history: "Historique",
+      charts: "Insights IA", report: "Rapport", help: "Aide",
+      settings: "Paramètres", signOut: "Déconnexion",
+      team: "Équipe", admin: "Admin",
+    },
+    profile: {
+      view: "Voir le profil", account: "Paramètres du compte",
+      memberSince: (d) => `Membre depuis ${d}`,
+    },
+    bannerDone:    "Analyse terminée — rapport, graphiques et CSV nettoyé disponibles.",
+    bannerRunning: "Analyse en cours — les résultats apparaîtront bientôt…",
+    bannerFailed:  "Analyse échouée. Veuillez réimporter votre dataset.",
+    viewReport:    "Voir le rapport →",
+    newSession:    "Nouvelle analyse",
   },
   fa: {
     title: "داشبورد",
-    noDataset: "یک دیتاست آپلود کنید تا شروع شود.",
-    lastUpload: (name, rows) => `آخرین آپلود: ${name} · ${rows ?? "?"} ردیف`,
-    nav: { dashboard: "داشبورد", upload: "آپلود", history: "تاریخچه", charts: "تحلیل‌های AI", report: "گزارش", help: "راهنما", settings: "تنظیمات", signOut: "خروج" },
-    profile: { view: "مشاهده پروفایل", account: "تنظیمات حساب", memberSince: (d) => `عضو از ${d}` },
-    bannerDone: "تحلیل کامل شد — گزارش، نمودارها و دیتاست پاکسازی‌شده آماده است.",
-    bannerRunning: "تحلیل در حال اجرا — نمودارها و گزارش به زودی نمایش می‌یابند…",
-    bannerFailed: "تحلیل ناموفق بود. لطفاً دیتاست خود را دوباره آپلود کنید.",
-    viewReport: "← مشاهده گزارش",
+    subtitle: "یک دیتاست آپلود کنید یا از تاریخچه بارگذاری کنید.",
+    subtitleActive: (name, rows) => `${name} · ${rows?.toLocaleString() ?? "?"} ردیف`,
+    nav: {
+      dashboard: "داشبورد", upload: "آپلود", history: "تاریخچه",
+      charts: "تحلیل‌های AI", report: "گزارش", help: "راهنما",
+      settings: "تنظیمات", signOut: "خروج",
+      team: "تیم", admin: "مدیریت",
+    },
+    profile: {
+      view: "مشاهده پروفایل", account: "تنظیمات حساب",
+      memberSince: (d) => `عضو از ${d}`,
+    },
+    bannerDone:    "تحلیل کامل شد — گزارش، نمودارها و CSV پاکسازی‌شده آماده‌اند.",
+    bannerRunning: "تحلیل در حال اجرا — نتایج به زودی نمایش می‌یابند…",
+    bannerFailed:  "تحلیل ناموفق بود. لطفاً دیتاست خود را دوباره آپلود کنید.",
+    viewReport:    "← مشاهده گزارش",
+    newSession:    "تحلیل جدید",
   },
 };
 
 /*
-  FULL CYCLE:
-  1. Login       → loadDataset() pulls existing dataset + charts + report → shown in all cards
-  2. New upload  → loadDataset() called by UploadCard → all cards refresh, chatbot resets to idle
-  3. Start analy → chatbot sends "start_analysis" → backend sets status="processing" → polling starts
-  4. Yes/No      → chatbot sends "yes"/"no" → backend pipeline runs (AI step, ignored for now)
-  5. Polling     → every 10s checks status → when "done" → full reload → all cards fill with new data
-  6. Delete      → clears all state → cards show empty state
-  7. Next login  → step 1 again, data persists in DB
+  DASHBOARD FLOW — v2 (clean-slate model):
+
+  1. Login         → dashboard loads EMPTY. No auto-loaded previous session.
+  2. History tab   → user sees last 5 (free) or 15 (pro) completed analyses.
+  3. Load history  → user clicks an item → that analysis fills all cards.
+  4. New upload    → resets everything → new session starts → chatbot is idle.
+  5. Start analy   → chatbot sends "start_analysis" → pipeline runs → polling starts.
+  6. Done polling  → all cards fill with new data → analysis added to history.
+  7. Delete hist   → item removed from list; if it was the active one, clear dashboard.
 */
 
 export default function DashboardPage() {
-  const [activeSection, setActiveSection] = useState("top");
-  const router = useRouter();
-  const { logout, user: currentUser, token, refreshUser, isLoading } = useAuth();
+  const router  = useRouter();
+  const { logout, user, token, refreshUser, isLoading } = useAuth();
   const { lang, brightness } = useSettings();
   const t = DASH_T[lang] || DASH_T.en;
-  const isLight = brightness > 65;
-  const rtl = lang === "fa";
 
-  // ── Auth guard — wait for session to load before redirecting ─────────
+  const isLight = brightness > 65;
+  const rtl     = lang === "fa";
+  const plan    = (user as any)?.plan ?? "free";
+  const isAdmin = plan === "admin";
+
+  // ── Auth guard ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!isLoading && !token) {
-      router.replace('/login');
-    }
+    if (!isLoading && !token) router.replace("/login");
   }, [token, isLoading]);
 
-  // Block browser back button from leaving the dashboard to an unauthed page.
-  // Strategy: on mount push a sentinel entry, then on popstate (back/forward) re-push
-  // and redirect to login. This avoids the Next.js router conflict of the old approach.
+  // Block browser back button out of dashboard
   useEffect(() => {
-    // Push a sentinel so there's always something to pop back to
     window.history.pushState({ dashboard: true }, "");
-
-    const handlePopState = (e: PopStateEvent) => {
-      // If the user navigated back OUT of the dashboard sentinel, send them to login
-      if (!e.state?.dashboard) {
-        router.replace("/login");
-      } else {
-        // Re-push so the next back press is also caught
-        window.history.pushState({ dashboard: true }, "");
-      }
+    const handle = (e: PopStateEvent) => {
+      if (!e.state?.dashboard) router.replace("/login");
+      else window.history.pushState({ dashboard: true }, "");
     };
-
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
+    window.addEventListener("popstate", handle);
+    return () => window.removeEventListener("popstate", handle);
   }, [router]);
 
-  const handleSignOut = () => { logout(); router.push("/"); };
+  // ── State ────────────────────────────────────────────────────────────────────
+  const [activeSection,  setActiveSection]  = useState("top");
 
-  const [dataset,          setDataset]          = useState(null);
-  const [datasetStatus,    setDatasetStatus]    = useState(null);
-  const [reportReady,      setReportReady]      = useState(false);
-  const [hasPdfReport,     setHasPdfReport]     = useState(false);
-  const [analysisKey,      setAnalysisKey]      = useState(0);
-  const [uploadResetKey,   setUploadResetKey]   = useState(0);
+  // The currently-loaded analysis (null = clean slate)
+  const [analysis,       setAnalysis]       = useState(null);
+  const [analysisStatus, setAnalysisStatus] = useState(null); // "pending"|"processing"|"done"|"failed"
+  const [reportReady,    setReportReady]    = useState(false);
+  const [hasPdfReport,   setHasPdfReport]   = useState(false);
+
+  // History list (loaded once on mount)
+  const [history,        setHistory]        = useState([]);
+
+  // Keys to force child remounts
+  const [analysisKey,    setAnalysisKey]    = useState(0);
+  const [uploadResetKey, setUploadResetKey] = useState(0);
 
   const topRef      = useRef(null);
   const uploadRef   = useRef(null);
@@ -114,88 +141,75 @@ export default function DashboardPage() {
   const helpRef     = useRef(null);
   const pollRef     = useRef(null);
 
-  // ── On login: pull profile + existing dataset from DB ──────────────────
+  // ── Load history on mount ───────────────────────────────────────────────────
   useEffect(() => {
     if (!token) return;
     refreshUser();
-    loadDataset();
+    BackendAPI.getHistory(token)
+      .then(h => setHistory(h ?? []))
+      .catch(() => {});
   }, [token]);
 
-  // Case 1: On login — pull completed dataset from DB
-  // Only returns data if a previous analysis succeeded
-  // Temp uploads are NOT in DB and won't appear here
-  const loadDataset = useCallback(async () => {
+  // ── Also check if there's an active pipeline from a previous session ────────
+  useEffect(() => {
     if (!token) return;
-    stopPolling();
-    try {
-      const data = await BackendAPI.getCurrentDataset(token);
-      setDataset(data);
-
-      if (!data) {
-        setDatasetStatus(null);
-        setReportReady(false);
-        return;
-      }
-
-      const status = data.status ?? "pending";
-      setDatasetStatus(status);
-      setHasPdfReport(data.hasPdfReport === true);
-      // NOTE: reportReady stays false on initial load — only set true when analysis completes THIS session
-
-      // Don't resurface a failed status from a previous session
-      // Only show failed if it just happened this session (polling detected it)
-      if (status === "failed") {
-        setDatasetStatus(null);
-        return;
-      }
-
-      // Resume polling if analysis was already running when user logged in / refreshed
-      if (status === "processing" || status === "pending") {
-        startPolling();
-      }
-    } catch {
-      setDataset(null);
-      setDatasetStatus(null);
-      setReportReady(false);
-    }
+    BackendAPI.getActiveAnalysis(token)
+      .then(active => {
+        if (active && (active.status === "processing" || active.status === "pending")) {
+          setAnalysis(active);
+          setAnalysisStatus(active.status);
+          startPolling(active.id);
+        }
+      })
+      .catch(() => {});
   }, [token]);
 
-  // Called by UploadCard after temp upload succeeds
-  // isPending=true — NOT in DB, do NOT show in HistoryCard
-  // Only store as tempMeta so chatbot knows file name/size for greeting
-  const handleUploadSuccess = useCallback(async (tempMeta) => {
+  // ── Load a history item into the dashboard ──────────────────────────────────
+  const handleLoadHistory = useCallback((item) => {
     stopPolling();
-    setDataset({ ...tempMeta, isPending: true });
-    setDatasetStatus("pending");
-    setReportReady(false);   // reset banner on new upload
+    setAnalysis(item);
+    setAnalysisStatus(item.status);
+    setHasPdfReport(item.hasPdfReport ?? false);
+    setReportReady(item.status === "done");
+    setAnalysisKey(k => k + 1);
+    scrollTo("section-upload", uploadRef);
+  }, []);
+
+  // ── New upload → reset everything ──────────────────────────────────────────
+  const handleUploadSuccess = useCallback((tempMeta) => {
+    stopPolling();
+    setAnalysis({ ...tempMeta, isPending: true });
+    setAnalysisStatus("pending");
+    setReportReady(false);
     setHasPdfReport(false);
     setAnalysisKey(k => k + 1);
   }, []);
 
-  // ── Called by AnalysisChatCard when user confirms analysis (Yes/No sent) ─
-  // Backend already set status="processing" — just start polling
-  const handleAnalysisStarted = useCallback(() => {
-    setDatasetStatus("processing");
-    startPolling();
+  // ── Analysis started (chatbot confirmed) ────────────────────────────────────
+  const handleAnalysisStarted = useCallback((analysisId) => {
+    setAnalysisStatus("processing");
+    startPolling(analysisId);
   }, []);
 
-  // ── Poll /api/datasets/current/status every 10s ─────────────────────────
-  const startPolling = useCallback(() => {
-    if (pollRef.current) return; // already running
+  // ── Polling ──────────────────────────────────────────────────────────────────
+  const startPolling = useCallback((analysisId: string) => {
+    if (pollRef.current) return;
     pollRef.current = setInterval(async () => {
       try {
-        const s = await BackendAPI.getDatasetStatus(token);
+        const s = await BackendAPI.getAnalysisStatus(token, analysisId);
         if (!s) return;
-        setDatasetStatus(s.status);
-
+        setAnalysisStatus(s.status);
         if (s.status === "done" || s.status === "failed") {
           stopPolling();
-          const updated = await BackendAPI.getCurrentDataset(token);
-          setDataset(updated);
+          const updated = await BackendAPI.getAnalysis(token, analysisId);
+          setAnalysis(updated);
           if (updated?.hasPdfReport) {
-            setReportReady(true);   // show green banner — analysis just finished THIS session
+            setReportReady(true);
             setHasPdfReport(true);
           }
+          // Refresh history to include the new completed run
+          const h = await BackendAPI.getHistory(token);
+          setHistory(h ?? []);
           setAnalysisKey(k => k + 1);
           setUploadResetKey(k => k + 1);
         }
@@ -204,24 +218,35 @@ export default function DashboardPage() {
   }, [token]);
 
   const stopPolling = () => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   };
-
-  // ── Called by HistoryCard delete button ──────────────────────────────────
-  const handleDelete = useCallback(() => {
-    stopPolling();
-    setDataset(null);
-    setDatasetStatus(null);
-    setReportReady(false);
-    setAnalysisKey(k => k + 1);
-  }, []);
-
   useEffect(() => () => stopPolling(), []);
 
-  // ── Intersection observer → sidebar highlight ───────────────────────────
+  // ── History item deleted ─────────────────────────────────────────────────────
+  const handleHistoryDeleted = useCallback((deletedId) => {
+    setHistory(prev => prev.filter(h => h.id !== deletedId));
+    if (analysis?.id === deletedId) {
+      setAnalysis(null);
+      setAnalysisStatus(null);
+      setReportReady(false);
+      setHasPdfReport(false);
+      setAnalysisKey(k => k + 1);
+    }
+  }, [analysis]);
+
+  // ── Clear / start new session ────────────────────────────────────────────────
+  const handleNewSession = useCallback(() => {
+    stopPolling();
+    setAnalysis(null);
+    setAnalysisStatus(null);
+    setReportReady(false);
+    setHasPdfReport(false);
+    setAnalysisKey(k => k + 1);
+    setUploadResetKey(k => k + 1);
+    scrollTo("section-upload", uploadRef);
+  }, []);
+
+  // ── Intersection observer → sidebar highlight ───────────────────────────────
   useEffect(() => {
     const sections = [
       { id: "top",              ref: topRef },
@@ -231,27 +256,34 @@ export default function DashboardPage() {
       { id: "section-download", ref: downloadRef },
       { id: "section-help",     ref: helpRef },
     ];
-    const observer = new IntersectionObserver(
-      (entries) => entries.forEach((e) => { if (e.isIntersecting) setActiveSection(e.target.id); }),
+    const obs = new IntersectionObserver(
+      entries => entries.forEach(e => { if (e.isIntersecting) setActiveSection(e.target.id); }),
       { threshold: 0.3 }
     );
-    sections.forEach((s) => { if (s.ref.current) observer.observe(s.ref.current); });
-    return () => observer.disconnect();
+    sections.forEach(s => { if (s.ref.current) obs.observe(s.ref.current); });
+    return () => obs.disconnect();
   }, []);
 
-  const scrollTo      = (id, ref) => { ref?.current?.scrollIntoView({ behavior: "smooth" }); setActiveSection(id); };
+  const scrollTo = (id, ref) => {
+    ref?.current?.scrollIntoView({ behavior: "smooth" });
+    setActiveSection(id);
+  };
   const scrollToReport = () => scrollTo("section-download", downloadRef);
 
-  // ── User display ─────────────────────────────────────────────────────────
-  const firstName    = currentUser?.firstName ?? "";
-  const lastName     = currentUser?.lastName  ?? "";
+  // ── User display ─────────────────────────────────────────────────────────────
+  const firstName    = user?.firstName ?? "";
+  const lastName     = user?.lastName  ?? "";
   const fullName     = `${firstName} ${lastName}`.trim();
-  const displayName  = fullName || currentUser?.userName || "User";
-  const avatarLetter = (firstName?.charAt(0) || currentUser?.userName?.charAt(0) || "U").toUpperCase();
-  const avatarUrl    = currentUser?.profilePicture ?? null;
-  const memberSince  = currentUser?.createdAt
-    ? new Date(currentUser.createdAt).toLocaleDateString("en-CA", { month: "short", year: "numeric" })
+  const displayName  = fullName || user?.userName || "User";
+  const avatarLetter = (firstName?.charAt(0) || user?.userName?.charAt(0) || "U").toUpperCase();
+  const avatarUrl    = user?.profilePicture ?? null;
+  const memberSince  = user?.createdAt
+    ? new Date(user.createdAt).toLocaleDateString("en-CA", { month: "short", year: "numeric" })
     : null;
+
+  const showProcessing = (analysisStatus === "processing" || analysisStatus === "pending")
+    && !reportReady && !!analysis;
+  const showFailed     = analysisStatus === "failed";
 
   const navItems = [
     { id: "top",              label: t.nav.dashboard, icon: <IconGrid />,    ref: topRef },
@@ -262,14 +294,13 @@ export default function DashboardPage() {
     { id: "section-help",     label: t.nav.help,      icon: <IconHelp />,    ref: helpRef },
   ];
 
-  const showProcessingBanner = (datasetStatus === "processing" || datasetStatus === "pending") && !reportReady && !!dataset;
-  const showFailedBanner     = datasetStatus === "failed";
-
   if (isLoading) return null;
-  if (!token) return null;
+  if (!token)    return null;
 
   return (
-    <div className="dig-body" style={{ display: "flex", minHeight: "100vh", width: "100%", direction: rtl ? "rtl" : "ltr" }}>
+    <div className="dig-body"
+      style={{ display: "flex", minHeight: "100vh", width: "100%",
+        direction: rtl ? "rtl" : "ltr" }}>
 
       {/* ── SIDEBAR ── */}
       <aside className="dig-sidebar">
@@ -277,21 +308,54 @@ export default function DashboardPage() {
           <img src="/d_dig.svg" alt="DIG" className="sidebar-logo-img" />
           <span className="sidebar-logo-text">DIG</span>
         </div>
+
         <nav className="sidebar-nav">
-          {navItems.map((item) => (
-            <button key={item.id} className={`sidebar-link ${activeSection === item.id ? "active" : ""}`}
+          {navItems.map(item => (
+            <button key={item.id}
+              className={`sidebar-link ${activeSection === item.id ? "active" : ""}`}
               onClick={() => scrollTo(item.id, item.ref)} title={item.label}>
               <span className="sidebar-icon">{item.icon}</span>
               <span className="sidebar-label">{item.label}</span>
             </button>
           ))}
         </nav>
+
         <div className="sidebar-bottom">
-          <button className="sidebar-link" onClick={() => router.push("/dashboard/settings")} title={t.nav.settings}>
+          {/* Plan badge */}
+          <div style={{ padding: "0 8px", marginBottom: "8px" }}>
+            <PlanBadge
+              plan={plan}
+              reportsUsed={(user as any)?.reportsUsed ?? 0}
+            />
+          </div>
+
+          {/* Team link (pro+) */}
+          {(plan === "pro" || plan === "admin") && (
+            <button className="sidebar-link"
+              onClick={() => router.push("/dashboard/team")}
+              title={t.nav.team}>
+              <span className="sidebar-icon"><IconTeam /></span>
+              <span className="sidebar-label">{t.nav.team}</span>
+            </button>
+          )}
+
+          {/* Admin link */}
+          {isAdmin && (
+            <button className="sidebar-link"
+              onClick={() => router.push("/admin")} title={t.nav.admin}>
+              <span className="sidebar-icon"><IconAdmin /></span>
+              <span className="sidebar-label">{t.nav.admin}</span>
+            </button>
+          )}
+
+          <button className="sidebar-link"
+            onClick={() => router.push("/dashboard/settings")} title={t.nav.settings}>
             <span className="sidebar-icon"><IconSettings /></span>
             <span className="sidebar-label">{t.nav.settings}</span>
           </button>
-          <button className="sidebar-link" onClick={handleSignOut} title={t.nav.signOut}>
+
+          <button className="sidebar-link"
+            onClick={() => { logout(); router.push("/"); }} title={t.nav.signOut}>
             <span className="sidebar-icon"><IconSignOut /></span>
             <span className="sidebar-label">{t.nav.signOut}</span>
           </button>
@@ -306,28 +370,52 @@ export default function DashboardPage() {
           <div>
             <h1>{t.title}</h1>
             <p className="subtitle">
-              {dataset
-                ? t.lastUpload(dataset.fileName, dataset.rowCount)
-                : t.noDataset}
+              {analysis && !analysis.isPending
+                ? t.subtitleActive(analysis.fileName, analysis.rowCount)
+                : t.subtitle}
             </p>
           </div>
 
           <div className="topbar-right">
+            {/* Start new session button (shown when an analysis is loaded) */}
+            {analysis && (
+              <button onClick={handleNewSession}
+                style={{ padding: "7px 14px", borderRadius: "8px",
+                  border: "1px solid rgba(30,41,59,0.7)", background: "transparent",
+                  color: "#64748b", fontSize: "0.78rem", cursor: "pointer",
+                  marginRight: "12px", fontWeight: 500 }}>
+                + {t.newSession}
+              </button>
+            )}
+
+            {/* Profile */}
             <div className="profile-wrapper">
-              <div className="avatar" style={{ ...(avatarUrl ? { padding:0, overflow:"hidden" } : {}), cursor:"pointer" }}
+              <div className="avatar"
+                style={{ ...(avatarUrl ? { padding: 0, overflow: "hidden" } : {}), cursor: "pointer" }}
                 onClick={() => router.push("/dashboard/profileView")}>
                 {avatarUrl
-                  ? <img src={avatarUrl} alt={displayName} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                  ? <img src={avatarUrl} alt={displayName}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   : avatarLetter}
               </div>
-              <div className="profile-text" style={{ cursor:"pointer" }} onClick={() => router.push("/dashboard/profileView")}>
+              <div className="profile-text" style={{ cursor: "pointer" }}
+                onClick={() => router.push("/dashboard/profileView")}>
                 <span className="profile-name">{displayName}</span>
-                <span className="profile-role">{memberSince ? t.profile.memberSince(memberSince) : "Member"}</span>
+                <span className="profile-role">
+                  {memberSince ? t.profile.memberSince(memberSince) : "Member"}
+                </span>
               </div>
               <div className="profile-dropdown-icon">▾</div>
               <div className="profile-dropdown">
-                <a onClick={(e) => { e.preventDefault(); router.push("/dashboard/profileView"); }}>{t.profile.view}</a>
-                <a onClick={(e) => { e.preventDefault(); router.push("/dashboard/editProfile"); }}>{t.profile.account}</a>
+                <a onClick={e => { e.preventDefault(); router.push("/dashboard/profileView"); }}>
+                  {t.profile.view}
+                </a>
+                <a onClick={e => { e.preventDefault(); router.push("/dashboard/editProfile"); }}>
+                  {t.profile.account}
+                </a>
+                <a onClick={e => { e.preventDefault(); router.push("/dashboard/plan"); }}>
+                  Plan &amp; Billing
+                </a>
               </div>
             </div>
           </div>
@@ -335,32 +423,49 @@ export default function DashboardPage() {
 
         {/* ── Banners ── */}
         {reportReady && (
-          <div style={{ padding:"12px 24px", background: isLight ? "rgba(22,163,74,0.08)" : "linear-gradient(90deg,rgba(22,163,74,0.12),rgba(22,163,74,0.06))", borderBottom:"1px solid rgba(34,197,94,0.3)", display:"flex", alignItems:"center", justifyContent:"space-between", gap:"12px" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
+          <div style={{ padding: "12px 24px",
+            background: isLight ? "rgba(22,163,74,0.08)"
+              : "linear-gradient(90deg,rgba(22,163,74,0.12),rgba(22,163,74,0.06))",
+            borderBottom: "1px solid rgba(34,197,94,0.3)",
+            display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <span>✅</span>
-              <span style={{ fontSize:"0.85rem", color: isLight ? "#15803d" : "#bbf7d0", fontWeight:600 }}>
+              <span style={{ fontSize: "0.85rem",
+                color: isLight ? "#15803d" : "#bbf7d0", fontWeight: 600 }}>
                 {t.bannerDone}
               </span>
             </div>
-            <button onClick={scrollToReport} style={{ padding:"7px 16px", borderRadius:"999px", border: isLight ? "1px solid rgba(22,163,74,0.5)" : "1px solid rgba(34,197,94,0.4)", background: isLight ? "rgba(22,163,74,0.1)" : "rgba(22,163,74,0.15)", color: isLight ? "#15803d" : "#86efac", fontSize:"0.78rem", fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
+            <button onClick={scrollToReport}
+              style={{ padding: "7px 16px", borderRadius: "999px",
+                border: isLight ? "1px solid rgba(22,163,74,0.5)"
+                  : "1px solid rgba(34,197,94,0.4)",
+                background: isLight ? "rgba(22,163,74,0.1)" : "rgba(22,163,74,0.15)",
+                color: isLight ? "#15803d" : "#86efac",
+                fontSize: "0.78rem", fontWeight: 700, cursor: "pointer" }}>
               {t.viewReport}
             </button>
           </div>
         )}
 
-        {showProcessingBanner && (
-          <div style={{ padding:"12px 24px", background: isLight ? "rgba(37,99,235,0.06)" : "rgba(37,99,235,0.08)", borderBottom:"1px solid rgba(37,99,235,0.2)", display:"flex", alignItems:"center", gap:"10px" }}>
+        {showProcessing && (
+          <div style={{ padding: "12px 24px",
+            background: isLight ? "rgba(37,99,235,0.06)" : "rgba(37,99,235,0.08)",
+            borderBottom: "1px solid rgba(37,99,235,0.2)",
+            display: "flex", alignItems: "center", gap: "10px" }}>
             <span>⏳</span>
-            <span style={{ fontSize:"0.85rem", color: isLight ? "#1d4ed8" : "#93c5fd" }}>
+            <span style={{ fontSize: "0.85rem", color: isLight ? "#1d4ed8" : "#93c5fd" }}>
               {t.bannerRunning}
             </span>
           </div>
         )}
 
-        {showFailedBanner && (
-          <div style={{ padding:"12px 24px", background: isLight ? "rgba(220,38,38,0.06)" : "rgba(127,29,29,0.12)", borderBottom:"1px solid rgba(249,115,115,0.2)", display:"flex", alignItems:"center", gap:"10px" }}>
+        {showFailed && (
+          <div style={{ padding: "12px 24px",
+            background: isLight ? "rgba(220,38,38,0.06)" : "rgba(127,29,29,0.12)",
+            borderBottom: "1px solid rgba(249,115,115,0.2)",
+            display: "flex", alignItems: "center", gap: "10px" }}>
             <span>❌</span>
-            <span style={{ fontSize:"0.85rem", color: isLight ? "#b91c1c" : "#fca5a5" }}>
+            <span style={{ fontSize: "0.85rem", color: isLight ? "#b91c1c" : "#fca5a5" }}>
               {t.bannerFailed}
             </span>
           </div>
@@ -371,38 +476,49 @@ export default function DashboardPage() {
           <UploadCard onUploadSuccess={handleUploadSuccess} resetKey={uploadResetKey} />
           <AnalysisAssistantCard
             key={analysisKey}
-            dataset={dataset}
+            dataset={analysis}
             reportReady={reportReady}
             onViewReport={scrollToReport}
             onAnalysisStarted={handleAnalysisStarted}
+            plan={plan}
           />
         </section>
 
-        {/* 2. Dataset history */}
+        {/* 2. History */}
         <section className="dataset-management-grid" id="section-history" ref={historyRef}>
-          <HistoryCard dataset={dataset} onDelete={handleDelete} />
+          <HistoryCard
+            history={history}
+            activeId={analysis?.id}
+            plan={plan}
+            onLoad={handleLoadHistory}
+            onDeleted={handleHistoryDeleted}
+            onUpgrade={() => router.push("/plans")}
+          />
         </section>
 
         {/* 3. Charts */}
         <section id="section-charts" ref={chartsRef}>
-          <ChartsCard dataset={dataset} />
+          <ChartsCard dataset={analysis} />
         </section>
 
-        {/* 4. Report */}
+        {/* 4. Report / Downloads */}
         <section id="section-download" ref={downloadRef}>
-          <DownloadsCard dataset={dataset ? { ...dataset, hasPdfReport: hasPdfReport } : null} />
+          <DownloadsCard dataset={analysis
+            ? { ...analysis, hasPdfReport: hasPdfReport }
+            : null}
+          />
         </section>
 
         {/* 5. Help */}
         <section id="section-help" ref={helpRef}>
           <InfoCards />
         </section>
-
       </div>
     </div>
   );
 }
 
+// ── Icons ─────────────────────────────────────────────────────────────────────
 function IconGrid()     { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>; }
 function IconUpload()   { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>; }
 function IconHistory()  { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>; }
@@ -411,3 +527,5 @@ function IconReport()   { return <svg width="17" height="17" viewBox="0 0 24 24"
 function IconHelp()     { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>; }
 function IconSettings() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>; }
 function IconSignOut()  { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>; }
+function IconTeam()     { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>; }
+function IconAdmin()    { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>; }

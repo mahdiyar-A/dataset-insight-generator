@@ -3,6 +3,7 @@ using backend.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace backend.Controllers;
@@ -70,13 +71,21 @@ public class ChatController : ControllerBase
                     Condition = "not_workable", RequiresResponse = false, Done = false, Failed = true,
                 });
 
+            // Serialize customization to JSON string for storage + forwarding to pipeline
+            string? customizationJson = null;
+            if (req.Customization.HasValue && req.Customization.Value.ValueKind != JsonValueKind.Null)
+            {
+                try { customizationJson = req.Customization.Value.GetRawText(); }
+                catch { /* ignore malformed customization — pipeline uses defaults */ }
+            }
+
             // ── Call Python /check to get real condition ──────────────────
             string condition;
             try
             {
-                var csvBytes = await System.IO.File.ReadAllBytesAsync(tempPath);
+                var csvBytes  = await System.IO.File.ReadAllBytesAsync(tempPath);
                 var checkJson = await _pythonAi.CheckQualityAsync(csvBytes, req.FileName ?? "data.csv", userId);
-                var checkResult = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(checkJson);
+                var checkResult = JsonSerializer.Deserialize<JsonElement>(checkJson);
                 condition = checkResult.GetProperty("condition").GetString() ?? "not_clean";
             }
             catch (Exception ex)
@@ -91,7 +100,8 @@ public class ChatController : ControllerBase
                 _analysis.StartInBackground(userId, req.FileName ?? "data.csv",
                     req.FileSizeBytes ?? new System.IO.FileInfo(tempPath).Length,
                     req.RowCount ?? 0, req.ColumnCount ?? 0,
-                    userWantsCleaning: false, userConfirmedLow: true);
+                    userWantsCleaning: false, userConfirmedLow: true,
+                    customizationJson: customizationJson);
             }
 
             return Ok(condition switch
@@ -137,6 +147,14 @@ public class ChatController : ControllerBase
                 userConfirmedLow  = true; // no confirmation needed, just proceed
             }
 
+            // Recover customization JSON passed through from the frontend
+            string? customizationJson = null;
+            if (req.Customization.HasValue && req.Customization.Value.ValueKind != JsonValueKind.Null)
+            {
+                try { customizationJson = req.Customization.Value.GetRawText(); }
+                catch { /* ignore */ }
+            }
+
             _analysis.StartInBackground(
                 userId,
                 req.FileName      ?? "data.csv",
@@ -144,7 +162,8 @@ public class ChatController : ControllerBase
                 req.RowCount      ?? 0,
                 req.ColumnCount   ?? 0,
                 userWantsCleaning,
-                userConfirmedLow
+                userConfirmedLow,
+                customizationJson: customizationJson
             );
 
             return Ok(new ChatMessageResponse
@@ -171,6 +190,11 @@ public class ChatMessageRequest
     [JsonPropertyName("columnCount")]      public int?    ColumnCount      { get; set; }
     // What condition the chatbot was displaying when user hit Yes/No
     [JsonPropertyName("pendingCondition")] public string? PendingCondition { get; set; }
+    // Analysis ID — sent by the frontend when referencing an existing analysis row
+    [JsonPropertyName("analysisId")]       public string? AnalysisId       { get; set; }
+    // Pro customization settings from ChatCustomizationPanel
+    // Stored as raw JSON so we can pass it straight to the pipeline and the Analysis entity
+    [JsonPropertyName("customization")]    public JsonElement? Customization { get; set; }
 }
 
 public class ChatMessageResponse

@@ -25,6 +25,13 @@ public class AnalyzeResponseDto
     [JsonPropertyName("pdf_report_base64")]
     public string? PdfReportBase64 { get; set; }
 
+    // Pro outputs — null if not requested or generation failed
+    [JsonPropertyName("word_report_base64")]
+    public string? WordReportBase64 { get; set; }
+
+    [JsonPropertyName("pptx_report_base64")]
+    public string? PptxReportBase64 { get; set; }
+
     [JsonPropertyName("charts")]
     public List<ChartResultDto> Charts { get; set; } = new();
 }

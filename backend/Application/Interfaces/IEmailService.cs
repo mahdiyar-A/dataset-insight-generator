@@ -7,4 +7,5 @@ public interface IEmailService
     Task SendEmailChangeVerificationAsync(string toNewEmail, string userName, string token);
     Task SendPhoneOtpAsync(string toEmail, string userName, string otp);
     Task SendReportAsync(string toEmail, string userName, byte[] pdfBytes, string reportFileName);
+    Task SendTeamInviteAsync(string toEmail, string inviterName, string teamName, string inviteUrl, string role);
 }

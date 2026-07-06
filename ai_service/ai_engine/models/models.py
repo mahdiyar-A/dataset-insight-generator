@@ -116,6 +116,10 @@ class PipelineResult:
     pdfReportBase64: Optional[str]
     charts: List[Dict[str, Any]]
 
+    # Optional Pro outputs — only populated when user's outputFormat requests them
+    wordReportBase64: Optional[str] = None   # .docx
+    pptxReportBase64: Optional[str] = None   # .pptx
+
     # Low-confidence advisory — set by pipeline when judge score <= threshold
     lowConfidenceWarning: bool = False
     confidenceScore: int = 6
@@ -127,6 +131,8 @@ class PipelineResult:
             "error":                   self.error,
             "cleaned_csv_base64":      self.cleanedCsvBase64,
             "pdf_report_base64":       self.pdfReportBase64,
+            "word_report_base64":      self.wordReportBase64,
+            "pptx_report_base64":      self.pptxReportBase64,
             "charts":                  self.charts,
             "low_confidence_warning":  self.lowConfidenceWarning,
             "confidence_score":        self.confidenceScore,

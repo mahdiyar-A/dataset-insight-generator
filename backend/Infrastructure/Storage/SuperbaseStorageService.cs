@@ -29,6 +29,43 @@ public class SupabaseStorageService : IStorageService
         return await UploadAsync(file, $"users/{userId}/original.csv");
     }
 
+    public async Task<string> SaveWordReportAsync(Guid userId, byte[] docxBytes)
+        => await UploadBytesAsync(docxBytes, $"users/{userId}/report.docx",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+
+    public async Task<string> SavePptxReportAsync(Guid userId, byte[] pptxBytes)
+        => await UploadBytesAsync(pptxBytes, $"users/{userId}/report.pptx",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+
+    public async Task DeleteAnalysisFilesAsync(Guid userId, Guid analysisId)
+    {
+        // Analysis files are stored under users/{userId}/ — same paths used by SaveX methods.
+        // We delete the known file names; unknown extras (e.g. extra charts) are cleaned up
+        // by DeleteUserFilesAsync when the account is deleted.
+        try
+        {
+            var paths = new List<string>
+            {
+                $"users/{userId}/original.csv",
+                $"users/{userId}/cleaned.csv",
+                $"users/{userId}/report.pdf",
+                $"users/{userId}/report.docx",
+                $"users/{userId}/report.pptx",
+                $"users/{userId}/chart_0.png",
+                $"users/{userId}/chart_1.png",
+                $"users/{userId}/chart_2.png",
+                $"users/{userId}/chart_3.png",
+                $"users/{userId}/chart_4.png",
+            };
+            await _client.Storage.From(_bucket).Remove(paths);
+        }
+        catch (Exception ex)
+        {
+            // Log but don't throw — DB delete should still proceed
+            Console.WriteLine($"[Storage] DeleteAnalysisFilesAsync warning: {ex.Message}");
+        }
+    }
+
     public async Task<string> SaveCleanedCsvAsync(Guid userId, byte[] csvBytes, string fileName = "cleaned.csv")
         => await UploadBytesAsync(csvBytes, $"users/{userId}/{fileName}", "text/csv");
 

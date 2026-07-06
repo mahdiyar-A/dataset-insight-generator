@@ -20,6 +20,12 @@ export type Profile = {
   createdAt?:      string;
   isActive?:       boolean;
   isEmailVerified?: boolean;
+  // Plan & usage
+  plan?:           string;   // "free" | "pro" | "admin"
+  planExpiresAt?:  string;
+  reportsUsed?:    number;
+  reportsResetAt?: string;
+  historyLimit?:   number;
 };
 
 type AuthContextType = {
@@ -108,6 +114,11 @@ async function fetchProfile(
         createdAt:       data.createdAt,
         isActive:        data.isActive,
         isEmailVerified: data.isEmailVerified,
+        plan:            data.plan        ?? "free",
+        planExpiresAt:   data.planExpiresAt,
+        reportsUsed:     data.reportsUsed ?? 0,
+        reportsResetAt:  data.reportsResetAt,
+        historyLimit:    data.historyLimit ?? 5,
       };
     } catch (err) {
       console.error('[Profile] fetch error:', err);

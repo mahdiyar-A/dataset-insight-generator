@@ -94,17 +94,22 @@ public class UserProfileService : IUserProfileService
 
         return new GetMeResponseDto
         {
-            Id             = u.Id,
-            Email          = u.Email,
-            UserName       = u.UserName,
-            FirstName      = firstName,
-            LastName       = lastName,
-            PhoneNumber    = u.PhoneNumber,
-            ProfilePicture = u.ProfilePicture,
-            CreatedAt      = u.CreatedAt,
-            LastLoginAt      = u.LastLoginAt,
-            IsActive         = u.IsActive,
-            IsEmailVerified  = u.IsEmailVerified
+            Id              = u.Id,
+            Email           = u.Email,
+            UserName        = u.UserName,
+            FirstName       = firstName,
+            LastName        = lastName,
+            PhoneNumber     = u.PhoneNumber,
+            ProfilePicture  = u.ProfilePicture,
+            CreatedAt       = u.CreatedAt,
+            LastLoginAt     = u.LastLoginAt,
+            LastActive      = u.LastActive,
+            IsActive        = u.IsActive,
+            IsEmailVerified = u.IsEmailVerified,
+            Plan            = u.Plan,
+            PlanExpiresAt   = u.PlanExpiresAt,
+            ReportsUsed     = u.ReportsUsed,
+            ReportsResetAt  = u.ReportsResetAt,
         };
     }
 }

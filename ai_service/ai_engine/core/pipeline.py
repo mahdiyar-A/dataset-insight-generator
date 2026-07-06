@@ -31,6 +31,22 @@ from ai_engine.models.models             import (
 )
 from ai_engine.training.training_logger  import log_pipeline_run
 
+# Optional Pro output builders — guarded imports so the pipeline still works
+# if python-docx / python-pptx are not installed in the container yet
+try:
+    from ai_engine.word.word_builder import build_word_doc
+    WORD_AVAILABLE = True
+except ImportError:
+    WORD_AVAILABLE = False
+    print("[Pipeline] python-docx not installed — Word export disabled", flush=True)
+
+try:
+    from ai_engine.pptx.pptx_builder import build_pptx
+    PPTX_AVAILABLE = True
+except ImportError:
+    PPTX_AVAILABLE = False
+    print("[Pipeline] python-pptx not installed — PPTX export disabled", flush=True)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # File loading
@@ -134,10 +150,30 @@ def run_pipeline(
     gemini_api_key:      str,
     groq_api_key:        str = "",
     session_id:          str = "",
+    customization:       Optional[Dict[str, Any]] = None,
 ) -> dict:
     """
     Full 8-phase analysis pipeline. Returns dict matching C# AnalyzeResponseDto.
+
+    customization (Pro users only, all optional):
+      language       — "en" | "fr" | "es" | "de" | "zh" | "ar" | "pt"
+      tone           — "professional" | "casual" | "simplified" | "technical" | "storytelling"
+      insightsCount  — 3 | 5 | 7
+      occasion       — "general" | "academic" | "business" | "personal" | "industry"
+      outputFormat   — { "pdf": bool, "word": bool, "pptx": bool }
     """
+    # Parse customization with safe defaults
+    cust         = customization or {}
+    language     = cust.get("language", "en")
+    tone         = cust.get("tone", "professional")
+    insights_count = int(cust.get("insightsCount", 5))
+    occasion     = cust.get("occasion", "general")
+    output_fmt   = cust.get("outputFormat") or {}
+    want_word    = bool(output_fmt.get("word", False))
+    want_pptx    = bool(output_fmt.get("pptx", False))
+    # PDF is always generated regardless of outputFormat flag
+
+    print(f"[Pipeline] Customization — lang={language} tone={tone} insights={insights_count} occasion={occasion} word={want_word} pptx={want_pptx}", flush=True)
 
     # ── Phase 0: Load + basic quality gate ───────────────────────────────
     print(f"[Pipeline] Phase 0 — Loading file: {file_name}", flush=True)
@@ -213,6 +249,10 @@ def run_pipeline(
             was_cleaned=was_cleaned,
             dropped_columns=dropped_columns,
             api_key=gemini_api_key,
+            language=language,
+            tone=tone,
+            insights_count=insights_count,
+            occasion=occasion,
         )
     except Exception as e:
         # This should not happen, but if it does — build fallback inline
@@ -307,6 +347,36 @@ def run_pipeline(
 
     print(f"[Pipeline] PDF built successfully.", flush=True)
 
+    # ── Phase 7b: Word report (Pro — if requested) ────────────────────────
+    word_b64 = None
+    if want_word:
+        if WORD_AVAILABLE:
+            print(f"[Pipeline] Generating Word report...", flush=True)
+            try:
+                word_bytes = build_word_doc(llm_report, file_name=file_name, domain=domain.domain)
+                import base64 as _b64
+                word_b64 = _b64.b64encode(word_bytes).decode("utf-8")
+                print(f"[Pipeline] Word report generated ({len(word_bytes):,} bytes)", flush=True)
+            except Exception as e:
+                print(f"[Pipeline] Word generation failed: {e} — skipping", flush=True)
+        else:
+            print("[Pipeline] Word requested but python-docx not available — skipping", flush=True)
+
+    # ── Phase 7c: PPTX (Pro — if requested) ──────────────────────────────
+    pptx_b64 = None
+    if want_pptx:
+        if PPTX_AVAILABLE:
+            print(f"[Pipeline] Generating PowerPoint...", flush=True)
+            try:
+                pptx_bytes = build_pptx(llm_report, file_name=file_name, domain=domain.domain)
+                import base64 as _b64
+                pptx_b64 = _b64.b64encode(pptx_bytes).decode("utf-8")
+                print(f"[Pipeline] PPTX generated ({len(pptx_bytes):,} bytes)", flush=True)
+            except Exception as e:
+                print(f"[Pipeline] PPTX generation failed: {e} — skipping", flush=True)
+        else:
+            print("[Pipeline] PPTX requested but python-pptx not available — skipping", flush=True)
+
     # ── Phase 8: Training log ─────────────────────────────────────────────
     _log(stats, domain, judge, was_cleaned, user_wants_cleaning,
          len(llm_report.insights), len(charts),
@@ -334,6 +404,8 @@ def run_pipeline(
         error=None,
         cleanedCsvBase64=cleaned_csv_b64,
         pdfReportBase64=pdf_b64,
+        wordReportBase64=word_b64,
+        pptxReportBase64=pptx_b64,
         charts=charts,
         lowConfidenceWarning=low_conf_warning,
         confidenceScore=final_score,

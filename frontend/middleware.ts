@@ -1,39 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
- * Next.js middleware — runs on every request before it reaches a page.
+ * Next.js middleware — runs on every request before a page is rendered.
  *
- * Protected routes (/dashboard/*) require a Supabase session cookie.
- * Supabase stores the session as a cookie whose name contains "auth-token".
- * If the cookie is missing the user is redirected to /login.
+ * Protected routes require a Supabase session cookie.
+ * Supabase stores the session in a cookie whose name contains "auth-token".
+ * Missing cookie → redirect to /login (preserving the intended destination).
  *
- * NOTE: This is a fast, server-side gate — it doesn't verify the JWT
- * signature (that's expensive and done by the backend on API calls).
- * It just prevents the dashboard HTML from being served at all to
- * unauthenticated users, which stops bots and avoids client-side flash.
+ * This is a fast server-side gate — it does NOT verify the JWT signature
+ * (that's done by the backend on API calls). It just prevents unauthenticated
+ * users from seeing dashboard HTML and stops search bots from indexing it.
  */
+
+const PROTECTED_PREFIXES = ['/dashboard', '/workspace', '/admin', '/invite'];
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Only protect the dashboard — public pages (login, register, landing) are open
-  if (pathname.startsWith('/dashboard')) {
-    // Supabase stores session cookies with a name like "sb-<project-ref>-auth-token"
-    const hasSession = request.cookies
-      .getAll()
-      .some(c => c.name.includes('auth-token') && c.value);
+  const isProtected = PROTECTED_PREFIXES.some(p => pathname.startsWith(p));
+  if (!isProtected) return NextResponse.next();
 
-    if (!hasSession) {
-      // Redirect unauthenticated users to login, preserving where they were going
-      const loginUrl = new URL('/login', request.url);
-      loginUrl.searchParams.set('redirectTo', pathname);
-      return NextResponse.redirect(loginUrl);
-    }
+  // Supabase stores session cookies with a name like "sb-<project-ref>-auth-token"
+  const hasSession = request.cookies
+    .getAll()
+    .some(c => c.name.includes('auth-token') && c.value);
+
+  if (!hasSession) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('redirectTo', pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  // Run middleware on all routes except Next.js internals and static assets
   matcher: ['/((?!_next/static|_next/image|favicon.ico|public).*)'],
 };

@@ -153,9 +153,16 @@ async def analyze(
     dataset_id:          str  = Form(None),
     user_wants_cleaning: bool = Form(False),
     user_confirmed_low:  bool = Form(False),
+    # Pro customization — all optional, safe defaults applied in pipeline
+    language:            str  = Form("en"),
+    tone:                str  = Form("professional"),
+    insights_count:      int  = Form(5),
+    occasion:            str  = Form("general"),
+    want_word:           bool = Form(False),
+    want_pptx:           bool = Form(False),
 ):
     """
-    Full 7-phase analysis pipeline.
+    Full 8-phase analysis pipeline.
 
     C# sends:
       - file:                the raw CSV/XLSX bytes
@@ -163,6 +170,14 @@ async def analyze(
       - dataset_id:          optional dataset identifier
       - user_wants_cleaning: true if user agreed to auto-clean
       - user_confirmed_low:  true if user confirmed proceed despite low confidence
+
+    Pro customization (optional):
+      - language:       output language code (en/fr/es/de/zh/ar/pt)
+      - tone:           writing style
+      - insights_count: 3 | 5 | 7
+      - occasion:       report framing context
+      - want_word:      generate .docx Word report
+      - want_pptx:      generate .pptx PowerPoint
     """
     print(f"\n{'='*52}", flush=True)
     print(f"[Analyze] ▶ Pipeline start", flush=True)
@@ -170,6 +185,7 @@ async def analyze(
     print(f"[Analyze]   session  : {session_id}", flush=True)
     print(f"[Analyze]   cleaning : {user_wants_cleaning}", flush=True)
     print(f"[Analyze]   low_conf : {user_confirmed_low}", flush=True)
+    print(f"[Analyze]   lang={language} tone={tone} insights={insights_count} occasion={occasion} word={want_word} pptx={want_pptx}", flush=True)
 
     if not GEMINI_API_KEY:
         print("[Analyze] ✗ GEMINI_API_KEY not set — aborting", flush=True)
@@ -191,19 +207,34 @@ async def analyze(
         gemini_api_key=GEMINI_API_KEY,
         groq_api_key=GROQ_API_KEY,
         session_id=session_id,
+        customization={
+            "language":      language,
+            "tone":          tone,
+            "insightsCount": insights_count,
+            "occasion":      occasion,
+            "outputFormat":  {
+                "pdf":  True,
+                "word": want_word,
+                "pptx": want_pptx,
+            },
+        },
     )
     elapsed = time.perf_counter() - t_start
 
     status = result.get("status", "unknown")
-    has_pdf = bool(result.get("pdf_report_base64"))
-    has_csv = bool(result.get("cleaned_csv_base64"))
-    n_charts = len(result.get("charts") or [])
+    has_pdf  = bool(result.get("pdf_report_base64"))
+    has_word = bool(result.get("word_report_base64"))
+    has_pptx = bool(result.get("pptx_report_base64"))
+    has_csv  = bool(result.get("cleaned_csv_base64"))
+    n_charts   = len(result.get("charts") or [])
     confidence = result.get("confidence_score", "?")
 
     print(f"[Analyze] ✓ Pipeline complete in {elapsed:.1f}s", flush=True)
     print(f"[Analyze]   status     : {status}", flush=True)
-    print(f"[Analyze]   pdf        : {'✓' if has_pdf else '✗'}", flush=True)
-    print(f"[Analyze]   cleaned csv: {'✓' if has_csv else '—'}", flush=True)
+    print(f"[Analyze]   pdf        : {'✓' if has_pdf  else '✗'}", flush=True)
+    print(f"[Analyze]   word       : {'✓' if has_word else '—'}", flush=True)
+    print(f"[Analyze]   pptx       : {'✓' if has_pptx else '—'}", flush=True)
+    print(f"[Analyze]   cleaned csv: {'✓' if has_csv  else '—'}", flush=True)
     print(f"[Analyze]   charts     : {n_charts}", flush=True)
     print(f"[Analyze]   confidence : {confidence}/10", flush=True)
     print(f"{'='*52}\n", flush=True)

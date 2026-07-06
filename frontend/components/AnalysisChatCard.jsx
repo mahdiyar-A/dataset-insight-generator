@@ -5,6 +5,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
 import { useSettings } from "@/app/contexts/SettingsContext";
+import ChatCustomizationPanel from "@/components/ChatCustomizationPanel";
 
 /*
   4 dataset conditions returned by backend:
@@ -91,17 +92,24 @@ const T = {
   },
 };
 
-export default function AnalysisAssistantCard({ dataset, reportReady, onViewReport, onAnalysisStarted, guestMode = false, guestSessionId = null }) {
+export default function AnalysisAssistantCard({
+  dataset, reportReady, onViewReport, onAnalysisStarted,
+  guestMode = false, guestSessionId = null,
+  plan = "free",
+}) {
   const { token } = useAuth();
   const { lang } = useSettings();
   const t = T[lang] || T.en;
 
-  const [stage,            setStage]            = useState(0);   // 0=idle 1=running 2=ready
+  const isPro = plan === "pro" || plan === "admin";
+
+  const [stage,            setStage]            = useState(0);
   const [messages,         setMessages]         = useState([]);
   const [awaitingResponse, setAwaitingResponse] = useState(false);
   const [sending,          setSending]          = useState(false);
-  const [condition,        setCondition]        = useState(null); // current condition from backend
-  const [sessionId,        setSessionId]        = useState(null); // chat session from backend
+  const [condition,        setCondition]        = useState(null);
+  const [sessionId,        setSessionId]        = useState(null);
+  const [customization,    setCustomization]    = useState(null); // pro: report options
 
   const bottomRef = useRef(null);
   const timerRef  = useRef(null);
@@ -135,6 +143,9 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
         rowCount:         dataset?.rowCount,
         columnCount:      dataset?.columnCount,
         pendingCondition: pendingCondition,
+        analysisId:       dataset?.id ?? null,
+        // Pro users: attach their report customization options
+        customization:    isPro ? customization : null,
       };
 
       let res;
@@ -173,7 +184,9 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
           (message === "yes" || message === "no" ||
            (message === "start_analysis" && cond === "all_good"));
         if (analysisKickingOff) {
-          onAnalysisStarted?.();
+          // Pass back the analysis ID so the dashboard can start polling for it
+          const newAnalysisId = res?.analysisId ?? dataset?.id ?? null;
+          onAnalysisStarted?.(newAnalysisId);
         }
         setAwaitingResponse(needsResp);
       }
@@ -339,6 +352,15 @@ export default function AnalysisAssistantCard({ dataset, reportReady, onViewRepo
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
             {t.start}
           </button>
+
+          {/* Pro customization panel — shown in idle state before analysis starts */}
+          {!guestMode && (
+            <ChatCustomizationPanel
+              isPro={isPro}
+              onChange={setCustomization}
+              onUpgrade={() => { if (typeof window !== "undefined") window.location.href = "/plans"; }}
+            />
+          )}
         </div>
       )}
 

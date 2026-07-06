@@ -25,11 +25,23 @@ public class User
     // Stored as "supabase-auth" for Supabase users — not a real hash
     public string  PasswordHash   { get; private set; } = null!;
 
+    // ── Plan & billing (persisted) ───────────────────────────────────────────
+    // "free" | "pro" | "admin"
+    public string    Plan                  { get; private set; } = "free";
+    public DateTime? PlanExpiresAt         { get; private set; }
+    public string?   StripeCustomerId      { get; private set; }
+    public string?   StripeSubscriptionId  { get; private set; }
+
+    // Free-tier usage tracking — reset every 48 hours
+    public int       ReportsUsed           { get; private set; } = 0;
+    public DateTime  ReportsResetAt        { get; private set; } = DateTime.UtcNow;
+
     // ── Persisted to DB ──────────────────────────────────────────────────────
     public bool      IsActive        { get; private set; } = true;
     public bool      IsEmailVerified { get; private set; } = false;
     public DateTime  CreatedAt       { get; private set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt     { get; private set; }
+    public DateTime? LastActive      { get; private set; }
 
     // ── Not yet persisted (tokens live in memory only) ───────────────────────
     // These will be wired to DB columns when email-verification and password-reset
@@ -85,6 +97,18 @@ public class User
     public void UpdateEmail(string email)                 => Email         = NormalizeEmail(email);
     public void SetPasswordHash(string hash)              => PasswordHash  = hash;
     public void SetProfilePicture(string? path)           => ProfilePicture = path;
+
+    // Plan management
+    public void SetPlan(string plan, DateTime? expiresAt, string? subscriptionId)
+    {
+        Plan                 = plan;
+        PlanExpiresAt        = expiresAt;
+        StripeSubscriptionId = subscriptionId;
+    }
+    public void SetStripeCustomerId(string id) => StripeCustomerId = id;
+    public void IncrementReportUsage()         => ReportsUsed++;
+    public void ResetReportQuota()             { ReportsUsed = 0; ReportsResetAt = DateTime.UtcNow; }
+    public void UpdateLastActive()             => LastActive = DateTime.UtcNow;
 
     // ── Email verification ───────────────────────────────────────────────────
 
@@ -182,6 +206,13 @@ public class User
         string? profilePicture, string? phoneNumber,
         bool isActive, bool isEmailVerified,
         DateTime createdAt, DateTime? lastLoginAt,
+        DateTime? lastActive            = null,
+        string plan                     = "free",
+        DateTime? planExpiresAt         = null,
+        string? stripeCustomerId        = null,
+        string? stripeSubscriptionId    = null,
+        int reportsUsed                 = 0,
+        DateTime reportsResetAt         = default,
         string? emailVerificationToken  = null, DateTime? emailVerificationExpiry = null,
         string? passwordResetToken      = null, DateTime? passwordResetExpiry     = null,
         string? pendingEmail            = null, string?   pendingEmailToken       = null,
@@ -200,6 +231,13 @@ public class User
             IsEmailVerified          = isEmailVerified,
             CreatedAt                = createdAt,
             LastLoginAt              = lastLoginAt,
+            LastActive               = lastActive,
+            Plan                     = plan,
+            PlanExpiresAt            = planExpiresAt,
+            StripeCustomerId         = stripeCustomerId,
+            StripeSubscriptionId     = stripeSubscriptionId,
+            ReportsUsed              = reportsUsed,
+            ReportsResetAt           = reportsResetAt == default ? createdAt : reportsResetAt,
             EmailVerificationToken   = emailVerificationToken,
             EmailVerificationExpiry  = emailVerificationExpiry,
             PasswordResetToken       = passwordResetToken,

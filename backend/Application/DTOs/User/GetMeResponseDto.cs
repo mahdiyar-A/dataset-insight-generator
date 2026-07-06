@@ -1,44 +1,30 @@
-using System;
-
 namespace backend.Application.DTOs.User;
 
 /// <summary>
-/// Data Transfer Object returned by GET /api/user/me.
-/// Contains only the fields safe to expose to the client.
-/// This DTO intentionally omits sensitive data like the password hash.
+/// Data returned by GET /api/user/me.
+/// Safe to expose to the client — never includes password hash or raw Stripe keys.
 /// </summary>
 public class GetMeResponseDto
 {
-    /// <summary>Primary identifier of the user.</summary>
-    public Guid Id { get; set; }
+    public Guid    Id              { get; set; }
+    public string  Email           { get; set; } = default!;
+    public string  UserName        { get; set; } = default!;
+    public string? FirstName       { get; set; }
+    public string? LastName        { get; set; }
+    public string? PhoneNumber     { get; set; }
+    public string? ProfilePicture  { get; set; }
+    public DateTime  CreatedAt     { get; set; }
+    public DateTime? LastLoginAt   { get; set; }
+    public DateTime? LastActive    { get; set; }
+    public bool    IsActive        { get; set; }
+    public bool    IsEmailVerified { get; set; }
 
-    /// <summary>User email (public-facing).</summary>
-    public string Email { get; set; } = default!;
+    // Plan & usage — needed by PlanBadge and quota checks in the frontend
+    public string    Plan           { get; set; } = "free";
+    public DateTime? PlanExpiresAt  { get; set; }
+    public int       ReportsUsed    { get; set; }
+    public DateTime  ReportsResetAt { get; set; }
 
-    /// <summary>Username (login/display name).</summary>
-    public string UserName { get; set; } = default!;
-
-    /// <summary>Optional first name (not required by domain).</summary>
-    public string? FirstName { get; set; }
-
-    /// <summary>Optional last name (not required by domain).</summary>
-    public string? LastName { get; set; }
-
-    /// <summary>Optional phone number (stored in user profile).</summary>
-    public string? PhoneNumber { get; set; }
-
-    /// <summary>Relative path or URL for the user's profile picture.</summary>
-    public string? ProfilePicture { get; set; }
-
-    /// <summary>When the account was created (UTC).</summary>
-    public DateTime CreatedAt { get; set; }
-
-    /// <summary>Optional timestamp of the last login (UTC).</summary>
-    public DateTime? LastLoginAt { get; set; }
-
-    /// <summary>Whether the account is active. Used for soft-deletes.</summary>
-    public bool IsActive { get; set; }
-
-    /// <summary>Whether the user's email has been verified.</summary>
-    public bool IsEmailVerified { get; set; }
+    // History cap depends on plan
+    public int HistoryLimit => Plan is "pro" or "admin" ? 15 : 5;
 }

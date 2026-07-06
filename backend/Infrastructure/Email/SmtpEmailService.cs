@@ -252,4 +252,19 @@ public class SmtpEmailService : IEmailService
             throw;
         }
     }
+
+    // ── Team Invite ───────────────────────────────────────────────────────────
+    public async Task SendTeamInviteAsync(
+        string toEmail, string inviterName, string teamName, string inviteUrl, string role)
+    {
+        var body = Wrap(
+            Heading($"You've been invited to join a team on DIG") +
+            Sub($"{inviterName} invited you to collaborate.") +
+            Para($"You've been invited to join the team <strong style=\"color:#e2e8f0\">{teamName}</strong> as a <strong style=\"color:#e2e8f0\">{role}</strong>. Accept the invitation to access shared analyses, view reports, and collaborate in real time.") +
+            Button(inviteUrl, "Accept Invitation") +
+            InfoBox($"This invitation expires in 7 days. Both you and the team owner must have an active Pro plan to collaborate. If you don't have an account yet, you'll be prompted to create one.") +
+            FallbackLink(inviteUrl)
+        );
+        await SendAsync(toEmail, $"{inviterName} invited you to collaborate on DIG", body);
+    }
 }

@@ -7,12 +7,21 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Auth & API -->
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.8" />
-    <PackageReference Include="Supabase" Version="1.1.1" />
-    <PackageReference Include="Supabase.Postgrest" Version="4.0.3" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.16.0" />
+
+    <!-- Real-time collaboration via SignalR -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.1.0" />
+
+    <!-- Supabase (DB + Storage) -->
+    <PackageReference Include="Supabase" Version="1.1.1" />
+    <PackageReference Include="Supabase.Postgrest" Version="4.0.3" />
+
+    <!-- Stripe payments (no card data touches our server) -->
+    <PackageReference Include="Stripe.net" Version="45.6.0" />
   </ItemGroup>
 
 </Project>

@@ -39,6 +39,10 @@ def _build_prompt(
     domain: DomainResult,
     was_cleaned: bool,
     dropped_columns: List[str],
+    language: str = "en",
+    tone: str = "professional",
+    insights_count: int = 5,
+    occasion: str = "general",
 ) -> str:
 
     # ── Language rules context ─────────────────────────────────────────────
@@ -86,10 +90,89 @@ def _build_prompt(
     focus_block  = "\n".join(f"  - {f}" for f in domain.analysis_focus)
     questions_block = "\n".join(f"  {i+1}. {q}" for i, q in enumerate(domain.key_questions))
 
+    # ── Customization directives ───────────────────────────────────────────
+    LANGUAGE_NAMES = {
+        "en": "English", "fr": "French", "es": "Spanish",
+        "de": "German",  "zh": "Simplified Chinese",
+        "ar": "Arabic",  "pt": "Portuguese",
+    }
+    TONE_DIRECTIVES = {
+        "professional": (
+            "Write as a managing partner presenting to a board. "
+            "Authoritative, evidence-backed, confident executive language."
+        ),
+        "casual": (
+            "Write in a friendly, conversational tone. Avoid heavy jargon. "
+            "Keep sentences approachable — imagine explaining findings over coffee."
+        ),
+        "simplified": (
+            "Use plain language. Short sentences. Avoid technical terminology. "
+            "Assume the reader has no data background — translate every finding into plain meaning."
+        ),
+        "technical": (
+            "Include statistical details: p-values, confidence intervals, effect sizes where relevant. "
+            "Use precise methodology language. Assume a data-literate audience."
+        ),
+        "storytelling": (
+            "Use a narrative-driven structure. Lead with the story the data tells. "
+            "Build each insight as a chapter in a larger narrative arc. "
+            "Data is supporting evidence — the insight is the protagonist."
+        ),
+    }
+    OCCASION_DIRECTIVES = {
+        "general": "Standard analytical report — balanced professional tone.",
+        "academic": (
+            "Frame findings with research rigour. Reference statistical tests by name. "
+            "Use a methodology section that could appear in a published paper."
+        ),
+        "business": (
+            "Prioritise business impact, ROI implications, and actionable recommendations. "
+            "Every insight should close with a concrete business implication."
+        ),
+        "personal": (
+            "Direct, approachable, and plain-spoken. "
+            "Write as if advising a friend who owns this data."
+        ),
+        "industry": (
+            "Use domain-specific industry language and benchmarks where applicable. "
+            "Contextualise findings against typical industry performance norms."
+        ),
+    }
+
+    lang_name   = LANGUAGE_NAMES.get(language, "English")
+    tone_dir    = TONE_DIRECTIVES.get(tone, TONE_DIRECTIVES["professional"])
+    occasion_dir = OCCASION_DIRECTIVES.get(occasion, OCCASION_DIRECTIVES["general"])
+
+    # Build the exact number of insight slots the user requested
+    insight_slots = "\n".join(
+        f'    {{\n      "rank": {i+1},\n      "title": "...",\n      "body": "...",\n      "insight_index": {i+1}\n    }}{"," if i < insights_count - 1 else ""}'
+        for i in range(insights_count)
+    )
+    # First slot gets a fuller description
+    first_insight = (
+        f'    {{\n      "rank": 1,\n'
+        f'      "title": "<The finding as a declarative statement — e.g. \'Manufacturing Sector Commands 34% Premium Over Service Industries\'>",\n'
+        f'      "body": "<Analytical narrative for this finding. Explain what the pattern is, why it matters in the {domain.domain} context, and what it means for decision-makers. Use domain language, not column references. Bring in supporting numbers where they genuinely strengthen the point. Aim for depth over breadth.>",\n'
+        f'      "insight_index": 1\n    }}{"," if insights_count > 1 else ""}'
+    )
+    remaining_slots = "\n".join(
+        f'    {{\n      "rank": {i+1},\n      "title": "...",\n      "body": "...",\n      "insight_index": {i+1}\n    }}{"," if i < insights_count - 1 else ""}'
+        for i in range(1, insights_count)
+    )
+    insight_slots = first_insight + ("\n" + remaining_slots if remaining_slots else "")
+
     return f"""You are a managing partner at a world-class data analytics consultancy producing a formal report for a client board meeting. Your standard is publication quality — precise, evidence-backed, written in confident executive language.
 
 DOMAIN: {domain.domain.upper()}
 CLEANING STATUS: {cleaning_note}
+
+═══════════════════════════════════════════════════
+OUTPUT CUSTOMIZATION (follow these exactly)
+═══════════════════════════════════════════════════
+LANGUAGE:  Write the entire report in {lang_name}. All section titles, body text, insights, conclusions — everything must be in {lang_name}.
+TONE:      {tone_dir}
+OCCASION:  {occasion_dir}
+INSIGHTS:  Produce exactly {insights_count} insights (no more, no fewer).
 
 ═══════════════════════════════════════════════════
 ATTRIBUTE VOCABULARY
@@ -148,36 +231,7 @@ YOUR OUTPUT — respond ONLY with valid JSON
   "executive_summary": "<3-4 sentences. Lead with the most significant finding. Add 1-2 supporting takeaways. Close with the primary implication for decision-makers. Specific where the data supports it.>",
 
   "insights": [
-    {{
-      "rank": 1,
-      "title": "<The finding as a declarative statement — e.g. 'Manufacturing Sector Commands 34% Premium Over Service Industries'>",
-      "body": "<Analytical narrative for this finding. Explain what the pattern is, why it matters in the {domain.domain} context, and what it means for decision-makers. Use domain language, not column references. Bring in supporting numbers where they genuinely strengthen the point. Aim for depth over breadth.>",
-      "insight_index": 1
-    }},
-    {{
-      "rank": 2,
-      "title": "...",
-      "body": "...",
-      "insight_index": 2
-    }},
-    {{
-      "rank": 3,
-      "title": "...",
-      "body": "...",
-      "insight_index": 3
-    }},
-    {{
-      "rank": 4,
-      "title": "...",
-      "body": "...",
-      "insight_index": 4
-    }},
-    {{
-      "rank": 5,
-      "title": "...",
-      "body": "...",
-      "insight_index": 5
-    }}
+{insight_slots}
   ],
 
   "chart_instructions": [
@@ -411,14 +465,30 @@ def call_gemini(
     was_cleaned: bool,
     dropped_columns: List[str],
     api_key: str,
+    language: str = "en",
+    tone: str = "professional",
+    insights_count: int = 5,
+    occasion: str = "general",
 ) -> LLMReport:
     """
-    Phase 4: Insight agent + report writer. Returns full LLMReport.
+    Phase 5: Insight agent + report writer. Returns full LLMReport.
+
+    Customization params (Pro users):
+      language       — output language code (en, fr, es, de, zh, ar, pt)
+      tone           — writing style (professional, casual, simplified, technical, storytelling)
+      insights_count — how many insights to generate (3, 5, or 7)
+      occasion       — framing context (general, academic, business, personal, industry)
 
     Never raises — on any failure (429, timeout, safety block, bad JSON)
     returns a stats-only fallback report so the pipeline always produces a PDF.
     """
-    prompt = _build_prompt(stats, domain, was_cleaned, dropped_columns)
+    prompt = _build_prompt(
+        stats, domain, was_cleaned, dropped_columns,
+        language=language,
+        tone=tone,
+        insights_count=insights_count,
+        occasion=occasion,
+    )
 
     payload_dict = {
         "contents": [{"parts": [{"text": prompt}]}],

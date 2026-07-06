@@ -9,18 +9,22 @@ namespace backend.Application.Services;
 /// Orchestrates the full analysis pipeline for authenticated users.
 ///
 /// Flow:
-///   1. Read the temp CSV file the user uploaded earlier
-///   2. Create a "processing" placeholder row in the DB so the frontend can poll status
-///   3. Send the file to the Python AI service (7-phase pipeline, may take 30-90s)
-///   4. Save the outputs (original CSV, cleaned CSV, PDF, chart images) to Supabase Storage
-///   5. Update the DB row with the final status + storage paths
+///   1. Read the temp CSV the user uploaded earlier
+///   2. Create an Analysis row (pending) so the frontend can poll status immediately
+///   3. Store any Pro customization JSON on the Analysis entity
+///   4. Send the file + customization to the Python AI service (8-phase pipeline)
+///   5. Save all outputs (original CSV, cleaned CSV, PDF, Word, PPTX, charts) to Supabase Storage
+///   6. Update the Analysis row with final status + storage paths
 ///
 /// StartInBackground() fires-and-forgets so the HTTP request to /api/chat/message
-/// returns immediately and the frontend polls /api/datasets/current/status.
+/// returns immediately and the frontend polls /api/analyses/active for status.
+///
+/// Uses IAnalysisRepository (not the old IDatasetRepository) — each analysis run
+/// is a separate row; users keep up to 5 (free) or 15 (pro) in history.
 /// </summary>
 public class AnalysisService
 {
-    private readonly IDatasetRepository       _datasets;
+    private readonly IAnalysisRepository      _analyses;
     private readonly IStorageService          _storage;
     private readonly IPythonAiClient          _pythonAi;
     private readonly ILogger<AnalysisService> _logger;
@@ -29,32 +33,54 @@ public class AnalysisService
     private static readonly string TempDir = Path.Combine(Path.GetTempPath(), "dig_uploads");
 
     public AnalysisService(
-        IDatasetRepository       datasets,
+        IAnalysisRepository      analyses,
         IStorageService          storage,
         IPythonAiClient          pythonAi,
         ILogger<AnalysisService> logger)
     {
-        _datasets = datasets;
+        _analyses = analyses;
         _storage  = storage;
         _pythonAi = pythonAi;
         _logger   = logger;
     }
 
-    // Kick off analysis without awaiting — returns immediately to the caller
-    public void StartInBackground(Guid userId, string fileName, long fileSizeBytes,
-        int rowCount, int columnCount,
-        bool userWantsCleaning = false, bool userConfirmedLow = false)
+    // ── Public entry point ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Kick off analysis without awaiting — returns immediately to the HTTP caller.
+    /// The frontend polls /api/analyses/active to track progress.
+    /// </summary>
+    public void StartInBackground(
+        Guid   userId,
+        string fileName,
+        long   fileSizeBytes,
+        int    rowCount,
+        int    columnCount,
+        bool   userWantsCleaning   = false,
+        bool   userConfirmedLow    = false,
+        string? customizationJson  = null)
     {
         _ = Task.Run(() => RunAsync(userId, fileName, fileSizeBytes, rowCount, columnCount,
-                                   userWantsCleaning, userConfirmedLow));
+                                   userWantsCleaning, userConfirmedLow, customizationJson));
     }
 
-    public async Task RunAsync(Guid userId, string fileName, long fileSizeBytes,
-        int rowCount, int columnCount,
-        bool userWantsCleaning = false, bool userConfirmedLow = false)
+    // ── Pipeline implementation ────────────────────────────────────────────────
+
+    public async Task RunAsync(
+        Guid   userId,
+        string fileName,
+        long   fileSizeBytes,
+        int    rowCount,
+        int    columnCount,
+        bool   userWantsCleaning   = false,
+        bool   userConfirmedLow    = false,
+        string? customizationJson  = null)
     {
         _logger.LogInformation("[Analysis] Starting for user {UserId}", userId);
         var tempPath = Path.Combine(TempDir, $"{userId}.csv");
+
+        // analysisId is set once the DB row is created; used for all subsequent updates
+        Guid? analysisId = null;
 
         try
         {
@@ -62,29 +88,30 @@ public class AnalysisService
             if (!File.Exists(tempPath))
             {
                 _logger.LogError("[Analysis] Temp file missing for user {UserId}", userId);
-                await TrySetFailed(userId);
-                return;
+                return;  // nothing to set failed — no DB row yet
             }
 
-            // ── Step 2: Create a DB placeholder so the frontend can see status ─
-            var placeholder = new Dataset(userId, fileName, fileSizeBytes, "pending");
-            placeholder.SetShape(rowCount, columnCount);
-            placeholder.SetStatus("processing");
-            await _datasets.UpsertAsync(placeholder);
+            // ── Step 2: Create a DB placeholder so the frontend can poll status ─
+            var analysis = new Analysis(userId, fileName, fileSizeBytes);
+            analysis.SetShape(rowCount, columnCount);
+            analysis.SetStatus("processing");
 
-            // ── Step 3: Call the Python AI pipeline ───────────────────────────
+            if (!string.IsNullOrWhiteSpace(customizationJson))
+                analysis.SetCustomization(customizationJson);
+
+            var saved  = await _analyses.UpsertAsync(analysis);
+            analysisId = saved.Id;
+            _logger.LogInformation("[Analysis] DB row created: {AnalysisId}", analysisId);
+
+            // ── Step 3: Parse customization for the Python request ─────────────
+            var request = BuildPythonRequest(userId, saved, customizationJson);
+
+            // ── Step 4: Call the Python AI pipeline ───────────────────────────
             var csvBytes = await File.ReadAllBytesAsync(tempPath);
-            _logger.LogInformation("[Analysis] Sending to Python AI for user {UserId}", userId);
+            request.CsvFileBytes = csvBytes;
+            _logger.LogInformation("[Analysis] Sending to Python AI, analysisId={Id}", analysisId);
 
-            var rawJson = await _pythonAi.CallPythonAiAsync(new AnalyzeRequestDto
-            {
-                SessionId         = userId,
-                DatasetId         = placeholder.Id,
-                CsvFileBytes      = csvBytes,
-                CsvFileName       = fileName,
-                UserWantsCleaning = userWantsCleaning,
-                UserConfirmedLow  = userConfirmedLow,
-            });
+            var rawJson = await _pythonAi.CallPythonAiAsync(request);
 
             AnalyzeResponseDto? result;
             try
@@ -94,22 +121,23 @@ public class AnalysisService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[Analysis] Failed to parse Python response");
-                await _datasets.UpdateStatusAsync(userId, "failed");
+                _logger.LogError(ex, "[Analysis] Failed to parse Python response for {Id}", analysisId);
+                await TrySetFailed(analysisId.Value);
                 return;
             }
 
             if (result == null || result.Status == "failed")
             {
-                _logger.LogWarning("[Analysis] Pipeline returned failed: {Error}", result?.Error);
-                await _datasets.UpdateStatusAsync(userId, "failed");
+                _logger.LogWarning("[Analysis] Pipeline returned failed: {Err}", result?.Error);
+                await TrySetFailed(analysisId.Value);
                 return;
             }
 
-            // ── Step 4a: Save original CSV to Supabase Storage ────────────────
+            // ── Step 5a: Save original CSV ────────────────────────────────────
             var originalCsvPath = await _storage.SaveCleanedCsvAsync(userId, csvBytes, "original.csv");
+            await _analyses.UpdateOriginalCsvPathAsync(analysisId.Value, originalCsvPath);
 
-            // ── Step 4b: Save cleaned CSV (only produced if user requested cleaning) ─
+            // ── Step 5b: Save cleaned CSV (only if user requested cleaning) ────
             string? cleanedCsvPath = null;
             if (!string.IsNullOrEmpty(result.CleanedCsvBase64))
             {
@@ -121,11 +149,11 @@ public class AnalysisService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "[Analysis] Failed to save cleaned CSV — continuing without it");
+                    _logger.LogError(ex, "[Analysis] Failed to save cleaned CSV — continuing");
                 }
             }
 
-            // ── Step 4c: Save PDF report ──────────────────────────────────────
+            // ── Step 5c: Save PDF report ──────────────────────────────────────
             string? pdfPath = null;
             if (!string.IsNullOrEmpty(result.PdfReportBase64))
             {
@@ -133,17 +161,47 @@ public class AnalysisService
                 {
                     var bytes = Convert.FromBase64String(result.PdfReportBase64);
                     pdfPath   = await _storage.SavePdfReportAsync(userId, bytes);
-                    _logger.LogInformation("[Analysis] PDF saved at {Path}", pdfPath);
+                    _logger.LogInformation("[Analysis] PDF saved: {Path}", pdfPath);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "[Analysis] Failed to save PDF — continuing without it");
+                    _logger.LogError(ex, "[Analysis] Failed to save PDF — continuing");
                 }
             }
 
-            // ── Step 4d: Save chart images (up to 5) ─────────────────────────
-            // Charts come back as base64 PNG from Python; we upload each to Supabase
-            // and store the signed URL so the frontend can render them directly
+            // ── Step 5d: Save Word report (Pro) ───────────────────────────────
+            string? wordPath = null;
+            if (!string.IsNullOrEmpty(result.WordReportBase64))
+            {
+                try
+                {
+                    var bytes = Convert.FromBase64String(result.WordReportBase64);
+                    wordPath  = await _storage.SaveWordReportAsync(userId, analysisId.Value, bytes);
+                    _logger.LogInformation("[Analysis] Word report saved: {Path}", wordPath);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[Analysis] Failed to save Word report — continuing");
+                }
+            }
+
+            // ── Step 5e: Save PPTX (Pro) ──────────────────────────────────────
+            string? pptxPath = null;
+            if (!string.IsNullOrEmpty(result.PptxReportBase64))
+            {
+                try
+                {
+                    var bytes = Convert.FromBase64String(result.PptxReportBase64);
+                    pptxPath  = await _storage.SavePptxReportAsync(userId, analysisId.Value, bytes);
+                    _logger.LogInformation("[Analysis] PPTX saved: {Path}", pptxPath);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[Analysis] Failed to save PPTX — continuing");
+                }
+            }
+
+            // ── Step 5f: Save chart images (up to 5) ─────────────────────────
             var chartMeta = new List<object>();
             foreach (var (chart, i) in (result.Charts ?? new()).Take(5).Select((c, i) => (c, i)))
             {
@@ -163,7 +221,7 @@ public class AnalysisService
                         label = chart.Label,
                         desc  = chart.Desc,
                         color = chart.Color,
-                        url   = chartUrl
+                        url   = chartUrl,
                     });
                 }
                 catch (Exception ex)
@@ -172,34 +230,85 @@ public class AnalysisService
                 }
             }
 
-            // ── Step 5: Update DB with all storage paths and final status ─────
-            await _datasets.UpdateOriginalCsvPathAsync(userId, originalCsvPath);
-            await _datasets.UpdateChartUrlsAsync(userId, JsonSerializer.Serialize(chartMeta));
-            await _datasets.UpdateStatusAsync(userId, "done",
-                cleanedCsvUrl: cleanedCsvPath,
-                pdfReportUrl:  pdfPath);
+            // ── Step 6: Mark analysis done in DB ─────────────────────────────
+            await _analyses.UpdateChartUrlsAsync(analysisId.Value, JsonSerializer.Serialize(chartMeta));
+            await _analyses.UpdateStatusAsync(
+                analysisId.Value, "done",
+                cleanedCsvPath: cleanedCsvPath,
+                pdfPath:         pdfPath,
+                wordPath:        wordPath,
+                pptxPath:        pptxPath);
 
-            // Clean up the temp file now that everything is safely in Supabase
+            // Clean up temp file now everything is safely in Supabase Storage
             File.Delete(tempPath);
-            _logger.LogInformation("[Analysis] Complete for user {UserId}", userId);
+            _logger.LogInformation("[Analysis] Complete for user {UserId}, analysisId={Id}", userId, analysisId);
         }
         catch (TimeoutException ex)
         {
-            _logger.LogError(ex, "[Analysis] Timeout waiting for Python pipeline — user {UserId}", userId);
-            await TrySetFailed(userId);
+            _logger.LogError(ex, "[Analysis] Timeout for user {UserId}", userId);
+            if (analysisId.HasValue) await TrySetFailed(analysisId.Value);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "[Analysis] Unexpected error for user {UserId}", userId);
-            await TrySetFailed(userId);
+            if (analysisId.HasValue) await TrySetFailed(analysisId.Value);
         }
     }
 
-    // Best-effort status update — swallows errors so a DB failure during cleanup
-    // doesn't mask the original exception in the logs
-    private async Task TrySetFailed(Guid userId)
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Build the AnalyzeRequestDto by parsing the customization JSON stored on the analysis.
+    /// Always produces a valid request — all customization fields have safe defaults.
+    /// </summary>
+    private static AnalyzeRequestDto BuildPythonRequest(
+        Guid     userId,
+        Analysis analysis,
+        string?  customizationJson)
     {
-        try { await _datasets.UpdateStatusAsync(userId, "failed"); }
-        catch (Exception ex) { _logger.LogError(ex, "[Analysis] Could not set failed status for {UserId}", userId); }
+        var req = new AnalyzeRequestDto
+        {
+            SessionId   = userId,
+            DatasetId   = analysis.Id,
+            CsvFileName = analysis.FileName,
+        };
+
+        if (string.IsNullOrWhiteSpace(customizationJson))
+            return req;
+
+        try
+        {
+            var cust = JsonSerializer.Deserialize<JsonElement>(customizationJson);
+
+            req.Language      = cust.TryGetProperty("language",     out var l) ? l.GetString() ?? "en"              : "en";
+            req.Tone          = cust.TryGetProperty("tone",         out var t) ? t.GetString() ?? "professional"     : "professional";
+            req.InsightsCount = cust.TryGetProperty("insightsCount",out var ic)? ic.GetInt32()                       : 5;
+            req.Occasion      = cust.TryGetProperty("occasion",     out var o) ? o.GetString() ?? "general"          : "general";
+
+            if (cust.TryGetProperty("outputFormat", out var fmt))
+            {
+                req.WantWord = fmt.TryGetProperty("word", out var w) && w.GetBoolean();
+                req.WantPptx = fmt.TryGetProperty("pptx", out var p) && p.GetBoolean();
+            }
+        }
+        catch (Exception)
+        {
+            // Malformed customization JSON — just use defaults, don't abort the pipeline
+        }
+
+        return req;
+    }
+
+    /// <summary>
+    /// Best-effort status update to "failed". Swallows errors so a DB failure
+    /// during cleanup doesn't mask the original exception in the logs.
+    /// </summary>
+    private async Task TrySetFailed(Guid analysisId)
+    {
+        try { await _analyses.UpdateStatusAsync(analysisId, "failed"); }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Analysis] Could not set failed status for {Id}", analysisId);
+        }
     }
 }
