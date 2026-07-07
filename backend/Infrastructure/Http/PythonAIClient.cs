@@ -53,13 +53,23 @@ public class PythonAiClient : IPythonAiClient
             content.Add(new StringContent(request.UserWantsCleaning.ToString().ToLower()), "user_wants_cleaning");
             content.Add(new StringContent(request.UserConfirmedLow.ToString().ToLower()),  "user_confirmed_low");
 
-            // Pro customization — always sent; Python applies safe defaults if values are standard
-            content.Add(new StringContent(request.Language),                          "language");
-            content.Add(new StringContent(request.Tone),                              "tone");
-            content.Add(new StringContent(request.InsightsCount.ToString()),          "insights_count");
-            content.Add(new StringContent(request.Occasion),                          "occasion");
-            content.Add(new StringContent(request.WantWord.ToString().ToLower()),     "want_word");
-            content.Add(new StringContent(request.WantPptx.ToString().ToLower()),     "want_pptx");
+            // Standard customization
+            content.Add(new StringContent(request.Language),                              "language");
+            content.Add(new StringContent(request.Tone),                                  "tone");
+            content.Add(new StringContent(request.InsightsCount.ToString()),              "insights_count");
+            content.Add(new StringContent(request.Occasion),                              "occasion");
+            // Deep customization
+            content.Add(new StringContent(request.Audience),                              "audience");
+            content.Add(new StringContent(request.Depth),                                 "depth");
+            content.Add(new StringContent(request.FocusOn),                               "focus_on");
+            content.Add(new StringContent(request.Comparisons),                           "comparisons");
+            content.Add(new StringContent(request.MustMention),                           "must_mention");
+            content.Add(new StringContent(request.ChartStyle),                            "chart_style");
+            content.Add(new StringContent(request.IncludeMethodology.ToString().ToLower()),"include_methodology");
+            content.Add(new StringContent(request.IncludeConfidence.ToString().ToLower()), "include_confidence");
+            // Output formats
+            content.Add(new StringContent(request.WantWord.ToString().ToLower()),         "want_word");
+            content.Add(new StringContent(request.WantPptx.ToString().ToLower()),         "want_pptx");
 
             var response = await _http.PostAsync($"{baseUrl}/analyze", content);
             response.EnsureSuccessStatusCode();

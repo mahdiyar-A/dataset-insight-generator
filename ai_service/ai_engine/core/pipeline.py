@@ -164,16 +164,34 @@ def run_pipeline(
     """
     # Parse customization with safe defaults
     cust         = customization or {}
-    language     = cust.get("language", "en")
-    tone         = cust.get("tone", "professional")
+    language     = cust.get("language",     "en")
+    tone         = cust.get("tone",         "professional")
     insights_count = int(cust.get("insightsCount", 5))
-    occasion     = cust.get("occasion", "general")
+    occasion     = cust.get("occasion",     "general")
+    audience     = cust.get("audience",     "general")
+    depth        = cust.get("depth",        "standard")
+    focus_on     = cust.get("focusOn",      "").strip()
+    comparisons  = cust.get("comparisons",  "").strip()
+    must_mention = cust.get("mustMention")  # list or None
+    if isinstance(must_mention, str):
+        must_mention = [m.strip() for m in must_mention.split(",") if m.strip()]
+    chart_style  = cust.get("chartStyle",   "mixed")
+    include_methodology = bool(cust.get("includeMethodology", True))
+    include_confidence  = bool(cust.get("includeConfidence",  True))
     output_fmt   = cust.get("outputFormat") or {}
     want_word    = bool(output_fmt.get("word", False))
     want_pptx    = bool(output_fmt.get("pptx", False))
-    # PDF is always generated regardless of outputFormat flag
+    # PDF is always generated
 
-    print(f"[Pipeline] Customization — lang={language} tone={tone} insights={insights_count} occasion={occasion} word={want_word} pptx={want_pptx}", flush=True)
+    print(
+        f"[Pipeline] Customization — lang={language} tone={tone} audience={audience} "
+        f"depth={depth} insights={insights_count} occasion={occasion} "
+        f"chartStyle={chart_style} word={want_word} pptx={want_pptx}",
+        flush=True
+    )
+    if focus_on:   print(f"[Pipeline]   focusOn:    {focus_on[:80]}", flush=True)
+    if comparisons:print(f"[Pipeline]   comparisons:{comparisons[:80]}", flush=True)
+    if must_mention:print(f"[Pipeline]   mustMention:{must_mention}", flush=True)
 
     # ── Phase 0: Load + basic quality gate ───────────────────────────────
     print(f"[Pipeline] Phase 0 — Loading file: {file_name}", flush=True)
@@ -253,6 +271,14 @@ def run_pipeline(
             tone=tone,
             insights_count=insights_count,
             occasion=occasion,
+            audience=audience,
+            depth=depth,
+            focus_on=focus_on,
+            comparisons=comparisons,
+            must_mention=must_mention,
+            chart_style=chart_style,
+            include_methodology=include_methodology,
+            include_confidence=include_confidence,
         )
     except Exception as e:
         # This should not happen, but if it does — build fallback inline

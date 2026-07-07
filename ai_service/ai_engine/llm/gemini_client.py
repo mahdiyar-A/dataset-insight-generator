@@ -39,162 +39,312 @@ def _build_prompt(
     domain: DomainResult,
     was_cleaned: bool,
     dropped_columns: List[str],
+    # ── Standard customization ─────────────────────────────────────────────
     language: str = "en",
     tone: str = "professional",
     insights_count: int = 5,
     occasion: str = "general",
+    # ── Deep customization (new) ───────────────────────────────────────────
+    audience: str = "general",      # executive | technical | client | student | general
+    depth: str = "standard",        # quick | standard | deep
+    focus_on: str = "",             # free text: "focus on revenue vs cost comparison"
+    comparisons: str = "",          # free text: "compare male vs female" / "Q1 vs Q2"
+    must_mention: Optional[List[str]] = None,   # topics/columns that MUST be addressed
+    chart_style: str = "mixed",     # mixed | bar-heavy | trend | distribution | comparison
+    include_methodology: bool = True,
+    include_confidence: bool = True,
 ) -> str:
+    """
+    Build the Gemini prompt. Every customization parameter genuinely reshapes
+    the output — persona, structure, analytical focus, and chart preferences
+    all change based on the user's choices, not just style notes appended at the end.
+    """
 
-    # ── Language rules context ─────────────────────────────────────────────
+    # ── Language ──────────────────────────────────────────────────────────
+    LANGUAGE_NAMES = {
+        "en": "English", "fr": "French", "es": "Spanish",
+        "de": "German",  "zh": "Simplified Chinese",
+        "ar": "Arabic",  "pt": "Portuguese", "fa": "Persian (Farsi)",
+    }
+    lang_name = LANGUAGE_NAMES.get(language, "English")
+
+    # ── Persona — the "You are..." line changes entirely based on audience + tone ──
+    # This is the most important customization: the model's entire framing
+    # comes from this sentence, so it must reflect the real reading context.
+    PERSONAS = {
+        # audience → (professional, technical, casual/storytelling, academic, simplified)
+        "executive": {
+            "professional":   "You are the Chief Analytics Officer presenting to the C-suite. Every insight must be decision-ready, tied to business impact, and expressed in KPI language. Short. Sharp. No padding.",
+            "technical":      "You are a data science lead briefing an executive team. Lead with business conclusions, then back them with statistics. Assume executives can handle numbers but not methodology jargon.",
+            "casual":         "You are a trusted advisor walking an executive through the key takeaways over lunch. Clear, direct, no fluff.",
+            "storytelling":   "You are a strategic advisor telling the story of what this data reveals to senior leadership. Each insight is a chapter in the business narrative.",
+            "academic":       "You are a research director presenting evidence-based findings to a board. Maintain rigor while keeping conclusions actionable.",
+            "simplified":     "You are explaining the most important data findings to a busy executive who needs the headline in 10 seconds.",
+        },
+        "technical": {
+            "professional":   "You are a senior data scientist writing a formal analytical report for a technical team. Include statistical evidence, methodology details, and precise numerical claims.",
+            "technical":      "You are a lead analyst writing for a team of data scientists. Include p-values, confidence intervals, effect sizes, and test names where relevant. Assume a high statistical literacy in the reader.",
+            "casual":         "You are a data scientist sharing findings with colleagues over Slack. Technically precise but conversational — you can use shorthand your team understands.",
+            "storytelling":   "You are a data engineer narrating a technical investigation. Walk the reader through what you found and how, building the case step by step.",
+            "academic":       "You are a researcher documenting methodology and findings for a technical audience. Reference statistical tests by name. Use hedged language where appropriate.",
+            "simplified":     "You are a technical analyst explaining findings to a mixed technical/non-technical team. Lead with the finding, then optionally add the supporting statistic.",
+        },
+        "client": {
+            "professional":   "You are a senior consultant producing a polished deliverable for an external client. Professional, client-ready, focused on value delivered. No internal jargon.",
+            "technical":      "You are a consulting analyst producing a detailed technical report for a client's data team. Precise and complete — they will verify your numbers.",
+            "casual":         "You are a friendly consultant wrapping up a project with a client. Approachable, clear, focused on what matters to them.",
+            "storytelling":   "You are a consulting storyteller turning data into a client narrative. The story starts with the client's problem and ends with an evidence-backed answer.",
+            "academic":       "You are a research consultant producing a rigorous evidence report for a client. Cite your statistical reasoning.",
+            "simplified":     "You are making your analysis accessible to a non-technical client. Every finding has a plain-English explanation of what it means for them.",
+        },
+        "student": {
+            "professional":   "You are a data analysis instructor writing a model report for students to learn from. Show good analytical practice — clear titles, evidence-backed claims, domain language.",
+            "technical":      "You are a professor writing a technical analysis that students can learn methodology from. Name the statistical tests and explain what each one tells us.",
+            "casual":         "You are a teaching assistant explaining a dataset to students. Friendly, encouraging, clear. Explain what each finding means in plain terms.",
+            "storytelling":   "You are a data science teacher walking students through an analysis as a narrative. Build curiosity: start with the question, then reveal the answer.",
+            "academic":       "You are writing a model academic analysis for data science students. Follow academic convention: hypothesis → evidence → conclusion.",
+            "simplified":     "You are explaining a data analysis to students who are new to the field. Define terms as you go. Keep each finding to one clear idea.",
+        },
+        "general": {
+            "professional":   "You are a managing partner at a world-class analytics consultancy producing a formal report. Your standard is publication quality — precise, evidence-backed, confident executive language.",
+            "technical":      "You are a senior data analyst producing a rigorous technical report. Include statistical evidence throughout. Assume a data-literate reader.",
+            "casual":         "You are an experienced analyst explaining findings to a smart but non-specialist reader. Friendly, clear, no unnecessary jargon.",
+            "storytelling":   "You are a data journalist turning analytical findings into a compelling story. Each insight advances the narrative. Numbers serve the story.",
+            "academic":       "You are a research analyst producing an evidence-based report. Frame findings with academic rigor and precise statistical references.",
+            "simplified":     "You are making a complex dataset accessible. Plain language. Short sentences. Translate every number into a human meaning.",
+        },
+    }
+
+    # Map tone aliases
+    TONE_MAP = {
+        "executive": "professional",
+        "board":     "professional",
+        "friendly":  "casual",
+        "story":     "storytelling",
+        "plain":     "simplified",
+        "simple":    "simplified",
+    }
+    tone_key = TONE_MAP.get(tone, tone)
+    persona_map = PERSONAS.get(audience, PERSONAS["general"])
+    persona = persona_map.get(tone_key, persona_map.get("professional",
+        "You are a senior analyst producing a high-quality data report."))
+
+    # ── Occasion framing — shapes the purpose of the report ───────────────
+    OCCASION_FRAMING = {
+        "general":   "General analytical report.",
+        "investor":  "This report will be seen by investors. Every finding should connect to growth, risk, or ROI. Business impact is the lens.",
+        "academic":  "This is an academic/research report. Reference statistical tests by name. The methodology section should be rigorous enough to appear in a published paper.",
+        "internal":  "This is an internal team review. Be candid about data limitations. Flag issues that need follow-up. Skip the marketing language.",
+        "client":    "This is a client-facing deliverable. Polished, confident, focused on the value the analysis provides. No internal jargon or caveats that undermine confidence.",
+    }
+    occasion_note = OCCASION_FRAMING.get(occasion, OCCASION_FRAMING["general"])
+
+    # ── Depth settings — controls output volume and detail ─────────────────
+    DEPTH_SETTINGS = {
+        "quick":    {"max_insights": min(insights_count, 3), "max_charts": 3,
+                     "summary_style": "1-2 sentences. The single most important takeaway.",
+                     "intro_style":   "1-2 sentences. What this dataset is and the top finding.",
+                     "body_style":    "2-3 sentences per insight. Tight. Lead with the number.",
+                     "conclusion_style": "2-3 sentences. One recommendation.",
+                     "methodology_note": "Omit the data_quality_section — set it to an empty string ''."},
+        "standard": {"max_insights": insights_count, "max_charts": 5,
+                     "summary_style": "3-4 sentences. Lead with the most significant finding, 1-2 supporting takeaways, one implication.",
+                     "intro_style":   "2-4 sentences. Dataset context and analytical approach.",
+                     "body_style":    "1 paragraph (4-6 sentences) per insight. Evidence + implication.",
+                     "conclusion_style": "3-5 sentences. Synthesise findings, acknowledge limitation, one actionable recommendation.",
+                     "methodology_note": "Include a 2-3 paragraph data_quality_section."},
+        "deep":     {"max_insights": max(insights_count, 7), "max_charts": 7,
+                     "summary_style": "4-5 sentences. Cover the most significant finding, supporting evidence, and strategic implications.",
+                     "intro_style":   "3-5 sentences. Full dataset context, analytical pipeline description, scope.",
+                     "body_style":    "2 paragraphs per insight. First paragraph: the finding with evidence. Second paragraph: implications, caveats, related patterns.",
+                     "conclusion_style": "5-7 sentences. Comprehensive synthesis, data limitations, 2-3 actionable recommendations.",
+                     "methodology_note": "Include a thorough data_quality_section (300-400 words): dataset profile, missing data, cleaning performed, statistical methods used, known limitations, confidence assessment."},
+    }
+    d = DEPTH_SETTINGS.get(depth, DEPTH_SETTINGS["standard"])
+    actual_insights_count = d["max_insights"]
+
+    # ── Chart style guidance ───────────────────────────────────────────────
+    CHART_STYLE_GUIDANCE = {
+        "mixed":        "Use a variety of chart types. Match the chart type to the finding type: bar for categories, scatter for relationships, histogram for distributions, box for group comparisons, line only if temporal.",
+        "bar-heavy":    "Prefer bar charts and grouped bar charts for all comparisons. Use grouped_bar whenever comparing a numeric metric across two categorical groupings. Only use other types if bar charts genuinely cannot represent the finding.",
+        "trend":        "Prioritise temporal patterns. Use line charts and multi_line charts wherever time-ordered data exists. If no temporal data is confirmed, use scatter to show numeric relationships and progression.",
+        "distribution": "Focus on how values are distributed. Prefer histogram for numeric distributions, box plots for group comparisons, scatter for bivariate relationships. Use bar only if distribution charts cannot capture the finding.",
+        "comparison":   "Every chart should compare something against something else. Prefer grouped_bar for multi-category comparison, box for distribution comparison across groups, scatter for two-variable comparison. Avoid single-series charts.",
+    }
+    chart_guidance = CHART_STYLE_GUIDANCE.get(chart_style, CHART_STYLE_GUIDANCE["mixed"])
+
+    # ── Writing standard — changes completely based on tone ────────────────
+    WRITING_STANDARDS = {
+        "professional": """Write as a senior analyst presenting in person to a board. Authoritative but not mechanical.
+Findings should read as genuine analytical conclusions, not templates.
+
+Good: "Average annual revenue across entities stands at 4,200 NZD thousands — a figure that masks significant sectoral disparity, with manufacturing recording 34% above the median."
+Avoid: "The Revenue column has a mean of 4,200" / "Looking at the data, we can see..."
+
+Use specific statistics where they strengthen a finding. Where the data is directional but not statistically precise, say so honestly.""",
+
+        "technical": """Write for a data-literate audience. Precision is the priority.
+Include statistical details: reference test names (Pearson r, Shapiro-Wilk, IQR), cite exact values, report significance where available.
+
+Good: "A Pearson correlation of r=0.82 (p<0.01) between tenure and performance score suggests a strong positive relationship — though the relationship is non-linear above 5 years, as evidenced by the Spearman rho of 0.71."
+Avoid vague language: "there appears to be a relationship" — either it is or it isn't, and you have the numbers.
+
+Every finding should be traceable back to a specific statistic from the data.""",
+
+        "casual": """Write like a smart friend explaining something interesting. No jargon. Short sentences. Active voice.
+
+Good: "The interesting thing here is that sales didn't actually peak in summer — they peaked in October. That's backwards from what you'd expect, and it's consistent across all three years."
+Avoid corporate language: "it is noteworthy that", "the data suggests", "as evidenced by the foregoing analysis"
+
+If a number is needed, round it. If a concept needs explaining, explain it in one sentence. The goal is that someone who's never looked at a dataset can follow every insight.""",
+
+        "storytelling": """Build a narrative. The data tells a story — your job is to find it and tell it compellingly.
+
+The executive summary is the trailer. Each insight is a scene. The conclusion is the resolution.
+Use contrast and tension: "Everyone assumed X. The data says Y." Lead with the surprising finding.
+Numbers are supporting evidence, not the subject of the sentence.
+
+Good: "For three consecutive years, Q3 was the growth engine. Then 2022 happened — and Q3 collapsed while Q1, historically the weakest quarter, quietly became the strongest. Something structural changed."
+Avoid: "Q3 revenue declined by 23% in 2022 while Q1 increased by 15%." (True, but not a story.)""",
+
+        "academic": """Write with academic rigor. Findings must be supported by statistical evidence. Use hedged language where appropriate.
+
+Reference tests by name. Report test statistics and significance. Distinguish between correlation and causation explicitly.
+The methodology section is not an afterthought — it establishes the credibility of every subsequent claim.
+
+Good: "A statistically significant negative correlation was observed between employee tenure and reported absenteeism (Pearson r = −0.61, p < 0.001, n = 847), consistent with the hypothesis that organizational embeddedness reduces absence behavior."
+Avoid assertions without evidence. Every claim should trace back to a specific statistic.""",
+
+        "simplified": """Use plain English. One idea per sentence. No acronyms, no jargon, no statistical terms without explanation.
+
+Good: "Employees who have been with the company longer tend to miss fewer days. This is a strong pattern — it's consistent across every department in the dataset."
+Avoid: "Longitudinal tenure exhibits a statistically significant inverse relationship with absenteeism metrics."
+
+If you must use a technical term (like 'correlation'), add one plain-English sentence right after explaining what it means.
+Every insight should end with a sentence starting 'In plain terms:' that summarises what this means for a non-technical reader.""",
+    }
+    writing_std = WRITING_STANDARDS.get(tone_key, WRITING_STANDARDS["professional"])
+
+    # ── Attribute vocabulary block ─────────────────────────────────────────
     interp_block = "\n".join(
         f'  "{col}": "{interp}"'
         for col, interp in domain.attribute_interpretations.items()
     )
-
-    key_features = domain.column_decisions.get("key", [])
+    key_features  = domain.column_decisions.get("key",  [])
     keep_features = domain.column_decisions.get("keep", [])
 
-    cleaning_note = ""
+    # ── Cleaning note ──────────────────────────────────────────────────────
     if was_cleaned:
         cleaning_note = (
-            f"The dataset was cleaned before this analysis. "
-            f"Methods applied: {', '.join(domain.cleaning_methods)}. "
-            + (f"Columns removed as analytically irrelevant: {', '.join(dropped_columns)}. " if dropped_columns else "")
+            f"Dataset was cleaned before analysis. "
+            f"Methods: {', '.join(domain.cleaning_methods)}. "
+            + (f"Dropped columns: {', '.join(dropped_columns)}. " if dropped_columns else "")
         )
     else:
-        cleaning_note = "The dataset was analyzed as provided without automated cleaning."
+        cleaning_note = "Dataset analyzed as provided, without automated cleaning."
 
-    # ── Stats context (rich but structured) ───────────────────────────────
+    # ── Stats context ──────────────────────────────────────────────────────
     stats_context = {
-        "dataset": {
-            "rows":        stats.rowCount,
-            "columns":     stats.columnCount,
-            "domain":      domain.domain,
-        },
-        "key_features":    key_features,
-        "support_features": keep_features,
-        "numeric_statistics": stats.numericStats,
-        "missing_pct":     {k: v for k, v in stats.missingPercentages.items() if v > 0},
-        "categorical":     stats.categoricalSummaries,
-        "pearson_correlations":  stats.topCorrelations,
-        "spearman_correlations": stats.spearmanCorrelations,
-        "outlier_pct_by_feature": stats.outlierSummary,
-        "normality_tests": stats.normalityTests,
-        "group_comparisons": stats.groupComparisons,
-        "temporal":        stats.temporalInfo,
-        "anomaly_scores":  stats.anomalyScores,
-        "detected_quality_issues": stats.detectedIssues,
+        "dataset":              {"rows": stats.rowCount, "columns": stats.columnCount, "domain": domain.domain},
+        "key_features":         key_features,
+        "support_features":     keep_features,
+        "numeric_statistics":   stats.numericStats,
+        "missing_pct":          {k: v for k, v in stats.missingPercentages.items() if v > 0},
+        "categorical":          stats.categoricalSummaries,
+        "pearson_correlations": stats.topCorrelations,
+        "spearman_correlations":stats.spearmanCorrelations,
+        "outlier_pct":          stats.outlierSummary,
+        "normality_tests":      stats.normalityTests,
+        "group_comparisons":    stats.groupComparisons,
+        "temporal":             stats.temporalInfo,
+        "anomaly_scores":       stats.anomalyScores,
+        "quality_issues":       stats.detectedIssues,
     }
-
-    stats_json   = json.dumps(stats_context,  indent=2)
-    focus_block  = "\n".join(f"  - {f}" for f in domain.analysis_focus)
+    stats_json      = json.dumps(stats_context, indent=2)
+    focus_block     = "\n".join(f"  - {f}" for f in domain.analysis_focus)
     questions_block = "\n".join(f"  {i+1}. {q}" for i, q in enumerate(domain.key_questions))
 
-    # ── Customization directives ───────────────────────────────────────────
-    LANGUAGE_NAMES = {
-        "en": "English", "fr": "French", "es": "Spanish",
-        "de": "German",  "zh": "Simplified Chinese",
-        "ar": "Arabic",  "pt": "Portuguese",
-    }
-    TONE_DIRECTIVES = {
-        "professional": (
-            "Write as a managing partner presenting to a board. "
-            "Authoritative, evidence-backed, confident executive language."
-        ),
-        "casual": (
-            "Write in a friendly, conversational tone. Avoid heavy jargon. "
-            "Keep sentences approachable — imagine explaining findings over coffee."
-        ),
-        "simplified": (
-            "Use plain language. Short sentences. Avoid technical terminology. "
-            "Assume the reader has no data background — translate every finding into plain meaning."
-        ),
-        "technical": (
-            "Include statistical details: p-values, confidence intervals, effect sizes where relevant. "
-            "Use precise methodology language. Assume a data-literate audience."
-        ),
-        "storytelling": (
-            "Use a narrative-driven structure. Lead with the story the data tells. "
-            "Build each insight as a chapter in a larger narrative arc. "
-            "Data is supporting evidence — the insight is the protagonist."
-        ),
-    }
-    OCCASION_DIRECTIVES = {
-        "general": "Standard analytical report — balanced professional tone.",
-        "academic": (
-            "Frame findings with research rigour. Reference statistical tests by name. "
-            "Use a methodology section that could appear in a published paper."
-        ),
-        "business": (
-            "Prioritise business impact, ROI implications, and actionable recommendations. "
-            "Every insight should close with a concrete business implication."
-        ),
-        "personal": (
-            "Direct, approachable, and plain-spoken. "
-            "Write as if advising a friend who owns this data."
-        ),
-        "industry": (
-            "Use domain-specific industry language and benchmarks where applicable. "
-            "Contextualise findings against typical industry performance norms."
-        ),
-    }
+    # ── User directives block — highest priority in the prompt ─────────────
+    # These override the model's autonomous analytical choices.
+    user_directives_lines = []
+    if focus_on and focus_on.strip():
+        user_directives_lines.append(f"FOCUS ON:        {focus_on.strip()}")
+        user_directives_lines.append("  → This is the primary analytical lens. Shape insights around this directive first.")
+    if comparisons and comparisons.strip():
+        user_directives_lines.append(f"COMPARE:         {comparisons.strip()}")
+        user_directives_lines.append("  → At least one insight AND one chart must directly address this comparison.")
+    if must_mention:
+        items = [m.strip() for m in must_mention if m.strip()]
+        if items:
+            user_directives_lines.append(f"MUST MENTION:    {', '.join(items)}")
+            user_directives_lines.append("  → Every item in this list must appear meaningfully in at least one insight or the conclusion.")
 
-    lang_name   = LANGUAGE_NAMES.get(language, "English")
-    tone_dir    = TONE_DIRECTIVES.get(tone, TONE_DIRECTIVES["professional"])
-    occasion_dir = OCCASION_DIRECTIVES.get(occasion, OCCASION_DIRECTIVES["general"])
+    user_directives_block = ""
+    if user_directives_lines:
+        directives_text = "\n".join(user_directives_lines)
+        user_directives_block = f"""
+⚑ USER DIRECTIVES — HIGHEST PRIORITY, FOLLOW THESE EXACTLY BEFORE ANYTHING ELSE
+══════════════════════════════════════════════════════════════════════════════════
+{directives_text}
+══════════════════════════════════════════════════════════════════════════════════
+These directives take precedence over domain defaults, suggested features, and analytical focus areas.
+"""
 
-    # Build the exact number of insight slots the user requested
-    insight_slots = "\n".join(
-        f'    {{\n      "rank": {i+1},\n      "title": "...",\n      "body": "...",\n      "insight_index": {i+1}\n    }}{"," if i < insights_count - 1 else ""}'
-        for i in range(insights_count)
-    )
-    # First slot gets a fuller description
+    # ── Build insight JSON slots ───────────────────────────────────────────
+    insight_body_guidance = d["body_style"]
     first_insight = (
         f'    {{\n      "rank": 1,\n'
-        f'      "title": "<The finding as a declarative statement — e.g. \'Manufacturing Sector Commands 34% Premium Over Service Industries\'>",\n'
-        f'      "body": "<Analytical narrative for this finding. Explain what the pattern is, why it matters in the {domain.domain} context, and what it means for decision-makers. Use domain language, not column references. Bring in supporting numbers where they genuinely strengthen the point. Aim for depth over breadth.>",\n'
-        f'      "insight_index": 1\n    }}{"," if insights_count > 1 else ""}'
+        f'      "title": "<Declarative statement of the finding — e.g. \'Sales Peak in October, Not Summer, Across All Three Years\'>",\n'
+        f'      "body": "<{insight_body_guidance}>",\n'
+        f'      "insight_index": 1\n    }}{"," if actual_insights_count > 1 else ""}'
     )
     remaining_slots = "\n".join(
-        f'    {{\n      "rank": {i+1},\n      "title": "...",\n      "body": "...",\n      "insight_index": {i+1}\n    }}{"," if i < insights_count - 1 else ""}'
-        for i in range(1, insights_count)
+        f'    {{\n      "rank": {i+1},\n      "title": "...",\n      "body": "...",\n      "insight_index": {i+1}\n    }}{"," if i < actual_insights_count - 1 else ""}'
+        for i in range(1, actual_insights_count)
     )
     insight_slots = first_insight + ("\n" + remaining_slots if remaining_slots else "")
 
-    return f"""You are a managing partner at a world-class data analytics consultancy producing a formal report for a client board meeting. Your standard is publication quality — precise, evidence-backed, written in confident executive language.
+    # ── Methodology section instruction ───────────────────────────────────
+    if not include_methodology or depth == "quick":
+        methodology_instruction = '  "data_quality_section": "",'
+    else:
+        methodology_instruction = f'  "data_quality_section": "<{d["methodology_note"]}>",\n  // Aim for the depth described above — this section establishes analytical credibility.,'
 
-DOMAIN: {domain.domain.upper()}
-CLEANING STATUS: {cleaning_note}
+    # ── Confidence score instruction ───────────────────────────────────────
+    if not include_confidence:
+        confidence_instructions = (
+            '  "gemini_confidence_score": 7,\n'
+            '  "confidence_note": "",'
+        )
+    else:
+        confidence_instructions = (
+            '  "gemini_confidence_score": <integer 1-10: honest self-assessment — data completeness, statistical significance, domain fit>,\n'
+            '  "confidence_note": "<1-2 sentences — brief note on analytical reliability.>",'
+        )
+
+    return f"""{persona}
+
+Write the entire report in {lang_name}. Every word — titles, body text, insights, conclusions, field values — must be in {lang_name}.
+{user_directives_block}
+CONTEXT: {domain.domain.upper()} dataset | {cleaning_note}
+PURPOSE: {occasion_note}
 
 ═══════════════════════════════════════════════════
-OUTPUT CUSTOMIZATION (follow these exactly)
+ATTRIBUTE VOCABULARY — use these terms, never raw column names
 ═══════════════════════════════════════════════════
-LANGUAGE:  Write the entire report in {lang_name}. All section titles, body text, insights, conclusions — everything must be in {lang_name}.
-TONE:      {tone_dir}
-OCCASION:  {occasion_dir}
-INSIGHTS:  Produce exactly {insights_count} insights (no more, no fewer).
-
-═══════════════════════════════════════════════════
-ATTRIBUTE VOCABULARY
-═══════════════════════════════════════════════════
-The following interpretations describe what each attribute represents in domain context.
-Use these terms naturally in your writing — avoid raw technical column references like "the X column" or "variable Y".
-Instead, use domain language: "annual reported revenue", "employee tenure", "quarterly throughput", etc.
-
 {interp_block}
 
 Suggested primary analytical features: {key_features}
 Suggested contextual/grouping attributes: {keep_features}
-
-These are informed starting points. If your analysis reveals stronger signals elsewhere in the data, use your judgement — you are not bound to these suggestions.
+(These are starting points. Your analytical judgement takes precedence.)
 
 ═══════════════════════════════════════════════════
 ANALYSIS OBJECTIVES
 ═══════════════════════════════════════════════════
-Focus areas identified for this dataset:
+Domain focus areas:
 {focus_block}
 
-Questions worth answering:
+Key questions to answer:
 {questions_block}
 
 ═══════════════════════════════════════════════════
@@ -203,32 +353,19 @@ ENRICHED STATISTICAL DATA
 {stats_json}
 
 ═══════════════════════════════════════════════════
-WRITING STANDARD
+WRITING STANDARD — follow this exactly for every sentence
 ═══════════════════════════════════════════════════
-Write as a senior analyst presenting in person to a board. The tone should be authoritative but not mechanical.
-Findings should read as genuine analytical conclusions, not templates being filled in.
-
-Good language looks like:
-  "Average annual revenue across reporting entities stands at 4,200 NZD thousands — a figure that masks
-   significant sectoral disparity, with manufacturing entities recording 34% above the median."
-
-Avoid:
-  - "The Revenue column has a mean of 4,200"
-  - "Looking at the data, we can see..."
-  - Generic openers and placeholder-style sentences
-
-Where specific statistics support a finding, use them. Where the data is directional but not statistically precise,
-say so honestly. Numbers are welcome when they add meaning — not required for their own sake.
+{writing_std}
 
 ═══════════════════════════════════════════════════
 YOUR OUTPUT — respond ONLY with valid JSON
 ═══════════════════════════════════════════════════
 {{
-  "report_title": "<Specific title referencing domain and dataset scope — e.g. 'New Zealand Industrial Financial Performance Analysis 2013-2024'>",
+  "report_title": "<Specific title — name the domain, scope, and timeframe where available>",
 
-  "introduction": "<2-4 sentences. Introduce what was examined, the analytical approach, and what the reader will find. Reference actual attributes and scope where relevant. Professional, not formulaic.>",
+  "introduction": "<{d["intro_style"]}>",
 
-  "executive_summary": "<3-4 sentences. Lead with the most significant finding. Add 1-2 supporting takeaways. Close with the primary implication for decision-makers. Specific where the data supports it.>",
+  "executive_summary": "<{d["summary_style"]}>",
 
   "insights": [
 {insight_slots}
@@ -237,53 +374,52 @@ YOUR OUTPUT — respond ONLY with valid JSON
   "chart_instructions": [
     {{
       "index": 1,
-      "chart_type": "<see chart types below>",
-      "chart_subtype": "<grouped | stacked | multi_line | '' — leave empty for simple charts>",
-      "title": "<Descriptive chart title in domain language>",
-      "x_column": "<EXACT column name, case-sensitive, or null>",
-      "y_column": "<EXACT column name, or null>",
-      "y_columns": ["<for multi-series charts: list of EXACT column names, or empty list>"],
-      "group_column": "<for grouped/stacked: EXACT column name, or null>",
-      "description": "<1-2 sentences on what this chart reveals and which insight it supports>",
-      "insight_index": <integer matching the insight rank this chart supports>,
+      "chart_type": "<see CHART RULES below>",
+      "chart_subtype": "<grouped | stacked | multi_line | '' — only for multi-series charts>",
+      "title": "<Chart title in domain language — describes what the chart shows>",
+      "x_column": "<EXACT column name, case-sensitive — or null>",
+      "y_column": "<EXACT column name — or null>",
+      "y_columns": ["<for multi-series: list of EXACT column names, or empty list>"],
+      "group_column": "<for grouped/stacked: EXACT column name — or null>",
+      "description": "<1-2 sentences: what this chart reveals and which insight it supports>",
+      "insight_index": <integer matching the insight rank this chart illustrates>,
       "color": "<hex from: #3b82f6 #a855f7 #10b981 #f97316 #ec4899>"
     }}
   ],
 
-  "data_quality_section": "<2-3 paragraphs. Characterize the dataset scope and quality. Describe what was found and what was done (or not done) about it. Close with an honest assessment of what this means for analytical confidence. Technical tone, scientific terminology where appropriate. Aim for 150-250 words.>",
+  {methodology_instruction}
 
-  "gemini_confidence_score": <integer 1-10: honest self-assessment of analysis quality given data completeness, statistical significance of findings, and domain fit>,
+  {confidence_instructions}
 
-  "confidence_note": "<1-2 sentences — brief, professional note on analytical reliability for the executive summary page.>",
-
-  "conclusion": "<3-5 sentences. Synthesise the most important findings into a coherent narrative. Acknowledge the primary data limitation. Close with one actionable recommendation grounded in the evidence. Written as a professional conclusion, not a template.>"
+  "conclusion": "<{d["conclusion_style"]}>"
 }}
 
-CHART RULES (these are structural requirements, not style guidance):
-- Produce 3-5 charts. Quality over quantity.
-- All column names MUST be EXACT matches (case-sensitive) from the data — no paraphrasing, no substitution.
-- Available chart types and their required field usage:
-    "bar"         → x=categorical column, y=numeric column
-    "line"        → x=temporal/ordered column, y=numeric column — only if temporal data confirmed in stats
-    "scatter"     → x=numeric column, y=numeric column
-    "histogram"   → x=numeric column, y_column MUST be null
-    "heatmap"     → x_column and y_column MUST both be null — full correlation matrix
-    "box"         → x=categorical column, y=numeric column
-    "grouped_bar" → x=categorical, y=numeric, group_column MUST be set to a categorical column
-    "multi_line"  → x=temporal column, y_columns MUST be a list of numeric columns, group_column=null — only if temporal data confirmed
-- heatmap and histogram never have y_column set — always null.
-- grouped_bar requires group_column; multi_line requires y_columns list — do not leave these empty.
-- Only use line/multi_line if temporal data is confirmed in the stats.
-- Variety is preferred where the data supports it — if multiple findings could use bar charts, consider whether scatter, box, or histogram would communicate the finding better.
+CHART RULES — structural requirements:
+- Produce {d["max_charts"]} charts maximum. Quality over quantity.
+- Chart style preference: {chart_guidance}
+- All column names MUST be EXACT case-sensitive matches from the data — no paraphrasing.
+- Chart type field requirements:
+    "bar"         → x=categorical, y=numeric
+    "line"        → x=temporal/ordered, y=numeric — ONLY if temporal data confirmed in stats
+    "scatter"     → x=numeric, y=numeric
+    "histogram"   → x=numeric, y_column MUST be null
+    "heatmap"     → x_column AND y_column MUST both be null
+    "box"         → x=categorical, y=numeric
+    "grouped_bar" → x=categorical, y=numeric, group_column MUST be a categorical column
+    "multi_line"  → x=temporal, y_columns=list of numeric columns — ONLY if temporal data confirmed
+- heatmap and histogram: y_column is always null.
+- grouped_bar: group_column is required. multi_line: y_columns list is required.
+- line/multi_line: only valid if temporal data appears in the stats.
 
-INSIGHT GUIDANCE:
-- Produce up to 5 insights, ranked by analytical impact. Include fewer if the data does not support more.
-- Each insight should address a distinct pattern or finding — no two insights covering the same underlying observation.
-- If significant group differences, temporal trends, or strong correlations exist in the data, they are worth surfacing.
-- Insights should build toward a coherent picture of the dataset, not a disconnected list of observations.
-- Use specific figures where they genuinely strengthen the finding. Where the data is directional but not statistically precise, say so honestly.
+INSIGHT RULES:
+- Produce exactly {actual_insights_count} insights.
+- Each insight covers a distinct pattern — no overlap in underlying observation.
+- Rank by analytical impact: most important finding is rank 1.
+- Surface group differences, temporal trends, or strong correlations if they exist.
+- If USER DIRECTIVES were given above, at least one insight must directly address them.
+- Use specific figures where they strengthen the finding. If data is directional but imprecise, say so.
 
-Respond ONLY with JSON. No markdown code blocks. No text before or after the JSON.
+Respond ONLY with JSON. No markdown. No text before or after the JSON object.
 """
 
 
@@ -469,25 +605,44 @@ def call_gemini(
     tone: str = "professional",
     insights_count: int = 5,
     occasion: str = "general",
+    audience: str = "general",
+    depth: str = "standard",
+    focus_on: str = "",
+    comparisons: str = "",
+    must_mention: Optional[List[str]] = None,
+    chart_style: str = "mixed",
+    include_methodology: bool = True,
+    include_confidence: bool = True,
 ) -> LLMReport:
     """
     Phase 5: Insight agent + report writer. Returns full LLMReport.
 
-    Customization params (Pro users):
-      language       — output language code (en, fr, es, de, zh, ar, pt)
-      tone           — writing style (professional, casual, simplified, technical, storytelling)
-      insights_count — how many insights to generate (3, 5, or 7)
-      occasion       — framing context (general, academic, business, personal, industry)
+    Standard customization:
+      language         — en/fr/es/de/zh/ar/pt/fa
+      tone             — professional/technical/casual/storytelling/academic/simplified
+      insights_count   — 3/5/7
+      occasion         — general/investor/academic/internal/client
 
-    Never raises — on any failure (429, timeout, safety block, bad JSON)
-    returns a stats-only fallback report so the pipeline always produces a PDF.
+    Deep customization (Pro):
+      audience         — general/executive/technical/client/student
+      depth            — quick/standard/deep
+      focus_on         — free text analytical directive ("focus on revenue vs cost")
+      comparisons      — specific comparison directive ("compare male vs female")
+      must_mention     — list of topics/columns that must appear in insights
+      chart_style      — mixed/bar-heavy/trend/distribution/comparison
+      include_methodology / include_confidence — section toggles
+
+    Never raises — returns a stats-only fallback on any failure.
     """
     prompt = _build_prompt(
         stats, domain, was_cleaned, dropped_columns,
-        language=language,
-        tone=tone,
-        insights_count=insights_count,
-        occasion=occasion,
+        language=language, tone=tone,
+        insights_count=insights_count, occasion=occasion,
+        audience=audience, depth=depth,
+        focus_on=focus_on, comparisons=comparisons,
+        must_mention=must_mention, chart_style=chart_style,
+        include_methodology=include_methodology,
+        include_confidence=include_confidence,
     )
 
     payload_dict = {

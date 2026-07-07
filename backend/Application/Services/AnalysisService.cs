@@ -280,11 +280,32 @@ public class AnalysisService
         {
             var cust = JsonSerializer.Deserialize<JsonElement>(customizationJson);
 
-            req.Language      = cust.TryGetProperty("language",     out var l) ? l.GetString() ?? "en"              : "en";
-            req.Tone          = cust.TryGetProperty("tone",         out var t) ? t.GetString() ?? "professional"     : "professional";
-            req.InsightsCount = cust.TryGetProperty("insightsCount",out var ic)? ic.GetInt32()                       : 5;
-            req.Occasion      = cust.TryGetProperty("occasion",     out var o) ? o.GetString() ?? "general"          : "general";
+            // Standard
+            req.Language      = cust.TryGetProperty("language",      out var l)  ? l.GetString()  ?? "en"            : "en";
+            req.Tone          = cust.TryGetProperty("tone",          out var t)  ? t.GetString()  ?? "professional"   : "professional";
+            req.InsightsCount = cust.TryGetProperty("insightsCount", out var ic) ? ic.GetInt32()                      : 5;
+            req.Occasion      = cust.TryGetProperty("occasion",      out var oc) ? oc.GetString() ?? "general"        : "general";
 
+            // Deep customization
+            req.Audience    = cust.TryGetProperty("audience",    out var au) ? au.GetString() ?? "general"   : "general";
+            req.Depth       = cust.TryGetProperty("depth",       out var dp) ? dp.GetString() ?? "standard"  : "standard";
+            req.FocusOn     = cust.TryGetProperty("focusOn",     out var fo) ? fo.GetString() ?? ""           : "";
+            req.Comparisons = cust.TryGetProperty("comparisons", out var cp) ? cp.GetString() ?? ""           : "";
+            req.ChartStyle  = cust.TryGetProperty("chartStyle",  out var cs) ? cs.GetString() ?? "mixed"      : "mixed";
+
+            req.IncludeMethodology = !cust.TryGetProperty("includeMethodology", out var im) || im.GetBoolean();
+            req.IncludeConfidence  = !cust.TryGetProperty("includeConfidence",  out var iconf) || iconf.GetBoolean();
+
+            // mustMention — stored as JSON array, forwarded as comma-separated string
+            if (cust.TryGetProperty("mustMention", out var mm))
+            {
+                if (mm.ValueKind == JsonValueKind.Array)
+                    req.MustMention = string.Join(",", mm.EnumerateArray().Select(x => x.GetString() ?? ""));
+                else if (mm.ValueKind == JsonValueKind.String)
+                    req.MustMention = mm.GetString() ?? "";
+            }
+
+            // Output formats
             if (cust.TryGetProperty("outputFormat", out var fmt))
             {
                 req.WantWord = fmt.TryGetProperty("word", out var w) && w.GetBoolean();
@@ -293,7 +314,7 @@ public class AnalysisService
         }
         catch (Exception)
         {
-            // Malformed customization JSON — just use defaults, don't abort the pipeline
+            // Malformed customization JSON — use defaults, never abort the pipeline
         }
 
         return req;

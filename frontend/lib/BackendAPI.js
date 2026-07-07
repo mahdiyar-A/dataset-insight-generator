@@ -332,7 +332,10 @@ export default class BackendAPI {
    * Send a chat message to the analysis assistant.
    * message: "start_analysis" | "yes" | "no"
    * meta: { fileName, fileSizeBytes, rowCount, columnCount, pendingCondition, analysisId }
-   * customization (pro only): { language, tone, insightsCount, occasion, outputFormat, includePptx }
+   * customization (pro only): { language, tone, audience, depth, insightsCount, occasion,
+   *   focusOn, comparisons, mustMention[], chartStyle,
+   *   includeMethodology, includeConfidence,
+   *   outputFormat: { pdf, word, pptx } }
    */
   static async sendChatMessage(token, message, meta = {}) {
     return req(`${API_BASE}/api/chat/message`,

@@ -16,13 +16,23 @@ public class AnalyzeRequestDto
     public bool UserWantsCleaning { get; set; } = false;
     public bool UserConfirmedLow  { get; set; } = false;
 
-    // ── Pro customization ─────────────────────────────────────────────────────
-    // Parsed from the JSON stored in Analysis.Customization.
-    // All fields have safe defaults so free-tier analyses work unchanged.
-    public string Language      { get; set; } = "en";    // en|fr|es|de|zh|ar|pt
-    public string Tone          { get; set; } = "professional";
-    public int    InsightsCount { get; set; } = 5;       // 3|5|7
-    public string Occasion      { get; set; } = "general";
+    // ── Standard customization ────────────────────────────────────────────────
+    public string Language      { get; set; } = "en";             // en|fr|es|de|zh|ar|pt|fa
+    public string Tone          { get; set; } = "professional";   // professional|technical|casual|storytelling|academic|simplified
+    public int    InsightsCount { get; set; } = 5;                // 3|5|7
+    public string Occasion      { get; set; } = "general";        // general|investor|academic|internal|client
+
+    // ── Deep customization ────────────────────────────────────────────────────
+    public string Audience           { get; set; } = "general";   // general|executive|technical|client|student
+    public string Depth              { get; set; } = "standard";  // quick|standard|deep
+    public string FocusOn            { get; set; } = "";          // free text: "focus on revenue vs cost"
+    public string Comparisons        { get; set; } = "";          // free text: "compare Q1 vs Q2"
+    public string MustMention        { get; set; } = "";          // comma-separated topics/columns
+    public string ChartStyle         { get; set; } = "mixed";     // mixed|bar-heavy|trend|distribution|comparison
+    public bool   IncludeMethodology { get; set; } = true;
+    public bool   IncludeConfidence  { get; set; } = true;
+
+    // ── Output format ─────────────────────────────────────────────────────────
     public bool   WantWord      { get; set; } = false;
     public bool   WantPptx      { get; set; } = false;
 }
