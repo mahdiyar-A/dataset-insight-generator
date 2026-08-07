@@ -1,11 +1,28 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
 
+/**
+ * useSearchParams() opts the component out of static prerendering, and Next
+ * requires that bail-out to happen inside a Suspense boundary. Without this
+ * wrapper `next build` fails on this route — the dev server does not enforce it,
+ * so the failure only appears in a production build.
+ *
+ * This route is reached from the Stripe success redirect (?upgraded=1), so it
+ * must build cleanly or checkout dead-ends after payment.
+ */
 export default function PlanManagementPage() {
+  return (
+    <Suspense fallback={null}>
+      <PlanManagementContent />
+    </Suspense>
+  );
+}
+
+function PlanManagementContent() {
   const router       = useRouter();
   const params       = useSearchParams();
   const { token, user, refreshUser, isLoading } = useAuth();

@@ -11,13 +11,18 @@ const supabaseAnon =
 if (!supabaseUrl)  console.error('[Supabase] ✗ NEXT_PUBLIC_SUPABASE_URL is not set')
 if (!supabaseAnon) console.error('[Supabase] ✗ No anon/publisher key found — set NEXT_PUBLIC_SUPABASE_PUBLISHER_KEY')
 
-const keyHint = supabaseAnon?.startsWith('sb_publishable_') ? 'sb_publishable (new)'
-              : supabaseAnon?.startsWith('eyJ')             ? 'JWT (legacy)'
-              : 'unknown'
+// Diagnostics only in development. In production these lines run in every
+// visitor's console and during the build; the key format is enough to confirm
+// configuration, so never print any part of the key itself — not even a prefix.
+if (process.env.NODE_ENV !== 'production') {
+  const keyFormat = supabaseAnon?.startsWith('sb_publishable_') ? 'sb_publishable (new)'
+                  : supabaseAnon?.startsWith('eyJ')             ? 'JWT (legacy)'
+                  : 'unknown'
 
-console.log(`[Supabase] Initializing client`)
-console.log(`[Supabase] URL      : ${supabaseUrl}`)
-console.log(`[Supabase] Key type : ${keyHint}`)
-console.log(`[Supabase] Key hint : ${supabaseAnon?.slice(0, 20)}...`)
+  console.log('[Supabase] Initializing client')
+  console.log(`[Supabase] URL        : ${supabaseUrl}`)
+  console.log(`[Supabase] Key format : ${keyFormat}`)
+  console.log(`[Supabase] Key present: ${Boolean(supabaseAnon)}`)
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnon)

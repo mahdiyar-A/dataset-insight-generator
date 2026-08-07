@@ -287,6 +287,11 @@ export default class BackendAPI {
       "Failed to set permission");
   }
 
+  /**
+   * @param {string} token
+   * @param {string} workspaceId
+   * @param {string | null} [fileType] Omit or pass null for all file types.
+   */
   static async getAnnotations(token, workspaceId, fileType = null) {
     const url = fileType
       ? `${API_BASE}/api/workspaces/${workspaceId}/annotations?fileType=${fileType}`
@@ -294,6 +299,12 @@ export default class BackendAPI {
     return req(url, { headers: authHeaders(token) }, "Failed to fetch annotations");
   }
 
+  /**
+   * @param {string} token
+   * @param {string} workspaceId
+   * @param {{ fileType: string, content: string, position?: string | null, parentId?: string | null }} annotation
+   *   parentId is the annotation being replied to — null for a top-level comment.
+   */
   static async addAnnotation(token, workspaceId, { fileType, content, position = null, parentId = null }) {
     return req(`${API_BASE}/api/workspaces/${workspaceId}/annotations`,
       { method: "POST", headers: authHeaders(token),
@@ -398,14 +409,29 @@ export default class BackendAPI {
     return req(`${API_BASE}/api/admin/stats`, { headers: authHeaders(token) }, "Failed to fetch stats");
   }
 
+  /**
+   * Without these JSDoc annotations TypeScript infers `plan` and `search` as
+   * type `null` from their defaults, so any caller passing a real filter string
+   * fails the production type check (`next build`) while the dev server happily
+   * runs. Annotating keeps this .js module usable from .tsx callers.
+   *
+   * @param {string} token
+   * @param {{ page?: number, size?: number, plan?: string | null, search?: string | null }} [opts]
+   */
   static async adminGetUsers(token, { page = 1, size = 25, plan = null, search = null } = {}) {
-    const params = new URLSearchParams({ page, size });
+    const params = new URLSearchParams({ page: String(page), size: String(size) });
     if (plan)   params.set("plan",   plan);
     if (search) params.set("search", search);
     return req(`${API_BASE}/api/admin/users?${params}`,
       { headers: authHeaders(token) }, "Failed to fetch users");
   }
 
+  /**
+   * @param {string} token
+   * @param {string} userId
+   * @param {string} plan
+   * @param {string | null} [expiresAt] ISO timestamp, or null for no expiry.
+   */
   static async adminSetPlan(token, userId, plan, expiresAt = null) {
     return req(`${API_BASE}/api/admin/users/${userId}/plan`,
       { method: "PATCH", headers: authHeaders(token),
