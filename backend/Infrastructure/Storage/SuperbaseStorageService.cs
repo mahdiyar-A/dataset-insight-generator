@@ -29,12 +29,12 @@ public class SupabaseStorageService : IStorageService
         return await UploadAsync(file, $"users/{userId}/original.csv");
     }
 
-    public async Task<string> SaveWordReportAsync(Guid userId, byte[] docxBytes)
-        => await UploadBytesAsync(docxBytes, $"users/{userId}/report.docx",
+    public async Task<string> SaveWordReportAsync(Guid userId, Guid analysisId, byte[] docxBytes)
+        => await UploadBytesAsync(docxBytes, $"users/{userId}/analyses/{analysisId}/report.docx",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
 
-    public async Task<string> SavePptxReportAsync(Guid userId, byte[] pptxBytes)
-        => await UploadBytesAsync(pptxBytes, $"users/{userId}/report.pptx",
+    public async Task<string> SavePptxReportAsync(Guid userId, Guid analysisId, byte[] pptxBytes)
+        => await UploadBytesAsync(pptxBytes, $"users/{userId}/analyses/{analysisId}/report.pptx",
             "application/vnd.openxmlformats-officedocument.presentationml.presentation");
 
     public async Task DeleteAnalysisFilesAsync(Guid userId, Guid analysisId)

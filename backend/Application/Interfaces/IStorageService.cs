@@ -6,8 +6,8 @@ public interface IStorageService
     Task<string> SaveOriginalCsvAsync(Guid userId, IFormFile file);
     Task<string> SaveCleanedCsvAsync(Guid userId, byte[] csvBytes, string fileName = "cleaned.csv");
     Task<string> SavePdfReportAsync(Guid userId, byte[] pdfBytes);
-    Task<string> SaveWordReportAsync(Guid userId, byte[] docxBytes);
-    Task<string> SavePptxReportAsync(Guid userId, byte[] pptxBytes);
+    Task<string> SaveWordReportAsync(Guid userId, Guid analysisId, byte[] docxBytes);
+    Task<string> SavePptxReportAsync(Guid userId, Guid analysisId, byte[] pptxBytes);
     Task<string> SaveChartAsync(Guid userId, int index, byte[] pngBytes);
 
     // Delete all files for a specific analysis (keyed by analysisId sub-folder)

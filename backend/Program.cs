@@ -90,9 +90,9 @@ var supabaseIssuer = $"{supabaseUrl.TrimEnd('/')}/auth/v1";
 var jwksUri        = $"{supabaseIssuer}/.well-known/jwks.json";
 Console.WriteLine($"[JWT] Issuer: {supabaseIssuer}");
 
-static readonly SemaphoreSlim _jwksSem    = new(1, 1);
-static JsonWebKeySet?         _cachedJwks = null;
-static DateTime               _jwksFetchedAt = DateTime.MinValue;
+var _jwksSem       = new SemaphoreSlim(1, 1);
+JsonWebKeySet? _cachedJwks    = null;
+var _jwksFetchedAt = DateTime.MinValue;
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -209,3 +209,6 @@ Console.WriteLine($"[DIG] ✓ SignalR:   {urls}/hubs/collab");
 
 try { app.Run(); }
 catch (Exception ex) { Console.WriteLine("[DIG] FATAL: " + ex); throw; }
+
+// Expose Program to test project (WebApplicationFactory<Program>)
+public partial class Program { }

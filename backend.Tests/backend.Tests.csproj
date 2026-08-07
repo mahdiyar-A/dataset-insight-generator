@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- Suppress HTTPS certificate warnings in test environment -->
+    <NoWarn>$(NoWarn);SYSLIB0014</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- NUnit test framework -->
+    <PackageReference Include="Microsoft.NET.Test.Sdk"       Version="17.11.1" />
+    <PackageReference Include="NUnit"                        Version="4.2.2"   />
+    <PackageReference Include="NUnit3TestAdapter"            Version="4.6.0"   />
+    <PackageReference Include="NUnit.Analyzers"              Version="4.3.0" PrivateAssets="all" />
+    <!-- Integration testing: real HTTP stack, in-process server -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.8" />
+    <!-- Readable assertions -->
+    <PackageReference Include="FluentAssertions"             Version="6.12.1"  />
+    <!-- Code coverage -->
+    <PackageReference Include="coverlet.collector"           Version="6.0.2" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\backend\backend.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -32,8 +32,8 @@ public class StripeService : IStripeService
     public async Task<string> GetOrCreateCustomerAsync(Guid userId, string email, string name)
     {
         // Look up an existing customer by email so we don't create duplicates
-        var existing = await new CustomerSearchService().SearchAsync(
-            new CustomerSearchOptions { Query = $"email:'{email}'" });
+        var existing = await new global::Stripe.CustomerService().SearchAsync(
+            new global::Stripe.CustomerSearchOptions { Query = $"email:'{email}'" });
 
         if (existing.Data.Count > 0)
             return existing.Data[0].Id;
@@ -75,8 +75,8 @@ public class StripeService : IStripeService
     public async Task<string> CreateBillingPortalSessionAsync(
         string stripeCustomerId, string returnUrl)
     {
-        var session = await new Stripe.BillingPortal.SessionService().CreateAsync(
-            new Stripe.BillingPortal.SessionCreateOptions
+        var session = await new global::Stripe.BillingPortal.SessionService().CreateAsync(
+            new global::Stripe.BillingPortal.SessionCreateOptions
             {
                 Customer  = stripeCustomerId,
                 ReturnUrl = returnUrl,
