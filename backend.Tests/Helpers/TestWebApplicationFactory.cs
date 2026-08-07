@@ -29,6 +29,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
     public FakeUserRepository     UserRepo       { get; } = new();
     public FakeStorageService     StorageSvc     { get; } = new();
     public FakePythonAiClient     PythonAi       { get; } = new();
+    public NoOpEmailService       EmailSvc       { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -90,7 +91,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
             // specifically exercises those paths, but remove to avoid
             // real SMTP / Stripe network calls
             services.RemoveAll<IEmailService>();
-            services.AddScoped<IEmailService, NoOpEmailService>();
+            services.AddScoped<IEmailService>(_ => EmailSvc);
 
             services.RemoveAll<IStripeService>();
             services.AddScoped<IStripeService, NoOpStripeService>();
@@ -115,14 +116,41 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
 
 // ── Minimal no-op implementations ────────────────────────────────────────────
 
+/// <summary>
+/// Recording IEmailService — captures what would have been sent instead of
+/// hitting SMTP, and can be made to throw on demand.
+///
+/// Risk: a no-op email fake lets a test pass whether the endpoint sent a real
+/// report, an empty attachment, or nothing at all. Capturing the payload is what
+/// makes "did we actually email the report?" an assertable question.
+/// </summary>
 public class NoOpEmailService : IEmailService
 {
+    public record SentReport(string ToEmail, string UserName, byte[] PdfBytes, string FileName);
+
+    /// <summary>Every report send, in order.</summary>
+    public List<SentReport> SentReports { get; } = new();
+
+    /// <summary>Set to true to simulate an SMTP failure on SendReportAsync.</summary>
+    public bool ThrowOnSend { get; set; } = false;
+
     public Task SendEmailVerificationAsync(string toEmail, string userName, string token) => Task.CompletedTask;
     public Task SendPasswordResetAsync(string toEmail, string userName, string token) => Task.CompletedTask;
     public Task SendEmailChangeVerificationAsync(string toNewEmail, string userName, string token) => Task.CompletedTask;
     public Task SendPhoneOtpAsync(string toEmail, string userName, string otp) => Task.CompletedTask;
-    public Task SendReportAsync(string toEmail, string userName, byte[] pdfBytes, string reportFileName) => Task.CompletedTask;
     public Task SendTeamInviteAsync(string toEmail, string inviterName, string teamName, string inviteUrl, string role) => Task.CompletedTask;
+
+    public Task SendReportAsync(string toEmail, string userName, byte[] pdfBytes, string reportFileName)
+    {
+        if (ThrowOnSend)
+            // Deliberately shaped like a real SMTP error: the message carries host
+            // and credential hints, which is exactly what must not reach the client.
+            throw new InvalidOperationException(
+                "SMTP connect failed: smtp.internal.example.com:587 auth user=dig-mailer");
+
+        SentReports.Add(new SentReport(toEmail, userName, pdfBytes, reportFileName));
+        return Task.CompletedTask;
+    }
 }
 
 public class NoOpStripeService : IStripeService

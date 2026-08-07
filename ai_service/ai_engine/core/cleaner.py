@@ -138,4 +138,54 @@ def clean_dataset(
         df.drop(columns=cols_to_drop_fallback, inplace=True)
         print(f"[Cleaner] Dropped {len(cols_to_drop_fallback)} column(s) with >80% missing: {cols_to_drop_fallback}")
 
+    # ── Step 6: Cap extreme outliers ──────────────────────────────────────
+    # The quality checker flags any numeric column where >1% of values fall
+    # outside 3×IQR. Groq only directs cap_outliers for columns it happens to
+    # notice, so anything it missed would still be flagged on the next check.
+    #
+    # Capping has to be iterative. Clipping to exactly q3 + 3*IQR piles the
+    # outliers onto the boundary, which changes the quartiles; recomputing the
+    # IQR on the clipped column can then place those same boundary values
+    # outside the *new* 3×IQR fence. A single pass therefore does not converge —
+    # the checker re-flags the column and the user is asked to clean again.
+    # Repeating until the fence stops moving is what makes
+    # check(clean(df)).needsCleaning == False hold.
+    MAX_CAP_PASSES = 10
+    for col in df.select_dtypes(include=[np.number]).columns:
+        total_capped = 0
+        for _ in range(MAX_CAP_PASSES):
+            series = df[col].dropna()
+            if len(series) < 10:
+                break
+            q1, q3 = series.quantile(0.25), series.quantile(0.75)
+            iqr = q3 - q1
+            if iqr <= 0:
+                break
+            lower, upper = q1 - 3 * iqr, q3 + 3 * iqr
+            mask = (df[col] < lower) | (df[col] > upper)
+            n_capped = int(mask.sum())
+            if n_capped == 0:
+                break
+            df[col] = df[col].clip(lower=lower, upper=upper)
+            total_capped += n_capped
+        if total_capped:
+            print(f"[Cleaner] Capped {total_capped} extreme outlier(s) in '{col}'")
+
+    # ── Step 7: Drop constant columns ─────────────────────────────────────
+    # Zero-variance columns carry no analytical signal and are flagged by the
+    # checker. Dropping them last means columns that only became constant as a
+    # result of imputation or outlier capping are caught too.
+    constant_cols = [c for c in df.columns if df[c].nunique(dropna=True) <= 1]
+    # Never strip the frame down past the 2-column minimum the checker requires.
+    if constant_cols and len(df.columns) - len(constant_cols) >= 2:
+        df.drop(columns=constant_cols, inplace=True)
+        print(f"[Cleaner] Dropped {len(constant_cols)} constant column(s): {constant_cols}")
+
+    # ── Step 8: Final sweep ───────────────────────────────────────────────
+    # Capping and dropping can re-expose duplicates that were distinct only
+    # because of an outlier value. Re-run the cheap row-level rules so the
+    # result satisfies check_data_quality().needsCleaning == False.
+    df.drop_duplicates(inplace=True)
+    df.reset_index(drop=True, inplace=True)
+
     return df

@@ -17,4 +17,12 @@ public interface IStorageService
     Task DeleteUserFilesAsync(Guid userId);
 
     Task<string> GetSignedUrlAsync(string storagePath, int expiresInSeconds = 3600);
+
+    /// <summary>
+    /// Fetch the raw bytes of a stored object. Used when the server itself needs
+    /// the file content rather than handing the user a signed URL — e.g. attaching
+    /// a generated PDF report to an outgoing email.
+    /// </summary>
+    /// <returns>The file bytes, or null if the object does not exist.</returns>
+    Task<byte[]?> DownloadAsync(string storagePath);
 }

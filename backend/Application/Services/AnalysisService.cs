@@ -104,7 +104,13 @@ public class AnalysisService
             _logger.LogInformation("[Analysis] DB row created: {AnalysisId}", analysisId);
 
             // ── Step 3: Parse customization for the Python request ─────────────
-            var request = BuildPythonRequest(userId, saved, customizationJson);
+            // userWantsCleaning / userConfirmedLow MUST be forwarded here. The Python
+            // pipeline gates Phase 3 (cleaning) on user_wants_cleaning; if it arrives
+            // false the dataset is analysed dirty even though the chatbot told the user
+            // cleaning was applied.
+            var request = BuildPythonRequest(
+                userId, saved, customizationJson,
+                userWantsCleaning, userConfirmedLow);
 
             // ── Step 4: Call the Python AI pipeline ───────────────────────────
             var csvBytes = await File.ReadAllBytesAsync(tempPath);
@@ -264,13 +270,21 @@ public class AnalysisService
     private static AnalyzeRequestDto BuildPythonRequest(
         Guid     userId,
         Analysis analysis,
-        string?  customizationJson)
+        string?  customizationJson,
+        bool     userWantsCleaning = false,
+        bool     userConfirmedLow  = false)
     {
         var req = new AnalyzeRequestDto
         {
             SessionId   = userId,
             DatasetId   = analysis.Id,
             CsvFileName = analysis.FileName,
+
+            // Chatbot decisions — these drive Phase 3 (cleaning) and the low-confidence
+            // gate in the Python pipeline. Dropping them silently produces a report
+            // built on uncleaned data while the UI claims cleaning succeeded.
+            UserWantsCleaning = userWantsCleaning,
+            UserConfirmedLow  = userConfirmedLow,
         };
 
         if (string.IsNullOrWhiteSpace(customizationJson))

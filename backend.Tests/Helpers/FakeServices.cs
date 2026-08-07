@@ -124,7 +124,10 @@ public class FakeAnalysisRepository : IAnalysisRepository
 /// </summary>
 public class FakeDatasetRepository : IDatasetRepository
 {
-    private readonly List<Dataset> _store = new();
+    /// <summary>Backing store — exposed so tests can seed and inspect state directly.</summary>
+    public List<Dataset> Store { get; } = new();
+
+    private List<Dataset> _store => Store;
 
     public Task<Dataset?> GetByUserIdAsync(Guid userId) =>
         Task.FromResult(_store.FirstOrDefault(d => d.UserId == userId));
@@ -225,6 +228,25 @@ public class FakeStorageService : IStorageService
 
     public Task<string> GetSignedUrlAsync(string storagePath, int expiresInSeconds = 3600) =>
         Task.FromResult($"https://fake-storage.example.com/{storagePath}?expires={expiresInSeconds}");
+
+    /// <summary>
+    /// Paths that should resolve to bytes. Anything not listed downloads as null,
+    /// mirroring Supabase returning 404 for a missing object.
+    ///
+    /// Risk: a fake that always returns bytes hides the "DB says the report exists
+    /// but storage lost it" case, which is exactly when an email endpoint would
+    /// send an empty attachment.
+    /// </summary>
+    public Dictionary<string, byte[]> Files { get; } = new();
+
+    /// <summary>Set to true to make every DownloadAsync return null.</summary>
+    public bool SimulateMissingFiles { get; set; } = false;
+
+    public Task<byte[]?> DownloadAsync(string storagePath)
+    {
+        if (SimulateMissingFiles) return Task.FromResult<byte[]?>(null);
+        return Task.FromResult(Files.TryGetValue(storagePath, out var bytes) ? bytes : null);
+    }
 }
 
 /// <summary>
@@ -239,6 +261,24 @@ public class FakePythonAiClient : IPythonAiClient
     /// <summary>Set to true to simulate a timeout on /analyze</summary>
     public bool SimulateTimeout { get; set; } = false;
 
+    /// <summary>
+    /// Every request handed to /analyze, in order.
+    ///
+    /// Risk: without capturing the outgoing request, a test can only assert that
+    /// the pipeline *ran* — not what it was told to do. The data-cleaning bug
+    /// lived exactly in that blind spot: AnalysisService accepted
+    /// userWantsCleaning and silently dropped it before building this DTO, so
+    /// Python never cleaned anything while the chatbot told the user it had.
+    /// </summary>
+    public List<backend.Application.DTOs.AI.AnalyzeRequestDto> ReceivedRequests { get; } = new();
+
+    /// <summary>The most recent /analyze request, or null if none was made.</summary>
+    public backend.Application.DTOs.AI.AnalyzeRequestDto? LastRequest =>
+        ReceivedRequests.Count > 0 ? ReceivedRequests[^1] : null;
+
+    /// <summary>Base64 CSV returned as the cleaned output. Null = no cleaning performed.</summary>
+    public string? CleanedCsvBase64 { get; set; }
+
     public Task<string> CheckQualityAsync(byte[] csvBytes, string fileName, Guid sessionId)
     {
         var json = $"{{\"condition\":\"{CheckCondition}\",\"error\":null}}";
@@ -247,22 +287,24 @@ public class FakePythonAiClient : IPythonAiClient
 
     public Task<string> CallPythonAiAsync(backend.Application.DTOs.AI.AnalyzeRequestDto request)
     {
+        ReceivedRequests.Add(request);
+
         if (SimulateTimeout)
             throw new TaskCanceledException("Simulated timeout");
 
-        // Return a minimal valid pipeline response
-        var json = """
+        var cleanedCsv = CleanedCsvBase64 is null ? "null" : $"\"{CleanedCsvBase64}\"";
+        return Task.FromResult($$"""
         {
           "status": "done",
           "pdf_report_base64": "AAAA",
-          "cleaned_csv_base64": null,
+          "cleaned_csv_base64": {{cleanedCsv}},
           "word_report_base64": null,
           "pptx_report_base64": null,
           "charts": [],
           "confidence_score": 8,
           "error": null
         }
-        """;
-        return Task.FromResult(json);
+        """);
     }
+
 }

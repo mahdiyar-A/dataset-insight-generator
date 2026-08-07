@@ -101,6 +101,25 @@ public class SupabaseStorageService : IStorageService
     public async Task<string> GetSignedUrlAsync(string storagePath, int expiresInSeconds = 3600)
         => await _client.Storage.From(_bucket).CreateSignedUrl(storagePath, expiresInSeconds);
 
+    public async Task<byte[]?> DownloadAsync(string storagePath)
+    {
+        try
+        {
+            // Overload resolution: Download(path, EventHandler<float>?) returns byte[].
+            // The cast is required — an untyped null is ambiguous against the
+            // TransformOptions overload.
+            return await _client.Storage.From(_bucket)
+                .Download(storagePath, (EventHandler<float>?)null);
+        }
+        catch (Exception ex)
+        {
+            // A missing object is an expected outcome (report not generated yet),
+            // not an error worth propagating. Callers treat null as "not available".
+            Console.WriteLine($"[Storage] DownloadAsync failed for {storagePath}: {ex.Message}");
+            return null;
+        }
+    }
+
     private async Task<string> UploadAsync(IFormFile file, string storagePath)
     {
         using var ms = new MemoryStream();

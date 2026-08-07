@@ -4,9 +4,24 @@ from ai_engine.models.models import DataQualityResult
 
 
 def check_data_quality(df: pd.DataFrame) -> DataQualityResult:
+    """
+    Inspect a DataFrame and report quality issues.
+
+    `needsCleaning` is deliberately NOT "any warning exists". It is true only when
+    the cleaner can actually change something — missing values, duplicate rows,
+    empty rows, constant columns, mixed-type columns, or extreme outliers.
+
+    Why: the chatbot asks "would you like me to clean this?" based on needsCleaning.
+    If needsCleaning were driven by warnings the cleaner cannot act on, a user who
+    accepted cleaning and re-uploaded the cleaned file would be asked again forever.
+    Keeping this in sync with cleaner.clean_dataset() is what makes cleaning
+    converge: clean(df) must satisfy check(clean(df)).needsCleaning == False.
+    """
     warnings = []
     errors = []
     outlier_columns = []
+    constant_columns = []
+    mixed_type_columns = []
 
     row_count = len(df)
     col_count = len(df.columns)
@@ -37,9 +52,10 @@ def check_data_quality(df: pd.DataFrame) -> DataQualityResult:
         elif ratio > 0.1:
             warnings.append(f"Column '{col}' has {round(ratio*100)}% missing values.")
 
-    # Constant columns (no variance)
+    # Constant columns (no variance) — cleaner drops these
     for col in df.columns:
         if df[col].nunique(dropna=True) <= 1:
+            constant_columns.append(col)
             warnings.append(f"Column '{col}' has no variance — all values are the same.")
 
     # Mixed type columns — object columns that are mostly numeric but stored as strings
@@ -49,6 +65,7 @@ def check_data_quality(df: pd.DataFrame) -> DataQualityResult:
         numeric_ratio = coerced.notnull().mean()
         if numeric_ratio > 0.5:
             # More than half the values are numeric — column should be numeric dtype
+            mixed_type_columns.append(col)
             non_numeric_count = int((coerced.isnull() & df[col].notnull()).sum())
             warnings.append(
                 f"Column '{col}' should be numeric but is stored as text "
@@ -67,6 +84,14 @@ def check_data_quality(df: pd.DataFrame) -> DataQualityResult:
         warnings.append(f"{dup_rows} duplicate rows ({pct}% of dataset).")
 
     # ── Outlier detection (IQR 3x rule) ──────────────────────────────────
+    # The fence is widened by a small relative tolerance before comparing.
+    #
+    # Why: the cleaner winsorises outliers to exactly q3 + 3*IQR. Those values
+    # then sit precisely on the fence. Recomputing the quartiles — after a CSV
+    # round-trip, or simply because clipping changed the distribution — moves
+    # the fence by a few ULPs, and a strict `>` comparison re-flags values that
+    # cleaning just fixed. That is a false positive measured in floating-point
+    # noise, and it re-triggers the cleaning prompt on an already-clean file.
     numeric_df = df.select_dtypes(include=[np.number])
     for col in numeric_df.columns:
         series = numeric_df[col].dropna()
@@ -76,7 +101,10 @@ def check_data_quality(df: pd.DataFrame) -> DataQualityResult:
         iqr = q3 - q1
         if iqr == 0:
             continue
-        outlier_ratio = ((series < q1 - 3 * iqr) | (series > q3 + 3 * iqr)).mean()
+        tol = 1e-9 * max(abs(q1 - 3 * iqr), abs(q3 + 3 * iqr), 1.0)
+        lower_fence = q1 - 3 * iqr - tol
+        upper_fence = q3 + 3 * iqr + tol
+        outlier_ratio = ((series < lower_fence) | (series > upper_fence)).mean()
         if outlier_ratio > 0.05:
             warnings.append(f"Column '{col}' has {round(outlier_ratio*100)}% extreme outliers.")
             outlier_columns.append(col)
@@ -85,11 +113,18 @@ def check_data_quality(df: pd.DataFrame) -> DataQualityResult:
             outlier_columns.append(col)
 
     # ── Decide if it needs cleaning ───────────────────────────────────────
-    overall_missing = df.isnull().mean().mean()
+    # Only signals the cleaner can actually act on. Anything listed here must
+    # have a corresponding fix in cleaner.clean_dataset(), otherwise cleaning
+    # never converges and the user is re-prompted after uploading a clean file.
+    overall_missing = float(df.isnull().mean().mean())
+    has_missing_values = bool(df.isnull().any().any())
+
     needs_cleaning = (
-        len(warnings) > 0 or
-        overall_missing > 0.05 or
+        has_missing_values or
         dup_rows > 0 or
+        empty_rows > 0 or
+        len(constant_columns) > 0 or
+        len(mixed_type_columns) > 0 or
         len(outlier_columns) > 0
     )
 
@@ -100,6 +135,10 @@ def check_data_quality(df: pd.DataFrame) -> DataQualityResult:
         errors=errors,
         isUsable=is_usable,
         needsCleaning=needs_cleaning,
-        missingRatio=round(float(overall_missing), 4),
+        missingRatio=round(overall_missing, 4),
         outlierColumns=outlier_columns,
+        constantColumns=constant_columns,
+        mixedTypeColumns=mixed_type_columns,
+        duplicateRows=dup_rows,
+        emptyRows=empty_rows,
     )

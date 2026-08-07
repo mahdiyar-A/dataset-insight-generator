@@ -11,6 +11,15 @@ class DataQualityResult:
     missingRatio: float
     outlierColumns: List[str]
 
+    # Columns with zero variance — cleaning drops these.
+    constantColumns: List[str] = field(default_factory=list)
+    # Object columns that are >50% numeric — cleaning coerces these to numeric.
+    mixedTypeColumns: List[str] = field(default_factory=list)
+    # Exact duplicate row count — cleaning removes these.
+    duplicateRows: int = 0
+    # Fully-empty row count — cleaning removes these.
+    emptyRows: int = 0
+
 
 @dataclass
 class ConfidenceResult:

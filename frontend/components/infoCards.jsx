@@ -122,7 +122,6 @@ const T = {
     responseHeader: "Response time",
     channels: [
       { name: "✉ Email",          time: "1–2 business days" },
-      { name: "💬 Live chat",      time: "Coming soon" },
       { name: "🐛 GitHub Issues",  time: "Within 48 hours" },
     ],
     docs: [
@@ -258,7 +257,6 @@ const T = {
     responseHeader: "زمان پاسخ",
     channels: [
       { name: "✉ ایمیل",           time: "۱ تا ۲ روز کاری" },
-      { name: "💬 چت زنده",         time: "به زودی" },
       { name: "🐛 GitHub Issues",   time: "ظرف ۴۸ ساعت" },
     ],
     docs: [
