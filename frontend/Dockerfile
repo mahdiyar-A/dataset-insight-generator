@@ -17,11 +17,11 @@ COPY . .
 # must be present here rather than only at runtime. These are public-by-design
 # values (the anon key is safe to ship — row-level security is what protects the
 # data). Pass real values with --build-arg when building for deployment.
-ARG NEXT_PUBLIC_API_URL=http://localhost:5150
+ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:5150
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
 ENV NEXT_TELEMETRY_DISABLED=1
