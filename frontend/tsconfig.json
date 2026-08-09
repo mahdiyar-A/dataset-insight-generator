@@ -30,5 +30,13 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
 , "app/dashboard/components/AnalysisChatCard.jsx"  ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    // Vitest ships its own pinned copy of Vite, so @vitejs/plugin-react's
+    // Plugin type comes from a different Vite than vitest/config expects.
+    // The mismatch is confined to this config file and does not affect app
+    // code, so it is excluded from the app's type-check rather than papered
+    // over with a cast.
+    "vitest.config.mts"
+  ]
 }

@@ -137,6 +137,12 @@ jobs:
         working-directory: frontend
         run: npm run lint
 
+      # Unit tests over the pure logic: the annotation tree, the error-message
+      # helper, and the request shapes BackendAPI builds. No network, no server.
+      - name: Test
+        working-directory: frontend
+        run: npm test
+
       # `next build` type-checks the whole app. A type error that only surfaces
       # at build time would otherwise reach production — the dev server is more
       # forgiving than the production compiler.

@@ -87,3 +87,5 @@ desktop.ini
 *.log
 tmp/
 temp/
+# Vitest
+coverage/

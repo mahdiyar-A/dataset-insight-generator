@@ -5,17 +5,13 @@ import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
 import * as signalR from "@microsoft/signalr";
+import {
+  mergeAnnotation, replaceAnnotation, markResolved, removeAnnotation, colorFor,
+} from "@/lib/annotations";
 import { errorMessage } from "@/lib/types";
-import type { Workspace } from "@/lib/types";
+import type { Workspace, Annotation } from "@/lib/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Annotation = {
-  id: string; userId: string; fileType: string; content: string;
-  position?: string | null; createdAt: string; resolvedAt?: string;
-  parentId?: string; authorName?: string; authorEmail?: string;
-  replies: Annotation[];
-};
-
 type Presence = { userId: string; userName: string; color: string; fileType?: string };
 
 type Cursor = {
@@ -52,70 +48,8 @@ const CURSOR_TTL_MS = 5000;
 // Cursor positions are sent at pointer-move rate; throttle to ~20/sec.
 const CURSOR_THROTTLE_MS = 50;
 
-// ── Annotation tree helpers ───────────────────────────────────────────────────
-//
-// Annotations are a two-level tree: top-level comments each with a flat list of
-// replies. Live events deliver a single annotation, which may be either. The
-// previous version appended everything to the top-level array, so a reply
-// arriving over the wire rendered as a new root comment until the page reloaded.
-
-function mergeAnnotation(list: Annotation[], ann: Annotation): Annotation[] {
-  if (list.some(a => a.id === ann.id || a.replies?.some(r => r.id === ann.id)))
-    return list;   // already present — e.g. our own optimistic insert echoed back
-
-  if (ann.parentId) {
-    return list.map(a => a.id === ann.parentId
-      ? { ...a, replies: [...(a.replies ?? []), ann] }
-      : a);
-  }
-  return [...list, { ...ann, replies: ann.replies ?? [] }];
-}
-
-function replaceAnnotation(list: Annotation[], ann: Annotation): Annotation[] {
-  return list.map(a => {
-    if (a.id === ann.id) return { ...ann, replies: ann.replies ?? a.replies ?? [] };
-    if (a.replies?.some(r => r.id === ann.id))
-      return { ...a, replies: a.replies.map(r => r.id === ann.id ? ann : r) };
-    return a;
-  });
-}
-
-function markResolved(list: Annotation[], id: string): Annotation[] {
-  const at = new Date().toISOString();
-  return list.map(a => {
-    if (a.id === id) return { ...a, resolvedAt: at };
-    if (a.replies?.some(r => r.id === id))
-      return { ...a, replies: a.replies.map(r => r.id === id ? { ...r, resolvedAt: at } : r) };
-    return a;
-  });
-}
-
-function removeAnnotation(list: Annotation[], id: string): Annotation[] {
-  return list
-    .filter(a => a.id !== id)
-    .map(a => a.replies?.some(r => r.id === id)
-      ? { ...a, replies: a.replies.filter(r => r.id !== id) }
-      : a);
-}
-
-/**
- * Stable per-user colour. Mirrors CollaborationHub.ColorFor so an avatar drawn
- * locally matches the colour collaborators see for the same person.
- *
- * The previous version rendered every annotation avatar in the *current user's*
- * colour, so every comment in a thread looked like it came from the same person.
- */
-const COLORS = [
-  "#3b82f6", "#a855f7", "#10b981", "#f97316",
-  "#ec4899", "#06b6d4", "#84cc16", "#f59e0b",
-];
-
-function colorFor(userId?: string): string {
-  if (!userId) return "#64748b";
-  let h = 0;
-  for (let i = 0; i < userId.length; i++) h = (h * 31 + userId.charCodeAt(i)) >>> 0;
-  return COLORS[h % COLORS.length];
-}
+// Annotation tree maintenance and avatar colours live in lib/annotations.ts so
+// they can be unit-tested without standing up a SignalR connection.
 
 export default function WorkspacePage() {
   const router  = useRouter();
