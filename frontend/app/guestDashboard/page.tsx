@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
@@ -7,6 +6,7 @@ import UploadCard            from "@/components/UploadCard";
 import AnalysisAssistantCard from "@/components/AnalysisChatCard";
 import ChartsCard            from "@/components/chartsCard";
 import InfoCards             from "@/components/infoCards";
+import type { UploadedFileMeta, ChartMeta, ChatReply, DatasetCondition } from "@/lib/types";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5150").replace(/\/$/, "");
 
@@ -19,7 +19,9 @@ const REPORT_SECTIONS = [
   { emoji: "📉", title: "Visualizations",        desc: "All charts embedded with captions: bar charts, heatmaps, scatter plots, trend lines." },
 ];
 
-function PDFModal({ reportFileName, pdfUrl, onClose }) {
+function PDFModal({ reportFileName, pdfUrl, onClose }: {
+  reportFileName: string; pdfUrl: string; onClose: () => void;
+}) {
   return (
     <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(2,6,23,0.8)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:"20px" }}>
       <div onClick={e => e.stopPropagation()} style={{ background:"#020617", border:"1px solid rgba(31,41,55,0.9)", borderRadius:"18px", padding:"16px", width:"min(1000px, 95vw)", height:"min(85vh, 900px)", display:"flex", flexDirection:"column", gap:"12px", boxShadow:"0 24px 60px rgba(0,0,0,0.6)", overflow:"hidden" }}>
@@ -62,9 +64,9 @@ function getGuestSessionId() {
 }
 
 // ── Guest-specific BackendAPI — takes sessionId as parameter ─────────────
-function makeGuestAPI(sessionId) {
+function makeGuestAPI(sessionId: string) {
   return {
-    async uploadDataset(file, rowCount, columnCount) {
+    async uploadDataset(file: File, rowCount: number, columnCount: number) {
       const form = new FormData();
       form.append("file",       file);
       form.append("sessionId",  sessionId);
@@ -75,7 +77,10 @@ function makeGuestAPI(sessionId) {
       return await res.json();
     },
 
-    async sendChatMessage(message, meta = {}) {
+    async sendChatMessage(
+      message: string,
+      meta: Partial<UploadedFileMeta> & { pendingCondition?: DatasetCondition | null } = {},
+    ): Promise<ChatReply> {
       const res = await fetch(`${API_BASE}/api/guest/chat`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
@@ -112,29 +117,29 @@ export default function GuestDashboardPage() {
   });
 
   // ── State ────────────────────────────────────────────────────────────
-  const [dataset,        setDataset]        = useState(null);
+  const [dataset,        setDataset]        = useState<UploadedFileMeta | null>(null);
   const [reportReady,    setReportReady]     = useState(false);
-  const [pdfBase64,      setPdfBase64]       = useState(null);
-  const [cleanedCsvB64,  setCleanedCsvB64]   = useState(null);
-  const [charts,         setCharts]          = useState([]);
+  const [pdfBase64,      setPdfBase64]       = useState<string | null>(null);
+  const [cleanedCsvB64,  setCleanedCsvB64]   = useState<string | null>(null);
+  const [charts,         setCharts]          = useState<ChartMeta[]>([]);
   const [analysisKey,    setAnalysisKey]     = useState(0);
   const [uploadResetKey, setUploadResetKey]  = useState(0);
   const [activeSection,  setActiveSection]   = useState("top");
   const [showPdfModal,   setShowPdfModal]    = useState(false);
-  const [pdfBlobUrl,     setPdfBlobUrl]      = useState(null);
+  const [pdfBlobUrl,     setPdfBlobUrl]      = useState<string | null>(null);
   const [pdfLoading,     setPdfLoading]      = useState(false);
-  const pollingRef = useRef(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── GuestAPI bound to this session's ID ──────────────────────────────
   const GuestAPI = useMemo(() => makeGuestAPI(sessionId), [sessionId]);
 
   // ── Refs ─────────────────────────────────────────────────────────────
-  const topRef      = useRef(null);
-  const uploadRef   = useRef(null);
-  const historyRef  = useRef(null);
-  const chartsRef   = useRef(null);
-  const downloadRef = useRef(null);
-  const helpRef     = useRef(null);
+  const topRef      = useRef<HTMLElement | null>(null);
+  const uploadRef   = useRef<HTMLElement | null>(null);
+  const historyRef  = useRef<HTMLElement | null>(null);
+  const chartsRef   = useRef<HTMLElement | null>(null);
+  const downloadRef = useRef<HTMLElement | null>(null);
+  const helpRef     = useRef<HTMLElement | null>(null);
 
   // ── Reset all state on every fresh mount ─────────────────────────────
   useEffect(() => {
@@ -177,7 +182,7 @@ export default function GuestDashboardPage() {
     return () => obs.disconnect();
   }, []);
 
-  const scrollTo = (id, ref) => {
+  const scrollTo = (id: string, ref: React.RefObject<HTMLElement | null> | null) => {
     ref?.current?.scrollIntoView({ behavior: "smooth" });
     setActiveSection(id);
   };
@@ -211,7 +216,7 @@ export default function GuestDashboardPage() {
   useEffect(() => () => stopPolling(), [stopPolling]);
 
   // ── Upload success ────────────────────────────────────────────────────
-  const handleUploadSuccess = useCallback((meta) => {
+  const handleUploadSuccess = useCallback((meta: UploadedFileMeta) => {
     setDataset({ ...meta, isPending: true, status: "pending" });
     setReportReady(false);
     setPdfBase64(null);

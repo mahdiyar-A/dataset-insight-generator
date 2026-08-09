@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -6,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth }    from "@/app/contexts/AuthContext";
 import { useSettings } from "@/app/contexts/SettingsContext";
 import BackendAPI      from "@/lib/BackendAPI";
+import type { Analysis, AnalysisStatus, UploadedFileMeta } from "@/lib/types";
 import UploadCard      from "@/components/UploadCard";
 import AnalysisAssistantCard from "@/components/AnalysisChatCard";
 import HistoryCard     from "@/components/historyCard";
@@ -19,7 +19,7 @@ const DASH_T = {
   en: {
     title: "Dashboard",
     subtitle: "Upload a dataset or load from history to get started.",
-    subtitleActive: (name, rows) => `${name} · ${rows?.toLocaleString() ?? "?"} rows`,
+    subtitleActive: (name: string, rows?: number | null) => `${name} · ${rows?.toLocaleString() ?? "?"} rows`,
     nav: {
       dashboard: "Dashboard", upload: "Upload", history: "History",
       charts: "AI Insights", report: "Report", help: "Help",
@@ -28,7 +28,7 @@ const DASH_T = {
     },
     profile: {
       view: "View profile", account: "Account settings",
-      memberSince: (d) => `Member since ${d}`,
+      memberSince: (d: string) => `Member since ${d}`,
     },
     bannerDone:    "Analysis complete — report, charts, and cleaned dataset are ready.",
     bannerRunning: "Analysis running — results will appear when done…",
@@ -39,7 +39,7 @@ const DASH_T = {
   fr: {
     title: "Tableau de bord",
     subtitle: "Importez un dataset ou chargez depuis l'historique.",
-    subtitleActive: (name, rows) => `${name} · ${rows?.toLocaleString() ?? "?"} lignes`,
+    subtitleActive: (name: string, rows?: number | null) => `${name} · ${rows?.toLocaleString() ?? "?"} lignes`,
     nav: {
       dashboard: "Tableau de bord", upload: "Import", history: "Historique",
       charts: "Insights IA", report: "Rapport", help: "Aide",
@@ -48,7 +48,7 @@ const DASH_T = {
     },
     profile: {
       view: "Voir le profil", account: "Paramètres du compte",
-      memberSince: (d) => `Membre depuis ${d}`,
+      memberSince: (d: string) => `Membre depuis ${d}`,
     },
     bannerDone:    "Analyse terminée — rapport, graphiques et CSV nettoyé disponibles.",
     bannerRunning: "Analyse en cours — les résultats apparaîtront bientôt…",
@@ -59,7 +59,7 @@ const DASH_T = {
   fa: {
     title: "داشبورد",
     subtitle: "یک دیتاست آپلود کنید یا از تاریخچه بارگذاری کنید.",
-    subtitleActive: (name, rows) => `${name} · ${rows?.toLocaleString() ?? "?"} ردیف`,
+    subtitleActive: (name: string, rows?: number | null) => `${name} · ${rows?.toLocaleString() ?? "?"} ردیف`,
     nav: {
       dashboard: "داشبورد", upload: "آپلود", history: "تاریخچه",
       charts: "تحلیل‌های AI", report: "گزارش", help: "راهنما",
@@ -68,7 +68,7 @@ const DASH_T = {
     },
     profile: {
       view: "مشاهده پروفایل", account: "تنظیمات حساب",
-      memberSince: (d) => `عضو از ${d}`,
+      memberSince: (d: string) => `عضو از ${d}`,
     },
     bannerDone:    "تحلیل کامل شد — گزارش، نمودارها و CSV پاکسازی‌شده آماده‌اند.",
     bannerRunning: "تحلیل در حال اجرا — نتایج به زودی نمایش می‌یابند…",
@@ -98,7 +98,7 @@ export default function DashboardPage() {
 
   const isLight = brightness > 65;
   const rtl     = lang === "fa";
-  const plan    = (user as any)?.plan ?? "free";
+  const plan    = user?.plan ?? "free";
   const isAdmin = plan === "admin";
 
   // ── Auth guard ──────────────────────────────────────────────────────────────
@@ -121,25 +121,25 @@ export default function DashboardPage() {
   const [activeSection,  setActiveSection]  = useState("top");
 
   // The currently-loaded analysis (null = clean slate)
-  const [analysis,       setAnalysis]       = useState(null);
-  const [analysisStatus, setAnalysisStatus] = useState(null); // "pending"|"processing"|"done"|"failed"
+  const [analysis,       setAnalysis]       = useState<Analysis | null>(null);
+  const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus | null>(null);
   const [reportReady,    setReportReady]    = useState(false);
   const [hasPdfReport,   setHasPdfReport]   = useState(false);
 
   // History list (loaded once on mount)
-  const [history,        setHistory]        = useState([]);
+  const [history,        setHistory]        = useState<Analysis[]>([]);
 
   // Keys to force child remounts
   const [analysisKey,    setAnalysisKey]    = useState(0);
   const [uploadResetKey, setUploadResetKey] = useState(0);
 
-  const topRef      = useRef(null);
-  const uploadRef   = useRef(null);
-  const historyRef  = useRef(null);
-  const chartsRef   = useRef(null);
-  const downloadRef = useRef(null);
-  const helpRef     = useRef(null);
-  const pollRef     = useRef(null);
+  const topRef      = useRef<HTMLElement | null>(null);
+  const uploadRef   = useRef<HTMLElement | null>(null);
+  const historyRef  = useRef<HTMLElement | null>(null);
+  const chartsRef   = useRef<HTMLElement | null>(null);
+  const downloadRef = useRef<HTMLElement | null>(null);
+  const helpRef     = useRef<HTMLElement | null>(null);
+  const pollRef     = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Load history on mount ───────────────────────────────────────────────────
   useEffect(() => {
@@ -165,7 +165,7 @@ export default function DashboardPage() {
   }, [token]);
 
   // ── Load a history item into the dashboard ──────────────────────────────────
-  const handleLoadHistory = useCallback((item) => {
+  const handleLoadHistory = useCallback((item: Analysis) => {
     stopPolling();
     setAnalysis(item);
     setAnalysisStatus(item.status);
@@ -176,9 +176,11 @@ export default function DashboardPage() {
   }, []);
 
   // ── New upload → reset everything ──────────────────────────────────────────
-  const handleUploadSuccess = useCallback((tempMeta) => {
+  const handleUploadSuccess = useCallback((tempMeta: UploadedFileMeta) => {
     stopPolling();
-    setAnalysis({ ...tempMeta, isPending: true });
+    // No server id yet — the analysis row is created when the pipeline starts.
+    // Marked isPending so the header renders the neutral subtitle.
+    setAnalysis({ ...tempMeta, id: "", status: "pending", isPending: true });
     setAnalysisStatus("pending");
     setReportReady(false);
     setHasPdfReport(false);
@@ -186,7 +188,7 @@ export default function DashboardPage() {
   }, []);
 
   // ── Analysis started (chatbot confirmed) ────────────────────────────────────
-  const handleAnalysisStarted = useCallback((analysisId) => {
+  const handleAnalysisStarted = useCallback((analysisId: string) => {
     setAnalysisStatus("processing");
     startPolling(analysisId);
   }, []);
@@ -223,7 +225,7 @@ export default function DashboardPage() {
   useEffect(() => () => stopPolling(), []);
 
   // ── History item deleted ─────────────────────────────────────────────────────
-  const handleHistoryDeleted = useCallback((deletedId) => {
+  const handleHistoryDeleted = useCallback((deletedId: string) => {
     setHistory(prev => prev.filter(h => h.id !== deletedId));
     if (analysis?.id === deletedId) {
       setAnalysis(null);
@@ -264,7 +266,7 @@ export default function DashboardPage() {
     return () => obs.disconnect();
   }, []);
 
-  const scrollTo = (id, ref) => {
+  const scrollTo = (id: string, ref: React.RefObject<HTMLElement | null> | null) => {
     ref?.current?.scrollIntoView({ behavior: "smooth" });
     setActiveSection(id);
   };
@@ -325,7 +327,7 @@ export default function DashboardPage() {
           <div style={{ padding: "0 8px", marginBottom: "8px" }}>
             <PlanBadge
               plan={plan}
-              reportsUsed={(user as any)?.reportsUsed ?? 0}
+              reportsUsed={user?.reportsUsed ?? 0}
             />
           </div>
 
@@ -371,7 +373,7 @@ export default function DashboardPage() {
             <h1>{t.title}</h1>
             <p className="subtitle">
               {analysis && !analysis.isPending
-                ? t.subtitleActive(analysis.fileName, analysis.rowCount)
+                ? t.subtitleActive(analysis.fileName, analysis.rowCount ?? undefined)
                 : t.subtitle}
             </p>
           </div>

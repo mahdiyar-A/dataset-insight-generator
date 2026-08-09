@@ -23,17 +23,15 @@ const eslintConfig = defineConfig([
   ]),
 
   {
+    // ── Enforced ───────────────────────────────────────────────────────────
+    // Every .tsx page and lib module now type-checks clean under `tsc --noEmit`
+    // and API response shapes live in lib/types.ts. These are errors so the
+    // suppressions cannot creep back in.
     rules: {
-      // `any` appears in API response handling where the backend contract is not
-      // yet mirrored in TypeScript types. Promote to error once the response
-      // shapes in lib/BackendAPI.js are typed.
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/ban-ts-comment": "error",
+      "@typescript-eslint/no-explicit-any": "error",
 
-      // Several .tsx pages carry @ts-nocheck from before strict mode was enabled.
-      // Removing them surfaces real type errors that need fixing file by file;
-      // until then this is tracked debt rather than a merge blocker.
-      "@typescript-eslint/ban-ts-comment": "warn",
-
+      // ── Still warnings ───────────────────────────────────────────────────
       // Flags setState inside useEffect. The existing usages are deliberate
       // (animation phase transitions, derived state from async loads) and are
       // not causing render loops. Kept visible so new occurrences get reviewed.
@@ -46,8 +44,9 @@ const eslintConfig = defineConfig([
   },
 
   {
-    // .jsx files are not type-checked, so @ts-nocheck in them is a no-op left
-    // over from when these components were .tsx. Harmless — not worth churn.
+    // .jsx files are not type-checked by tsc, so a @ts-nocheck banner in one is
+    // a no-op left over from when these components were .tsx. Their props are
+    // typed with JSDoc instead, which .tsx callers do see.
     files: ["**/*.jsx", "**/*.js"],
     rules: {
       "@typescript-eslint/ban-ts-comment": "off",

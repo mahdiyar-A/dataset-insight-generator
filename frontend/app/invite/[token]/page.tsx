@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
+import { errorMessage } from "@/lib/types";
 
 export default function InvitePage() {
   const router              = useRouter();
@@ -28,9 +29,9 @@ export default function InvitePage() {
       setStatus("success");
       setMessage(`You've joined the team! Redirecting to your team page…`);
       setTimeout(() => router.push("/dashboard/team"), 2000);
-    } catch (e: any) {
+    } catch (e) {
       setStatus("error");
-      setMessage(e.message || "Could not accept invitation.");
+      setMessage(errorMessage(e) || "Could not accept invitation.");
     }
   };
 
@@ -87,7 +88,7 @@ export default function InvitePage() {
               marginBottom: "16px" }}>
               {message}
             </div>
-            {(user as any)?.plan !== "pro" && (
+            {user?.plan !== "pro" && (
               <p style={{ textAlign: "center", fontSize: "0.82rem", color: "#64748b" }}>
                 Note: joining a team requires a Pro plan.{" "}
                 <button onClick={() => router.push("/plans")}

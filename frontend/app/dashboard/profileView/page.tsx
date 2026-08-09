@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client";
 
 import React, { useEffect } from "react";
@@ -82,15 +81,15 @@ export default function ProfileViewPage() {
   );
 }
 
-const pageStyle      = { minHeight: "100vh", background: "radial-gradient(circle at top, #020617 0, #020617 45%, #000 100%)", fontFamily: "system-ui, -apple-system, sans-serif", color: "#e5e7eb" };
-const wrapStyle      = { maxWidth: "560px", margin: "24px auto", padding: "0 24px 48px" };
-const cardStyle      = { background: "rgba(15,23,42,0.95)", borderRadius: "18px", border: "1px solid rgba(31,41,55,0.8)", padding: "24px", boxShadow: "0 18px 45px rgba(15,23,42,0.85)", display: "flex", flexDirection: "column", gap: "16px" };
-const headerRowStyle = { display: "flex", gap: "16px", alignItems: "center" };
-const bigAvatarStyle = { width: "96px", height: "96px", borderRadius: "18px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "36px", color: "#fff", background: "linear-gradient(135deg, #3b82f6, #6366f1)", overflow: "hidden", flexShrink: 0 };
-const infoTableStyle = { display: "flex", flexDirection: "column", gap: "10px", borderTop: "1px solid rgba(31,41,55,0.8)", paddingTop: "16px" };
-const infoRowStyle   = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" };
-const labelStyle     = { color: "#9ca3af", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" };
-const valueStyle     = { color: "#d1d5db", fontSize: "0.85rem", textAlign: "right", maxWidth: "300px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
-const ghostLink      = { display: "inline-flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.82rem", textDecoration: "none", borderRadius: "999px", border: "1px solid rgba(148,163,184,0.3)", color: "#bfdbfe", background: "rgba(15,23,42,0.8)" };
+const pageStyle: React.CSSProperties      = { minHeight: "100vh", background: "radial-gradient(circle at top, #020617 0, #020617 45%, #000 100%)", fontFamily: "system-ui, -apple-system, sans-serif", color: "#e5e7eb" };
+const wrapStyle: React.CSSProperties      = { maxWidth: "560px", margin: "24px auto", padding: "0 24px 48px" };
+const cardStyle: React.CSSProperties      = { background: "rgba(15,23,42,0.95)", borderRadius: "18px", border: "1px solid rgba(31,41,55,0.8)", padding: "24px", boxShadow: "0 18px 45px rgba(15,23,42,0.85)", display: "flex", flexDirection: "column", gap: "16px" };
+const headerRowStyle: React.CSSProperties = { display: "flex", gap: "16px", alignItems: "center" };
+const bigAvatarStyle: React.CSSProperties = { width: "96px", height: "96px", borderRadius: "18px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "36px", color: "#fff", background: "linear-gradient(135deg, #3b82f6, #6366f1)", overflow: "hidden", flexShrink: 0 };
+const infoTableStyle: React.CSSProperties = { display: "flex", flexDirection: "column", gap: "10px", borderTop: "1px solid rgba(31,41,55,0.8)", paddingTop: "16px" };
+const infoRowStyle: React.CSSProperties   = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" };
+const labelStyle: React.CSSProperties     = { color: "#9ca3af", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" };
+const valueStyle: React.CSSProperties     = { color: "#d1d5db", fontSize: "0.85rem", textAlign: "right", maxWidth: "300px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
+const ghostLink: React.CSSProperties      = { display: "inline-flex", alignItems: "center", gap: "6px", padding: "6px 14px", fontSize: "0.82rem", textDecoration: "none", borderRadius: "999px", border: "1px solid rgba(148,163,184,0.3)", color: "#bfdbfe", background: "rgba(15,23,42,0.8)" };
 const secondaryBtn   = { padding: "8px 16px", borderRadius: "999px", border: "1px solid rgba(55,65,81,0.9)", background: "transparent", color: "#e5e7eb", fontSize: "0.82rem", cursor: "pointer" };
-const loadingStyle   = { display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", color: "#6b7280", fontSize: "0.9rem", background: "#020617" };
+const loadingStyle: React.CSSProperties   = { display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", color: "#6b7280", fontSize: "0.9rem", background: "#020617" };

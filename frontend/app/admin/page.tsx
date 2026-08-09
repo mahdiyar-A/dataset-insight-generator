@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
+import { errorMessage } from "@/lib/types";
 
 type UserRow = {
   id: string; email: string; userName: string; plan: string;
@@ -29,7 +30,7 @@ export default function AdminPage() {
   const [error,   setError]   = useState("");
   const [tab,     setTab]     = useState<"overview" | "users">("overview");
 
-  const isAdmin = (user as any)?.plan === "admin";
+  const isAdmin = user?.plan === "admin";
 
   const load = useCallback(async () => {
     if (!token || !isAdmin) return;
@@ -42,7 +43,7 @@ export default function AdminPage() {
       setStats(statsData);
       setUsers(usersData.users);
       setTotal(usersData.total);
-    } catch (e: any) { setError(e.message); }
+    } catch (e) { setError(errorMessage(e)); }
     finally { setBusy(false); }
   }, [token, isAdmin, page, planFilter, search]);
 
@@ -61,7 +62,7 @@ export default function AdminPage() {
     try {
       await BackendAPI.adminSetPlan(token, userId, plan);
       await load();
-    } catch (e: any) { setError(e.message); }
+    } catch (e) { setError(errorMessage(e)); }
   };
 
   const handleDeleteUser = async (userId: string, email: string) => {
@@ -69,13 +70,18 @@ export default function AdminPage() {
     try {
       await BackendAPI.adminDeleteUser(token, userId);
       await load();
-    } catch (e: any) { setError(e.message); }
+    } catch (e) { setError(errorMessage(e)); }
   };
 
   if (isLoading || !token) return null;
   if (!isAdmin) return null;
 
-  const StatCard = ({ label, value, sub, color = "#e2e8f0" }: any) => (
+  const StatCard = ({ label, value, sub, color = "#e2e8f0" }: {
+    label: string;
+    value: React.ReactNode;
+    sub?: React.ReactNode;
+    color?: string;
+  }) => (
     <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(30,41,59,0.7)",
       borderRadius: "14px", padding: "22px" }}>
       <p style={{ margin: "0 0 6px", color: "#475569", fontSize: "0.75rem",

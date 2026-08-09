@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -6,26 +5,27 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
 
+/** Inline status banner: a kind plus the text to show, or nothing. */
+type StatusMsg = { type: "success" | "error" | "info"; text: string } | null;
+
 export default function AccountSettingsPage() {
   const router = useRouter();
   const { user: currentUser, isLoading, updateUser, refreshUser, logout, token } = useAuth();
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [form, setForm] = useState({ firstName: "", lastName: "", phoneNumber: "", email: "" });
   const [initialized,   setInitialized]   = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
-  const [profileMsg,    setProfileMsg]    = useState(null);
-
+  const [profileMsg,    setProfileMsg]    = useState<StatusMsg>(null);
   const [pwForm,   setPwForm]   = useState({ current: "", next: "", confirm: "" });
   const [savingPw, setSavingPw] = useState(false);
-  const [pwMsg,    setPwMsg]    = useState(null);
+  const [pwMsg,    setPwMsg]    = useState<StatusMsg>(null);
   const [showPw,   setShowPw]   = useState(false);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting,          setDeleting]          = useState(false);
-  const [deleteMsg,         setDeleteMsg]         = useState(null);
-
-  const [avatarUrl,     setAvatarUrl]     = useState(null);
+  const [deleteMsg,         setDeleteMsg]         = useState<StatusMsg>(null);
+  const [avatarUrl,     setAvatarUrl]     = useState<string | null>(null);
   const [uploadingPic,  setUploadingPic]  = useState(false);
 
   useEffect(() => {
@@ -67,14 +67,14 @@ export default function AccountSettingsPage() {
       await refreshUser();
       setProfileMsg({ type: "success", text: "Profile updated." });
     } catch (err) {
-      setProfileMsg({ type: "error", text: err?.message || "Failed to save." });
+      setProfileMsg({ type: "error", text: (err as Error)?.message || "Failed to save." });
     } finally {
       setSavingProfile(false);
     }
   };
 
   // ── Upload profile picture
-  const handlePhotoChange = async (e) => {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     // Show local preview immediately
@@ -86,7 +86,7 @@ export default function AccountSettingsPage() {
       localStorage.removeItem("dig_user");
       await refreshUser();
     } catch (err) {
-      setProfileMsg({ type: "error", text: "Picture upload failed: " + err.message });
+      setProfileMsg({ type: "error", text: "Picture upload failed: " + (err as Error).message });
     } finally {
       setUploadingPic(false);
     }
@@ -94,7 +94,7 @@ export default function AccountSettingsPage() {
 
   const handleRemovePhoto = () => {
     setAvatarUrl(null);
-    updateUser({ profilePicture: null });
+    updateUser({ profilePicture: undefined });
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -120,7 +120,7 @@ export default function AccountSettingsPage() {
       setPwMsg({ type: "success", text: "Password changed successfully." });
       setPwForm({ current: "", next: "", confirm: "" });
     } catch (err) {
-      setPwMsg({ type: "error", text: err?.message || "Failed to change password." });
+      setPwMsg({ type: "error", text: (err as Error)?.message || "Failed to change password." });
     } finally {
       setSavingPw(false);
     }
@@ -135,7 +135,7 @@ export default function AccountSettingsPage() {
       logout();
       router.push("/login");
     } catch (err) {
-      setDeleteMsg({ type: "error", text: err?.message || "Failed to delete account." });
+      setDeleteMsg({ type: "error", text: (err as Error)?.message || "Failed to delete account." });
       setDeleting(false);
     }
   };
@@ -268,7 +268,14 @@ export default function AccountSettingsPage() {
   );
 }
 
-function Field({ label, value, onChange, placeholder, type = "text", disabled = false }) {
+function Field({ label, value, onChange, placeholder = "", type = "text", disabled = false }: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  type?: string;
+  disabled?: boolean;
+}) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
       <label style={labelStyle}>{label}</label>
@@ -281,7 +288,7 @@ function Field({ label, value, onChange, placeholder, type = "text", disabled = 
   );
 }
 
-function Msg({ msg }) {
+function Msg({ msg }: { msg: NonNullable<StatusMsg> }) {
   return (
     <p style={{ margin: 0, fontSize: "0.8rem", color: msg.type === "success" ? "#bbf7d0" : "#f97373", fontWeight: 600 }}>
       {msg.type === "success" ? "✓ " : "✕ "}{msg.text}
@@ -289,15 +296,15 @@ function Msg({ msg }) {
   );
 }
 
-const pageStyle        = { minHeight: "100vh", background: "radial-gradient(circle at top, #020617 0, #020617 45%, #000 100%)", padding: "32px 20px", fontFamily: "system-ui, -apple-system, sans-serif", color: "#e5e7eb" };
-const wrapStyle        = { maxWidth: "680px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "22px" };
-const backBtnStyle     = { display: "flex", alignItems: "center", gap: "6px", background: "transparent", border: "none", color: "#6b7280", cursor: "pointer", fontSize: "0.82rem", fontWeight: 500, padding: 0, width: "fit-content" };
-const pageTitleStyle   = { margin: 0, fontSize: "1.4rem", fontWeight: 700, color: "#f1f5f9" };
-const sectionStyle     = { display: "flex", flexDirection: "column", gap: "16px" };
-const sectionHeadStyle = { margin: 0, fontSize: "0.9rem", color: "#9ca3af", letterSpacing: "0.05em", textTransform: "uppercase", fontWeight: 600 };
-const avatarStyle      = { position: "relative", width: "52px", height: "52px", borderRadius: "999px", background: "rgba(37,99,235,0.2)", border: "1px solid rgba(37,99,235,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", fontWeight: 700, color: "#bfdbfe", flexShrink: 0, overflow: "hidden", cursor: "pointer" };
-const loadingStyle     = { display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", color: "#6b7280", fontSize: "0.9rem", background: "#020617" };
-const labelStyle       = { fontSize: "0.78rem", fontWeight: 600, color: "#9ca3af", letterSpacing: "0.03em" };
-const dangerBtnStyle   = { padding: "8px 16px", borderRadius: "999px", border: "1px solid rgba(249,115,115,0.4)", background: "rgba(127,29,29,0.2)", color: "#f97373", fontSize: "0.82rem", cursor: "pointer", whiteSpace: "nowrap" };
-const dangerSmallBtn   = { padding: "8px 14px", borderRadius: "999px", border: "1px solid rgba(249,115,115,0.3)", background: "transparent", color: "#f97373", fontSize: "0.78rem", cursor: "pointer" };
-const disabledSelectStyle = { background: "rgba(15,23,42,0.5)", border: "1px solid rgba(55,65,81,0.6)", borderRadius: "10px", padding: "9px 13px", fontSize: "0.82rem", color: "#374151", cursor: "not-allowed", width: "100%" };
+const pageStyle: React.CSSProperties        = { minHeight: "100vh", background: "radial-gradient(circle at top, #020617 0, #020617 45%, #000 100%)", padding: "32px 20px", fontFamily: "system-ui, -apple-system, sans-serif", color: "#e5e7eb" };
+const wrapStyle: React.CSSProperties        = { maxWidth: "680px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "22px" };
+const backBtnStyle: React.CSSProperties     = { display: "flex", alignItems: "center", gap: "6px", background: "transparent", border: "none", color: "#6b7280", cursor: "pointer", fontSize: "0.82rem", fontWeight: 500, padding: 0, width: "fit-content" };
+const pageTitleStyle: React.CSSProperties   = { margin: 0, fontSize: "1.4rem", fontWeight: 700, color: "#f1f5f9" };
+const sectionStyle: React.CSSProperties     = { display: "flex", flexDirection: "column", gap: "16px" };
+const sectionHeadStyle: React.CSSProperties = { margin: 0, fontSize: "0.9rem", color: "#9ca3af", letterSpacing: "0.05em", textTransform: "uppercase", fontWeight: 600 };
+const avatarStyle: React.CSSProperties      = { position: "relative", width: "52px", height: "52px", borderRadius: "999px", background: "rgba(37,99,235,0.2)", border: "1px solid rgba(37,99,235,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", fontWeight: 700, color: "#bfdbfe", flexShrink: 0, overflow: "hidden", cursor: "pointer" };
+const loadingStyle: React.CSSProperties     = { display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", color: "#6b7280", fontSize: "0.9rem", background: "#020617" };
+const labelStyle: React.CSSProperties       = { fontSize: "0.78rem", fontWeight: 600, color: "#9ca3af", letterSpacing: "0.03em" };
+const dangerBtnStyle: React.CSSProperties   = { padding: "8px 16px", borderRadius: "999px", border: "1px solid rgba(249,115,115,0.4)", background: "rgba(127,29,29,0.2)", color: "#f97373", fontSize: "0.82rem", cursor: "pointer", whiteSpace: "nowrap" };
+const dangerSmallBtn: React.CSSProperties   = { padding: "8px 14px", borderRadius: "999px", border: "1px solid rgba(249,115,115,0.3)", background: "transparent", color: "#f97373", fontSize: "0.78rem", cursor: "pointer" };
+const disabledSelectStyle: React.CSSProperties = { background: "rgba(15,23,42,0.5)", border: "1px solid rgba(55,65,81,0.6)", borderRadius: "10px", padding: "9px 13px", fontSize: "0.82rem", color: "#374151", cursor: "not-allowed", width: "100%" };

@@ -5,11 +5,13 @@ import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
 import * as signalR from "@microsoft/signalr";
+import { errorMessage } from "@/lib/types";
+import type { Workspace } from "@/lib/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Annotation = {
   id: string; userId: string; fileType: string; content: string;
-  position?: any; createdAt: string; resolvedAt?: string;
+  position?: string | null; createdAt: string; resolvedAt?: string;
   parentId?: string; authorName?: string; authorEmail?: string;
   replies: Annotation[];
 };
@@ -121,7 +123,7 @@ export default function WorkspacePage() {
   const wsId    = params.id as string;
   const { token, user, isLoading } = useAuth();
 
-  const [workspace,    setWorkspace]    = useState<any>(null);
+  const [workspace,    setWorkspace]    = useState<Workspace | null>(null);
   const [activeKey,    setActiveKey]    = useState<string | null>(null);
   const [annotations,  setAnnotations]  = useState<Annotation[]>([]);
   const [presence,     setPresence]     = useState<Presence[]>([]);
@@ -161,7 +163,7 @@ export default function WorkspacePage() {
       })
       .catch(e => {
         if (cancelled) return;
-        setError(e.message);
+        setError(errorMessage(e));
         setLoading(false);
       });
 
@@ -290,7 +292,7 @@ export default function WorkspacePage() {
       const a = Object.assign(document.createElement("a"),
         { href: url, download: fileName, target: "_blank" });
       a.click();
-    } catch (e: any) { alert(e.message); }
+    } catch (e) { alert(errorMessage(e)); }
   };
 
   // ── Annotation actions ────────────────────────────────────────────────────
@@ -313,7 +315,7 @@ export default function WorkspacePage() {
       setNewComment("");
       setReplyTo(null);
       hubRef.current?.invoke("BroadcastAnnotation", wsId, ann).catch(() => {});
-    } catch (e: any) { setError(e.message); }
+    } catch (e) { setError(errorMessage(e)); }
   };
 
   const handleResolve = async (annId: string) => {
@@ -322,7 +324,7 @@ export default function WorkspacePage() {
       await BackendAPI.resolveAnnotation(token, wsId, annId);
       setAnnotations(prev => markResolved(prev, annId));
       hubRef.current?.invoke("BroadcastAnnotationResolved", wsId, annId).catch(() => {});
-    } catch (e: any) { setError(e.message); }
+    } catch (e) { setError(errorMessage(e)); }
   };
 
   const handleDeleteAnnotation = async (annId: string) => {
@@ -331,7 +333,7 @@ export default function WorkspacePage() {
       await BackendAPI.deleteAnnotation(token, wsId, annId);
       setAnnotations(prev => removeAnnotation(prev, annId));
       hubRef.current?.invoke("BroadcastAnnotationDeleted", wsId, annId).catch(() => {});
-    } catch (e: any) { setError(e.message); }
+    } catch (e) { setError(errorMessage(e)); }
   };
 
   // Editing was reachable from neither the UI nor the API layer, even though
@@ -350,7 +352,7 @@ export default function WorkspacePage() {
       hubRef.current?.invoke("BroadcastAnnotationEdit", wsId, updated).catch(() => {});
       setEditingId(null);
       setEditDraft("");
-    } catch (e: any) { setError(e.message); }
+    } catch (e) { setError(errorMessage(e)); }
   };
 
   // ── Filter annotations for active file ───────────────────────────────────

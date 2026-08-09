@@ -1,9 +1,9 @@
-// @ts-nocheck
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSettings } from "@/app/contexts/SettingsContext";
+import type { Lang } from "@/app/contexts/SettingsContext";
 
 // ─── Translations ─────────────────────────────────────────────────────────────
 const T = {
@@ -45,7 +45,7 @@ const T = {
   },
 };
 
-const LANGUAGES = [
+const LANGUAGES: { code: Lang; label: string; flag: string }[] = [
   { code: "en", label: "English", flag: "🇬🇧" },
   { code: "fr", label: "Français", flag: "🇫🇷" },
   { code: "fa", label: "فارسی", flag: "🇮🇷" },
@@ -55,7 +55,9 @@ const LANGUAGES = [
 
 export default function SettingsPage() {
   const router = useRouter();
-  const saveTimerRef = useRef(null);
+  // useRef(null) infers `null`, so assigning a timer handle to .current is a
+  // type error. Typed explicitly rather than suppressed.
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // ── lang + brightness come from the shared session context ─────────────────
   // Changes here instantly apply everywhere (landing page, dashboard, etc.)
@@ -91,8 +93,8 @@ export default function SettingsPage() {
     saveTimerRef.current = setTimeout(() => setSavedFlash(false), 1800);
   }
 
-  function setLang(l: string) {
-    ctxSetLang(l as any);  // context persists to sessionStorage + applies dir
+  function setLang(l: Lang) {
+    ctxSetLang(l);  // context persists to sessionStorage + applies dir
     flashSaved();
   }
 

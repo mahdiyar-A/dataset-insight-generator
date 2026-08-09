@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/app/contexts/AuthContext';
 import './register.css';
+import { errorMessage } from "@/lib/types";
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 const isNameOk     = (v: string) => /^[A-Za-z]{1,30}$/.test(v.trim());
@@ -43,8 +44,8 @@ export default function RegisterPage() {
       } else {
         router.push('/dashboard');
       }
-    } catch (err: any) {
-      setError(err?.message || 'Registration failed');
+    } catch (err) {
+      setError(errorMessage(err) || 'Registration failed');
     } finally {
       setLoading(false);
     }

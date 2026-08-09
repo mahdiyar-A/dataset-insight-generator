@@ -92,6 +92,20 @@ const T = {
   },
 };
 
+/**
+ * `guestSessionId = null` alone infers `null`, so the guest dashboard passing a
+ * real session id failed the production type check.
+ *
+ * @param {{
+ *   dataset?: import("@/lib/types").Analysis | import("@/lib/types").UploadedFileMeta | null,
+ *   reportReady?: boolean,
+ *   onViewReport?: () => void,
+ *   onAnalysisStarted?: (analysisId: string) => void,
+ *   guestMode?: boolean,
+ *   guestSessionId?: string | null,
+ *   plan?: string,
+ * }} props
+ */
 export default function AnalysisAssistantCard({
   dataset, reportReady, onViewReport, onAnalysisStarted,
   guestMode = false, guestSessionId = null,

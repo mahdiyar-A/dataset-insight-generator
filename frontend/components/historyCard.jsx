@@ -79,6 +79,19 @@ function fmtDate(iso) {
  *   onDeleted    — (analysisId) → void  called after a delete succeeds
  *   onUpgrade    — () → void  called when user clicks the upgrade hint
  */
+/**
+ * `history = []` alone infers `never[]`, so passing a real Analysis[] from the
+ * dashboard failed the production type check.
+ *
+ * @param {{
+ *   history?: import("@/lib/types").Analysis[],
+ *   activeId?: string,
+ *   plan?: string,
+ *   onLoad?: (item: import("@/lib/types").Analysis) => void,
+ *   onDeleted?: (id: string) => void,
+ *   onUpgrade?: () => void,
+ * }} props
+ */
 export default function HistoryCard({
   history = [],
   activeId,

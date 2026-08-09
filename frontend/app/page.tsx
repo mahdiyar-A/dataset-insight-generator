@@ -222,7 +222,7 @@ export default function HomePage() {
           }}>
             {/* Lang buttons */}
             {LANGS.map(l => (
-              <button key={l.code} onClick={() => setLang(l.code as any)} title={l.label} style={{
+              <button key={l.code} onClick={() => setLang(l.code)} title={l.label} style={{
                 display: 'flex', alignItems: 'center', gap: '3px',
                 padding: '3px 8px', borderRadius: '8px', border: 'none', cursor: 'pointer',
                 fontSize: '0.72rem', fontWeight: lang === l.code ? 700 : 400,

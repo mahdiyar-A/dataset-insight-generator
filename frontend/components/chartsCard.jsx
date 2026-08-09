@@ -220,6 +220,16 @@ function ZoomModal({ chart, imgSrc, onClose, escClose }) {
 }
 
 /* ── Main component ────────────────────────────────────────────────────────── */
+/**
+ * `charts: guestCharts = null` alone infers `null`, so the guest dashboard
+ * passing a real ChartMeta[] failed the production type check.
+ *
+ * @param {{
+ *   dataset?: import("@/lib/types").Analysis | import("@/lib/types").UploadedFileMeta | null,
+ *   charts?: import("@/lib/types").ChartMeta[] | null,
+ *   reportReady?: boolean,
+ * }} props
+ */
 export default function ChartsCard({ dataset, charts: guestCharts = null, reportReady: guestReportReady = false }) {
   const { token } = useAuth();
   const { lang } = useSettings();

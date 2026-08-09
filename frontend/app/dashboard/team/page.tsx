@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
+import { errorMessage } from "@/lib/types";
 
 type Team   = { id: string; name: string; ownerId: string; inviteCode: string; isOwner: boolean };
 type Member = { userId: string; role: string; userName?: string; email?: string; plan?: string };
@@ -24,7 +25,7 @@ export default function TeamPage() {
   const [inviteRole,  setInviteRole]  = useState("viewer");
   const [tab,        setTab]        = useState<"members" | "invites">("members");
 
-  const isPro = (user as any)?.plan === "pro" || (user as any)?.plan === "admin";
+  const isPro = user?.plan === "pro" || user?.plan === "admin";
 
   const loadTeams = useCallback(async () => {
     if (!token) return;
@@ -32,7 +33,7 @@ export default function TeamPage() {
       const data = await BackendAPI.getMyTeams(token);
       setTeams(data);
       if (data.length > 0 && !activeTeam) setActiveTeam(data[0]);
-    } catch (e: any) { setError(e.message); }
+    } catch (e) { setError(errorMessage(e)); }
   }, [token]);
 
   const loadTeamDetail = useCallback(async (team: Team) => {
@@ -44,7 +45,7 @@ export default function TeamPage() {
       ]);
       setMembers(m);
       setInvites(i);
-    } catch (e: any) { setError(e.message); }
+    } catch (e) { setError(errorMessage(e)); }
   }, [token]);
 
   useEffect(() => {
@@ -64,7 +65,7 @@ export default function TeamPage() {
       setNewTeamName("");
       await loadTeams();
       setActiveTeam(team);
-    } catch (e: any) { setError(e.message); }
+    } catch (e) { setError(errorMessage(e)); }
     finally { setBusy(false); }
   };
 
@@ -75,7 +76,7 @@ export default function TeamPage() {
       await BackendAPI.inviteMember(token, activeTeam.id, inviteEmail.trim(), inviteRole);
       setInviteEmail("");
       await loadTeamDetail(activeTeam);
-    } catch (e: any) { setError(e.message); }
+    } catch (e) { setError(errorMessage(e)); }
     finally { setBusy(false); }
   };
 
@@ -85,7 +86,7 @@ export default function TeamPage() {
     try {
       await BackendAPI.removeMember(token, activeTeam.id, memberId);
       await loadTeamDetail(activeTeam);
-    } catch (e: any) { setError(e.message); }
+    } catch (e) { setError(errorMessage(e)); }
   };
 
   const handleRevokeInvite = async (inviteId: string) => {
@@ -93,7 +94,7 @@ export default function TeamPage() {
     try {
       await BackendAPI.revokeInvite(token, activeTeam.id, inviteId);
       await loadTeamDetail(activeTeam);
-    } catch (e: any) { setError(e.message); }
+    } catch (e) { setError(errorMessage(e)); }
   };
 
   const handleDeleteTeam = async () => {
@@ -103,7 +104,7 @@ export default function TeamPage() {
       await BackendAPI.deleteTeam(token, activeTeam.id);
       setActiveTeam(null);
       await loadTeams();
-    } catch (e: any) { setError(e.message); }
+    } catch (e) { setError(errorMessage(e)); }
   };
 
   if (isLoading || !token) return null;

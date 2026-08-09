@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/app/contexts/AuthContext';
 import './login.css';
+import { errorMessage } from "@/lib/types";
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
@@ -26,12 +27,12 @@ export default function LoginPage() {
     try {
       await login(email.trim(), password);
       router.push('/dashboard');
-    } catch (err: any) {
+    } catch (err) {
       // Supabase returns "Email not confirmed" if user hasn't verified
-      if (err?.message?.includes('Email not confirmed')) {
+      if (errorMessage(err)?.includes('Email not confirmed')) {
         setError('Please verify your email before logging in. Check your inbox.');
       } else {
-        setError(err?.message || 'Login failed');
+        setError(errorMessage(err) || 'Login failed');
       }
     } finally {
       setLoading(false);

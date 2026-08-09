@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { errorMessage } from "@/lib/types";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -31,8 +32,8 @@ export default function ResetPasswordPage() {
       if (error) throw error;
       setSuccess(true);
       setTimeout(() => router.push('/login'), 3000);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to reset password.');
+    } catch (err) {
+      setError(errorMessage(err) || 'Failed to reset password.');
     } finally {
       setLoading(false);
     }

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
+import { errorMessage } from "@/lib/types";
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
@@ -22,8 +23,8 @@ export default function ForgotPasswordPage() {
     try {
       await resetPassword(email.trim());
       setSent(true);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to send reset email.');
+    } catch (err) {
+      setError(errorMessage(err) || 'Failed to send reset email.');
     } finally {
       setLoading(false);
     }

@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
+import { errorMessage } from "@/lib/types";
+import type { UserPlan } from "@/lib/types";
 
 // ── Static plan definitions (mirrors PlansController) ──────────────────────────
 const PLANS = [
@@ -56,7 +58,7 @@ const PLANS = [
 export default function PlansPage() {
   const router                    = useRouter();
   const { token, user, isLoading } = useAuth();
-  const [userPlan, setUserPlan]    = useState<any>(null);
+  const [userPlan, setUserPlan]    = useState<UserPlan | null>(null);
   const [loading,  setLoading]     = useState(false);
   const [error,    setError]       = useState("");
 
@@ -75,8 +77,8 @@ export default function PlansPage() {
     try {
       const { url } = await BackendAPI.subscribePro(token);
       window.location.href = url; // Redirect to Stripe Checkout
-    } catch (e: any) {
-      setError(e.message || "Something went wrong. Please try again.");
+    } catch (e) {
+      setError(errorMessage(e) || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -88,8 +90,8 @@ export default function PlansPage() {
     try {
       const { url } = await BackendAPI.openBillingPortal(token);
       window.location.href = url; // Stripe Billing Portal
-    } catch (e: any) {
-      setError(e.message || "Could not open billing portal.");
+    } catch (e) {
+      setError(errorMessage(e) || "Could not open billing portal.");
     } finally {
       setLoading(false);
     }

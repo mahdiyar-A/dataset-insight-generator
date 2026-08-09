@@ -4,6 +4,8 @@ import React, { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
+import { errorMessage } from "@/lib/types";
+import type { UserPlan } from "@/lib/types";
 
 /**
  * useSearchParams() opts the component out of static prerendering, and Next
@@ -26,7 +28,7 @@ function PlanManagementContent() {
   const router       = useRouter();
   const params       = useSearchParams();
   const { token, user, refreshUser, isLoading } = useAuth();
-  const [planData,  setPlanData]  = useState<any>(null);
+  const [planData,  setPlanData]  = useState<UserPlan | null>(null);
   const [loading,   setLoading]   = useState(false);
   const [message,   setMessage]   = useState(
     params.get("upgraded") === "1" ? "🎉 Welcome to Pro! Your plan has been activated." : ""
@@ -48,8 +50,8 @@ function PlanManagementContent() {
     try {
       const { url } = await BackendAPI.openBillingPortal(token);
       window.location.href = url;
-    } catch (e: any) {
-      setMessage(e.message || "Could not open billing portal.");
+    } catch (e) {
+      setMessage(errorMessage(e) || "Could not open billing portal.");
     } finally {
       setLoading(false);
     }

@@ -57,6 +57,19 @@ const T = {
   },
 };
 
+/**
+ * @param {{
+ *   onUploadSuccess: (meta: import("@/lib/types").UploadedFileMeta) => void,
+ *   onUploadStart?: () => void,
+ *   resetKey: number,
+ *   guestMode?: boolean,
+ *   guestSessionId?: string | null,
+ * }} props
+ *
+ * onUploadStart is optional — it is called with `?.()` and the authenticated
+ * dashboard does not supply it. Typing it as required made the dashboard fail
+ * the production type check.
+ */
 export default function UploadCard({ onUploadSuccess, onUploadStart, resetKey, guestMode = false, guestSessionId = null }) {
   const { token } = useAuth();
   const { lang } = useSettings();
