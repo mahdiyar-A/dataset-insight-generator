@@ -1,7 +1,7 @@
 # DIG — Project Status
 
 **Branch:** `feature/workspace-collab`
-**Last updated:** 2026-08-06
+**Last updated:** 2026-08-09
 
 ---
 
@@ -11,9 +11,10 @@
 |---|---|---|
 | C# — unit, integration, edge cases | 133 | `dotnet test backend.Tests/backend.Tests.csproj` |
 | Python — data-cleaning convergence | 37 | `cd ai_service && pytest tests/` |
-| Frontend — production build + lint | — | `cd frontend && npm run build && npm run lint` |
+| Frontend — Vitest | 46 | `cd frontend && npm test` |
+| Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
 
-All green. Lint reports 0 errors, 101 warnings (tracked debt, see below).
+All green. **216 automated tests.** `tsc --noEmit` clean, eslint 0 errors.
 
 ---
 
@@ -135,20 +136,24 @@ The test suites replace Supabase, Stripe, SMTP and the Python service with in-me
 
 ## Not done — tracked debt
 
-- **`@ts-nocheck` in six `.tsx` files** (`dashboard`, `guestDashboard`, `settings`, `editProfile`, `profileView`, `SettingsContext`). Removing them surfaces real type errors that need fixing file by file. Lint reports these as warnings; promote `@typescript-eslint/ban-ts-comment` back to `error` once cleared.
-- **`any` in API response handling.** Promote `@typescript-eslint/no-explicit-any` to `error` once the response shapes in `lib/BackendAPI.js` are typed.
-- **`react-hooks/exhaustive-deps` warnings.** Existing usages are deliberate (animation phase transitions, derived state from async loads) but each should be reviewed.
-- **No frontend test suite.** The frontend is covered only by lint and a type-checking build. Component and interaction tests would be the next meaningful coverage gain.
-- **File previews.** The workspace centre panel describes each file and offers a download rather than rendering it inline. Inline PDF and CSV preview is the natural next feature.
-- **Stray directory** `ai_service/ai_engine/{core,quality,prompt,llm,charts,pdf,models}` — created by a shell brace-expansion that did not expand. Contains only an empty `__init__.py`. Delete manually; the sandbox blocks recursive removal.
-
----
+- **`react-hooks/exhaustive-deps` warnings (56).** Existing usages are
+  deliberate — animation phase transitions and derived state from async loads —
+  but each should be reviewed. Not blocking: lint passes with 0 errors.
+- **No component/interaction tests.** The Vitest suite covers pure logic
+  (annotation tree, error handling, request building). Rendering tests over the
+  upload flow and chat card would be the next coverage gain.
+- **File previews.** The workspace centre panel describes each file and offers a
+  download rather than rendering it inline. See FUTURE_EXPANSION.md.
+- **Guest endpoint has no rate limit.** It runs the full pipeline with no
+  account and no quota.
 
 ## Next up
 
 1. Merge `feature/workspace-collab` into `main` and let CI run.
 2. Enable branch protection on the `CI` check.
 3. Provision AWS and redeploy.
-4. Clear the `@ts-nocheck` files one at a time, promoting the lint rule when done.
-5. Add a frontend test suite.
-6. Inline file previews in the workspace.
+4. History tape — cheapest high-visibility win, no backend work needed.
+5. Format choice after analysis rather than before.
+6. Cost-per-analysis tracking, before scaling rather than after.
+
+See FUTURE_EXPANSION.md for the full inventory and designs.
