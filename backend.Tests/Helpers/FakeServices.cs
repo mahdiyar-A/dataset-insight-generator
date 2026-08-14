@@ -117,6 +117,24 @@ public class FakeAnalysisRepository : IAnalysisRepository
             return Task.FromResult(count);
         }
     }
+
+    public Task<List<Analysis>> GetOverflowAsync(Guid userId, int keep)
+    {
+        lock (_lock)
+        {
+            if (keep < 0) keep = 0;
+
+            // Ordering deliberately mirrors GetHistoryAsync. If the two ever
+            // diverged, pruning would delete rows the user can still see.
+            var overflow = _store
+                .Where(a => a.UserId == userId && a.Status == "done")
+                .OrderByDescending(a => a.CreatedAt)
+                .Skip(keep)
+                .ToList();
+
+            return Task.FromResult(overflow);
+        }
+    }
 }
 
 /// <summary>
@@ -202,29 +220,71 @@ public class FakeUserRepository : IUserRepository
 /// </summary>
 public class FakeStorageService : IStorageService
 {
+    private static string Dir(Guid userId, Guid analysisId) =>
+        $"users/{userId}/analyses/{analysisId}";
+
+    /// <summary>
+    /// Every path written, in order. Lets a test assert that two analyses wrote
+    /// to different locations — the exact property that was broken when the PDF,
+    /// CSVs and charts all shared users/{userId}/report.pdf and friends.
+    /// </summary>
+    public List<string> WrittenPaths { get; } = new();
+
+    private Task<string> Record(string path)
+    {
+        WrittenPaths.Add(path);
+        Files[path] = Array.Empty<byte>();
+        return Task.FromResult(path);
+    }
+
     public Task<string> SaveProfilePictureAsync(Guid userId, IFormFile file) =>
-        Task.FromResult($"users/{userId}/profile.jpg");
+        Record($"users/{userId}/profile.jpg");
 
-    public Task<string> SaveOriginalCsvAsync(Guid userId, IFormFile file) =>
-        Task.FromResult($"users/{userId}/original.csv");
+    public Task<string> SaveOriginalCsvAsync(Guid userId, Guid analysisId, IFormFile file) =>
+        Record($"{Dir(userId, analysisId)}/original.csv");
 
-    public Task<string> SaveCleanedCsvAsync(Guid userId, byte[] csvBytes, string fileName = "cleaned.csv") =>
-        Task.FromResult($"users/{userId}/{fileName}");
+    public Task<string> SaveOriginalCsvAsync(Guid userId, Guid analysisId, byte[] csvBytes) =>
+        Record($"{Dir(userId, analysisId)}/original.csv");
 
-    public Task<string> SavePdfReportAsync(Guid userId, byte[] pdfBytes) =>
-        Task.FromResult($"users/{userId}/report.pdf");
+    public Task<string> SaveCleanedCsvAsync(Guid userId, Guid analysisId, byte[] csvBytes) =>
+        Record($"{Dir(userId, analysisId)}/cleaned.csv");
+
+    public Task<string> SavePdfReportAsync(Guid userId, Guid analysisId, byte[] pdfBytes) =>
+        Record($"{Dir(userId, analysisId)}/report.pdf");
 
     public Task<string> SaveWordReportAsync(Guid userId, Guid analysisId, byte[] docxBytes) =>
-        Task.FromResult($"users/{userId}/analyses/{analysisId}/report.docx");
+        Record($"{Dir(userId, analysisId)}/report.docx");
 
     public Task<string> SavePptxReportAsync(Guid userId, Guid analysisId, byte[] pptxBytes) =>
-        Task.FromResult($"users/{userId}/analyses/{analysisId}/report.pptx");
+        Record($"{Dir(userId, analysisId)}/report.pptx");
 
-    public Task<string> SaveChartAsync(Guid userId, int index, byte[] pngBytes) =>
-        Task.FromResult($"users/{userId}/chart_{index}.png");
+    public Task<string> SaveChartAsync(Guid userId, Guid analysisId, int index, byte[] pngBytes) =>
+        Record($"{Dir(userId, analysisId)}/chart_{index}.png");
 
-    public Task DeleteAnalysisFilesAsync(Guid userId, Guid analysisId) => Task.CompletedTask;
-    public Task DeleteUserFilesAsync(Guid userId) => Task.CompletedTask;
+    /// <summary>Analysis ids passed to DeleteAnalysisFilesAsync, in order.</summary>
+    public List<Guid> DeletedAnalyses { get; } = new();
+
+    public Task DeleteAnalysisFilesAsync(Guid userId, Guid analysisId)
+    {
+        DeletedAnalyses.Add(analysisId);
+
+        // Remove only this analysis's directory. Modelling it as a prefix match
+        // is what lets a test catch the old behaviour, where deleting one
+        // analysis removed files belonging to every other one.
+        var prefix = Dir(userId, analysisId) + "/";
+        foreach (var key in Files.Keys.Where(k => k.StartsWith(prefix)).ToList())
+            Files.Remove(key);
+
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteUserFilesAsync(Guid userId)
+    {
+        var prefix = $"users/{userId}/";
+        foreach (var key in Files.Keys.Where(k => k.StartsWith(prefix)).ToList())
+            Files.Remove(key);
+        return Task.CompletedTask;
+    }
 
     public Task<string> GetSignedUrlAsync(string storagePath, int expiresInSeconds = 3600) =>
         Task.FromResult($"https://fake-storage.example.com/{storagePath}?expires={expiresInSeconds}");
@@ -279,6 +339,9 @@ public class FakePythonAiClient : IPythonAiClient
     /// <summary>Base64 CSV returned as the cleaned output. Null = no cleaning performed.</summary>
     public string? CleanedCsvBase64 { get; set; }
 
+    /// <summary>How many charts the fake pipeline returns. Default 0.</summary>
+    public int ChartCount { get; set; } = 0;
+
     public Task<string> CheckQualityAsync(byte[] csvBytes, string fileName, Guid sessionId)
     {
         var json = $"{{\"condition\":\"{CheckCondition}\",\"error\":null}}";
@@ -293,6 +356,11 @@ public class FakePythonAiClient : IPythonAiClient
             throw new TaskCanceledException("Simulated timeout");
 
         var cleanedCsv = CleanedCsvBase64 is null ? "null" : $"\"{CleanedCsvBase64}\"";
+
+        var charts = string.Join(",", Enumerable.Range(0, ChartCount).Select(i =>
+            "{\"type\":\"bar\",\"label\":\"Chart " + i +
+            "\",\"desc\":\"d\",\"color\":\"#fff\",\"image_base64\":\"AAAA\"}"));
+
         return Task.FromResult($$"""
         {
           "status": "done",
@@ -300,7 +368,7 @@ public class FakePythonAiClient : IPythonAiClient
           "cleaned_csv_base64": {{cleanedCsv}},
           "word_report_base64": null,
           "pptx_report_base64": null,
-          "charts": [],
+          "charts": [{{charts}}],
           "confidence_score": 8,
           "error": null
         }

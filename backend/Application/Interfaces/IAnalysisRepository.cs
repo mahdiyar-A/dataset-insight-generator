@@ -31,4 +31,13 @@ public interface IAnalysisRepository
 
     // Count how many completed analyses a user has
     Task<int> CountDoneAsync(Guid userId);
+
+    /// <summary>
+    /// Completed analyses beyond the user's plan limit, oldest first.
+    ///
+    /// The limit was previously applied only when reading history, so a free
+    /// user saw five entries while every run they had ever made stayed in the
+    /// database with its files in storage. Nothing ever removed them.
+    /// </summary>
+    Task<List<Analysis>> GetOverflowAsync(Guid userId, int keep);
 }

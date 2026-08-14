@@ -2,102 +2,155 @@ using backend.Application.Interfaces;
 
 namespace backend.Infrastructure.Storage;
 
+/// <summary>
+/// Supabase Storage implementation of <see cref="IStorageService"/>.
+/// See the interface for the path layout and why every analysis output is keyed
+/// by analysisId.
+/// </summary>
 public class SupabaseStorageService : IStorageService
 {
     private readonly Supabase.Client _client;
     private readonly string _bucket;
-    private readonly string _supabaseUrl;
 
     public SupabaseStorageService(Supabase.Client client, IConfiguration config)
     {
         _client = client;
         _bucket = config["Supabase:BucketName"] ?? "dig-files";
-        _supabaseUrl = (config["Supabase:Url"] ?? "").TrimEnd('/');
     }
+
+    // ── Path construction ────────────────────────────────────────────────────
+    // Single source of truth. Nothing outside this class builds a storage path.
+
+    private static string AnalysisDir(Guid userId, Guid analysisId) =>
+        $"users/{userId}/analyses/{analysisId}";
+
+    /// <summary>Chart slots we generate. Used to enumerate files for deletion.</summary>
+    private const int MaxCharts = 5;
+
+    // ── Account-level files ──────────────────────────────────────────────────
 
     public async Task<string> SaveProfilePictureAsync(Guid userId, IFormFile file)
     {
         ValidateImage(file);
-        var ext  = Path.GetExtension(file.FileName).ToLowerInvariant();
-        var path = $"users/{userId}/profile{ext}";
-        return await UploadAsync(file, path);
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        return await UploadAsync(file, $"users/{userId}/profile{ext}");
     }
 
-    public async Task<string> SaveOriginalCsvAsync(Guid userId, IFormFile file)
+    // ── Analysis outputs ─────────────────────────────────────────────────────
+
+    public async Task<string> SaveOriginalCsvAsync(Guid userId, Guid analysisId, IFormFile file)
     {
         ValidateCsv(file);
-        return await UploadAsync(file, $"users/{userId}/original.csv");
+        return await UploadAsync(file, $"{AnalysisDir(userId, analysisId)}/original.csv");
     }
 
+    public async Task<string> SaveOriginalCsvAsync(Guid userId, Guid analysisId, byte[] csvBytes)
+        => await UploadBytesAsync(csvBytes,
+            $"{AnalysisDir(userId, analysisId)}/original.csv", "text/csv");
+
+    public async Task<string> SaveCleanedCsvAsync(Guid userId, Guid analysisId, byte[] csvBytes)
+        => await UploadBytesAsync(csvBytes,
+            $"{AnalysisDir(userId, analysisId)}/cleaned.csv", "text/csv");
+
+    public async Task<string> SavePdfReportAsync(Guid userId, Guid analysisId, byte[] pdfBytes)
+        // Supabase rejects application/pdf on upload — octet-stream is accepted
+        // and the download still opens correctly because the file name carries
+        // the extension.
+        => await UploadBytesAsync(pdfBytes,
+            $"{AnalysisDir(userId, analysisId)}/report.pdf", "application/octet-stream");
+
     public async Task<string> SaveWordReportAsync(Guid userId, Guid analysisId, byte[] docxBytes)
-        => await UploadBytesAsync(docxBytes, $"users/{userId}/analyses/{analysisId}/report.docx",
+        => await UploadBytesAsync(docxBytes, $"{AnalysisDir(userId, analysisId)}/report.docx",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
 
     public async Task<string> SavePptxReportAsync(Guid userId, Guid analysisId, byte[] pptxBytes)
-        => await UploadBytesAsync(pptxBytes, $"users/{userId}/analyses/{analysisId}/report.pptx",
+        => await UploadBytesAsync(pptxBytes, $"{AnalysisDir(userId, analysisId)}/report.pptx",
             "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+
+    public async Task<string> SaveChartAsync(Guid userId, Guid analysisId, int index, byte[] pngBytes)
+        => await UploadBytesAsync(pngBytes,
+            $"{AnalysisDir(userId, analysisId)}/chart_{index}.png", "image/png");
+
+    // ── Deletion ─────────────────────────────────────────────────────────────
 
     public async Task DeleteAnalysisFilesAsync(Guid userId, Guid analysisId)
     {
-        // Analysis files are stored under users/{userId}/ — same paths used by SaveX methods.
-        // We delete the known file names; unknown extras (e.g. extra charts) are cleaned up
-        // by DeleteUserFilesAsync when the account is deleted.
+        // Scoped to this analysis's directory. The previous version listed
+        // users/{userId}/report.pdf and friends, so deleting one analysis wiped
+        // the PDF, CSVs and charts shared by every other analysis the user had.
+        var dir = AnalysisDir(userId, analysisId);
+        var paths = new List<string>
+        {
+            $"{dir}/original.csv",
+            $"{dir}/cleaned.csv",
+            $"{dir}/report.pdf",
+            $"{dir}/report.docx",
+            $"{dir}/report.pptx",
+        };
+        for (var i = 0; i < MaxCharts; i++) paths.Add($"{dir}/chart_{i}.png");
+
         try
         {
-            var paths = new List<string>
-            {
-                $"users/{userId}/original.csv",
-                $"users/{userId}/cleaned.csv",
-                $"users/{userId}/report.pdf",
-                $"users/{userId}/report.docx",
-                $"users/{userId}/report.pptx",
-                $"users/{userId}/chart_0.png",
-                $"users/{userId}/chart_1.png",
-                $"users/{userId}/chart_2.png",
-                $"users/{userId}/chart_3.png",
-                $"users/{userId}/chart_4.png",
-            };
             await _client.Storage.From(_bucket).Remove(paths);
         }
         catch (Exception ex)
         {
-            // Log but don't throw — DB delete should still proceed
+            // Never throw: the database row must still be deleted even if
+            // storage cleanup fails, otherwise the user sees a history entry
+            // they cannot remove.
             Console.WriteLine($"[Storage] DeleteAnalysisFilesAsync warning: {ex.Message}");
         }
     }
 
-    public async Task<string> SaveCleanedCsvAsync(Guid userId, byte[] csvBytes, string fileName = "cleaned.csv")
-        => await UploadBytesAsync(csvBytes, $"users/{userId}/{fileName}", "text/csv");
-
-    public async Task<string> SavePdfReportAsync(Guid userId, byte[] pdfBytes)
-        // FIX: Supabase does not allow application/pdf — use octet-stream
-        => await UploadBytesAsync(pdfBytes, $"users/{userId}/report.pdf", "application/octet-stream");
-
-    public async Task<string> SaveChartAsync(Guid userId, int index, byte[] pngBytes)
-        => await UploadBytesAsync(pngBytes, $"users/{userId}/chart_{index}.png", "image/png");
-
     public async Task DeleteUserFilesAsync(Guid userId)
     {
+        // Recursive: enumerate everything under the user's prefix rather than
+        // guessing file names. Account deletion must not leave orphans behind,
+        // and analyses live in per-id subdirectories now.
         try
         {
-            var paths = new List<string>
-            {
-                $"users/{userId}/original.csv",
-                $"users/{userId}/cleaned.csv",
-                $"users/{userId}/report.pdf",
-                $"users/{userId}/chart_0.png",
-                $"users/{userId}/chart_1.png",
-                $"users/{userId}/chart_2.png",
-                $"users/{userId}/chart_3.png",
-                $"users/{userId}/chart_4.png",
-            };
-            await _client.Storage.From(_bucket).Remove(paths);
+            var paths = await ListAllUnderAsync($"users/{userId}");
+            if (paths.Count > 0)
+                await _client.Storage.From(_bucket).Remove(paths);
         }
-        catch { /* ignore */ }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Storage] DeleteUserFilesAsync warning: {ex.Message}");
+        }
     }
 
-    // FIX: expects a relative storage path like "users/{userId}/report.pdf"
-    // NOT a full URL — callers must pass the path returned by Save* methods trimmed to relative
+    /// <summary>
+    /// Every object path under a prefix, walking one level of subdirectories.
+    /// Supabase's List is not recursive — an entry with no id is a folder.
+    /// </summary>
+    private async Task<List<string>> ListAllUnderAsync(string prefix)
+    {
+        var found = new List<string>();
+
+        var entries = await _client.Storage.From(_bucket).List(prefix);
+        foreach (var entry in entries ?? new())
+        {
+            if (string.IsNullOrEmpty(entry.Name)) continue;
+
+            if (entry.Id == null)
+            {
+                // Folder — recurse one level. The layout is at most
+                // users/{id}/analyses/{id}/file, so this terminates.
+                found.AddRange(await ListAllUnderAsync($"{prefix}/{entry.Name}"));
+            }
+            else
+            {
+                found.Add($"{prefix}/{entry.Name}");
+            }
+        }
+
+        return found;
+    }
+
+    // ── Reads ────────────────────────────────────────────────────────────────
+
+    // Expects a relative storage path — the value returned by a Save* method and
+    // stored on the analysis row. Passing a full URL will not resolve.
     public async Task<string> GetSignedUrlAsync(string storagePath, int expiresInSeconds = 3600)
         => await _client.Storage.From(_bucket).CreateSignedUrl(storagePath, expiresInSeconds);
 
@@ -120,6 +173,8 @@ public class SupabaseStorageService : IStorageService
         }
     }
 
+    // ── Upload helpers ───────────────────────────────────────────────────────
+
     private async Task<string> UploadAsync(IFormFile file, string storagePath)
     {
         using var ms = new MemoryStream();
@@ -131,10 +186,13 @@ public class SupabaseStorageService : IStorageService
     {
         var options = new Supabase.Storage.FileOptions { ContentType = contentType, Upsert = true };
         await _client.Storage.From(_bucket).Upload(bytes, storagePath, options);
-        // Return ONLY the relative storage path — not the full public URL
-        // Callers that need a signed URL will call GetSignedUrlAsync separately
+        // Return the relative storage path, never a public URL. The caller
+        // persists this and later passes it back to GetSignedUrlAsync, which is
+        // what keeps files written under the old flat layout resolvable.
         return storagePath;
     }
+
+    // ── Validation ───────────────────────────────────────────────────────────
 
     private static void ValidateImage(IFormFile file)
     {

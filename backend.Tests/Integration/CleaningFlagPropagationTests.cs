@@ -43,6 +43,7 @@ public class CleaningFlagPropagationTests
     private FakeAnalysisRepository _analyses = null!;
     private FakeStorageService     _storage  = null!;
     private FakePythonAiClient     _python   = null!;
+    private FakeUserRepository     _users    = null!;
     private AnalysisService        _service  = null!;
     private Guid                   _userId;
 
@@ -52,8 +53,9 @@ public class CleaningFlagPropagationTests
         _analyses = new FakeAnalysisRepository();
         _storage  = new FakeStorageService();
         _python   = new FakePythonAiClient();
+        _users    = new FakeUserRepository();
         _service  = new AnalysisService(
-            _analyses, _storage, _python,
+            _analyses, _storage, _python, _users,
             NullLogger<AnalysisService>.Instance);
 
         _userId = Guid.NewGuid();

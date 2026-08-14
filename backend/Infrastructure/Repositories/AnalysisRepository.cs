@@ -113,6 +113,22 @@ public class AnalysisRepository : IAnalysisRepository
         return result.Models.Count;
     }
 
+    public async Task<List<Analysis>> GetOverflowAsync(Guid userId, int keep)
+    {
+        if (keep < 0) keep = 0;
+
+        // Newest first, then skip what the plan entitles the user to keep.
+        // The ordering must match GetHistoryAsync — otherwise the rows deleted
+        // here would be exactly the ones the user can still see.
+        var result = await _db.From<AnalysisRow>()
+            .Filter("user_id", Operator.Equals, userId.ToString())
+            .Filter("status",  Operator.Equals, "done")
+            .Order("created_at", Ordering.Descending)
+            .Get();
+
+        return result.Models.Skip(keep).Select(ToDomain).ToList();
+    }
+
     private static Analysis ToDomain(AnalysisRow r) =>
         Analysis.Restore(
             id:            Guid.Parse(r.Id),

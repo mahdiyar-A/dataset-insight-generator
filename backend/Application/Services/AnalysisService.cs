@@ -27,6 +27,7 @@ public class AnalysisService
     private readonly IAnalysisRepository      _analyses;
     private readonly IStorageService          _storage;
     private readonly IPythonAiClient          _pythonAi;
+    private readonly IUserRepository          _users;
     private readonly ILogger<AnalysisService> _logger;
 
     // Same temp directory as DatasetsController — files land here on upload
@@ -36,11 +37,13 @@ public class AnalysisService
         IAnalysisRepository      analyses,
         IStorageService          storage,
         IPythonAiClient          pythonAi,
+        IUserRepository          users,
         ILogger<AnalysisService> logger)
     {
         _analyses = analyses;
         _storage  = storage;
         _pythonAi = pythonAi;
+        _users    = users;
         _logger   = logger;
     }
 
@@ -140,7 +143,7 @@ public class AnalysisService
             }
 
             // ── Step 5a: Save original CSV ────────────────────────────────────
-            var originalCsvPath = await _storage.SaveCleanedCsvAsync(userId, csvBytes, "original.csv");
+            var originalCsvPath = await _storage.SaveOriginalCsvAsync(userId, analysisId.Value, csvBytes);
             await _analyses.UpdateOriginalCsvPathAsync(analysisId.Value, originalCsvPath);
 
             // ── Step 5b: Save cleaned CSV (only if user requested cleaning) ────
@@ -150,7 +153,7 @@ public class AnalysisService
                 try
                 {
                     var bytes      = Convert.FromBase64String(result.CleanedCsvBase64);
-                    cleanedCsvPath = await _storage.SaveCleanedCsvAsync(userId, bytes);
+                    cleanedCsvPath = await _storage.SaveCleanedCsvAsync(userId, analysisId.Value, bytes);
                     _logger.LogInformation("[Analysis] Cleaned CSV saved");
                 }
                 catch (Exception ex)
@@ -166,7 +169,7 @@ public class AnalysisService
                 try
                 {
                     var bytes = Convert.FromBase64String(result.PdfReportBase64);
-                    pdfPath   = await _storage.SavePdfReportAsync(userId, bytes);
+                    pdfPath   = await _storage.SavePdfReportAsync(userId, analysisId.Value, bytes);
                     _logger.LogInformation("[Analysis] PDF saved: {Path}", pdfPath);
                 }
                 catch (Exception ex)
@@ -217,7 +220,7 @@ public class AnalysisService
                     if (!string.IsNullOrEmpty(chart.ImageBase64))
                     {
                         var pngBytes    = Convert.FromBase64String(chart.ImageBase64);
-                        var storagePath = await _storage.SaveChartAsync(userId, i, pngBytes);
+                        var storagePath = await _storage.SaveChartAsync(userId, analysisId.Value, i, pngBytes);
                         // 24-hour signed URL — long enough for any typical session
                         chartUrl = await _storage.GetSignedUrlAsync(storagePath, 86400);
                     }
@@ -248,6 +251,11 @@ public class AnalysisService
             // Clean up temp file now everything is safely in Supabase Storage
             File.Delete(tempPath);
             _logger.LogInformation("[Analysis] Complete for user {UserId}, analysisId={Id}", userId, analysisId);
+
+            // Enforce the plan's history limit. Runs last and swallows its own
+            // errors — a pruning failure must never fail an analysis the user
+            // has already been told succeeded.
+            await TryPruneHistoryAsync(userId);
         }
         catch (TimeoutException ex)
         {
@@ -258,6 +266,51 @@ public class AnalysisService
         {
             _logger.LogError(ex, "[Analysis] Unexpected error for user {UserId}", userId);
             if (analysisId.HasValue) await TrySetFailed(analysisId.Value);
+        }
+    }
+
+    // ── History pruning ───────────────────────────────────────────────────────
+
+    /// <summary>History slots by plan. Must match PlansController's advertised limits.</summary>
+    public static int HistoryLimitFor(string? plan) =>
+        plan is "pro" or "admin" ? 15 : 5;
+
+    /// <summary>
+    /// Delete completed analyses beyond the user's plan limit, oldest first,
+    /// together with their stored files.
+    ///
+    /// The limit used to be applied only when reading history. A free user saw
+    /// five entries while every run they had ever made stayed in the database
+    /// with a full set of files in storage — invisible, permanent, and billed.
+    ///
+    /// Files are deleted before the row so a failure part-way through leaves an
+    /// orphaned row rather than an orphaned file: the row is what the next prune
+    /// pass looks at, so the cleanup is retried. The other order would leak
+    /// storage with nothing left pointing at it.
+    /// </summary>
+    private async Task TryPruneHistoryAsync(Guid userId)
+    {
+        try
+        {
+            var user  = await _users.GetByIdAsync(userId);
+            var keep  = HistoryLimitFor(user?.Plan);
+            var stale = await _analyses.GetOverflowAsync(userId, keep);
+
+            if (stale.Count == 0) return;
+
+            foreach (var old in stale)
+            {
+                await _storage.DeleteAnalysisFilesAsync(userId, old.Id);
+                await _analyses.DeleteAsync(old.Id, userId);
+            }
+
+            _logger.LogInformation(
+                "[Analysis] Pruned {Count} analyses beyond the {Keep}-slot limit for user {UserId}",
+                stale.Count, keep, userId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Analysis] History pruning failed for user {UserId}", userId);
         }
     }
 
