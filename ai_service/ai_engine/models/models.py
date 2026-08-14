@@ -133,6 +133,11 @@ class PipelineResult:
     lowConfidenceWarning: bool = False
     confidenceScore: int = 6
 
+    # Token spend for this run. Returned so the backend can persist it and
+    # answer "what does one analysis cost us?" — previously unanswerable
+    # because the token counts in every API response were discarded.
+    usage: Optional[Dict[str, Any]] = None
+
     def to_response(self) -> dict:
         return {
             "status":                  self.status,
@@ -145,4 +150,5 @@ class PipelineResult:
             "charts":                  self.charts,
             "low_confidence_warning":  self.lowConfidenceWarning,
             "confidence_score":        self.confidenceScore,
+            "usage":                   self.usage,
         }

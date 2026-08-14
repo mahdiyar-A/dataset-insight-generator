@@ -39,7 +39,18 @@ GROQ_MODEL   = "llama-3.3-70b-versatile"
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _groq_call(messages: List[Dict], api_key: str,
-               max_tokens: int = 1200, temperature: float = 0.1) -> str:
+               max_tokens: int = 1200, temperature: float = 0.1,
+               tracker=None, phase: str = "groq") -> str:
+    """
+    Call Groq and return the message content.
+
+    `tracker` is an optional UsageTracker. Groq returns token counts in every
+    response and they were previously discarded, which is why nobody could say
+    what an analysis costs. Recording is best-effort: a telemetry failure must
+    never break an analysis.
+    """
+    import time as _time
+    _started = _time.monotonic()
     payload = json.dumps({
         "model":       GROQ_MODEL,
         "messages":    messages,
@@ -89,6 +100,18 @@ def _groq_call(messages: List[Dict], api_key: str,
             raise RuntimeError(f"Groq connection failed: {e.reason}")
     else:
         raise last_err
+
+    if tracker is not None:
+        try:
+            from ai_engine.telemetry.usage import tokens_from_groq
+            tin, tout = tokens_from_groq(raw)
+            tracker.record(
+                provider="groq", model=raw.get("model", GROQ_MODEL), phase=phase,
+                input_tokens=tin, output_tokens=tout,
+                duration_ms=int((_time.monotonic() - _started) * 1000),
+            )
+        except Exception as e:
+            print(f"[Usage] Groq accounting failed (ignored): {e}", flush=True)
 
     try:
         return raw["choices"][0]["message"]["content"]
@@ -247,7 +270,7 @@ No markdown. No text outside the JSON.
 """
 
 
-def detect_domain(df: pd.DataFrame, api_key: str) -> DomainResult:
+def detect_domain(df: pd.DataFrame, api_key: str, tracker=None) -> DomainResult:
     """Phase 1: Rich dataset intake — domain, column decisions, cleaning directives."""
     fingerprint = _build_fingerprint(df)
     prompt = _build_domain_prompt(fingerprint)
@@ -285,7 +308,8 @@ def detect_domain(df: pd.DataFrame, api_key: str) -> DomainResult:
     )
 
     try:
-        text   = _groq_call(messages, api_key, max_tokens=1500, temperature=0.1)
+        text   = _groq_call(messages, api_key, max_tokens=1500, temperature=0.1,
+                            tracker=tracker, phase="domain")
         parsed = _parse_json(text)
     except Exception as e:
         print(f"[Groq] Domain detection failed: {e} — using general fallback")
@@ -474,6 +498,7 @@ def judge_insights(
     attribute_interpretations: Dict[str, str],
     valid_columns: List[str],
     api_key: str,
+    tracker=None,
 ) -> JudgeResult:
     """Phase 6: Quality audit, corrections, confidence scoring."""
     prompt = _build_judge_prompt(
@@ -508,7 +533,8 @@ def judge_insights(
     )
 
     try:
-        text   = _groq_call(messages, api_key, max_tokens=2500, temperature=0.15)
+        text   = _groq_call(messages, api_key, max_tokens=2500, temperature=0.15,
+                            tracker=tracker, phase="judge")
         parsed = _parse_json(text)
     except Exception as e:
         print(f"[Groq] Judge call failed: {e} — using default")

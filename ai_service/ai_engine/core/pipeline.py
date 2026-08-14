@@ -162,6 +162,12 @@ def run_pipeline(
       occasion       — "general" | "academic" | "business" | "personal" | "industry"
       outputFormat   — { "pdf": bool, "word": bool, "pptx": bool }
     """
+    # Per-request usage accounting. Created here rather than module-level
+    # because FastAPI serves requests concurrently — a global would pool the
+    # token spend of two analyses running at once.
+    from ai_engine.telemetry.usage import UsageTracker
+    tracker = UsageTracker()
+
     # Parse customization with safe defaults
     cust         = customization or {}
     language     = cust.get("language",     "en")
@@ -207,7 +213,7 @@ def run_pipeline(
 
     # ── Phase 1: Groq — domain, column decisions, cleaning directives ─────
     print(f"[Pipeline] Phase 1 — Groq domain classification...", flush=True)
-    domain = _run_domain_gate(df_original, groq_api_key)
+    domain = _run_domain_gate(df_original, groq_api_key, tracker)
     print(f"[Pipeline] Domain: {domain.domain} | analyzable: {domain.is_analyzable}", flush=True)
 
     if not domain.is_analyzable:
@@ -279,6 +285,7 @@ def run_pipeline(
             chart_style=chart_style,
             include_methodology=include_methodology,
             include_confidence=include_confidence,
+            tracker=tracker,
         )
     except Exception as e:
         # This should not happen, but if it does — build fallback inline
@@ -315,6 +322,7 @@ def run_pipeline(
         domain.attribute_interpretations,
         list(df_work.columns),
         groq_api_key,
+        tracker,
     )
 
     # ── Apply judge corrections to report ─────────────────────────────────
@@ -424,6 +432,7 @@ def run_pipeline(
     low_conf_warning = final_score <= LOW_CONFIDENCE_THRESHOLD
 
     print(f"[Pipeline] Done. Status=done, condition={condition}, low_conf={low_conf_warning}", flush=True)
+    print(tracker.summary_line(), flush=True)
     return PipelineResult(
         status="done",
         condition=condition,
@@ -435,6 +444,7 @@ def run_pipeline(
         charts=charts,
         lowConfidenceWarning=low_conf_warning,
         confidenceScore=final_score,
+        usage=tracker.to_dict(),
     ).to_response()
 
 
@@ -449,7 +459,7 @@ def _fail(condition: str, error: str) -> dict:
     ).to_response()
 
 
-def _run_domain_gate(df: pd.DataFrame, groq_api_key: str) -> DomainResult:
+def _run_domain_gate(df: pd.DataFrame, groq_api_key: str, tracker=None) -> DomainResult:
     if not groq_api_key:
         print("[Pipeline] GROQ_API_KEY not set — using general domain fallback")
         numeric_cols = df.select_dtypes(include="number").columns.tolist()[:5]
@@ -476,10 +486,10 @@ def _run_domain_gate(df: pd.DataFrame, groq_api_key: str) -> DomainResult:
             cleaning_methods=["remove_empty_rows", "remove_duplicates", "remove_infinity"],
         )
     try:
-        return detect_domain(df, groq_api_key)
+        return detect_domain(df, groq_api_key, tracker)
     except Exception as e:
         print(f"[Pipeline] Domain gate error: {e} — using fallback")
-        return _run_domain_gate(df, "")   # recurse with empty key → fallback
+        return _run_domain_gate(df, "", tracker)   # recurse with empty key → fallback
 
 
 def _run_judge(
@@ -489,6 +499,7 @@ def _run_judge(
     attribute_interpretations: dict,
     valid_columns: list,
     groq_api_key: str,
+    tracker=None,
 ):
     if not groq_api_key:
         print("[Pipeline] GROQ_API_KEY not set — skipping judge")
@@ -507,11 +518,12 @@ def _run_judge(
     try:
         return judge_insights(
             report_json, stats, domain,
-            attribute_interpretations, valid_columns, groq_api_key
+            attribute_interpretations, valid_columns, groq_api_key,
+            tracker=tracker,
         )
     except Exception as e:
         print(f"[Pipeline] Judge error: {e}")
-        return _run_judge(report_json, stats, domain, attribute_interpretations, valid_columns, "")
+        return _run_judge(report_json, stats, domain, attribute_interpretations, valid_columns, "", tracker)
 
 
 def _log(stats, domain, judge, was_cleaned, user_wanted_clean,

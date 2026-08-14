@@ -24,7 +24,10 @@ from typing import List, Dict, Any, Optional
 from ai_engine.models.models import StatsSummary, LLMReport, ChartInstruction, DomainResult
 
 
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+# Model id kept separate so usage accounting can label calls without parsing
+# the URL. Both must be updated together when switching models.
+GEMINI_MODEL   = "gemini-2.5-flash"
+GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 
 CHART_COLORS = ["#3b82f6", "#a855f7", "#10b981", "#f97316", "#ec4899"]
 VALID_CHART_TYPES = {"bar", "line", "scatter", "histogram", "heatmap", "box"}
@@ -613,6 +616,7 @@ def call_gemini(
     chart_style: str = "mixed",
     include_methodology: bool = True,
     include_confidence: bool = True,
+    tracker=None,
 ) -> LLMReport:
     """
     Phase 5: Insight agent + report writer. Returns full LLMReport.
@@ -661,6 +665,7 @@ def call_gemini(
     TIMEOUT_SECS = 90             # per-attempt timeout — fail fast, use fallback
     raw = None
     last_error = None
+    _started = time.monotonic()
 
     for attempt in range(MAX_RETRIES):
         print(f"[Gemini] Calling API (attempt {attempt + 1}/{MAX_RETRIES})...", flush=True)
@@ -678,6 +683,24 @@ def call_gemini(
             with urllib.request.urlopen(req, timeout=TIMEOUT_SECS) as resp:
                 raw = json.loads(resp.read().decode("utf-8"))
             print(f"[Gemini] Response received OK", flush=True)
+
+            # Token counts arrive in usageMetadata on every response and were
+            # previously discarded. Best-effort: telemetry must never break the
+            # analysis, so any failure here is swallowed.
+            if tracker is not None:
+                try:
+                    from ai_engine.telemetry.usage import tokens_from_gemini
+                    tin, tout = tokens_from_gemini(raw)
+                    tracker.record(
+                        provider="gemini",
+                        model=raw.get("modelVersion", GEMINI_MODEL),
+                        phase="insights",
+                        input_tokens=tin, output_tokens=tout,
+                        duration_ms=int((time.monotonic() - _started) * 1000),
+                    )
+                except Exception as e:
+                    print(f"[Usage] Gemini accounting failed (ignored): {e}", flush=True)
+
             break  # success — exit retry loop
 
         except urllib.error.HTTPError as e:
