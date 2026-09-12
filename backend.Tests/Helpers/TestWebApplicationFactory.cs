@@ -33,9 +33,21 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        // ── Provide config values that Program.cs requires at startup ────────
-        // Without these, the app throws InvalidOperationException before
-        // ConfigureTestServices even runs.
+        // ── Provide config values that Program.cs reads DURING Main ──────────
+        // Program.cs reads Supabase:Url/SecretKey from builder.Configuration in
+        // the middle of Main — before the host is built. With minimal hosting,
+        // the factory's ConfigureAppConfiguration callbacks are applied too
+        // late for that read; UseSetting flows into host configuration, which
+        // WebApplicationBuilder merges in before Main's code runs.
+        //
+        // Locally this gap was invisible because backend/appsettings.json (a
+        // gitignored file with real values) filled it. CI has no such file, and
+        // every WebApplicationFactory test failed with "Missing Supabase:Url".
+        builder.UseSetting("Supabase:Url",       "https://fake-project.supabase.co");
+        builder.UseSetting("Supabase:SecretKey", "fake-secret-key");
+        builder.UseSetting("AllowedHosts",       "*");
+
+        // ── Values only read at DI time (constructors of replaced services) ──
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
