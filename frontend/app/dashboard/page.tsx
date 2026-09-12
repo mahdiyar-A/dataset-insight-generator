@@ -247,8 +247,12 @@ export default function DashboardPage() {
     try {
       await BackendAPI.deleteAnalysis(token, deletedId);
     } catch {
+      // The analysis still exists on the server. Restore the list and leave the
+      // dashboard alone — clearing the loaded analysis here would tell the user
+      // a deletion succeeded when it did not.
       const fresh = await BackendAPI.getHistory(token).catch(() => null);
       if (fresh) setHistory(fresh);
+      return;
     }
     handleHistoryDeleted(deletedId);
   }, [token, handleHistoryDeleted]);
