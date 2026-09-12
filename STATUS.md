@@ -1,7 +1,7 @@
 # DIG — Project Status
 
-**Branch:** `feature/workspace-collab`
-**Last updated:** 2026-08-09
+**Branch:** `main` (feature/workspace-collab merged 2026-09-12)
+**Last updated:** 2026-09-12
 
 ---
 
@@ -9,12 +9,37 @@
 
 | Suite | Count | Command |
 |---|---|---|
-| C# — unit, integration, edge cases | 133 | `dotnet test backend.Tests/backend.Tests.csproj` |
-| Python — data-cleaning convergence | 37 | `cd ai_service && pytest tests/` |
-| Frontend — Vitest | 46 | `cd frontend && npm test` |
+| C# — unit, integration, edge cases | 155 | `dotnet test backend.Tests/backend.Tests.csproj` |
+| Python — cleaning convergence + usage telemetry | 59 | `cd ai_service && pytest tests/` |
+| Frontend — Vitest | 62 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
 
-All green. **216 automated tests.** `tsc --noEmit` clean, eslint 0 errors.
+All green. **276 automated tests.** `tsc --noEmit` clean, eslint 0 errors.
+
+---
+
+## Shipped 2026-09-12
+
+- **History tape.** The filmstrip history pinned to the dashboard bottom
+  (FUTURE_EXPANSION §C): chart thumbnails re-signed per request, pin-to-front,
+  inline delete confirmation, EN/FR/FA, keyboard scrolling. Replaces the old
+  scrolling history card.
+- **Owner analytics.** LLM usage from the AI service is finally persisted
+  (`cost_usd`, `tokens_in/out`, `usage_json` on `analyses` — migration 002),
+  and `GET /api/admin/analytics` + an Analytics tab on the admin dashboard
+  show analyses/day, cost/day, success rate, avg cost per run, active
+  analysts, and estimated MRR. Runs without recorded cost are excluded from
+  the average rather than counted as free.
+- **CI actually runs.** The first-ever runs exposed three environment
+  assumptions that never held: the `.sln` was gitignored (and missing
+  backend.Tests), the workflow pinned Node 20 against a Node-24 lockfile, and
+  the test factory's config stubs were invisible to Program.cs's mid-Main
+  reads (masked locally by gitignored appsettings). All fixed; the backend
+  suite is verified to pass with no appsettings present, which is the CI
+  condition.
+- **UI redesign direction.** Design canvas with the "Analyst's Desk" concept
+  (editorial, paper-warm, findings-first) plus two alternate direction
+  sketches — not yet implemented in code.
 
 ---
 
@@ -127,10 +152,17 @@ The test suites replace Supabase, Stripe, SMTP and the Python service with in-me
 
 ## Not done — manual
 
-- **AWS provisioning.** Docker images build cleanly and are deployment-ready; nothing is running.
-- **Supabase project setup.** Schema, buckets and row-level security policies are managed through the Supabase console.
-- **Branch protection.** Point the required check at the `CI` job once the workflow has run at least once.
-- **Merge to `main`.** `feature/workspace-collab` is 4 commits ahead and not merged.
+- **AWS provisioning.** Docker images build cleanly and are deployment-ready;
+  nothing is running. Constraints decided 2026-09-12: strictly pay-per-usage
+  with a hard spend cap (service stopping beats overspending); note SignalR
+  needs a persistent connection, which conflicts with pure scale-to-zero.
+- **Supabase project setup.** Stays on the free tier. Schema (migrations 001
+  and 002), buckets and RLS are applied through the Supabase console. Watch
+  the 1 GB storage cap — per-analysis files add up; pruning helps but
+  retention may need tightening.
+- **Branch protection.** Point the required check at the `CI` job. The remote
+  already warns "changes must be made through a pull request" but does not
+  enforce it — align the rule with the actual workflow.
 
 ---
 
@@ -149,11 +181,10 @@ The test suites replace Supabase, Stripe, SMTP and the Python service with in-me
 
 ## Next up
 
-1. Merge `feature/workspace-collab` into `main` and let CI run.
-2. Enable branch protection on the `CI` check.
-3. Provision AWS and redeploy.
-4. History tape — cheapest high-visibility win, no backend work needed.
+1. Enable branch protection on the `CI` check.
+2. Apply migrations 001 + 002 in the Supabase console.
+3. Provision AWS under the pay-per-use + hard-cap constraints and deploy.
+4. Pick a UI direction from the design canvas and implement it.
 5. Format choice after analysis rather than before.
-6. Cost-per-analysis tracking, before scaling rather than after.
 
 See FUTURE_EXPANSION.md for the full inventory and designs.
