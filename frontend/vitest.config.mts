@@ -7,6 +7,9 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
+    // The first test in a file pays the one-time transform and first-render
+    // cost, which on a slow disk exceeds the 5s default.
+    testTimeout: 30000,
     setupFiles: ["./tests/setup.ts"],
     include: ["tests/**/*.test.{ts,tsx}"],
     // Next's build output and node_modules contain no tests and are slow to scan.

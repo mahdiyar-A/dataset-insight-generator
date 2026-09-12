@@ -8,7 +8,7 @@ import BackendAPI      from "@/lib/BackendAPI";
 import type { Analysis, AnalysisStatus, UploadedFileMeta } from "@/lib/types";
 import UploadCard      from "@/components/UploadCard";
 import AnalysisAssistantCard from "@/components/AnalysisChatCard";
-import HistoryCard     from "@/components/historyCard";
+import HistoryTape     from "@/components/HistoryTape";
 import ChartsCard      from "@/components/chartsCard";
 import DownloadsCard   from "@/components/downloadCard";
 import InfoCards       from "@/components/infoCards";
@@ -135,7 +135,6 @@ export default function DashboardPage() {
 
   const topRef      = useRef<HTMLElement | null>(null);
   const uploadRef   = useRef<HTMLElement | null>(null);
-  const historyRef  = useRef<HTMLElement | null>(null);
   const chartsRef   = useRef<HTMLElement | null>(null);
   const downloadRef = useRef<HTMLElement | null>(null);
   const helpRef     = useRef<HTMLElement | null>(null);
@@ -236,6 +235,24 @@ export default function DashboardPage() {
     }
   }, [analysis]);
 
+  // The tape owns the confirmation UI and calls this once the user confirms.
+  // The API call lives here so the tape stays presentational.
+  const handleDeleteFromTape = useCallback(async (deletedId: string) => {
+    if (!token) return;
+
+    // Optimistic: the card disappears immediately. If the request fails the
+    // history is refetched, which restores it — better than leaving the user
+    // looking at a card that will not go away.
+    setHistory(prev => prev.filter(h => h.id !== deletedId));
+    try {
+      await BackendAPI.deleteAnalysis(token, deletedId);
+    } catch {
+      const fresh = await BackendAPI.getHistory(token).catch(() => null);
+      if (fresh) setHistory(fresh);
+    }
+    handleHistoryDeleted(deletedId);
+  }, [token, handleHistoryDeleted]);
+
   // ── Clear / start new session ────────────────────────────────────────────────
   const handleNewSession = useCallback(() => {
     stopPolling();
@@ -253,7 +270,6 @@ export default function DashboardPage() {
     const sections = [
       { id: "top",              ref: topRef },
       { id: "section-upload",   ref: uploadRef },
-      { id: "section-history",  ref: historyRef },
       { id: "section-charts",   ref: chartsRef },
       { id: "section-download", ref: downloadRef },
       { id: "section-help",     ref: helpRef },
@@ -290,7 +306,6 @@ export default function DashboardPage() {
   const navItems = [
     { id: "top",              label: t.nav.dashboard, icon: <IconGrid />,    ref: topRef },
     { id: "section-upload",   label: t.nav.upload,    icon: <IconUpload />,  ref: uploadRef },
-    { id: "section-history",  label: t.nav.history,   icon: <IconHistory />, ref: historyRef },
     { id: "section-charts",   label: t.nav.charts,    icon: <IconChart />,   ref: chartsRef },
     { id: "section-download", label: t.nav.report,    icon: <IconReport />,  ref: downloadRef },
     { id: "section-help",     label: t.nav.help,      icon: <IconHelp />,    ref: helpRef },
@@ -486,17 +501,6 @@ export default function DashboardPage() {
           />
         </section>
 
-        {/* 2. History */}
-        <section className="dataset-management-grid" id="section-history" ref={historyRef}>
-          <HistoryCard
-            history={history}
-            activeId={analysis?.id}
-            plan={plan}
-            onLoad={handleLoadHistory}
-            onDeleted={handleHistoryDeleted}
-            onUpgrade={() => router.push("/plans")}
-          />
-        </section>
 
         {/* 3. Charts */}
         <section id="section-charts" ref={chartsRef}>
@@ -516,6 +520,20 @@ export default function DashboardPage() {
           <InfoCards />
         </section>
       </div>
+
+      {/* History tape — pinned outside the scrolling content so it stays
+          reachable. A finished analysis lands here rather than replacing what
+          is on screen; clicking a card loads it into the dashboard above. */}
+      <HistoryTape
+        history={history}
+        activeId={analysis?.id ?? null}
+        plan={plan}
+        busy={analysisStatus === "processing" || analysisStatus === "pending"}
+        lang={lang}
+        onLoad={handleLoadHistory}
+        onDelete={handleDeleteFromTape}
+        onUpgrade={() => router.push("/plans")}
+      />
     </div>
   );
 }

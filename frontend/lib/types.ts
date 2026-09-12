@@ -40,6 +40,13 @@ export interface Analysis {
    * upload and the first server response. The server always sends false.
    */
   isPending?: boolean;
+
+  /**
+   * Signed URL for the first chart, used as the history tape thumbnail.
+   * Signed at request time because the URLs stored with the analysis expire
+   * after 24 hours. Null when the analysis produced no charts.
+   */
+  thumbnailUrl?: string | null;
 }
 
 /**

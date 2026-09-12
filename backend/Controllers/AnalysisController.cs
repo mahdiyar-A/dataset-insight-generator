@@ -61,7 +61,33 @@ public class AnalysisController : ControllerBase
         var limit  = user?.Plan == "pro" || user?.Plan == "admin" ? 15 : 5;
 
         var list = await _repo.GetHistoryAsync(userId, limit);
-        return Ok(list.Select(ToDto));
+
+        // The history tape shows a chart thumbnail per entry. The signed URLs
+        // stored in ChartUrls expire after 24 hours, so anything older than a
+        // day would render broken images — they are re-signed here instead.
+        //
+        // Signing is best-effort per entry: a missing or unreadable chart must
+        // degrade to a card without a thumbnail, never fail the whole list.
+        var dtos = new List<object>(list.Count);
+        foreach (var a in list)
+        {
+            string? thumb = null;
+            if (a.ChartUrls != null)
+            {
+                try
+                {
+                    thumb = await _storage.GetSignedUrlAsync(
+                        $"users/{userId}/analyses/{a.Id}/chart_0.png", 3600);
+                }
+                catch
+                {
+                    // No chart, or an analysis written under the old flat layout.
+                }
+            }
+            dtos.Add(ToDto(a, thumb));
+        }
+
+        return Ok(dtos);
     }
 
     // ── GET /api/analyses/{id} ────────────────────────────────────────────────
@@ -242,7 +268,7 @@ public class AnalysisController : ControllerBase
     }
 
     // ── DTO mapper ────────────────────────────────────────────────────────────
-    private static object ToDto(Analysis a) => new
+    private static object ToDto(Analysis a, string? thumbnailUrl = null) => new
     {
         id              = a.Id,
         fileName        = a.FileName,
@@ -259,5 +285,9 @@ public class AnalysisController : ControllerBase
         hasPptx         = a.PptxReportPath  != null,
         customization   = a.Customization,
         isPending       = false,
+
+        // Signed at request time for the history tape. Null when the analysis
+        // produced no charts, or was written before outputs were keyed by id.
+        thumbnailUrl,
     };
 }
