@@ -35,6 +35,13 @@ public class Analysis
     // { language, tone, insights_count, occasion, output_format, include_pptx }
     public string?  Customization { get; private set; }
 
+    // ── LLM usage (null for runs recorded before cost tracking existed) ───────
+    public decimal? CostUsd   { get; private set; }
+    public long?    TokensIn  { get; private set; }
+    public long?    TokensOut { get; private set; }
+    // Full usage payload from the AI service (per-phase costs, call log)
+    public string?  UsageJson { get; private set; }
+
     // ── Timestamps ────────────────────────────────────────────────────────────
     public DateTime  CreatedAt    { get; private set; } = DateTime.UtcNow;
     public DateTime? CompletedAt  { get; private set; }
@@ -76,6 +83,14 @@ public class Analysis
     public void SetChartUrls(string json)    => ChartUrls       = json;
     public void SetCustomization(string json) => Customization  = json;
 
+    public void SetUsage(decimal costUsd, long tokensIn, long tokensOut, string? usageJson)
+    {
+        CostUsd   = costUsd;
+        TokensIn  = tokensIn;
+        TokensOut = tokensOut;
+        UsageJson = usageJson;
+    }
+
     // ── Restore from DB ───────────────────────────────────────────────────────
     // Named factory so callers are explicit that this is a DB hydration
 
@@ -87,7 +102,9 @@ public class Analysis
         string?  pdfPath       = null,  string?  wordPath        = null,
         string?  pptxPath      = null,  string?  chartUrls       = null,
         string?  customization = null,  DateTime? completedAt    = null,
-        Guid?    sessionId     = null)
+        Guid?    sessionId     = null,
+        decimal? costUsd       = null,  long?    tokensIn        = null,
+        long?    tokensOut     = null,  string?  usageJson       = null)
     {
         var a = new Analysis
         {
@@ -108,6 +125,10 @@ public class Analysis
             PptxReportPath  = pptxPath,
             ChartUrls       = chartUrls,
             Customization   = customization,
+            CostUsd         = costUsd,
+            TokensIn        = tokensIn,
+            TokensOut       = tokensOut,
+            UsageJson       = usageJson,
         };
         return a;
     }

@@ -26,6 +26,16 @@ public interface IAnalysisRepository
     Task UpdateChartUrlsAsync(Guid analysisId, string chartUrlsJson);
     Task UpdateOriginalCsvPathAsync(Guid analysisId, string path);
 
+    // Persist LLM usage reported by the AI service for a completed run.
+    // The Python side computes cost but holds no database — this is the only
+    // place the number survives, so skipping it makes margin unanswerable.
+    Task UpdateUsageAsync(Guid analysisId,
+        decimal costUsd, long tokensIn, long tokensOut, string? usageJson);
+
+    // Every analysis (all users, any status) created since the given instant.
+    // Powers the owner analytics endpoint; not exposed to regular users.
+    Task<List<Analysis>> GetAllSinceAsync(DateTime sinceUtc);
+
     // Delete a specific analysis by ID (user must own it)
     Task DeleteAsync(Guid analysisId, Guid userId);
 

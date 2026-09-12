@@ -26,6 +26,10 @@ public class AnalysisRow : BaseModel
     [Column("created_at")]          public DateTime  CreatedAt       { get; set; }
     [Column("completed_at")]        public DateTime? CompletedAt     { get; set; }
     [Column("session_id")]          public string?   SessionId       { get; set; }
+    [Column("cost_usd")]            public decimal?  CostUsd         { get; set; }
+    [Column("tokens_in")]           public long?     TokensIn        { get; set; }
+    [Column("tokens_out")]          public long?     TokensOut       { get; set; }
+    [Column("usage_json")]          public string?   UsageJson       { get; set; }
 }
 
 public class AnalysisRepository : IAnalysisRepository
@@ -88,6 +92,27 @@ public class AnalysisRepository : IAnalysisRepository
         await q.Update();
     }
 
+    public async Task UpdateUsageAsync(Guid analysisId,
+        decimal costUsd, long tokensIn, long tokensOut, string? usageJson)
+    {
+        var q = _db.From<AnalysisRow>()
+            .Filter("id", Operator.Equals, analysisId.ToString())
+            .Set(r => r.CostUsd!,   costUsd)
+            .Set(r => r.TokensIn!,  tokensIn)
+            .Set(r => r.TokensOut!, tokensOut);
+        if (usageJson != null) q = q.Set(r => r.UsageJson!, usageJson);
+        await q.Update();
+    }
+
+    public async Task<List<Analysis>> GetAllSinceAsync(DateTime sinceUtc)
+    {
+        var result = await _db.From<AnalysisRow>()
+            .Filter("created_at", Operator.GreaterThanOrEqual, sinceUtc.ToString("o"))
+            .Order("created_at", Ordering.Descending)
+            .Get();
+        return result.Models.Select(ToDomain).ToList();
+    }
+
     public async Task UpdateChartUrlsAsync(Guid analysisId, string json) =>
         await _db.From<AnalysisRow>()
             .Filter("id", Operator.Equals, analysisId.ToString())
@@ -147,7 +172,11 @@ public class AnalysisRepository : IAnalysisRepository
             chartUrls:     r.ChartUrls,
             customization: r.Customization,
             completedAt:   r.CompletedAt,
-            sessionId:     r.SessionId != null ? Guid.Parse(r.SessionId) : null
+            sessionId:     r.SessionId != null ? Guid.Parse(r.SessionId) : null,
+            costUsd:       r.CostUsd,
+            tokensIn:      r.TokensIn,
+            tokensOut:     r.TokensOut,
+            usageJson:     r.UsageJson
         );
 
     private static AnalysisRow ToRow(Analysis a) => new()
@@ -169,5 +198,9 @@ public class AnalysisRepository : IAnalysisRepository
         CreatedAt       = a.CreatedAt,
         CompletedAt     = a.CompletedAt,
         SessionId       = a.SessionId?.ToString(),
+        CostUsd         = a.CostUsd,
+        TokensIn        = a.TokensIn,
+        TokensOut       = a.TokensOut,
+        UsageJson       = a.UsageJson,
     };
 }

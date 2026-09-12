@@ -62,6 +62,82 @@ public class AdminController : ControllerBase
         });
     }
 
+    // ── GET /api/admin/analytics ──────────────────────────────────────────────
+    // The owner's view of "is this working and can I afford it": analyses per
+    // day, success rate, LLM cost, and who is actually using the product.
+    // Aggregated on request — at current volumes a full scan of the window is
+    // cheaper than maintaining a rollup table would be to build and debug.
+    [HttpGet("analytics")]
+    public async Task<IActionResult> GetAnalytics([FromQuery] int days = 30)
+    {
+        if (!await IsAdminAsync()) return Forbid();
+
+        days = Math.Clamp(days, 1, 365);
+        var now   = DateTime.UtcNow;
+        var since = now.Date.AddDays(-(days - 1));
+
+        var analyses = await _analyses.GetAllSinceAsync(since);
+        var allUsers = await _users.GetAllAsync();
+
+        var done   = analyses.Where(a => a.Status == "done").ToList();
+        var failed = analyses.Where(a => a.Status == "failed").ToList();
+
+        // Cost aggregates only over runs that recorded usage — averaging in
+        // pre-telemetry rows as zero would understate the real per-run cost.
+        var costed = done.Where(a => a.CostUsd.HasValue).ToList();
+
+        var perDay = Enumerable.Range(0, days)
+            .Select(i => since.AddDays(i))
+            .Select(day => new
+            {
+                date     = day.ToString("yyyy-MM-dd"),
+                analyses = done.Count(a => a.CreatedAt.Date == day),
+                failed   = failed.Count(a => a.CreatedAt.Date == day),
+                costUsd  = Math.Round(
+                    done.Where(a => a.CreatedAt.Date == day)
+                        .Sum(a => a.CostUsd ?? 0m), 4),
+            })
+            .ToList();
+
+        var proUsers = allUsers.Count(u => u.Plan == "pro");
+        var finished = done.Count + failed.Count;
+
+        return Ok(new
+        {
+            windowDays = days,
+            generatedAt = now,
+
+            totals = new
+            {
+                analyses      = done.Count,
+                failed        = failed.Count,
+                successRate   = finished == 0 ? 1.0
+                    : Math.Round((double)done.Count / finished, 4),
+                totalCostUsd  = Math.Round(costed.Sum(a => a.CostUsd!.Value), 4),
+                avgCostUsd    = costed.Count == 0 ? 0m
+                    : Math.Round(costed.Sum(a => a.CostUsd!.Value) / costed.Count, 4),
+                costedRuns    = costed.Count,
+                tokensIn      = costed.Sum(a => a.TokensIn  ?? 0),
+                tokensOut     = costed.Sum(a => a.TokensOut ?? 0),
+            },
+
+            users = new
+            {
+                total          = allUsers.Count,
+                free           = allUsers.Count(u => u.Plan == "free"),
+                pro            = proUsers,
+                activeAnalysts = analyses.Select(a => a.UserId).Distinct().Count(),
+                activeThisWeek = allUsers.Count(u => u.LastActive.HasValue
+                    && (now - u.LastActive.Value).TotalDays < 7),
+                // Pro count times the sticker price — real MRR net of Stripe
+                // fees and proration lives in the Stripe dashboard.
+                estimatedMrrUsd = Math.Round(proUsers * 9.99m, 2),
+            },
+
+            perDay,
+        });
+    }
+
     // ── GET /api/admin/users ──────────────────────────────────────────────────
     // Paginated user list
     [HttpGet("users")]

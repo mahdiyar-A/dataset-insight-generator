@@ -239,6 +239,27 @@ public class AnalysisService
                 }
             }
 
+            // ── Step 5g: Persist LLM usage ────────────────────────────────────
+            // Best-effort: telemetry must never fail an analysis the pipeline
+            // already completed. A null Usage (older AI service image) is fine —
+            // the analytics endpoint treats missing cost as "not recorded".
+            if (result.Usage is { } usage)
+            {
+                try
+                {
+                    await _analyses.UpdateUsageAsync(
+                        analysisId.Value,
+                        usage.TotalCostUsd,
+                        usage.TotalInputTokens,
+                        usage.TotalOutputTokens,
+                        JsonSerializer.Serialize(usage));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[Analysis] Failed to persist usage for {Id} — continuing", analysisId);
+                }
+            }
+
             // ── Step 6: Mark analysis done in DB ─────────────────────────────
             await _analyses.UpdateChartUrlsAsync(analysisId.Value, JsonSerializer.Serialize(chartMeta));
             await _analyses.UpdateStatusAsync(

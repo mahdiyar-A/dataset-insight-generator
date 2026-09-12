@@ -17,6 +17,93 @@ type Stats = {
   adminUsers: number; activeToday: number; activeThisWeek: number;
 };
 
+type Analytics = {
+  windowDays: number;
+  totals: {
+    analyses: number; failed: number; successRate: number;
+    totalCostUsd: number; avgCostUsd: number; costedRuns: number;
+    tokensIn: number; tokensOut: number;
+  };
+  users: {
+    total: number; free: number; pro: number;
+    activeAnalysts: number; activeThisWeek: number; estimatedMrrUsd: number;
+  };
+  perDay: { date: string; analyses: number; failed: number; costUsd: number }[];
+};
+
+/**
+ * One measure per chart, deliberately: analyses/day and cost/day differ in
+ * scale, and a dual-axis chart invites reading a relationship the axes
+ * fabricate. Two aligned single-series charts carry the same comparison
+ * honestly.
+ */
+function DayBarChart({ title, days, value, format, barColor }: {
+  title: string;
+  days: { date: string; analyses: number; failed: number; costUsd: number }[];
+  value: (d: { date: string; analyses: number; failed: number; costUsd: number }) => number;
+  format: (v: number) => string;
+  barColor: string;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+
+  const max = Math.max(...days.map(value), 1);
+  const W = 600, H = 140, PAD = 4;
+  const bw = (W - PAD * 2) / days.length;
+
+  return (
+    <div style={{ background: "rgba(15,23,42,0.8)",
+      border: "1px solid rgba(30,41,59,0.7)", borderRadius: "14px",
+      padding: "18px 22px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between",
+        alignItems: "baseline", marginBottom: "10px" }}>
+        <h3 style={{ margin: 0, fontSize: "0.85rem", fontWeight: 700,
+          color: "#94a3b8" }}>{title}</h3>
+        <span style={{ fontSize: "0.75rem", color: "#475569", minHeight: "1em" }}>
+          {hover != null
+            ? `${days[hover].date} — ${format(value(days[hover]))}`
+            : `peak ${format(max)}`}
+        </span>
+      </div>
+
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={title}
+        style={{ width: "100%", height: "auto", display: "block" }}
+        onMouseLeave={() => setHover(null)}>
+        {/* Baseline */}
+        <line x1={PAD} x2={W - PAD} y1={H - 1} y2={H - 1}
+          stroke="rgba(30,41,59,0.9)" strokeWidth="1" />
+        {days.map((d, i) => {
+          const v = value(d);
+          const h = v <= 0 ? 0 : Math.max((v / max) * (H - 14), 2);
+          const x = PAD + i * bw;
+          return (
+            <g key={d.date}
+              onMouseEnter={() => setHover(i)}>
+              {/* Hit target spans the full column height, not just the bar */}
+              <rect x={x} y={0} width={bw} height={H}
+                fill={hover === i ? "rgba(148,163,184,0.06)" : "transparent"} />
+              {h > 0 && (
+                <rect
+                  x={x + bw * 0.18} width={bw * 0.64}
+                  y={H - 1 - h} height={h}
+                  rx={Math.min(3, bw * 0.3)}
+                  fill={barColor}
+                  opacity={hover === null || hover === i ? 0.9 : 0.35}
+                />
+              )}
+            </g>
+          );
+        })}
+      </svg>
+
+      <div style={{ display: "flex", justifyContent: "space-between",
+        marginTop: "6px", fontSize: "0.68rem", color: "#334155" }}>
+        <span>{days[0]?.date}</span>
+        <span>{days[days.length - 1]?.date}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const router                     = useRouter();
   const { token, user, isLoading } = useAuth();
@@ -28,7 +115,8 @@ export default function AdminPage() {
   const [planFilter, setPlanFilter] = useState("");
   const [busy,    setBusy]    = useState(false);
   const [error,   setError]   = useState("");
-  const [tab,     setTab]     = useState<"overview" | "users">("overview");
+  const [tab,     setTab]     = useState<"overview" | "analytics" | "users">("overview");
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
 
   const isAdmin = user?.plan === "admin";
 
@@ -54,6 +142,15 @@ export default function AdminPage() {
   }, [token, isLoading, isAdmin]);
 
   useEffect(() => { if (isAdmin) load(); }, [page, planFilter]);
+
+  // Fetched on first visit to the tab rather than with the page: it scans the
+  // whole analytics window server-side, which the other tabs never need.
+  useEffect(() => {
+    if (tab !== "analytics" || !token || !isAdmin || analytics) return;
+    BackendAPI.adminGetAnalytics(token, 30)
+      .then(setAnalytics)
+      .catch((e: unknown) => setError(errorMessage(e)));
+  }, [tab, token, isAdmin, analytics]);
 
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); load(); };
 
@@ -135,7 +232,7 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div style={{ display: "flex", gap: "4px", marginBottom: "28px" }}>
-        {(["overview", "users"] as const).map(t => (
+        {(["overview", "analytics", "users"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
             style={{ padding: "8px 20px", borderRadius: "8px", border: "none",
               fontWeight: 600, fontSize: "0.85rem", cursor: "pointer",
@@ -188,6 +285,101 @@ export default function AdminPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Analytics */}
+      {tab === "analytics" && (
+        !analytics ? (
+          <p style={{ color: "#475569", fontSize: "0.9rem" }}>Loading analytics…</p>
+        ) : (
+          <div>
+            <p style={{ color: "#475569", fontSize: "0.8rem", margin: "0 0 16px" }}>
+              Last {analytics.windowDays} days
+            </p>
+
+            <div style={{ display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+              gap: "16px", marginBottom: "32px" }}>
+              <StatCard label="Analyses" value={analytics.totals.analyses}
+                sub={`${analytics.totals.failed} failed`} color="#e2e8f0" />
+              <StatCard label="Success Rate"
+                value={`${Math.round(analytics.totals.successRate * 100)}%`}
+                color="#10b981" />
+              <StatCard label="LLM Cost"
+                value={`$${analytics.totals.totalCostUsd.toFixed(2)}`}
+                sub={`${analytics.totals.costedRuns} runs recorded cost`}
+                color="#a78bfa" />
+              <StatCard label="Avg Cost / Analysis"
+                value={`$${analytics.totals.avgCostUsd.toFixed(4)}`}
+                sub={`${(analytics.totals.tokensIn / 1000).toFixed(0)}k in / ${(analytics.totals.tokensOut / 1000).toFixed(0)}k out tokens`}
+                color="#a78bfa" />
+              <StatCard label="Active Analysts"
+                value={analytics.users.activeAnalysts}
+                sub={`of ${analytics.users.total} users`} color="#60a5fa" />
+              <StatCard label="Est. MRR"
+                value={`$${analytics.users.estimatedMrrUsd.toFixed(2)}`}
+                sub={`${analytics.users.pro} pro × $9.99 — see Stripe for net`}
+                color="#10b981" />
+            </div>
+
+            <div style={{ display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+              gap: "16px", marginBottom: "24px" }}>
+              <DayBarChart
+                title="Analyses per day"
+                days={analytics.perDay}
+                value={d => d.analyses}
+                format={v => `${v}`}
+                barColor="#60a5fa"
+              />
+              <DayBarChart
+                title="LLM cost per day (USD)"
+                days={analytics.perDay}
+                value={d => d.costUsd}
+                format={v => `$${v.toFixed(3)}`}
+                barColor="#a78bfa"
+              />
+            </div>
+
+            {/* Same numbers as a table — for screen readers, and for anyone
+                who wants the exact values rather than bar heights. */}
+            <details style={{ background: "rgba(15,23,42,0.8)",
+              border: "1px solid rgba(30,41,59,0.7)", borderRadius: "14px",
+              padding: "16px 22px" }}>
+              <summary style={{ cursor: "pointer", color: "#94a3b8",
+                fontSize: "0.85rem", fontWeight: 600 }}>
+                Daily numbers as a table
+              </summary>
+              <div style={{ overflowX: "auto", marginTop: "12px" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse",
+                  fontSize: "0.78rem" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid rgba(30,41,59,0.7)" }}>
+                      {["Date", "Analyses", "Failed", "Cost (USD)"].map(h => (
+                        <th key={h} style={{ padding: "8px 12px", textAlign: "left",
+                          color: "#475569", fontWeight: 600 }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analytics.perDay.map(d => (
+                      <tr key={d.date}
+                        style={{ borderBottom: "1px solid rgba(30,41,59,0.3)" }}>
+                        <td style={{ padding: "6px 12px", color: "#64748b" }}>{d.date}</td>
+                        <td style={{ padding: "6px 12px", color: "#cbd5e1" }}>{d.analyses}</td>
+                        <td style={{ padding: "6px 12px",
+                          color: d.failed > 0 ? "#f87171" : "#334155" }}>{d.failed}</td>
+                        <td style={{ padding: "6px 12px", color: "#cbd5e1" }}>
+                          ${d.costUsd.toFixed(4)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          </div>
+        )
       )}
 
       {/* Users */}

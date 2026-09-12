@@ -410,6 +410,16 @@ export default class BackendAPI {
   }
 
   /**
+   * Owner analytics: analyses per day, success rate, LLM cost, user counts.
+   * @param {string} token
+   * @param {number} [days]
+   */
+  static async adminGetAnalytics(token, days = 30) {
+    return req(`${API_BASE}/api/admin/analytics?days=${days}`,
+      { headers: authHeaders(token) }, "Failed to fetch analytics");
+  }
+
+  /**
    * Without these JSDoc annotations TypeScript infers `plan` and `search` as
    * type `null` from their defaults, so any caller passing a real filter string
    * fails the production type check (`next build`) while the dev server happily

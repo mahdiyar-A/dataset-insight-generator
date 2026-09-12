@@ -100,6 +100,29 @@ public class FakeAnalysisRepository : IAnalysisRepository
         return Task.CompletedTask;
     }
 
+    public Task UpdateUsageAsync(Guid analysisId,
+        decimal costUsd, long tokensIn, long tokensOut, string? usageJson)
+    {
+        lock (_lock)
+        {
+            var a = _store.FirstOrDefault(x => x.Id == analysisId);
+            a?.SetUsage(costUsd, tokensIn, tokensOut, usageJson);
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task<List<Analysis>> GetAllSinceAsync(DateTime sinceUtc)
+    {
+        lock (_lock)
+        {
+            var result = _store
+                .Where(a => a.CreatedAt >= sinceUtc)
+                .OrderByDescending(a => a.CreatedAt)
+                .ToList();
+            return Task.FromResult(result);
+        }
+    }
+
     public Task DeleteAsync(Guid analysisId, Guid userId)
     {
         lock (_lock)
@@ -342,6 +365,13 @@ public class FakePythonAiClient : IPythonAiClient
     /// <summary>How many charts the fake pipeline returns. Default 0.</summary>
     public int ChartCount { get; set; } = 0;
 
+    /// <summary>
+    /// Raw JSON for the response's "usage" object, or null to omit it — an
+    /// older AI service image that predates telemetry omits the field, and the
+    /// backend must tolerate both.
+    /// </summary>
+    public string? UsageJson { get; set; }
+
     public Task<string> CheckQualityAsync(byte[] csvBytes, string fileName, Guid sessionId)
     {
         var json = $"{{\"condition\":\"{CheckCondition}\",\"error\":null}}";
@@ -370,6 +400,7 @@ public class FakePythonAiClient : IPythonAiClient
           "pptx_report_base64": null,
           "charts": [{{charts}}],
           "confidence_score": 8,
+          "usage": {{UsageJson ?? "null"}},
           "error": null
         }
         """);

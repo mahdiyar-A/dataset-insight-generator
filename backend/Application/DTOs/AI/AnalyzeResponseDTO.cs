@@ -34,6 +34,36 @@ public class AnalyzeResponseDto
 
     [JsonPropertyName("charts")]
     public List<ChartResultDto> Charts { get; set; } = new();
+
+    // LLM usage for this run, produced by ai_engine.telemetry. The Python
+    // service computes it but holds no database — persistence is this side's
+    // job, and dropping it here is what made cost-per-analysis unanswerable.
+    [JsonPropertyName("usage")]
+    public UsageDto? Usage { get; set; }
+}
+
+public class UsageDto
+{
+    [JsonPropertyName("total_cost_usd")]
+    public decimal TotalCostUsd { get; set; }
+
+    [JsonPropertyName("total_input_tokens")]
+    public long TotalInputTokens { get; set; }
+
+    [JsonPropertyName("total_output_tokens")]
+    public long TotalOutputTokens { get; set; }
+
+    [JsonPropertyName("call_count")]
+    public int CallCount { get; set; }
+
+    [JsonPropertyName("failed_call_count")]
+    public int FailedCallCount { get; set; }
+
+    [JsonPropertyName("duration_ms")]
+    public long DurationMs { get; set; }
+
+    [JsonPropertyName("cost_by_phase")]
+    public Dictionary<string, decimal>? CostByPhase { get; set; }
 }
 
 public class ChartResultDto
