@@ -23,7 +23,10 @@ concurrency:
 
 env:
   DOTNET_VERSION: '8.0.x'
-  NODE_VERSION: '20'
+  # Node 24 matches the version the lockfile was generated under. Node 20 lacks
+  # webidl.util.markAsUncloneable, which the locked undici/jsdom pair calls —
+  # vitest crashed on startup with 4 unhandled errors and zero tests run.
+  NODE_VERSION: '24'
   PYTHON_VERSION: '3.11'
   DOTNET_NOLOGO: true
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true

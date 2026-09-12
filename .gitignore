@@ -4,7 +4,6 @@
 .DS_Store
 Thumbs.db
 desktop.ini
-*.sln
 
 ####################################
 # Editor / IDE
@@ -102,3 +101,5 @@ ai_service/model_trainer/trained_*/
 ####################################
 # Python (extras)
 ####
+# Test output
+TestResults/
