@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from ai_engine.core.profiler import adjusted_fences, fence_tolerance, is_identifier
 from ai_engine.models.models import DataQualityResult
 
 
@@ -83,27 +84,31 @@ def check_data_quality(df: pd.DataFrame) -> DataQualityResult:
         pct = round(dup_rows / row_count * 100, 1)
         warnings.append(f"{dup_rows} duplicate rows ({pct}% of dataset).")
 
-    # ── Outlier detection (IQR 3x rule) ──────────────────────────────────
-    # The fence is widened by a small relative tolerance before comparing.
+    # ── Outlier detection (skew-adjusted boxplot) ────────────────────────
+    # Fences come from ai_engine.core.profiler so that this and the cleaner
+    # cannot drift apart: the convergence invariant only holds while both agree
+    # on where the fence sits and which columns are exempt.
     #
-    # Why: the cleaner winsorises outliers to exactly q3 + 3*IQR. Those values
-    # then sit precisely on the fence. Recomputing the quartiles — after a CSV
-    # round-trip, or simply because clipping changed the distribution — moves
-    # the fence by a few ULPs, and a strict `>` comparison re-flags values that
-    # cleaning just fixed. That is a false positive measured in floating-point
-    # noise, and it re-triggers the cleaning prompt on an already-clean file.
+    # Identifiers are exempt. An account number is not an outlier at any
+    # magnitude, and the cleaner will not touch one, so flagging it here would
+    # ask the user to clean something nothing can fix.
+    #
+    # The fence is widened by a small relative tolerance before comparing,
+    # because the cleaner clips values to sit exactly on it — see
+    # profiler.fence_tolerance.
     numeric_df = df.select_dtypes(include=[np.number])
     for col in numeric_df.columns:
         series = numeric_df[col].dropna()
         if len(series) < 10:
             continue
-        q1, q3 = series.quantile(0.25), series.quantile(0.75)
-        iqr = q3 - q1
-        if iqr == 0:
+        if is_identifier(df[col], str(col)):
             continue
-        tol = 1e-9 * max(abs(q1 - 3 * iqr), abs(q3 + 3 * iqr), 1.0)
-        lower_fence = q1 - 3 * iqr - tol
-        upper_fence = q3 + 3 * iqr + tol
+        lower, upper = adjusted_fences(series)
+        if not np.isfinite(lower) or not np.isfinite(upper):
+            continue
+        tol = fence_tolerance(lower, upper)
+        lower_fence = lower - tol
+        upper_fence = upper + tol
         outlier_ratio = ((series < lower_fence) | (series > upper_fence)).mean()
         if outlier_ratio > 0.05:
             warnings.append(f"Column '{col}' has {round(outlier_ratio*100)}% extreme outliers.")

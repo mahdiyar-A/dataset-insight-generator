@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 from typing import List, Optional
 
+from ai_engine.core.profiler import adjusted_fences, identifier_columns
 from ai_engine.models.models import DataQualityResult
 
 
@@ -61,6 +62,15 @@ def clean_dataset(
     df.drop_duplicates(inplace=True)
     df.replace([float("inf"), float("-inf")], float("nan"), inplace=True)
 
+    # ── Step 3b: Identify the columns that identify rows ──────────────────
+    # Computed once, before anything is imputed or capped, and honoured by every
+    # step below. An identifier names a thing; it does not measure one, so no
+    # statistic of the column is a legitimate substitute for a missing value and
+    # no magnitude makes one an outlier.
+    id_cols = set(identifier_columns(df))
+    if id_cols:
+        print(f"[Cleaner] Identifier column(s), exempt from imputation and capping: {sorted(id_cols)}")
+
     # ── Step 4: Apply Groq-directed per-column methods ────────────────────
     groq_handled_cols = set()
 
@@ -77,6 +87,16 @@ def clean_dataset(
             continue  # column was already dropped or doesn't exist
 
         s = df[col_name]
+
+        # The model can and does direct imputation on identifiers. Refuse it —
+        # a fabricated key is worse than a missing one, and unlike a missing one
+        # nothing downstream can detect it. Step 5 drops those rows instead.
+        if col_name in id_cols and method_name.startswith("impute_"):
+            print(f"[Cleaner] Refused {method_name} on identifier '{col_name}'")
+            continue
+
+        if col_name in id_cols and method_name == "cap_outliers":
+            continue
 
         if method_name == "impute_median":
             if pd.api.types.is_numeric_dtype(s):
@@ -121,6 +141,20 @@ def clean_dataset(
 
         missing_ratio = df[col].isnull().mean()
 
+        # Identifiers are never imputed. A row without a key is dropped, because
+        # the row cannot be attributed to anything — unless so many are missing
+        # that the column cannot serve as an identifier at all, in which case the
+        # column goes and the rows stay.
+        if col in id_cols:
+            if missing_ratio <= 0.2:
+                before = len(df)
+                df = df[df[col].notnull()]
+                print(f"[Cleaner] Dropped {before - len(df)} row(s) missing identifier '{col}'")
+            else:
+                cols_to_drop_fallback.append(col)
+                print(f"[Cleaner] Dropped identifier '{col}' — {round(missing_ratio*100)}% missing")
+            continue
+
         # Drop if > 80% missing
         if missing_ratio > 0.8:
             cols_to_drop_fallback.append(col)
@@ -150,18 +184,24 @@ def clean_dataset(
     # the checker re-flags the column and the user is asked to clean again.
     # Repeating until the fence stops moving is what makes
     # check(clean(df)).needsCleaning == False hold.
+    #
+    # The fence itself is skew-adjusted (see profiler.adjusted_fences). A plain
+    # IQR fence assumes symmetry, so on log-normal data — revenue, order counts,
+    # durations — it declares the whole upper tail to be errors and winsorises
+    # away the largest observations, which are usually the point of the
+    # analysis. At zero skew the adjusted fence is identical to the old one.
     MAX_CAP_PASSES = 10
     for col in df.select_dtypes(include=[np.number]).columns:
+        if col in id_cols:
+            continue
         total_capped = 0
         for _ in range(MAX_CAP_PASSES):
             series = df[col].dropna()
             if len(series) < 10:
                 break
-            q1, q3 = series.quantile(0.25), series.quantile(0.75)
-            iqr = q3 - q1
-            if iqr <= 0:
+            lower, upper = adjusted_fences(series)
+            if not np.isfinite(lower) or not np.isfinite(upper):
                 break
-            lower, upper = q1 - 3 * iqr, q3 + 3 * iqr
             mask = (df[col] < lower) | (df[col] > upper)
             n_capped = int(mask.sum())
             if n_capped == 0:
