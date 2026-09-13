@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from ai_engine.core.profiler import adjusted_fences, fence_tolerance, is_identifier
+from ai_engine.core.profiler import adjusted_fences, fence_tolerance, is_identifier, is_reference_key
 from ai_engine.models.models import DataQualityResult
 
 
@@ -101,7 +101,9 @@ def check_data_quality(df: pd.DataFrame) -> DataQualityResult:
         series = numeric_df[col].dropna()
         if len(series) < 10:
             continue
-        if is_identifier(df[col], str(col)):
+        # Keys of either kind are exempt: no magnitude makes an account
+        # number an anomaly, and the cleaner will not touch one either.
+        if is_identifier(df[col], str(col)) or is_reference_key(df[col], str(col)):
             continue
         lower, upper = adjusted_fences(series)
         if not np.isfinite(lower) or not np.isfinite(upper):

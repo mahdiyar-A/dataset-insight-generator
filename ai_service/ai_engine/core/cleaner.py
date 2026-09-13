@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 from typing import List, Optional
 
-from ai_engine.core.profiler import adjusted_fences, identifier_columns
+from ai_engine.core.profiler import adjusted_fences, protected_columns
 from ai_engine.models.models import DataQualityResult
 
 
@@ -67,9 +67,13 @@ def clean_dataset(
     # step below. An identifier names a thing; it does not measure one, so no
     # statistic of the column is a legitimate substitute for a missing value and
     # no magnitude makes one an outlier.
-    id_cols = set(identifier_columns(df))
+    # Row identifiers AND reference keys. A reference key repeats, so the
+    # uniqueness test never catches one, but imputing it is just as damaging and
+    # quieter: filling a missing customer_id with the most common value hands
+    # those rows to a real customer who did not place them.
+    id_cols = set(protected_columns(df))
     if id_cols:
-        print(f"[Cleaner] Identifier column(s), exempt from imputation and capping: {sorted(id_cols)}")
+        print(f"[Cleaner] Key column(s), exempt from imputation and capping: {sorted(id_cols)}")
 
     # ── Step 4: Apply Groq-directed per-column methods ────────────────────
     groq_handled_cols = set()

@@ -36,9 +36,16 @@ C_LIGHT   = RGBColor(0xF1, 0xF5, 0xF9) if PPTX_AVAILABLE else None   # slate-100
 C_MUTED   = RGBColor(0x64, 0x74, 0x8B) if PPTX_AVAILABLE else None   # slate-500
 C_BODY    = RGBColor(0x1F, 0x2D, 0x3D) if PPTX_AVAILABLE else None
 
-# Slide dimensions — widescreen 16:9
-SLIDE_W = Inches(13.33)
-SLIDE_H = Inches(7.5)
+# Slide dimensions — widescreen 16:9.
+# Guarded like every other constant above: python-pptx is an optional
+# dependency, and these two lines were the only ones calling into it
+# unconditionally. Without the package the module raised NameError at import,
+# which propagated through pipeline.py to main.py — so a missing optional
+# export library took down the entire AI service rather than just disabling
+# PowerPoint output. build_pptx() already raises a clear ImportError when
+# actually called without the package.
+SLIDE_W = Inches(13.33) if PPTX_AVAILABLE else None
+SLIDE_H = Inches(7.5) if PPTX_AVAILABLE else None
 
 
 def _new_prs() -> "Presentation":
@@ -70,9 +77,16 @@ def _add_rect(slide, left, top, width, height, fill_rgb):
 def _add_text_box(slide, left, top, width, height,
                   text: str, font_size: int,
                   bold: bool = False, italic: bool = False,
-                  color=None, align=PP_ALIGN.LEFT,
+                  color=None, align=None,
                   word_wrap: bool = True) -> None:
     """Add a text box with consistent styling."""
+    # align defaults to None rather than PP_ALIGN.LEFT: a default argument is
+    # evaluated at import time, so naming the optional dependency here crashed
+    # the module — and with it the whole service — whenever python-pptx was
+    # absent. Resolved at call time instead, by which point the package is
+    # guaranteed present (build_pptx refuses to run without it).
+    if align is None:
+        align = PP_ALIGN.LEFT
     txBox = slide.shapes.add_textbox(left, top, width, height)
     tf = txBox.text_frame
     tf.word_wrap = word_wrap

@@ -82,6 +82,12 @@ def is_identifier(series: pd.Series, name: str = "") -> bool:
     # Both dtypes are checked: pandas 3 gives string columns a dedicated `str`
     # dtype, so an object-only test silently stops recognising text keys.
     if pd.api.types.is_object_dtype(non_null) or pd.api.types.is_string_dtype(non_null):
+        # A timestamp column is unique and uniformly shaped, so it satisfies
+        # every structural test below — but it measures when something happened
+        # rather than naming it. Observed misclassifying order_date on a real
+        # run.
+        if _looks_like_dates(non_null):
+            return False
         shapes = non_null.astype(str).str.replace(r"\d", "0", regex=True).str.replace(
             r"[A-Za-z]", "A", regex=True
         )
@@ -199,3 +205,58 @@ def fence_tolerance(lower: float, upper: float) -> float:
 def identifier_columns(df: pd.DataFrame) -> list:
     """Names of every column in `df` that identifies rather than measures."""
     return [c for c in df.columns if is_identifier(df[c], str(c))]
+
+def _looks_like_dates(series: pd.Series) -> bool:
+    """True when most values parse as timestamps."""
+    sample = series.astype(str).head(200)
+    try:
+        parsed = pd.to_datetime(sample, errors="coerce", format="mixed")
+    except (ValueError, TypeError):
+        try:
+            parsed = pd.to_datetime(sample, errors="coerce")
+        except Exception:
+            return False
+    return bool(parsed.notna().mean() > 0.8)
+
+
+# A reference key points at another entity. Unlike a row identifier it repeats,
+# so the uniqueness test above never catches one — but imputing it is just as
+# damaging, and quieter: filling a missing customer_id with the most common
+# value hands those rows to a real customer who did not place them. Observed on
+# a real run: 8 orders silently reassigned to CUS00102.
+_REF_CARDINALITY_FLOOR = 0.05
+
+
+def is_reference_key(series: pd.Series, name: str = "") -> bool:
+    """
+    True for a column that names another entity — customer_id, account_no.
+
+    Distinguished from a small category that happens to match the naming
+    pattern (region_code, status_code) by cardinality: a key takes many
+    distinct values, a category takes few. Without that test every coded
+    category would be exempted from cleaning.
+    """
+    if not _ID_NAME.search(str(name)):
+        return False
+
+    non_null = series.dropna()
+    if len(non_null) < 10:
+        return False
+    if _looks_like_dates(non_null):
+        return False
+
+    ratio = non_null.nunique() / len(non_null)
+    return ratio >= _REF_CARDINALITY_FLOOR
+
+
+def protected_columns(df: pd.DataFrame) -> list:
+    """
+    Columns that must never be imputed or capped: row identifiers and the
+    reference keys that point at other entities. A statistic is not a
+    legitimate substitute for either.
+    """
+    return [
+        c for c in df.columns
+        if is_identifier(df[c], str(c)) or is_reference_key(df[c], str(c))
+    ]
+

@@ -22,7 +22,9 @@ from ai_engine.core.profiler import (
     adjusted_fences,
     identifier_columns,
     is_identifier,
+    is_reference_key,
     medcouple,
+    protected_columns,
 )
 from ai_engine.quality.quality_checker import check_data_quality
 
@@ -278,3 +280,64 @@ class TestConvergenceStillHolds:
         cleaned = clean_dataset(df, quality(df))
 
         assert quality(cleaned).needsCleaning is False
+
+
+# ── Reference keys ───────────────────────────────────────────────────────────
+
+class TestReferenceKeys:
+    """
+    A reference key points at another entity and therefore repeats, so the
+    uniqueness test that catches a row identifier never sees it. Found on a real
+    pipeline run: 8 orders with a missing customer_id were mode-imputed and
+    silently handed to CUS00102, a real customer who did not place them.
+    """
+
+    def test_repeating_foreign_key_is_protected(self):
+        s = pd.Series([f"CUS{i % 400:05d}" for i in range(1200)])
+        assert s.nunique() / len(s) < 0.5, "fixture must repeat, or it tests nothing"
+        assert not is_identifier(s, "customer_id"), "not unique, so not a row id"
+        assert is_reference_key(s, "customer_id")
+
+    def test_small_coded_category_is_not_a_reference_key(self):
+        # Risk: the name pattern also matches region_code and status_code.
+        # Exempting those from cleaning would leave real missing values behind.
+        s = pd.Series(["north", "south", "east", "west"] * 300)
+        assert not is_reference_key(s, "region_code")
+
+    def test_a_date_column_is_neither(self):
+        # Timestamps are unique and uniformly shaped, so every structural test
+        # passes — observed misclassifying order_date as an identifier.
+        s = pd.Series(pd.date_range("2026-01-01", periods=600, freq="6h").astype(str))
+        assert not is_identifier(s, "order_date")
+        assert not is_reference_key(s, "order_date")
+
+    def test_protected_columns_covers_both_kinds(self):
+        df = pd.DataFrame({
+            "order_id":    [f"ORD{i:06d}" for i in range(500)],
+            "customer_id": [f"CUS{i % 120:05d}" for i in range(500)],
+            "order_date":  pd.date_range("2026-01-01", periods=500, freq="h").astype(str),
+            "region":      ["n", "s"] * 250,
+            "revenue":     np.linspace(10, 900, 500),
+        })
+        assert set(protected_columns(df)) == {"order_id", "customer_id"}
+
+
+class TestCleaningNeverMisattributes:
+    def test_a_missing_foreign_key_drops_the_row_rather_than_guessing(self):
+        n = 600
+        df = pd.DataFrame({
+            "order_id":    [f"ORD{i:06d}" for i in range(n)],
+            "customer_id": [f"CUS{i % 200:05d}" for i in range(n)],
+            "amount":      np.linspace(5, 500, n),
+            "region":      ["n", "s", "e"] * (n // 3),
+        })
+        df.loc[[3, 9, 27], "customer_id"] = None
+        mode_before = df["customer_id"].mode()[0]
+
+        out = clean_dataset(df, quality(df))
+
+        assert out["customer_id"].isnull().sum() == 0
+        # The three rows must be gone, not reassigned to the commonest customer.
+        assert len(out) == n - 3
+        assert (out["customer_id"] == mode_before).sum() == (df["customer_id"] == mode_before).sum()
+        assert quality(out).needsCleaning is False
