@@ -18,14 +18,16 @@ public class AdminController : ControllerBase
 {
     private readonly IUserRepository _users;
     private readonly IAnalysisRepository _analyses;
+    private readonly IStorageService _storage;
     private readonly ILogger<AdminController> _logger;
 
     public AdminController(
         IUserRepository users, IAnalysisRepository analyses,
-        ILogger<AdminController> logger)
+        IStorageService storage, ILogger<AdminController> logger)
     {
         _users    = users;
         _analyses = analyses;
+        _storage  = storage;
         _logger   = logger;
     }
 
@@ -206,8 +208,16 @@ public class AdminController : ControllerBase
     {
         if (!await IsAdminAsync()) return Forbid();
 
+        // Files first, then the row. The database cascades to analyses,
+        // annotations and memberships, but nothing in Postgres can reach the
+        // storage bucket — so deleting the row first would strand every file
+        // that user ever uploaded with no record of whose it was. Doing it in
+        // this order means a storage failure leaves a still-deletable user
+        // rather than permanent orphans.
+        await _storage.DeleteUserFilesAsync(id);
         await _users.DeleteAsync(id);
-        _logger.LogWarning("[Admin] User {Id} deleted by admin", id);
+
+        _logger.LogWarning("[Admin] User {Id} deleted by admin (files removed first)", id);
         return NoContent();
     }
 

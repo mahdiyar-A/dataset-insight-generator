@@ -23,6 +23,7 @@ public class AdminAnalyticsTests
 {
     private FakeUserRepository     _users    = null!;
     private FakeAnalysisRepository _analyses = null!;
+    private FakeStorageService     _storage  = null!;
     private Guid                   _callerId;
 
     [SetUp]
@@ -30,6 +31,7 @@ public class AdminAnalyticsTests
     {
         _users    = new FakeUserRepository();
         _analyses = new FakeAnalysisRepository();
+        _storage  = new FakeStorageService();
         _callerId = Guid.NewGuid();
     }
 
@@ -42,7 +44,7 @@ public class AdminAnalyticsTests
             plan: callerPlan);
 
         var controller = new AdminController(
-            _users, _analyses, NullLogger<AdminController>.Instance)
+            _users, _analyses, _storage, NullLogger<AdminController>.Instance)
         {
             ControllerContext = new ControllerContext
             {
@@ -119,6 +121,46 @@ public class AdminAnalyticsTests
         totals.GetProperty("costedRuns").GetInt32().Should().Be(2);
         totals.GetProperty("avgCostUsd").GetDecimal().Should().Be(0.03m,
             "the average must be over runs that recorded cost, not all runs");
+    }
+
+    // ── Account deletion ─────────────────────────────────────────────────────
+
+    [Test]
+    public async Task DeletingAUser_AlsoRemovesTheirFiles()
+    {
+        // The bug this pins: DeleteUser removed the row and nothing else. The
+        // database cascades to analyses, annotations and memberships, but no
+        // trigger can reach the storage bucket — so every file that user ever
+        // uploaded stayed behind with no record of whose it was. Four such
+        // orphaned folders were found in the live bucket.
+        var victim = Guid.NewGuid();
+        _storage.Files[$"users/{victim}/analyses/a1/report.pdf"] = new byte[] { 1 };
+        _storage.Files[$"users/{victim}/analyses/a1/original.csv"] = new byte[] { 2 };
+        _storage.Files[$"users/{victim}/profile.jpg"] = new byte[] { 3 };
+
+        var keeper = Guid.NewGuid();
+        _storage.Files[$"users/{keeper}/profile.jpg"] = new byte[] { 4 };
+
+        var result = await Controller("admin").DeleteUser(victim);
+
+        result.Should().BeOfType<NoContentResult>();
+        _storage.Files.Keys.Should().NotContain(k => k.StartsWith($"users/{victim}/"),
+            "deleting an account must not leave its files in the bucket");
+        _storage.Files.Keys.Should().Contain($"users/{keeper}/profile.jpg",
+            "only the deleted user's files may be removed");
+    }
+
+    [Test]
+    public async Task NonAdmin_CannotDeleteAUser()
+    {
+        var victim = Guid.NewGuid();
+        _storage.Files[$"users/{victim}/profile.jpg"] = new byte[] { 1 };
+
+        var result = await Controller("pro").DeleteUser(victim);
+
+        result.Should().BeOfType<ForbidResult>();
+        _storage.Files.Keys.Should().Contain($"users/{victim}/profile.jpg",
+            "a forbidden request must not have deleted anything on the way out");
     }
 
     [Test]
