@@ -316,7 +316,11 @@ def detect_domain(df: pd.DataFrame, api_key: str, tracker=None) -> DomainResult:
     )
 
     try:
-        text   = _groq_call(messages, api_key, max_tokens=1500, temperature=0.1,
+        # 4000, not 1500: the domain response carries a per-column decision map,
+        # and gpt-oss charges its reasoning to the same budget. At 1500 the JSON
+        # was truncated mid-object, which surfaced as a delimiter error and a
+        # silent fall back to domain "general".
+        text   = _groq_call(messages, api_key, max_tokens=4000, temperature=0.1,
                             tracker=tracker, phase="domain")
         parsed = _parse_json(text)
     except Exception as e:

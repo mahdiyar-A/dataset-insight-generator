@@ -246,7 +246,12 @@ def is_reference_key(series: pd.Series, name: str = "") -> bool:
         return False
 
     ratio = non_null.nunique() / len(non_null)
-    return ratio >= _REF_CARDINALITY_FLOOR
+    # Bounded at both ends. Below the floor it is a coded category; at or above
+    # _UNIQUE_RATIO it is a row identifier, which is_identifier already covers.
+    # Leaving the top open let a fully unique order_id qualify as a reference
+    # key, and the repeat-entity analysis then dutifully reported that 0 of 60
+    # entities repeat — true, and useless.
+    return _REF_CARDINALITY_FLOOR <= ratio < _UNIQUE_RATIO
 
 
 def protected_columns(df: pd.DataFrame) -> list:

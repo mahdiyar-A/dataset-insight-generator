@@ -280,6 +280,11 @@ Every insight should end with a sentence starting 'In plain terms:' that summari
         "group_comparisons":    stats.groupComparisons,
         "temporal":             stats.temporalInfo,
         "anomaly_scores":       stats.anomalyScores,
+        # Pre-computed answers to the questions the dataset exists to answer —
+        # concentration, repeat-entity behaviour, trend, effect size. Listed
+        # last but flagged as primary in the instructions below, because these
+        # are findings rather than descriptions and should lead the report.
+        "domain_analyses":      stats.domainAnalyses,
         "quality_issues":       stats.detectedIssues,
     }
     stats_json      = json.dumps(stats_context, indent=2)
@@ -418,6 +423,14 @@ YOUR OUTPUT — respond ONLY with valid JSON
 
 CHART RULES — structural requirements:
 - Produce {d["max_charts"]} charts maximum. Quality over quantity.
+- `domain_analyses` holds findings already computed from the full dataset —
+  concentration (how much of a total sits in the top categories), repeat_entity
+  (whether a few entities drive most activity), trend (direction over time with
+  a significance test), group_effect (how much variance a grouping explains,
+  as eta-squared). Lead with these where present: they answer what the data is
+  for, where the other blocks only describe its shape. Quote their figures
+  exactly rather than recomputing or rounding them, and respect the
+  significance flags — an insignificant trend must not be written as a trend.
 - Chart style preference: {chart_guidance}
 - All column names MUST be EXACT case-sensitive matches from the data — no paraphrasing.
 - Chart type field requirements:
@@ -672,7 +685,12 @@ def call_gemini(
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
             "temperature":     0.2,
-            "maxOutputTokens": 8192,
+            # 16384, not 8192: a deep report is title + introduction + N insight
+            # bodies + conclusion + a methodology section + chart instructions,
+            # all in one JSON object. Overrunning truncates that object, and a
+            # truncated object does not parse — which drops the whole thing into
+            # _build_fallback_report and quietly discards the model's work.
+            "maxOutputTokens": 16384,
             "topP":            0.9,
         },
     }

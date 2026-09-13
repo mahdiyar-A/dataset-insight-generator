@@ -15,6 +15,7 @@ import pandas as pd
 from scipy import stats as scipy_stats
 from typing import List, Dict, Any, Optional
 
+from ai_engine.core.domain_stats import build_domain_analyses
 from ai_engine.models.models import StatsSummary, DataQualityResult
 
 
@@ -32,15 +33,33 @@ def _try_parse_dates(df: pd.DataFrame) -> Optional[str]:
         if pd.api.types.is_datetime64_any_dtype(df[col]):
             return col
 
-    # Try coercing object columns
-    for col in df.select_dtypes(include="object").columns:
-        sample = df[col].dropna().head(50)
-        try:
-            converted = pd.to_datetime(sample, infer_datetime_format=True, errors="coerce")
-            if converted.notna().mean() > 0.8:
-                return col
-        except Exception:
+    # Try coercing text columns.
+    #
+    # Both dtypes are checked: pandas 3 gives string columns a dedicated `str`
+    # dtype, so scanning only `object` found nothing and temporal detection
+    # silently reported {"detected": false} for every dataset — taking the
+    # trend analysis with it.
+    #
+    # infer_datetime_format is gone in pandas 3 as well; format="mixed" is the
+    # replacement, and the bare except was swallowing that too.
+    for col in df.columns:
+        s = df[col]
+        if pd.api.types.is_numeric_dtype(s):
             continue
+        if not (pd.api.types.is_object_dtype(s) or pd.api.types.is_string_dtype(s)):
+            continue
+        sample = s.dropna().head(50)
+        if sample.empty:
+            continue
+        try:
+            converted = pd.to_datetime(sample, errors="coerce", format="mixed")
+        except (ValueError, TypeError):
+            try:
+                converted = pd.to_datetime(sample, errors="coerce")
+            except Exception:
+                continue
+        if converted.notna().mean() > 0.8:
+            return col
     return None
 
 
@@ -214,7 +233,11 @@ def _isolation_forest_anomalies(df: pd.DataFrame) -> Dict[str, float]:
 # Main entry point
 # ─────────────────────────────────────────────────────────────────────────────
 
-def build_stats_summary(df: pd.DataFrame, quality: DataQualityResult) -> StatsSummary:
+def build_stats_summary(
+    df: pd.DataFrame,
+    quality: DataQualityResult,
+    domain: str = "general",
+) -> StatsSummary:
     numeric_df  = df.select_dtypes(include=[np.number])
     categorical = df.select_dtypes(include=["object", "category"])
 
@@ -327,6 +350,12 @@ def build_stats_summary(df: pd.DataFrame, quality: DataQualityResult) -> StatsSu
     # ── Isolation Forest anomaly scoring ─────────────────────────────────────
     anomaly_scores = _isolation_forest_anomalies(df)
 
+    # ── Domain-aware analyses ────────────────────────────────────────────────
+    # Everything above describes the data; these ask what it is for. Selection
+    # is structural — the domain only orders them — so a wrong domain guess
+    # costs relevance, never correctness.
+    domain_analyses = build_domain_analyses(df, domain=domain, date_col=time_col)
+
     return StatsSummary(
         rowCount=len(df),
         columnCount=len(df.columns),
@@ -342,4 +371,5 @@ def build_stats_summary(df: pd.DataFrame, quality: DataQualityResult) -> StatsSu
         temporalInfo=temporal_info,
         spearmanCorrelations=spearman_corrs,
         anomalyScores=anomaly_scores,
+        domainAnalyses=domain_analyses,
     )

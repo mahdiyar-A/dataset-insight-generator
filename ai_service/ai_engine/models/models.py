@@ -44,6 +44,9 @@ class StatsSummary:
     temporalInfo: Optional[Dict[str, Any]] = None
     spearmanCorrelations: List[Dict[str, Any]] = field(default_factory=list)
     anomalyScores: Dict[str, float] = field(default_factory=dict)
+    # Analyses chosen by what the frame structurally supports, ordered by the
+    # detected domain. See ai_engine.core.domain_stats.
+    domainAnalyses: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
