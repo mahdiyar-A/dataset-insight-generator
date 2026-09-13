@@ -31,10 +31,17 @@ from typing import Any, Dict, List, Optional
 # Prices in USD per 1,000,000 tokens. Verified 2026-08.
 # Update MODEL_PRICING_UPDATED whenever a figure changes so a stale table is
 # obvious in the admin dashboard rather than quietly wrong.
-MODEL_PRICING_UPDATED = "2026-08"
+MODEL_PRICING_UPDATED = "2026-09"
 
 MODEL_PRICING: Dict[str, Dict[str, float]] = {
-    # Groq — domain classification and the insight judge
+    # Groq — domain classification and the insight judge.
+    # Rates from console.groq.com/docs/model/..., checked 2026-09.
+    "openai/gpt-oss-20b":       {"input": 0.075, "output": 0.30},
+    "openai/gpt-oss-120b":      {"input": 0.15,  "output": 0.60},
+
+    # Retired by Groq in 2026 — every call now returns 404 model_not_found.
+    # Kept so historical rows priced under them still resolve rather than
+    # silently re-pricing to zero.
     "llama-3.3-70b-versatile":  {"input": 0.59, "output": 0.79},
     "llama-3.1-8b-instant":     {"input": 0.05, "output": 0.08},
     "llama3-70b-8192":          {"input": 0.59, "output": 0.79},

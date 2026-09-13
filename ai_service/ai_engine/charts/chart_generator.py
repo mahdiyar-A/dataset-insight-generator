@@ -313,6 +313,10 @@ _CHART_BUILDERS = {
 }
 
 
+MAX_CHARTS = 5
+"""Kept in step with gemini_client.MAX_CHARTS and AnalysisService's Take(5)."""
+
+
 def generate_charts(df: pd.DataFrame, instructions: List[ChartInstruction]) -> List[Dict[str, Any]]:
     """
     Generate charts from LLM instructions.
@@ -321,7 +325,14 @@ def generate_charts(df: pd.DataFrame, instructions: List[ChartInstruction]) -> L
     Returns list of {type, label, desc, color, insight_index, image_base64} — max 5 charts.
     """
     results = []
-    for instr in instructions[:5]:
+    # Truncation is announced rather than silent. The slice used to be a bare
+    # [:5]: when depth="deep" asked the model for 7 charts, two were discarded
+    # here with no trace, so the report simply had fewer charts than the
+    # customization implied and nothing said why.
+    if len(instructions) > MAX_CHARTS:
+        print(f"[Chart] {len(instructions)} instructions received, keeping the first "
+              f"{MAX_CHARTS} — the backend stores no more than that.")
+    for instr in instructions[:MAX_CHARTS]:
         chart_type = instr.chartType.lower()
 
         # Route subtypes even when base type is simple

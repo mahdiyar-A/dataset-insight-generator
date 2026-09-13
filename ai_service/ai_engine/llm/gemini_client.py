@@ -32,6 +32,12 @@ GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMI
 CHART_COLORS = ["#3b82f6", "#a855f7", "#10b981", "#f97316", "#ec4899"]
 VALID_CHART_TYPES = {"bar", "line", "scatter", "histogram", "heatmap", "box"}
 
+# Most charts the rest of the stack can carry. chart_generator keeps this many,
+# AnalysisService stores this many, and the product documents "up to five
+# charts". Asking the model for more only spends tokens on instructions that
+# are discarded downstream — which is what "deep" did, at 7.
+MAX_CHARTS = 5
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Prompt builder
@@ -143,20 +149,33 @@ def _build_prompt(
     occasion_note = OCCASION_FRAMING.get(occasion, OCCASION_FRAMING["general"])
 
     # ── Depth settings — controls output volume and detail ─────────────────
+    #
+    # Two rules this block used to break:
+    #
+    #   max_insights honours insights_count exactly. It previously clamped —
+    #   min(count, 3) on quick, max(count, 7) on deep — so a Pro user who
+    #   explicitly picked 3 insights and deep analysis silently received 7, and
+    #   one who picked 7 with quick received 3. Insight count is its own
+    #   advertised control (3/5/7); depth governs how much is written about
+    #   each insight, not how many there are.
+    #
+    #   max_charts is capped at MAX_CHARTS everywhere. Deep asked for 7, but the
+    #   chart generator and the backend both keep only 5, so two were generated
+    #   and thrown away on every deep run — paid for in tokens, never seen.
     DEPTH_SETTINGS = {
-        "quick":    {"max_insights": min(insights_count, 3), "max_charts": 3,
+        "quick":    {"max_insights": insights_count, "max_charts": 3,
                      "summary_style": "1-2 sentences. The single most important takeaway.",
                      "intro_style":   "1-2 sentences. What this dataset is and the top finding.",
                      "body_style":    "2-3 sentences per insight. Tight. Lead with the number.",
                      "conclusion_style": "2-3 sentences. One recommendation.",
                      "methodology_note": "Omit the data_quality_section — set it to an empty string ''."},
-        "standard": {"max_insights": insights_count, "max_charts": 5,
+        "standard": {"max_insights": insights_count, "max_charts": MAX_CHARTS,
                      "summary_style": "3-4 sentences. Lead with the most significant finding, 1-2 supporting takeaways, one implication.",
                      "intro_style":   "2-4 sentences. Dataset context and analytical approach.",
                      "body_style":    "1 paragraph (4-6 sentences) per insight. Evidence + implication.",
                      "conclusion_style": "3-5 sentences. Synthesise findings, acknowledge limitation, one actionable recommendation.",
                      "methodology_note": "Include a 2-3 paragraph data_quality_section."},
-        "deep":     {"max_insights": max(insights_count, 7), "max_charts": 7,
+        "deep":     {"max_insights": insights_count, "max_charts": MAX_CHARTS,
                      "summary_style": "4-5 sentences. Cover the most significant finding, supporting evidence, and strategic implications.",
                      "intro_style":   "3-5 sentences. Full dataset context, analytical pipeline description, scope.",
                      "body_style":    "2 paragraphs per insight. First paragraph: the finding with evidence. Second paragraph: implications, caveats, related patterns.",
