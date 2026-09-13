@@ -1,7 +1,10 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
+
 import Link from 'next/link';
 
+import { partitionRevealed } from '@/lib/revealOnScroll';
 import { useSettings } from './contexts/SettingsContext';
 import DigMascot from '@/components/DigMascot';
 
@@ -161,20 +164,16 @@ const LANGS: { code: Lang; label: string }[] = [
 ];
 
 // ── Atlas palette ─────────────────────────────────────────────────────────────
-// Cobalt is the voice; chartreuse is reserved for a single accent per screen.
-// The dark variant is a restatement rather than an inversion — cobalt is lifted
-// so it still reads as a colour against ink, and the paper tone becomes the text.
 // `cobalt` is a SURFACE that carries white text, so it stays deep in both
-// themes — white on the lifted indigo lands near 2.9:1, well under the 4.5:1
-// minimum. `cobaltAccent` is the same hue as TEXT on the page ground, and there
-// the relationship inverts: the deep cobalt reads at 2.3:1 against dark paper,
-// so the dark theme lifts it. One hue, two jobs, two values.
+// themes — white on a lifted indigo lands near 2.9:1, under the 4.5 minimum.
+// `cobaltAccent` is the same hue as TEXT on the page ground, where the
+// relationship inverts: deep cobalt reads at 2.3:1 against dark paper, so the
+// dark theme lifts it. One hue, two jobs, two values.
 const ATLAS = {
   light: {
     paper: '#f2efe9', paperAlt: '#e9e5dd', ink: '#12121a',
-    // inkFaint is darker than it looks like it needs to be: the eyebrow
-    // labels use it at 11.5px over the tinted section ground, where the
-    // original #6b6862 measured 4.42:1 — just under the 4.5 minimum.
+    // inkFaint is darker than it looks like it needs to be: the eyebrow labels
+    // use it at 11.5px over the tinted ground, where #6b6862 measured 4.42:1.
     inkSoft: '#4a4741', inkFaint: '#66635d',
     rule: '#12121a', hairline: 'rgba(18,18,26,0.16)',
     cobalt: '#2536e0', cobaltAccent: '#2536e0',
@@ -189,6 +188,11 @@ const ATLAS = {
   },
 } as const;
 
+// The paper sheet that overlaps the hero is cream in BOTH themes. Letting it
+// follow the dark theme turned it into a black slab sitting on the cobalt
+// field — the palette's whole point is paper against blue against citron.
+const SHEET = { bg: '#f2efe9', ink: '#12121a', soft: '#4a4741', accent: '#2536e0' };
+
 const DISPLAY = 'var(--font-display), "Bricolage Grotesque", Georgia, serif';
 const SANS = 'var(--font-sans), "Work Sans", system-ui, sans-serif';
 
@@ -200,50 +204,159 @@ export default function HomePage() {
   const t = T[lang];
   const isRtl = t.dir === 'rtl';
 
-  // Section reveals ride the scroll position via a CSS view timeline. They are
-  // declared inside @supports and default to fully visible, because a reveal
-  // that fails closed would leave a blank marketing page on a browser without
-  // scroll timelines.
+  // Reveal on scroll.
+  //
+  // Two earlier attempts failed for instructive reasons, so the approach here
+  // is deliberately dull:
+  //
+  //   1. A CSS view timeline (`animation-range: entry 6% cover 24%`) mixes two
+  //      range names; at a short viewport the range collapsed and every
+  //      animation reported playState "finished" while its element sat 900px
+  //      below the fold — nothing was ever hidden.
+  //   2. IntersectionObserver is the usual answer, but it only reports when the
+  //      page is actually being rendered, which makes it untestable in a
+  //      headless pane and leaves no way to prove it works.
+  //
+  // The decision itself lives in lib/revealOnScroll so it can be unit tested;
+  // this effect only wires it to scroll events. It is rAF-throttled, unbinds
+  // once everything has been shown, and — the part that matters — the hidden
+  // state is applied by JS (`rv-armed`), never by the stylesheet. If this
+  // effect never runs, nothing is ever hidden, so a JS failure degrades to a
+  // plain visible page rather than a blank one.
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    const pending = Array.from(root.querySelectorAll<HTMLElement>('[data-rv]'));
+    if (!pending.length) return;
+
+    const showAll = () => pending.forEach(el => el.classList.add('rv-in'));
+
+    // Motion is the whole effect; without it, skip arming entirely.
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    root.classList.add('rv-armed');
+
+    let raf = 0;
+    let measured = false;
+    const detach = () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
+
+    const pass = () => {
+      raf = 0;
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      // A viewport of zero is usually transient — layout has not settled, or
+      // the tab is hidden. Revealing everything here (the first version of
+      // this) permanently unhid the page on a momentary zero. Wait for the
+      // next scroll or resize instead; the rescue timer below is what handles
+      // a viewport that never becomes measurable at all.
+      if (!vh) return;
+      measured = true;
+
+      const { reveal, pending: waiting } = partitionRevealed(
+        pending, el => el.getBoundingClientRect(), vh,
+      );
+      reveal.forEach(el => el.classList.add('rv-in'));
+      pending.length = 0;
+      pending.push(...waiting);
+      if (!pending.length) detach();
+    };
+
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(pass); };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+
+    // Two frames, so the armed state paints before the first reveal — otherwise
+    // whatever is already on screen jumps to visible with no transition.
+    const kick = requestAnimationFrame(() => requestAnimationFrame(pass));
+
+    // rAF is paused whenever the page is not being composited, so the first
+    // pass cannot depend on it alone: a tab restored from the background, or an
+    // embedded view that never composites, would sit on hidden content
+    // indefinitely. Timers keep running, and visibilitychange covers the tab
+    // coming back.
+    const kickTimer = window.setTimeout(pass, 120);
+    const onVisible = () => { if (!document.hidden) pass(); };
+    document.addEventListener('visibilitychange', onVisible);
+
+    // Last resort: if the viewport never became measurable, show everything
+    // rather than leave the reader looking at nothing.
+    const rescue = window.setTimeout(() => {
+      if (!measured) { showAll(); detach(); }
+    }, 3000);
+
+    return () => {
+      detach();
+      document.removeEventListener('visibilitychange', onVisible);
+      window.clearTimeout(rescue);
+      window.clearTimeout(kickTimer);
+      if (raf) cancelAnimationFrame(raf);
+      cancelAnimationFrame(kick);
+    };
+  }, [lang, light]);
+
   const pageCss = [
-    '@keyframes atlas-rise { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: none; } }',
-    '@supports (animation-timeline: view()) {',
-    '  .atlas-rv { animation: atlas-rise linear both; animation-timeline: view(); animation-range: entry 6% cover 24%; }',
-    '}',
+    '.rv-armed [data-rv] { opacity: 0; transform: translateY(26px);',
+    '  transition: opacity 0.65s cubic-bezier(0.22,0.61,0.36,1), transform 0.65s cubic-bezier(0.22,0.61,0.36,1); }',
+    '.rv-armed [data-rv].rv-in { opacity: 1; transform: none; }',
     '@media (prefers-reduced-motion: reduce) {',
-    '  .atlas-rv { animation: none !important; opacity: 1 !important; transform: none !important; }',
+    '  .rv-armed [data-rv] { opacity: 1 !important; transform: none !important; transition: none !important; }',
+    '  .atlas-marquee { animation: none !important; }',
     '}',
+    '@keyframes atlas-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }',
+    '.atlas-marquee { animation: atlas-scroll 26s linear infinite; }',
     '.atlas-link:hover { color: ' + c.cobaltAccent + ' !important; }',
     '.atlas-btn { transition: transform 0.12s ease; }',
     '.atlas-btn:hover { transform: translateY(-1px); }',
     '.atlas-btn:active { transform: translateY(0); }',
-    // A finger needs ~44px; the desktop header does not, so this is scoped to
-    // coarse pointers rather than applied to every viewport.
     '@media (pointer: coarse) {',
     '  .atlas-tap { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }',
     '}',
   ].join('\n');
 
+  const inner: React.CSSProperties = { maxWidth: '1120px', margin: '0 auto' };
   const sectionPad: React.CSSProperties = {
     padding: '76px clamp(16px, 3vw, 32px)',
     borderBottom: '2px solid ' + c.rule,
   };
-  const inner: React.CSSProperties = { maxWidth: '1120px', margin: '0 auto' };
 
-  const eyebrow: React.CSSProperties = {
+  // Staggered delay, capped so a long list never leaves the reader waiting.
+  const stagger = (i: number): React.CSSProperties => ({
+    transitionDelay: Math.min(i, 5) * 70 + 'ms',
+  });
+
+  const eyebrow = (color: string): React.CSSProperties => ({
     margin: '0 0 10px', fontSize: '11.5px', fontWeight: 700,
-    letterSpacing: '0.2em', color: c.inkFaint,
-  };
-  const h2: React.CSSProperties = {
+    letterSpacing: '0.2em', color,
+  });
+  const h2 = (color: string): React.CSSProperties => ({
     margin: '0 0 14px', fontFamily: DISPLAY, fontSize: 'clamp(30px, 4vw, 46px)',
-    fontWeight: 700, lineHeight: 1.06, letterSpacing: '-0.035em', color: c.ink,
-  };
+    fontWeight: 700, lineHeight: 1.06, letterSpacing: '-0.035em', color,
+  });
+
+  const marqueeWords = lang === 'fr'
+    ? ['CSV EN ENTRÉE', 'ANALYSE EN SORTIE', 'SANS FORMULES', 'RAPPORT PDF', '8 LANGUES']
+    : lang === 'fa'
+      ? ['ورودی CSV', 'خروجی تحلیل', 'بدون فرمول', 'گزارش PDF', '۸ زبان']
+      : ['CSV IN', 'ANALYSIS OUT', 'NO FORMULAS', 'PDF REPORT', '8 LANGUAGES'];
 
   return (
     <div
+      ref={rootRef}
       dir={t.dir}
       style={{
         background: c.paper, color: c.ink, fontFamily: SANS,
-        minHeight: '100vh', overflowX: 'hidden',
+        minHeight: '100vh',
+        // `clip`, not `hidden`: overflow-x:hidden makes this element a scroll
+        // container, and a sticky child resolves against the nearest
+        // scrollport — so the header would silently stop sticking. `clip`
+        // trims the same overflow without creating one.
+        overflowX: 'clip',
       }}
     >
       <style>{pageCss}</style>
@@ -257,16 +370,15 @@ export default function HomePage() {
           display: 'flex', alignItems: 'center', gap: '18px', flexWrap: 'wrap',
         }}
       >
-        {/* color is set explicitly: this page styles inline rather than through
-            globals.css, so an anchor without one falls back to the user agent's
-            default link blue. */}
+        {/* color set explicitly: this page styles inline, so an anchor without
+            one falls back to the user agent's default link blue. */}
         <Link
           href="/"
+          className="atlas-tap"
           style={{
             display: 'flex', alignItems: 'center', gap: '9px',
             textDecoration: 'none', color: c.ink,
           }}
-          className="atlas-tap"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/DIG.png" alt="" style={{ height: '34px', width: 'auto' }} />
@@ -347,7 +459,6 @@ export default function HomePage() {
           background: c.cobalt, color: '#ffffff',
           padding: 'clamp(48px, 7vw, 76px) clamp(16px, 3vw, 32px) 0',
           position: 'relative', overflow: 'hidden',
-          borderBottom: '2px solid ' + c.rule,
         }}>
           <svg
             width="560" height="560" viewBox="0 0 100 100" aria-hidden="true"
@@ -363,7 +474,7 @@ export default function HomePage() {
           </svg>
 
           <div style={{ ...inner, position: 'relative' }}>
-            <h1 style={{
+            <h1 data-rv style={{
               margin: 0, fontFamily: DISPLAY,
               fontSize: 'clamp(36px, 6.4vw, 80px)', fontWeight: 800,
               lineHeight: 0.98, letterSpacing: '-0.045em',
@@ -372,14 +483,18 @@ export default function HomePage() {
               {t.hero.title}
             </h1>
 
-            <p style={{
+            <p data-rv style={{
+              ...stagger(1),
               margin: '26px 0 0', fontSize: 'clamp(15px, 1.5vw, 18px)',
               lineHeight: 1.55, maxWidth: '58ch', color: 'rgba(255,255,255,0.82)',
             }}>
               {t.hero.subtitle}
             </p>
 
-            <div style={{ display: 'flex', gap: '10px', margin: '32px 0 0', flexWrap: 'wrap' }}>
+            <div data-rv style={{
+              ...stagger(2),
+              display: 'flex', gap: '10px', margin: '32px 0 0', flexWrap: 'wrap',
+            }}>
               <Link href="/guestDashboard" className="atlas-btn" style={{
                 padding: '15px 26px', background: c.lime, color: '#12121a',
                 border: '2px solid #12121a', textDecoration: 'none',
@@ -396,24 +511,26 @@ export default function HomePage() {
               </Link>
             </div>
 
-            <p style={{ margin: '16px 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>
+            <p data-rv style={{
+              ...stagger(3),
+              margin: '16px 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.7)',
+            }}>
               {t.hero.note}
             </p>
 
-            {/* How it works, cropped by the fold so the page invites a scroll */}
-            <div style={{
+            {/* A sheet of paper laid on the cobalt field — cream in both themes,
+                and overlapping the fold so the page invites a scroll. */}
+            <div data-rv style={{
+              ...stagger(4),
               margin: 'clamp(40px, 5vw, 60px) auto -2px', maxWidth: '880px',
-              background: c.paper, color: c.ink,
-              // Longhands, not `border` plus a `borderBottom` override: React
-              // warns that mixing the two leaves a stale edge when the element
-              // rerenders, which is exactly what the theme toggle does.
-              borderTop: '2px solid ' + c.rule,
-              borderInline: '2px solid ' + c.rule,
-              padding: '20px clamp(16px, 2.5vw, 26px) 26px',
-              boxShadow: '0 -18px 50px rgba(0,0,0,0.2)',
+              background: SHEET.bg, color: SHEET.ink,
+              borderTop: '2px solid #12121a',
+              borderInline: '2px solid #12121a',
+              padding: '22px clamp(16px, 2.5vw, 28px) 28px',
+              boxShadow: '0 -18px 50px rgba(0,0,0,0.25)',
             }}>
               <p style={{
-                margin: '0 0 14px', fontFamily: DISPLAY, fontSize: '17px',
+                margin: '0 0 16px', fontFamily: DISPLAY, fontSize: '17px',
                 fontWeight: 700, letterSpacing: '-0.02em',
               }}>
                 {t.hero.howTitle}
@@ -421,18 +538,18 @@ export default function HomePage() {
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-                gap: '18px',
+                gap: '20px',
               }}>
                 {[t.hero.step1, t.hero.step2, t.hero.step3].map((step, i) => (
                   <div key={i}>
                     <p style={{
-                      margin: '0 0 6px', fontFamily: DISPLAY, fontSize: '28px',
+                      margin: '0 0 7px', fontFamily: DISPLAY, fontSize: '30px',
                       fontWeight: 800, lineHeight: 1, letterSpacing: '-0.05em',
-                      color: c.cobaltAccent,
+                      color: SHEET.accent,
                     }}>
                       {'0' + (i + 1)}
                     </p>
-                    <p style={{ margin: 0, fontSize: '13.5px', lineHeight: 1.5, color: c.inkSoft }}>
+                    <p style={{ margin: 0, fontSize: '13.5px', lineHeight: 1.5, color: SHEET.soft }}>
                       {step}
                     </p>
                   </div>
@@ -441,6 +558,33 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+
+        {/* ── Citron ticker ─────────────────────────────────────────────── */}
+        <div style={{
+          background: c.lime, borderBlock: '2px solid #12121a',
+          overflow: 'hidden', padding: '11px 0',
+        }}>
+          <div className="atlas-marquee" style={{ display: 'flex', width: 'max-content' }}>
+            {[0, 1].map(copy => (
+              <div key={copy} aria-hidden={copy === 1} style={{ display: 'flex' }}>
+                {marqueeWords.map((w, i) => (
+                  <span key={i} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '22px',
+                    padding: '0 22px', fontFamily: DISPLAY, fontSize: '15px',
+                    fontWeight: 700, letterSpacing: '0.02em', color: '#12121a',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {w}
+                    <span aria-hidden="true" style={{
+                      width: '7px', height: '7px', background: '#12121a',
+                      transform: 'rotate(45deg)', display: 'inline-block',
+                    }} />
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* ── DIG mascot ────────────────────────────────────────────────── */}
         <div style={{
@@ -472,9 +616,12 @@ export default function HomePage() {
         {/* ── Features ──────────────────────────────────────────────────── */}
         <section id="features" style={sectionPad}>
           <div style={inner}>
-            <p className="atlas-rv" style={eyebrow}>{t.nav.features.toUpperCase()}</p>
-            <h2 className="atlas-rv" style={{ ...h2, maxWidth: '20ch' }}>{t.features.heading}</h2>
-            <p className="atlas-rv" style={{
+            <p data-rv style={eyebrow(c.inkFaint)}>{t.nav.features.toUpperCase()}</p>
+            <h2 data-rv style={{ ...h2(c.ink), ...stagger(1), maxWidth: '20ch' }}>
+              {t.features.heading}
+            </h2>
+            <p data-rv style={{
+              ...stagger(2),
               margin: '0 0 44px', fontSize: '16px', lineHeight: 1.6,
               color: c.inkSoft, maxWidth: '62ch',
             }}>
@@ -486,73 +633,100 @@ export default function HomePage() {
               gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
               gap: '2px', background: c.rule, border: '2px solid ' + c.rule,
             }}>
-              {t.features.cards.map((card, i) => (
-                <div
-                  key={i}
-                  className="atlas-rv"
-                  style={{ background: c.paper, padding: '26px 22px 30px' }}
-                >
-                  <p style={{
-                    margin: '0 0 16px', fontFamily: DISPLAY, fontSize: '34px',
-                    fontWeight: 800, lineHeight: 1, letterSpacing: '-0.05em',
-                    color: c.cobaltAccent,
-                  }}>
-                    {String(i + 1).padStart(2, '0')}
-                  </p>
-                  <h3 style={{
-                    margin: '0 0 8px', fontFamily: DISPLAY, fontSize: '18px',
-                    fontWeight: 700, letterSpacing: '-0.02em', color: c.ink,
-                  }}>
-                    {card.title}
-                  </h3>
-                  <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.55, color: c.inkSoft }}>
-                    {card.desc}
-                  </p>
-                </div>
-              ))}
+              {t.features.cards.map((card, i) => {
+                // The first card is filled: a grid of five identical tiles has
+                // no entry point, and this is the capability the rest support.
+                const lead = i === 0;
+                return (
+                  <div
+                    key={i}
+                    data-rv
+                    style={{
+                      ...stagger(i),
+                      background: lead ? c.cobalt : c.paper,
+                      color: lead ? '#ffffff' : c.ink,
+                      padding: '26px 22px 30px',
+                    }}
+                  >
+                    <p style={{
+                      margin: '0 0 16px', fontFamily: DISPLAY, fontSize: '34px',
+                      fontWeight: 800, lineHeight: 1, letterSpacing: '-0.05em',
+                      color: lead ? c.lime : c.cobaltAccent,
+                    }}>
+                      {String(i + 1).padStart(2, '0')}
+                    </p>
+                    <h3 style={{
+                      margin: '0 0 8px', fontFamily: DISPLAY, fontSize: '18px',
+                      fontWeight: 700, letterSpacing: '-0.02em',
+                      color: lead ? '#ffffff' : c.ink,
+                    }}>
+                      {card.title}
+                    </h3>
+                    <p style={{
+                      margin: 0, fontSize: '14px', lineHeight: 1.55,
+                      color: lead ? 'rgba(255,255,255,0.88)' : c.inkSoft,
+                    }}>
+                      {card.desc}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>
 
-        {/* ── Security ──────────────────────────────────────────────────── */}
-        <section id="security" style={{ ...sectionPad, background: c.paperAlt }}>
+        {/* ── Security — the second blue block, so the page reads
+             blue / paper / blue / citron rather than one accent and filler ── */}
+        <section id="security" style={{
+          padding: '76px clamp(16px, 3vw, 32px)',
+          background: c.cobalt, color: '#ffffff',
+          borderBottom: '2px solid ' + c.rule,
+        }}>
           <div style={{
             ...inner, display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '40px',
           }}>
             <div>
-              <p className="atlas-rv" style={eyebrow}>{t.security.heading.toUpperCase()}</p>
-              <h2 className="atlas-rv" style={{ ...h2, maxWidth: '16ch' }}>{t.security.heading}</h2>
-              <p className="atlas-rv" style={{
-                margin: '0 0 16px', fontSize: '16px', lineHeight: 1.6, color: c.inkSoft,
+              <p data-rv style={eyebrow('#d6f24a')}>{t.security.heading.toUpperCase()}</p>
+              <h2 data-rv style={{ ...h2('#ffffff'), ...stagger(1), maxWidth: '16ch' }}>
+                {t.security.heading}
+              </h2>
+              <p data-rv style={{
+                ...stagger(2),
+                margin: '0 0 18px', fontSize: '16px', lineHeight: 1.6,
+                color: 'rgba(255,255,255,0.82)',
               }}>
                 {t.security.body}
               </p>
-              <p className="atlas-rv" style={{
-                margin: 0, padding: '10px 14px', fontSize: '13px', lineHeight: 1.5,
-                color: '#12121a', background: c.lime, border: '2px solid ' + c.rule,
+              <p data-rv style={{
+                ...stagger(3),
+                margin: 0, padding: '11px 15px', fontSize: '13px', lineHeight: 1.5,
+                color: '#12121a', background: c.lime, border: '2px solid #12121a',
                 fontWeight: 600,
               }}>
                 {t.security.note}
               </p>
             </div>
 
-            <ul className="atlas-rv" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+            <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
               {t.security.items.map((item, i) => (
                 <li
                   key={i}
+                  data-rv
                   style={{
+                    ...stagger(i),
                     display: 'flex', gap: '12px', padding: '12px 0',
-                    borderTop: '1px solid ' + c.hairline,
+                    borderTop: '1px solid rgba(255,255,255,0.28)',
                     borderBottom: i === t.security.items.length - 1
-                      ? '1px solid ' + c.hairline
+                      ? '1px solid rgba(255,255,255,0.28)'
                       : 'none',
-                    fontSize: '14px', lineHeight: 1.45, color: c.inkSoft,
+                    fontSize: '14px', lineHeight: 1.45,
+                    color: 'rgba(255,255,255,0.88)',
                   }}
                 >
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"
                        style={{ flexShrink: 0, marginTop: '3px' }}>
-                    <path d="M20 6 9 17l-5-5" stroke={c.cobaltAccent} strokeWidth="2.6" strokeLinecap="round" />
+                    <path d="M20 6 9 17l-5-5" stroke="#d6f24a" strokeWidth="2.8" strokeLinecap="round" />
                   </svg>
                   <span>{item}</span>
                 </li>
@@ -564,17 +738,21 @@ export default function HomePage() {
         {/* ── Developers ────────────────────────────────────────────────── */}
         <section id="developers" style={sectionPad}>
           <div style={inner}>
-            <p className="atlas-rv" style={eyebrow}>{t.developers.heading.toUpperCase()}</p>
-            <h2 className="atlas-rv" style={{ ...h2, maxWidth: '18ch' }}>{t.developers.heading}</h2>
-            <p className="atlas-rv" style={{
+            <p data-rv style={eyebrow(c.inkFaint)}>{t.developers.heading.toUpperCase()}</p>
+            <h2 data-rv style={{ ...h2(c.ink), ...stagger(1), maxWidth: '18ch' }}>
+              {t.developers.heading}
+            </h2>
+            <p data-rv style={{
+              ...stagger(2),
               margin: '0 0 30px', fontSize: '16px', lineHeight: 1.6,
               color: c.inkSoft, maxWidth: '70ch',
             }}>
               {t.developers.body}
             </p>
 
-            <div className="atlas-rv" style={{
-              display: 'inline-block', padding: '20px 24px',
+            <div data-rv style={{
+              ...stagger(3),
+              display: 'inline-block', padding: '22px 26px',
               border: '2px solid ' + c.rule, background: c.card,
               boxShadow: '10px 10px 0 ' + c.cobaltAccent,
             }}>
@@ -603,22 +781,27 @@ export default function HomePage() {
         {/* ── Contact ───────────────────────────────────────────────────── */}
         <section id="contact" style={{
           padding: '72px clamp(16px, 3vw, 32px)',
-          background: c.lime, borderBottom: '2px solid ' + c.rule,
+          background: c.lime, borderBottom: '2px solid #12121a',
         }}>
           <div style={{ ...inner, textAlign: 'center' }}>
-            <h2 className="atlas-rv" style={{
-              ...h2, color: '#12121a', margin: '0 0 14px',
+            <h2 data-rv style={{
+              ...h2('#12121a'), margin: '0 0 14px',
               fontSize: 'clamp(32px, 4.6vw, 54px)', fontWeight: 800,
             }}>
               {t.contact.heading}
             </h2>
-            <p className="atlas-rv" style={{ margin: '0 0 28px', fontSize: '16.5px', color: '#3c3a34' }}>
+            <p data-rv style={{
+              ...stagger(1),
+              margin: '0 0 28px', fontSize: '16.5px', color: '#3c3a34',
+            }}>
               {t.contact.body}
             </p>
             <a
+              data-rv
               href="mailto:dataset_insight_generator.ai@proton.me"
               className="atlas-btn"
               style={{
+                ...stagger(2),
                 display: 'inline-block', padding: '16px 30px',
                 background: '#12121a', color: '#f2efe9',
                 border: '2px solid #12121a', textDecoration: 'none',
