@@ -31,7 +31,15 @@ from ai_engine.models.models import DomainResult, JudgeResult, StatsSummary
 
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL   = "llama-3.3-70b-versatile"
+# Groq retired the entire Llama-3.x chat line; llama-3.3-70b-versatile now
+# returns 404 model_not_found on every call. That silently disabled two of the
+# pipeline's three model stages — domain classification (Phase 1) and the judge
+# (Phase 6) — because both fall back rather than fail, so every report was
+# produced with domain "general" and a hardcoded confidence of 6/10.
+#
+# gpt-oss-20b is the smallest current model that reliably returns strict JSON
+# for both tasks; 120b is available if the audit needs more depth.
+GROQ_MODEL   = "openai/gpt-oss-20b"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -533,7 +541,12 @@ def judge_insights(
     )
 
     try:
-        text   = _groq_call(messages, api_key, max_tokens=2500, temperature=0.15,
+        # 6000, not 2500: gpt-oss models emit reasoning tokens before the answer
+        # and charge them against the same budget. On the full judge prompt —
+        # report plus stats plus chart instructions — the budget ran out during
+        # reasoning and the response came back with EMPTY content, which the
+        # parser reported as "could not parse JSON" with nothing after the colon.
+        text   = _groq_call(messages, api_key, max_tokens=6000, temperature=0.15,
                             tracker=tracker, phase="judge")
         parsed = _parse_json(text)
     except Exception as e:
