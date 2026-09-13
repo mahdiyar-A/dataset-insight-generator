@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import Link from 'next/link';
 
-import { partitionRevealed } from '@/lib/revealOnScroll';
+import { partitionVisible } from '@/lib/revealOnScroll';
 import { useSettings } from './contexts/SettingsContext';
 import DigMascot from '@/components/DigMascot';
 
@@ -179,12 +179,16 @@ const ATLAS = {
     cobalt: '#2536e0', cobaltAccent: '#2536e0',
     lime: '#d6f24a', card: '#ffffff',
   },
+  // Ink-blue rather than near-black. A true black ground under a cobalt hero
+  // reads as an absence — the page looked like it had holes in it. These carry
+  // the same hue family as the accent, so the dark theme is a dim version of
+  // the palette instead of a different, colourless one.
   dark: {
-    paper: '#12121a', paperAlt: '#191922', ink: '#f2efe9',
-    inkSoft: '#b8b4ac', inkFaint: '#8a8780',
+    paper: '#151a2b', paperAlt: '#1b2138', ink: '#f2efe9',
+    inkSoft: '#bcc2d4', inkFaint: '#8e96ad',
     rule: '#f2efe9', hairline: 'rgba(242,239,233,0.18)',
     cobalt: '#2536e0', cobaltAccent: '#8b95f5',
-    lime: '#d6f24a', card: '#1b1b26',
+    lime: '#d6f24a', card: '#1e2440',
   },
 } as const;
 
@@ -225,14 +229,60 @@ export default function HomePage() {
   // plain visible page rather than a blank one.
   const rootRef = useRef<HTMLDivElement | null>(null);
 
+  // Which feature the reader has opened. The first is open by default so the
+  // grid never reads as five inert tiles.
+  const [openFeature, setOpenFeature] = useState(0);
+
+  /**
+   * Nav anchors scroll rather than jump.
+   *
+   * The browser's own smooth scrolling is both fast and fixed; this is roughly
+   * twice as long with a soft ease so a jump across the page reads as travel.
+   * The offset clears the sticky header, which would otherwise cover the
+   * heading the reader just asked for.
+   */
+  const scrollToSection = useCallback((id: string) => {
+    const target = document.getElementById(id);
+    if (!target) return;
+
+    const header = document.querySelector('header');
+    const offset = (header?.getBoundingClientRect().height ?? 0) + 8;
+    const destination = target.getBoundingClientRect().top + window.scrollY - offset;
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      window.scrollTo(0, destination);
+      return;
+    }
+
+    const start = window.scrollY;
+    const distance = destination - start;
+    if (Math.abs(distance) < 2) return;
+
+    // Scale with distance so a short hop is not artificially slow, but cap it
+    // so the far end of the page never feels like a wait.
+    const duration = Math.min(1400, Math.max(650, Math.abs(distance) * 0.6));
+    const startedAt = performance.now();
+
+    const step = (now: number) => {
+      const elapsed = Math.min(1, (now - startedAt) / duration);
+      // easeInOutCubic: leaves and arrives gently, quick through the middle.
+      const eased = elapsed < 0.5
+        ? 4 * elapsed * elapsed * elapsed
+        : 1 - Math.pow(-2 * elapsed + 2, 3) / 2;
+      window.scrollTo(0, start + distance * eased);
+      if (elapsed < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, []);
+
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
 
-    const pending = Array.from(root.querySelectorAll<HTMLElement>('[data-rv]'));
-    if (!pending.length) return;
+    const watched = Array.from(root.querySelectorAll<HTMLElement>('[data-rv]'));
+    if (!watched.length) return;
 
-    const showAll = () => pending.forEach(el => el.classList.add('rv-in'));
+    const showAll = () => watched.forEach(el => el.classList.add('rv-in'));
 
     // Motion is the whole effect; without it, skip arming entirely.
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -241,6 +291,8 @@ export default function HomePage() {
 
     let raf = 0;
     let measured = false;
+    // Never detached on completion: the list is a standing watch now, because
+    // elements have to be able to hide again when they leave.
     const detach = () => {
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
@@ -257,13 +309,14 @@ export default function HomePage() {
       if (!vh) return;
       measured = true;
 
-      const { reveal, pending: waiting } = partitionRevealed(
-        pending, el => el.getBoundingClientRect(), vh,
+      // Recomputed from scratch each pass, never latched: an element that
+      // leaves the viewport fades back out, so scrolling up and down replays
+      // the entrance instead of showing a page that is permanently revealed.
+      const { visible, hidden } = partitionVisible(
+        watched, el => el.getBoundingClientRect(), vh,
       );
-      reveal.forEach(el => el.classList.add('rv-in'));
-      pending.length = 0;
-      pending.push(...waiting);
-      if (!pending.length) detach();
+      visible.forEach(el => el.classList.add('rv-in'));
+      hidden.forEach(el => el.classList.remove('rv-in'));
     };
 
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(pass); };
@@ -301,8 +354,16 @@ export default function HomePage() {
   }, [lang, light]);
 
   const pageCss = [
-    '.rv-armed [data-rv] { opacity: 0; transform: translateY(26px);',
-    '  transition: opacity 0.65s cubic-bezier(0.22,0.61,0.36,1), transform 0.65s cubic-bezier(0.22,0.61,0.36,1); }',
+    // Longer and gentler than the first pass, which snapped. The curve is
+    // heavily eased-out so movement decelerates into place rather than
+    // arriving at a constant speed, and `will-change` keeps the transform on
+    // its own layer so a long list does not judder.
+    '.rv-armed [data-rv] { opacity: 0; transform: translateY(38px); will-change: opacity, transform;',
+    // Colour is listed here too. This rule outranks .atlas-feature on
+    // specificity, and a `transition` shorthand replaces rather than merges,
+    // so a card's fill would otherwise snap on click instead of fading.
+    '  transition: opacity 1.05s cubic-bezier(0.16,1,0.3,1), transform 1.05s cubic-bezier(0.16,1,0.3,1),',
+    '              background-color 0.25s ease, color 0.25s ease; }',
     '.rv-armed [data-rv].rv-in { opacity: 1; transform: none; }',
     '@media (prefers-reduced-motion: reduce) {',
     '  .rv-armed [data-rv] { opacity: 1 !important; transform: none !important; transition: none !important; }',
@@ -314,6 +375,8 @@ export default function HomePage() {
     '.atlas-btn { transition: transform 0.12s ease; }',
     '.atlas-btn:hover { transform: translateY(-1px); }',
     '.atlas-btn:active { transform: translateY(0); }',
+    '.atlas-feature { transition: background 0.25s ease, color 0.25s ease; }',
+    '.atlas-feature:focus-visible { outline: 3px solid ' + c.lime + '; outline-offset: -3px; }',
     '@media (pointer: coarse) {',
     '  .atlas-tap { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }',
     '}',
@@ -395,6 +458,7 @@ export default function HomePage() {
             <a
               key={k}
               href={'#' + k}
+              onClick={e => { e.preventDefault(); scrollToSection(k); }}
               className="atlas-link atlas-tap"
               style={{ fontSize: '13.5px', fontWeight: 500, color: c.inkSoft, textDecoration: 'none' }}
             >
@@ -628,47 +692,64 @@ export default function HomePage() {
               {t.features.subtitle}
             </p>
 
+            {/* Capped at three columns and the last card spans two, so the row
+                always fills. With auto-fit and five cards the leftover cell
+                showed the grid container's own background — a bare pale block
+                sitting in the grid. */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
               gap: '2px', background: c.rule, border: '2px solid ' + c.rule,
             }}>
               {t.features.cards.map((card, i) => {
-                // The first card is filled: a grid of five identical tiles has
-                // no entry point, and this is the capability the rest support.
-                const lead = i === 0;
+                const open = openFeature === i;
+                const last = i === t.features.cards.length - 1;
                 return (
-                  <div
+                  <button
                     key={i}
                     data-rv
+                    type="button"
+                    aria-pressed={open}
+                    onClick={() => setOpenFeature(i)}
+                    className="atlas-feature"
                     style={{
                       ...stagger(i),
-                      background: lead ? c.cobalt : c.paper,
-                      color: lead ? '#ffffff' : c.ink,
+                      gridColumn: last ? 'span 2' : undefined,
+                      background: open ? c.cobalt : c.paper,
+                      color: open ? '#ffffff' : c.ink,
                       padding: '26px 22px 30px',
+                      border: 'none',
+                      textAlign: isRtl ? 'right' : 'left',
+                      font: 'inherit',
+                      cursor: 'pointer',
+                      display: 'block',
+                      width: '100%',
                     }}
                   >
-                    <p style={{
+                    <span style={{
+                      display: 'block',
                       margin: '0 0 16px', fontFamily: DISPLAY, fontSize: '34px',
                       fontWeight: 800, lineHeight: 1, letterSpacing: '-0.05em',
-                      color: lead ? c.lime : c.cobaltAccent,
+                      color: open ? c.lime : c.cobaltAccent,
                     }}>
                       {String(i + 1).padStart(2, '0')}
-                    </p>
-                    <h3 style={{
+                    </span>
+                    <span style={{
+                      display: 'block',
                       margin: '0 0 8px', fontFamily: DISPLAY, fontSize: '18px',
                       fontWeight: 700, letterSpacing: '-0.02em',
-                      color: lead ? '#ffffff' : c.ink,
+                      color: open ? '#ffffff' : c.ink,
                     }}>
                       {card.title}
-                    </h3>
-                    <p style={{
-                      margin: 0, fontSize: '14px', lineHeight: 1.55,
-                      color: lead ? 'rgba(255,255,255,0.88)' : c.inkSoft,
+                    </span>
+                    <span style={{
+                      display: 'block',
+                      fontSize: '14px', lineHeight: 1.55,
+                      color: open ? 'rgba(255,255,255,0.88)' : c.inkSoft,
                     }}>
                       {card.desc}
-                    </p>
-                  </div>
+                    </span>
+                  </button>
                 );
               })}
             </div>

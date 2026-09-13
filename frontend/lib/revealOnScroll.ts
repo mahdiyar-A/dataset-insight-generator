@@ -29,34 +29,39 @@ export interface RevealRect {
 }
 
 /**
- * True once the element's top edge has crossed the reveal line.
+ * True while the element is within the band that should be shown.
  *
- * Deliberately ignores `bottom`. An earlier version also required
- * `bottom > 0` — "still on screen" — which left everything above the viewport
- * permanently hidden after a jump to an anchor like #contact, because those
- * elements were skipped over rather than scrolled through. Anything already
- * past the line has been reached, whichever direction the reader arrived from.
+ * Reveals are repeatable rather than one-shot: an element fades out again once
+ * it has left the viewport and fades back in on return, in either direction.
+ * That is why `bottom` matters — `bottom > 0` is what makes an element hide
+ * after scrolling off the top.
+ *
+ * Because the state is recomputed from the rect on every pass rather than
+ * latched, arriving somewhere by an anchor jump needs no special handling: the
+ * sections skipped over are simply out of band, and reveal normally when the
+ * reader scrolls back to them.
  */
-export function isRevealed(rect: RevealRect, viewportHeight: number): boolean {
+export function isVisible(rect: RevealRect, viewportHeight: number): boolean {
   if (!Number.isFinite(viewportHeight) || viewportHeight <= 0) return false;
-  return rect.top < viewportHeight * REVEAL_FRACTION;
+  return rect.bottom > 0 && rect.top < viewportHeight * REVEAL_FRACTION;
 }
 
 /**
- * Partition a list into the elements to reveal now and those still waiting.
- * Returning both keeps the caller's pending list shrinking, so a long page
- * stops doing work once everything has been shown.
+ * Split a list by whether each item is currently in the visible band.
+ *
+ * Both halves are returned because the caller has to act on both: items that
+ * entered are shown, items that left are hidden again.
  */
-export function partitionRevealed<T>(
+export function partitionVisible<T>(
   items: T[],
   rectOf: (item: T) => RevealRect,
   viewportHeight: number,
-): { reveal: T[]; pending: T[] } {
-  const reveal: T[] = [];
-  const pending: T[] = [];
+): { visible: T[]; hidden: T[] } {
+  const visible: T[] = [];
+  const hidden: T[] = [];
   for (const item of items) {
-    if (isRevealed(rectOf(item), viewportHeight)) reveal.push(item);
-    else pending.push(item);
+    if (isVisible(rectOf(item), viewportHeight)) visible.push(item);
+    else hidden.push(item);
   }
-  return { reveal, pending };
+  return { visible, hidden };
 }

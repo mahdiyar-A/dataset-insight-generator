@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { isRevealed, partitionRevealed, REVEAL_FRACTION } from "@/lib/revealOnScroll";
+import { isVisible, partitionVisible, REVEAL_FRACTION } from "@/lib/revealOnScroll";
 
 /**
- * The landing page hides these elements with JavaScript and reveals them on
+ * The landing page hides these elements with JavaScript and shows them on
  * scroll, so a mistake here does not look like a broken animation — it looks
  * like a blank marketing page. Hence the coverage on an otherwise trivial
  * comparison.
@@ -12,63 +12,68 @@ import { isRevealed, partitionRevealed, REVEAL_FRACTION } from "@/lib/revealOnSc
 const VH = 800;
 const line = VH * REVEAL_FRACTION; // 736
 
-describe("isRevealed", () => {
+describe("isVisible", () => {
   it("hides an element below the fold", () => {
-    expect(isRevealed({ top: 2620, bottom: 2700 }, VH)).toBe(false);
+    expect(isVisible({ top: 2620, bottom: 2700 }, VH)).toBe(false);
   });
 
-  it("reveals an element in the middle of the viewport", () => {
-    expect(isRevealed({ top: 300, bottom: 460 }, VH)).toBe(true);
+  it("shows an element in the middle of the viewport", () => {
+    expect(isVisible({ top: 300, bottom: 460 }, VH)).toBe(true);
   });
 
-  it("reveals as soon as the top edge crosses the reveal line", () => {
-    expect(isRevealed({ top: line - 1, bottom: line + 200 }, VH)).toBe(true);
-    expect(isRevealed({ top: line + 1, bottom: line + 200 }, VH)).toBe(false);
+  it("shows as soon as the top edge crosses the reveal line", () => {
+    expect(isVisible({ top: line - 1, bottom: line + 200 }, VH)).toBe(true);
+    expect(isVisible({ top: line + 1, bottom: line + 200 }, VH)).toBe(false);
   });
 
-  it("reveals an element already scrolled past above the viewport", () => {
-    // Risk: the first version also required bottom > 0. Jumping straight to an
-    // anchor such as #contact skips over everything above it, leaving those
-    // elements permanently invisible — the reader scrolls back up to blanks.
-    expect(isRevealed({ top: -1500, bottom: -1200 }, VH)).toBe(true);
+  it("hides again once the element has scrolled off the top", () => {
+    // The reveal is repeatable: leaving the viewport upward fades it back out,
+    // so scrolling down and up again replays the entrance.
+    expect(isVisible({ top: -1500, bottom: -1200 }, VH)).toBe(false);
   });
 
-  it("reveals nothing when the viewport cannot be measured", () => {
-    // A zero viewport is a hidden tab or unsettled layout. Revealing on it
-    // would unhide the page permanently on a momentary zero; the caller has a
-    // separate rescue timer for a viewport that never becomes measurable.
-    expect(isRevealed({ top: 10, bottom: 90 }, 0)).toBe(false);
-    expect(isRevealed({ top: 10, bottom: 90 }, Number.NaN)).toBe(false);
+  it("still shows an element straddling the top edge", () => {
+    expect(isVisible({ top: -120, bottom: 40 }, VH)).toBe(true);
+  });
+
+  it("shows nothing when the viewport cannot be measured", () => {
+    // A zero viewport is a hidden tab or unsettled layout. Treating it as
+    // "everything visible" unhid the page permanently on a momentary zero
+    // during layout; the caller has a rescue timer for a viewport that never
+    // becomes measurable at all.
+    expect(isVisible({ top: 10, bottom: 90 }, 0)).toBe(false);
+    expect(isVisible({ top: 10, bottom: 90 }, Number.NaN)).toBe(false);
   });
 });
 
-describe("partitionRevealed", () => {
+describe("partitionVisible", () => {
   const rectOf = (r: { top: number; bottom: number }) => r;
 
-  it("splits a page into arrived and waiting", () => {
+  it("splits a page into on-screen and off-screen", () => {
     const items = [
       { top: 0, bottom: 60 },       // on screen
       { top: 500, bottom: 620 },    // on screen
       { top: 1400, bottom: 1500 },  // below
-      { top: 3000, bottom: 3100 },  // far below
+      { top: -900, bottom: -800 },  // scrolled past above
     ];
-    const { reveal, pending } = partitionRevealed(items, rectOf, VH);
-    expect(reveal).toHaveLength(2);
-    expect(pending).toHaveLength(2);
-    expect(pending[0].top).toBe(1400);
+    const { visible, hidden } = partitionVisible(items, rectOf, VH);
+    expect(visible).toHaveLength(2);
+    expect(hidden).toHaveLength(2);
+    expect(hidden.map(h => h.top)).toEqual([1400, -900]);
   });
 
-  it("keeps everything pending when the viewport is zero", () => {
+  it("treats everything as hidden when the viewport is zero", () => {
     const items = [{ top: 0, bottom: 60 }, { top: 900, bottom: 1000 }];
-    const { reveal, pending } = partitionRevealed(items, rectOf, 0);
-    expect(reveal).toHaveLength(0);
-    expect(pending).toHaveLength(2);
+    const { visible, hidden } = partitionVisible(items, rectOf, 0);
+    expect(visible).toHaveLength(0);
+    expect(hidden).toHaveLength(2);
   });
 
-  it("empties the pending list once the page is fully scrolled", () => {
-    const items = [{ top: -900, bottom: -800 }, { top: -100, bottom: 40 }];
-    const { reveal, pending } = partitionRevealed(items, rectOf, VH);
-    expect(reveal).toHaveLength(2);
-    expect(pending).toHaveLength(0);
+  it("re-shows an element that scrolls back into the band", () => {
+    const item = { top: 2000, bottom: 2100 };
+    expect(partitionVisible([item], rectOf, VH).visible).toHaveLength(0);
+    // The reader scrolls down; the same element is now on screen.
+    const onScreen = { top: 200, bottom: 300 };
+    expect(partitionVisible([onScreen], rectOf, VH).visible).toHaveLength(1);
   });
 });
