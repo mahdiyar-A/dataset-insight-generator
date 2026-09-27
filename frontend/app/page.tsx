@@ -380,6 +380,77 @@ export default function HomePage() {
     '@media (pointer: coarse) {',
     '  .atlas-tap { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }',
     '}',
+
+    // ── Mobile header ───────────────────────────────────────────────────────
+    // The bar is sticky, so its height is a permanent tax on the screen. At
+    // 375px it wrapped onto three rows and stood 188px tall — nearly a quarter
+    // of the phone visible area, held there for the whole scroll.
+    //
+    // The four section anchors are the row that goes. They are a convenience
+    // on a wide screen; on a phone the page is a scroll away and every other
+    // control in the bar (sign-up, language, theme) is something you cannot
+    // reach by scrolling. Below 420px the wordmark goes too, since the logo
+    // already links home and the remaining controls need the width.
+    //
+    // Result: one row, ~62px, at every phone size.
+    // The layout lives in the class, not inline: an inline `display: flex`
+    // outranks a stylesheet rule, so the hide below silently did nothing
+    // until the declaration moved here.
+    '.atlas-nav { display: flex; gap: 18px; flex-wrap: wrap; }',
+    '@media (max-width: 759px) { .atlas-nav { display: none; } }',
+    '.atlas-header { gap: 18px; }',
+    '.atlas-lang button { padding: 5px 10px; }',
+    // 320px (an SE-sized phone) was still two rows: logo plus the control
+    // cluster came to 298px inside 288px of usable width. Ten pixels, so the
+    // gap and the language buttons give them back rather than the layout
+    // wrapping.
+    '.atlas-logo { height: 34px; width: auto; }',
+    '.atlas-theme { padding: 5px 11px; }',
+    '@media (max-width: 419px) {',
+    '  .atlas-wordmark { display: none; }',
+    '  .atlas-header { gap: 10px; }',
+    '  .atlas-lang button { padding: 5px 6px; }',
+    '  .atlas-logo { height: 26px; }',
+    '  .atlas-theme { padding: 5px 7px; }',
+    '}',
+
+    // ── Responsive grids ────────────────────────────────────────────────────
+    // Explicit column counts at explicit widths, rather than
+    // `repeat(auto-fit, minmax(300px, 1fr))`. Two things went wrong with
+    // auto-fit here and both were invisible on a desktop monitor:
+    //
+    //   1. A `minmax(300px, ...)` track never shrinks below 300px. On a 320px
+    //      phone the container is 288px, so the track overflowed it and the
+    //      wrapper's `overflow-x: clip` quietly cut the cards off — the page
+    //      reported no horizontal scroll while content sat outside the screen.
+    //
+    //   2. `grid-column: span 2` on the last card needs two tracks. Where
+    //      auto-fit resolved to one, the browser invented an implicit second
+    //      track to satisfy the span, which is where the ragged 300px/258px
+    //      and 300px/124px columns at 600px and below came from.
+    //
+    // Counts are chosen so a card is never much under 300px: at 660px the two
+    // columns are ~309px, at 1000px the three are ~312px. The last-child span
+    // exists only where there are already two columns, so it can no longer
+    // conjure a track of its own.
+    '.atlas-features { display: grid; gap: 2px; grid-template-columns: minmax(0, 1fr); }',
+    '@media (min-width: 660px) {',
+    '  .atlas-features { grid-template-columns: repeat(2, minmax(0, 1fr)); }',
+    '  .atlas-features > :last-child { grid-column: span 2; }',
+    '}',
+    '@media (min-width: 1000px) {',
+    '  .atlas-features { grid-template-columns: repeat(3, minmax(0, 1fr)); }',
+    '  .atlas-features > :last-child { grid-column: span 2; }',
+    '}',
+    // Two prose columns, single until there is room for two comfortable
+    // measures side by side.
+    '.atlas-duo { display: grid; gap: 40px; grid-template-columns: minmax(0, 1fr); }',
+    '@media (min-width: 760px) { .atlas-duo { grid-template-columns: repeat(2, minmax(0, 1fr)); } }',
+    // The three hero steps. `min(210px, 100%)` is the guard the feature grid
+    // was missing: under 210px the track follows the container instead of
+    // overflowing it.
+    '.atlas-steps { display: grid; gap: 20px;',
+    '  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr)); }',
   ].join('\n');
 
   const inner: React.CSSProperties = { maxWidth: '1120px', margin: '0 auto' };
@@ -426,11 +497,12 @@ export default function HomePage() {
 
       {/* ── Nav ─────────────────────────────────────────────────────────── */}
       <header
+        className="atlas-header"
         style={{
           position: 'sticky', top: 0, zIndex: 40,
           background: c.paper, borderBottom: '2px solid ' + c.rule,
           padding: '8px clamp(16px, 3vw, 32px)', minHeight: '62px',
-          display: 'flex', alignItems: 'center', gap: '18px', flexWrap: 'wrap',
+          display: 'flex', alignItems: 'center', flexWrap: 'wrap',
         }}
       >
         {/* color set explicitly: this page styles inline, so an anchor without
@@ -444,8 +516,8 @@ export default function HomePage() {
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/DIG.png" alt="" style={{ height: '34px', width: 'auto' }} />
-          <span style={{
+          <img src="/DIG.png" alt="" className="atlas-logo" />
+          <span className="atlas-wordmark" style={{
             fontFamily: DISPLAY, fontSize: '19px', fontWeight: 800,
             letterSpacing: '-0.04em', color: c.ink,
           }}>
@@ -453,7 +525,7 @@ export default function HomePage() {
           </span>
         </Link>
 
-        <nav style={{ display: 'flex', gap: '18px', flexWrap: 'wrap' }}>
+        <nav className="atlas-nav">
           {(['features', 'security', 'developers', 'contact'] as const).map(k => (
             <a
               key={k}
@@ -471,7 +543,7 @@ export default function HomePage() {
           marginInlineStart: 'auto', display: 'flex', alignItems: 'center',
           gap: '6px', flexWrap: 'wrap',
         }}>
-          <div style={{ display: 'flex', border: '1.5px solid ' + c.hairline }}>
+          <div className="atlas-lang" style={{ display: 'flex', border: '1.5px solid ' + c.hairline }}>
             {LANGS.map(l => (
               <button
                 key={l.code}
@@ -479,7 +551,7 @@ export default function HomePage() {
                 aria-pressed={lang === l.code}
                 className="atlas-tap"
                 style={{
-                  padding: '5px 10px', border: 'none', cursor: 'pointer',
+                  border: 'none', cursor: 'pointer',
                   fontFamily: SANS, fontSize: '11.5px',
                   fontWeight: lang === l.code ? 700 : 500,
                   background: lang === l.code ? c.ink : 'transparent',
@@ -493,9 +565,9 @@ export default function HomePage() {
 
           <button
             onClick={() => setBrightness(brightness > 65 ? 10 : 80)}
-            className="atlas-tap"
+            className="atlas-tap atlas-theme"
             style={{
-              padding: '5px 11px', cursor: 'pointer', background: 'transparent',
+              cursor: 'pointer', background: 'transparent',
               border: '1.5px solid ' + c.hairline, color: c.inkFaint,
               fontFamily: SANS, fontSize: '11.5px', fontWeight: 500,
             }}
@@ -519,9 +591,17 @@ export default function HomePage() {
 
       <main>
         {/* ── Hero ──────────────────────────────────────────────────────── */}
+        {/* Vertical rhythm is governed by the SHORTER side of the viewport,
+             not the width. Sized on width alone, a 1280x560 laptop window got
+             the full 80px headline and 76px of padding, so the hero grew to
+             685px inside a 560px viewport and the "how it works" sheet — which
+             is meant to peek above the fold and invite a scroll — sat entirely
+             below it. `min(7vw, 9vh)` gives a wide monitor the generous
+             spacing it has room for and quietly tightens a short window.
+             Horizontal padding stays width-only, which is what it measures. */}
         <section style={{
           background: c.cobalt, color: '#ffffff',
-          padding: 'clamp(48px, 7vw, 76px) clamp(16px, 3vw, 32px) 0',
+          padding: 'clamp(32px, min(7vw, 9vh), 76px) clamp(16px, 3vw, 32px) 0',
           position: 'relative', overflow: 'hidden',
         }}>
           <svg
@@ -540,7 +620,11 @@ export default function HomePage() {
           <div style={{ ...inner, position: 'relative' }}>
             <h1 data-rv style={{
               margin: 0, fontFamily: DISPLAY,
-              fontSize: 'clamp(36px, 6.4vw, 80px)', fontWeight: 800,
+              // Same reasoning as the section padding above. On a phone the
+              // width term is far smaller than the height term, so `min` picks
+              // width and the 36px floor still governs — the vh half only ever
+              // bites on a short, wide window.
+              fontSize: 'clamp(36px, min(6.4vw, 10.5vh), 80px)', fontWeight: 800,
               lineHeight: 0.98, letterSpacing: '-0.045em',
               maxWidth: '18ch', textWrap: 'pretty',
             }}>
@@ -586,7 +670,7 @@ export default function HomePage() {
                 and overlapping the fold so the page invites a scroll. */}
             <div data-rv style={{
               ...stagger(4),
-              margin: 'clamp(40px, 5vw, 60px) auto -2px', maxWidth: '880px',
+              margin: 'clamp(22px, min(5vw, 5vh), 60px) auto -2px', maxWidth: '880px',
               background: SHEET.bg, color: SHEET.ink,
               borderTop: '2px solid #12121a',
               borderInline: '2px solid #12121a',
@@ -599,11 +683,7 @@ export default function HomePage() {
               }}>
                 {t.hero.howTitle}
               </p>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-                gap: '20px',
-              }}>
+              <div className="atlas-steps">
                 {[t.hero.step1, t.hero.step2, t.hero.step3].map((step, i) => (
                   <div key={i}>
                     <p style={{
@@ -692,18 +772,16 @@ export default function HomePage() {
               {t.features.subtitle}
             </p>
 
-            {/* Capped at three columns and the last card spans two, so the row
-                always fills. With auto-fit and five cards the leftover cell
-                showed the grid container's own background — a bare pale block
-                sitting in the grid. */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-              gap: '2px', background: c.rule, border: '2px solid ' + c.rule,
+            {/* Three columns at most, and the last card spans two so the row
+                always fills — with five cards and no span the leftover cell
+                showed the grid container's own background as a bare block.
+                The column counts live in .atlas-features; see the note there
+                for why they are explicit rather than auto-fit. */}
+            <div className="atlas-features" style={{
+              background: c.rule, border: '2px solid ' + c.rule,
             }}>
               {t.features.cards.map((card, i) => {
                 const open = openFeature === i;
-                const last = i === t.features.cards.length - 1;
                 return (
                   <button
                     key={i}
@@ -714,7 +792,6 @@ export default function HomePage() {
                     className="atlas-feature"
                     style={{
                       ...stagger(i),
-                      gridColumn: last ? 'span 2' : undefined,
                       background: open ? c.cobalt : c.paper,
                       color: open ? '#ffffff' : c.ink,
                       padding: '26px 22px 30px',
@@ -763,10 +840,7 @@ export default function HomePage() {
           background: c.cobalt, color: '#ffffff',
           borderBottom: '2px solid ' + c.rule,
         }}>
-          <div style={{
-            ...inner, display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '40px',
-          }}>
+          <div className="atlas-duo" style={inner}>
             <div>
               <p data-rv style={eyebrow('#d6f24a')}>{t.security.heading.toUpperCase()}</p>
               <h2 data-rv style={{ ...h2('#ffffff'), ...stagger(1), maxWidth: '16ch' }}>
