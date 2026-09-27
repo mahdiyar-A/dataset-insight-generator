@@ -259,7 +259,10 @@ def run_pipeline(
 
     # ── Phase 4: Enhanced statistical engine ─────────────────────────────
     print(f"[Pipeline] Phase 4 — Statistical engine running on {len(df_work):,} rows...", flush=True)
-    stats = build_stats_summary(df_work, quality)
+    # The domain reaches the statistics, not just the narrative. Until now it
+    # only flavoured the wording of the insight prompt, so every dataset got an
+    # identical set of computations regardless of what it was.
+    stats = build_stats_summary(df_work, quality, domain=domain.domain)
     print(f"[Pipeline] Stats done. Numeric cols: {len(stats.numericStats)}, Correlations: {len(stats.topCorrelations)}", flush=True)
 
     # ── Phase 5: Gemini — insights + report + chart instructions ─────────
