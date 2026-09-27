@@ -13,8 +13,10 @@ import LegalPage from '@/components/LegalPage';
  * (ai_service/ai_engine/llm/groq_client.py, _build_fingerprint), which the
  * usual "we only send anonymous metadata" boilerplate would have hidden.
  *
- * [REVIEW] markers are facts only the operator can supply — legal entity,
- * jurisdiction, regulator. They are deliberately visible rather than guessed.
+ * Operator, jurisdiction and retention were supplied by the operator on
+ * 2026-09-27: sole individual, Toronto, Ontario. There are no placeholders
+ * left on the page. The 30-day log retention is a commitment the hosting
+ * configuration has to honour — see the note in the Terms.
  */
 
 export const metadata: Metadata = {
@@ -35,7 +37,7 @@ const SECTIONS = [
   {
     heading: 'Who we are',
     body: [
-      'DIG (Dataset Insight Generator) is operated by [REVIEW: legal entity name and registered address]. You can reach us at dataset_insight_generator.ai@proton.me for any question about this policy or any request described below.',
+      'DIG (Dataset Insight Generator) is run by Mahdiyar Ashrafioun, an individual based in Toronto, Ontario, Canada. It is not incorporated — there is no company behind it, just one person. You can reach us at dataset_insight_generator.ai@proton.me for any question about this policy or any request described below.',
       'The service is offered through datainsightgen.com, datainsightgen.ca and datainsightgen.online. This policy covers all three.',
     ],
   },
@@ -87,7 +89,7 @@ const SECTIONS = [
     body: [
       'Your analysis history is capped by plan: 5 analyses on the free plan, 15 on Pro. When you exceed the cap, the oldest analysis is deleted automatically along with its uploaded file and generated reports. This happens as part of running a new analysis — it is not something we do on request, and there is no hidden archive behind it.',
       'Deleting your account deletes your account record, your analyses, and every file stored for you.',
-      '[REVIEW: state how long operational logs and error records are retained, and confirm your Stripe and Supabase retention settings.]',
+      'Operational logs and error records are kept for at most 30 days and are then deleted. Payment records held by Stripe are kept as long as tax and accounting law requires.',
     ],
   },
   {
@@ -95,7 +97,8 @@ const SECTIONS = [
     body: [
       'You can ask us to show you the data we hold about you, correct it, delete it, or send you a copy. Email dataset_insight_generator.ai@proton.me and we will respond within 30 days.',
       'You can delete your own analyses at any time from your dashboard, which removes the stored files with them.',
-      '[REVIEW: name the governing data-protection law and supervisory authority for your jurisdiction — for example PIPEDA and the Office of the Privacy Commissioner of Canada, or the GDPR and your national authority — and add the right to lodge a complaint with it.]',
+      'Because DIG is operated from Ontario, your personal information is handled under Canada’s federal Personal Information Protection and Electronic Documents Act (PIPEDA). Ontario has no separate private-sector privacy statute, so PIPEDA is the law that applies.',
+      'If you are not satisfied with how a request was handled, you can complain to the Office of the Privacy Commissioner of Canada at priv.gc.ca. If you are outside Canada, you may also have rights under your own local law; contact us and we will do what it requires.',
     ],
   },
   {
@@ -120,7 +123,7 @@ const SECTIONS = [
 ];
 
 const CLOSING =
-  'This policy describes how the software actually behaves today, verified against the source code. It has not been reviewed by a lawyer. Before taking paying customers, have a qualified professional review it and fill in every [REVIEW] item.';
+  'This policy describes how the software actually behaves today, verified against the source code. It has not been reviewed by a lawyer — worth doing before taking paying customers.';
 
 export default function PrivacyPolicyPage() {
   return (

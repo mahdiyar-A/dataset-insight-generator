@@ -10,7 +10,13 @@ import LegalPage from '@/components/LegalPage';
  * own limit, and 5/15 history slots come from AnalysisService.HistoryLimitFor.
  * If either changes in code, this page is wrong and must change with it.
  *
- * [REVIEW] markers are facts only the operator can supply.
+ * Operator, jurisdiction, refunds and price-change notice were supplied by
+ * the operator on 2026-09-27: sole individual, Toronto, Ontario, no refunds
+ * because the free plan is the trial. No placeholders remain.
+ *
+ * One claim depends on configuration rather than code: the Privacy Policy
+ * promises operational logs are deleted after 30 days. Whatever host runs
+ * the backend has to be set to expire them, or that sentence is false.
  */
 
 export const metadata: Metadata = {
@@ -32,7 +38,7 @@ const SECTIONS = [
     heading: 'The service',
     body: [
       'DIG accepts a spreadsheet or CSV file, cleans and profiles it, runs statistical analysis on it, and produces a written report with charts. Some of that work is done by our own code and some by AI models operated by other companies, as described in our Privacy Policy.',
-      'DIG is operated by [REVIEW: legal entity name]. We may add, change or remove features. If we remove something you depend on, we will tell registered users by email.',
+      'DIG is run by Mahdiyar Ashrafioun, an individual based in Toronto, Ontario, Canada. It is not incorporated. We may add, change or remove features. If we remove something you depend on, we will tell registered users by email.',
     ],
   },
   {
@@ -74,7 +80,8 @@ const SECTIONS = [
     body: [
       'There is a free plan and a paid Pro plan (CAD $9.99 per month). Payment is handled by Stripe; your card details never reach our servers.',
       'Pro renews automatically until you cancel. You can cancel at any time and keep access until the end of the period you have already paid for. Your history cap drops back to the free plan limit when Pro ends, which may prune older analyses.',
-      '[REVIEW: add your refund policy, and how much notice you will give before a price change.]',
+      'We do not give refunds. The free plan exists so you can run real analyses and judge the service before paying anything, so there should be no need to buy Pro untested.',
+      'If the price changes, we will email registered users at least 30 days before it takes effect, and the new price only applies from your next renewal.',
     ],
   },
   {
@@ -91,7 +98,7 @@ const SECTIONS = [
       'To the fullest extent the law allows, we are not liable for indirect or consequential loss, lost profits, lost data, or decisions made on the basis of a report.',
       'Where liability cannot be excluded, it is limited to the amount you paid us in the 12 months before the claim — which for a free-plan user is nothing.',
       'Nothing here excludes liability that cannot lawfully be excluded, including for fraud.',
-      '[REVIEW: have this section checked against your jurisdiction\'s consumer-protection rules, which may override parts of it.]',
+      'If you are a consumer in Ontario, the Consumer Protection Act, 2002 gives you rights that an agreement cannot sign away. Nothing in this section limits those rights, and where this section conflicts with them, they win.',
     ],
   },
   {
@@ -104,7 +111,7 @@ const SECTIONS = [
   {
     heading: 'Governing law',
     body: [
-      '[REVIEW: name the governing law and the courts that have jurisdiction — normally where your legal entity is established.]',
+      'These terms are governed by the laws of the Province of Ontario and the federal laws of Canada that apply there. The courts of Ontario have jurisdiction over any dispute, without affecting any right you have to bring a claim where you live.',
     ],
   },
   {
@@ -116,7 +123,7 @@ const SECTIONS = [
 ];
 
 const CLOSING =
-  'The limits described here are the ones the software actually enforces. This document has not been reviewed by a lawyer — have a qualified professional review it and fill in every [REVIEW] item before charging customers.';
+  'The limits described here are the ones the software actually enforces. This document has not been reviewed by a lawyer — worth doing before charging customers.';
 
 export default function TermsPage() {
   return (
