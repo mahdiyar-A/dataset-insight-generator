@@ -66,15 +66,15 @@ const SECTIONS = [
       'Uploads are capped at 50 MB per file.',
       'Analysis history is capped at 5 analyses on the free plan and 15 on Pro. Exceeding the cap deletes your oldest analysis and its files automatically and permanently.',
       'Download your reports if you want to keep them. Your history is working space, not an archive, and we do not undertake to recover a pruned analysis.',
-      '[REVIEW: state any rate limit on analyses per day or month, if you enforce one.]',
+      'Free accounts may run 2 analyses per 48 hours. Pro accounts are unlimited. The service also applies general request limits to protect against abuse.',
     ],
   },
   {
     heading: 'Plans and payment',
     body: [
-      'There is a free plan and a paid Pro plan. Payment is handled by Stripe; your card details never reach our servers.',
+      'There is a free plan and a paid Pro plan (CAD $9.99 per month). Payment is handled by Stripe; your card details never reach our servers.',
       'Pro renews automatically until you cancel. You can cancel at any time and keep access until the end of the period you have already paid for. Your history cap drops back to the free plan limit when Pro ends, which may prune older analyses.',
-      '[REVIEW: state the Pro price and billing period, your refund policy, and how much notice you will give before a price change.]',
+      '[REVIEW: add your refund policy, and how much notice you will give before a price change.]',
     ],
   },
   {
