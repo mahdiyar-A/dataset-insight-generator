@@ -12,7 +12,7 @@ import DigMascot from '@/components/DigMascot';
 const T = {
   en: {
     dir: 'ltr',
-    nav: { features: 'Features', security: 'Security', developers: 'Developers', contact: 'Contact' },
+    nav: { features: 'Features', security: 'Security', developers: 'Developers', contact: 'Contact', menu: 'Menu' },
     hero: {
       title: 'Your Data Has a Story. We Help You Read It.',
       subtitle: 'Drop in any CSV or Excel file and get back a full AI-powered analysis — visualizations, patterns, anomalies, and a professional PDF report. No coding. No setup. Just an insightful report.',
@@ -60,7 +60,7 @@ const T = {
 
   fr: {
     dir: 'ltr',
-    nav: { features: 'Fonctionnalités', security: 'Sécurité', developers: 'Équipe', contact: 'Contact' },
+    nav: { features: 'Fonctionnalités', security: 'Sécurité', developers: 'Équipe', contact: 'Contact', menu: 'Menu' },
     hero: {
       title: 'Vos données ont une histoire. Nous vous aidons à la lire.',
       subtitle: "Importez n'importe quel fichier CSV ou Excel et obtenez une analyse complète par IA — visualisations, patterns, anomalies et un rapport PDF professionnel. Sans code. Sans configuration. Juste des insights.",
@@ -108,7 +108,7 @@ const T = {
 
   fa: {
     dir: 'rtl',
-    nav: { features: 'ویژگی‌ها', security: 'امنیت', developers: 'تیم', contact: 'تماس' },
+    nav: { features: 'ویژگی‌ها', security: 'امنیت', developers: 'تیم', contact: 'تماس', menu: 'منو' },
     hero: {
       title: 'داده‌های شما یک داستان دارند. ما کمک می‌کنیم آن را بخوانید.',
       subtitle: 'هر فایل CSV یا اکسل را آپلود کنید و تحلیل کامل مبتنی بر هوش مصنوعی دریافت کنید — تصویرسازی، الگوها، ناهنجاری‌ها و یک گزارش PDF حرفه‌ای. بدون کدنویسی. بدون راه‌اندازی.',
@@ -197,6 +197,11 @@ const ATLAS = {
 // field — the palette's whole point is paper against blue against citron.
 const SHEET = { bg: '#f2efe9', ink: '#12121a', soft: '#4a4741', accent: '#2536e0' };
 
+// Mirrors the `max-width: 759px` media query in pageCss. The resize
+// handler and the stylesheet must agree on where the phone menu stops
+// existing, or the panel can outlive the button that dismisses it.
+const MENU_BREAKPOINT = 759;
+
 const DISPLAY = 'var(--font-display), "Bricolage Grotesque", Georgia, serif';
 const SANS = 'var(--font-sans), "Work Sans", system-ui, sans-serif';
 
@@ -233,6 +238,12 @@ export default function HomePage() {
   // grid never reads as five inert tiles.
   const [openFeature, setOpenFeature] = useState(0);
 
+  // The phone menu. Closed on every render path that should dismiss it —
+  // choosing a link, Escape, a tap outside, or the viewport growing wide
+  // enough that the inline nav is back. Leaving it open across a resize would
+  // strand a panel over a header that no longer has a button to close it.
+  const [menuOpen, setMenuOpen] = useState(false);
+
   /**
    * Nav anchors scroll rather than jump.
    *
@@ -263,7 +274,10 @@ export default function HomePage() {
     const duration = Math.min(1400, Math.max(650, Math.abs(distance) * 0.6));
     const startedAt = performance.now();
 
+    let done = false;
+
     const step = (now: number) => {
+      if (done) return;
       const elapsed = Math.min(1, (now - startedAt) / duration);
       // easeInOutCubic: leaves and arrives gently, quick through the middle.
       const eased = elapsed < 0.5
@@ -271,8 +285,25 @@ export default function HomePage() {
         : 1 - Math.pow(-2 * elapsed + 2, 3) / 2;
       window.scrollTo(0, start + distance * eased);
       if (elapsed < 1) requestAnimationFrame(step);
+      else done = true;
     };
     requestAnimationFrame(step);
+
+    // Safety net. requestAnimationFrame only runs while the page is being
+    // composited: in a background tab, under power saving, and inside some
+    // embedded webviews it is throttled to nothing. Measured 0 frames in 500ms
+    // in one such host — the menu opened, the link registered, and the page
+    // simply never moved, which reads as a dead link rather than a slow one.
+    // The reveal effect already carries a timer for the same reason.
+    //
+    // A timer is not throttled the same way, so if the animation has not
+    // finished by the time it should have, put the reader where they asked to
+    // go. When rAF is healthy this fires after `done` and does nothing.
+    window.setTimeout(() => {
+      if (done) return;
+      done = true;
+      window.scrollTo(0, destination);
+    }, duration + 250);
   }, []);
 
   useEffect(() => {
@@ -353,6 +384,29 @@ export default function HomePage() {
     };
   }, [lang, light]);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
+    const onPointer = (e: PointerEvent) => {
+      const header = document.querySelector('header');
+      if (header && !header.contains(e.target as Node)) setMenuOpen(false);
+    };
+    // MENU_BREAKPOINT mirrors the max-width in the stylesheet below. The two
+    // have to agree: if CSS reveals the inline nav while React still thinks
+    // the panel is open, both are on screen at once.
+    const onResize = () => { if (window.innerWidth > MENU_BREAKPOINT) setMenuOpen(false); };
+
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPointer);
+    window.addEventListener('resize', onResize);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onPointer);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [menuOpen]);
+
   const pageCss = [
     // Longer and gentler than the first pass, which snapped. The curve is
     // heavily eased-out so movement decelerates into place rather than
@@ -397,7 +451,14 @@ export default function HomePage() {
     // outranks a stylesheet rule, so the hide below silently did nothing
     // until the declaration moved here.
     '.atlas-nav { display: flex; gap: 18px; flex-wrap: wrap; }',
-    '@media (max-width: 759px) { .atlas-nav { display: none; } }',
+    // The button and the inline nav are mutually exclusive, and the panel
+    // exists only where the button does.
+    '.atlas-burger { display: none; }',
+    '@media (max-width: 759px) {',
+    '  .atlas-nav { display: none; }',
+    '  .atlas-burger { display: inline-flex; }',
+    '}',
+    '@media (min-width: 760px) { .atlas-menu { display: none; } }',
     '.atlas-header { gap: 18px; }',
     '.atlas-lang button { padding: 5px 10px; }',
     // 320px (an SE-sized phone) was still two rows: logo plus the control
@@ -538,6 +599,72 @@ export default function HomePage() {
             </a>
           ))}
         </nav>
+
+        {/* Phone menu. The same four anchors the wide layout shows inline —
+            hiding them outright would have been the cheaper fix, but the
+            sections are the only thing on this page a reader might want to
+            reach directly. Bars rather than an icon font so it costs nothing
+            and cannot fail to load. */}
+        <button
+          type="button"
+          className="atlas-burger atlas-tap"
+          aria-expanded={menuOpen}
+          aria-controls="atlas-menu"
+          aria-label={t.nav.menu}
+          onClick={() => setMenuOpen(o => !o)}
+          style={{
+            flexDirection: 'column', justifyContent: 'center', gap: '4px',
+            width: '44px', padding: '0 10px', cursor: 'pointer',
+            background: 'transparent', border: '1.5px solid ' + c.hairline,
+          }}
+        >
+          {[0, 1, 2].map(i => (
+            <span
+              key={i}
+              style={{
+                display: 'block', width: '18px', height: '2px', background: c.ink,
+                transition: 'transform 0.2s ease, opacity 0.2s ease',
+                // Closed: three bars. Open: the outer two cross and the
+                // middle disappears, so the control says how to undo itself.
+                transform: menuOpen
+                  ? (i === 0 ? 'translateY(6px) rotate(45deg)'
+                    : i === 2 ? 'translateY(-6px) rotate(-45deg)' : 'none')
+                  : 'none',
+                opacity: menuOpen && i === 1 ? 0 : 1,
+              }}
+            />
+          ))}
+        </button>
+
+        {menuOpen && (
+          <div
+            id="atlas-menu"
+            className="atlas-menu"
+            style={{
+              position: 'absolute', top: '100%', insetInline: 0,
+              background: c.paper, borderBottom: '2px solid ' + c.rule,
+              padding: '6px clamp(16px, 3vw, 32px) 12px',
+              flexDirection: 'column', display: 'flex',
+            }}
+          >
+            {(['features', 'security', 'developers', 'contact'] as const).map(k => (
+              <a
+                key={k}
+                href={'#' + k}
+                onClick={e => { e.preventDefault(); setMenuOpen(false); scrollToSection(k); }}
+                className="atlas-link atlas-tap"
+                style={{
+                  fontFamily: DISPLAY, fontSize: '17px', fontWeight: 700,
+                  letterSpacing: '-0.02em', color: c.ink, textDecoration: 'none',
+                  padding: '12px 0', borderBottom: '1px solid ' + c.hairline,
+                  minHeight: '52px',
+                }}
+              >
+                {t.nav[k]}
+              </a>
+            ))}
+          </div>
+        )}
 
         <div style={{
           marginInlineStart: 'auto', display: 'flex', alignItems: 'center',
