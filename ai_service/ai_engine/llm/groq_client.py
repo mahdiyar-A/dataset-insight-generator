@@ -144,8 +144,16 @@ def _parse_json(text: str) -> Dict:
 
 def _build_fingerprint(df: pd.DataFrame) -> Dict[str, Any]:
     """
-    Build a rich, compact fingerprint of the dataset so Groq can make
-    intelligent column-level decisions without seeing the raw data.
+    Build a rich, compact fingerprint of the dataset for the domain gate.
+
+    Note what this does and does not send. The file is never uploaded, but the
+    fingerprint is not anonymous either: it carries up to five real values from
+    every column plus the three most frequent values of each text column. That
+    is deliberate — a column of "CUS00102"-shaped strings is only recognisable
+    as a customer key by looking at one — but it means actual cell contents
+    leave the process, which is why the privacy policy says so explicitly and
+    warns against uploading regulated data. An earlier version of this
+    docstring claimed the model never sees raw data; it does.
     """
     fingerprint: Dict[str, Any] = {
         "rows":    len(df),

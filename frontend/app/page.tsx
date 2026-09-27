@@ -39,7 +39,7 @@ const T = {
       body: 'Your data is handled with care at every step — from upload to report delivery.',
       items: [
         'All data is transmitted over HTTPS — encrypted end to end.',
-        'Files are processed in isolation and never shared with third parties.',
+        'Your file itself is never sent to an AI provider — only column summaries and a few example values, as set out in our Privacy Policy.',
         'We use Supabase — a trusted, production-grade cloud database used by thousands of teams worldwide.',
         'Authentication is handled via industry-standard JWT tokens with secure password hashing.',
         '50MB file size limit and strict file type validation enforced on every upload.',
@@ -54,7 +54,7 @@ const T = {
       role: 'Project Manager · Full Stack',
     },
     contact: { heading: 'Get in Touch', body: "Have questions or feedback? We'd love to hear from you.", btn: 'Contact us' },
-    footer: '© 2025 Dataset Insight Generator',
+    footer: '© 2026 Dataset Insight Generator',
     switcher: { language: 'Language', theme: 'Theme', dark: 'Dark', light: 'Light' },
   },
 
@@ -87,7 +87,7 @@ const T = {
       body: 'Vos données sont traitées avec soin à chaque étape — du téléchargement à la livraison du rapport.',
       items: [
         'Toutes les données sont transmises via HTTPS — chiffrées de bout en bout.',
-        'Les fichiers sont traités en isolation et jamais partagés avec des tiers.',
+        "Votre fichier n'est jamais envoyé à un fournisseur d'IA — uniquement des résumés de colonnes et quelques exemples de valeurs, comme indiqué dans notre politique de confidentialité.",
         'Nous utilisons Supabase — une base de données cloud de production de confiance.',
         "L'authentification utilise des JWT conformes aux standards industriels avec hachage sécurisé.",
         'Limite de 50 Mo et validation stricte du type de fichier à chaque import.',
@@ -102,7 +102,7 @@ const T = {
       role: 'Chef de projet · Full Stack',
     },
     contact: { heading: 'Nous contacter', body: 'Des questions ou des retours ? Nous serions ravis de vous entendre.', btn: 'Nous contacter' },
-    footer: '© 2025 Dataset Insight Generator',
+    footer: '© 2026 Dataset Insight Generator',
     switcher: { language: 'Langue', theme: 'Thème', dark: 'Sombre', light: 'Clair' },
   },
 
@@ -135,7 +135,7 @@ const T = {
       body: 'داده‌های شما در هر مرحله با دقت مدیریت می‌شوند — از آپلود تا تحویل گزارش.',
       items: [
         'تمام داده‌ها از طریق HTTPS منتقل می‌شوند — رمزگذاری شده از ابتدا تا انتها.',
-        'فایل‌ها به صورت مجزا پردازش می‌شوند و هرگز با اشخاص ثالث به اشتراک گذاشته نمی‌شوند.',
+        'خود فایل شما هرگز برای ارائه‌دهندگان هوش مصنوعی ارسال نمی‌شود — تنها خلاصهٔ ستون‌ها و چند نمونه مقدار، همان‌طور که در سیاست حریم خصوصی آمده است.',
         'از Supabase استفاده می‌کنیم — پایگاه داده ابری معتمد و در سطح تولید.',
         'احراز هویت از طریق توکن‌های JWT استاندارد با هش رمز عبور ایمن انجام می‌شود.',
         'محدودیت ۵۰ مگابایت و اعتبارسنجی دقیق نوع فایل در هر آپلود.',
@@ -150,7 +150,7 @@ const T = {
       role: 'مدیر پروژه · فول استک',
     },
     contact: { heading: 'تماس با ما', body: 'سؤال یا بازخورد دارید؟ خوشحال می‌شویم بشنویم.', btn: 'تماس با ما' },
-    footer: '© ۲۰۲۵ Dataset Insight Generator',
+    footer: '© ۲۰۲۶ Dataset Insight Generator',
     switcher: { language: 'زبان', theme: 'تم', dark: 'تیره', light: 'روشن' },
   },
 } as const;
@@ -907,6 +907,19 @@ export default function HomePage() {
           DIG
         </span>
         <span style={{ fontSize: '12.5px', color: c.inkFaint }}>{t.footer}</span>
+        {/* Left in English in every locale, because the documents they point at
+            are published in English only — a translated label promising a
+            translated page would be the misleading half. */}
+        <Link href="/privacy" style={{
+          fontSize: '12.5px', color: c.inkSoft, textDecoration: 'none',
+        }}>
+          Privacy
+        </Link>
+        <Link href="/terms" style={{
+          fontSize: '12.5px', color: c.inkSoft, textDecoration: 'none',
+        }}>
+          Terms
+        </Link>
         <span style={{ marginInlineStart: 'auto', fontSize: '12.5px', color: c.inkFaint }}>
           datainsightgen.com
         </span>

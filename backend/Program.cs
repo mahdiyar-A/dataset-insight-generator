@@ -152,9 +152,31 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
 // AllowCredentials is required for SignalR + cookies. Keep everything on ONE line in .env.
+//
+// The default below is the full set of origins this product is actually served
+// from, not just localhost. It matters because appsettings.json is gitignored
+// and the origin list previously lived only in an untracked .env: forgetting
+// ALLOWED_ORIGINS on a new host silently fell back to localhost-only, which
+// blocks every real visitor while the server itself looks perfectly healthy.
+// These are public domain names, not secrets, so committing them costs nothing
+// and removes that failure mode. ALLOWED_ORIGINS still overrides in full.
+//
+// Both apex and www are listed for every domain. www.datainsightgen.ca and
+// www.datainsightgen.online both resolve and serve the app, and only their
+// apex forms were previously allowed — so those visitors loaded the page and
+// then had every API call rejected by the browser.
+const string DefaultAllowedOrigins =
+    "http://localhost:3000,http://localhost:3001," +
+    "https://datainsightgen.com,https://www.datainsightgen.com," +
+    "https://datainsightgen.ca,https://www.datainsightgen.ca," +
+    "https://datainsightgen.online,https://www.datainsightgen.online," +
+    "https://dataset-insight-generator-cvgn.vercel.app";
+
 var allowedOrigins = (Environment.GetEnvironmentVariable("ALLOWED_ORIGINS")
-    ?? "http://localhost:3000,http://localhost:3001")
-    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    ?? DefaultAllowedOrigins)
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray();
 
 Console.WriteLine($"[CORS] Origins: {string.Join(" | ", allowedOrigins)}");
 
