@@ -12,7 +12,7 @@ import DigMascot from '@/components/DigMascot';
 const T = {
   en: {
     dir: 'ltr',
-    nav: { features: 'Features', security: 'Security', developers: 'Developers', contact: 'Contact', menu: 'Menu' },
+    nav: { features: 'Features', security: 'Security', developers: 'Developer', contact: 'Contact', menu: 'Menu' },
     hero: {
       title: 'Your Data Has a Story. We Help You Read It.',
       subtitle: 'Drop in any CSV or Excel file and get back a full AI-powered analysis — visualizations, patterns, anomalies, and a professional PDF report. No coding. No setup. Just an insightful report.',
@@ -49,9 +49,9 @@ const T = {
       note: 'Please do not upload confidential or legally sensitive data.',
     },
     developers: {
-      heading: 'Developers',
-      body: 'We are a team of undergraduate Computer Science students at the University of Calgary — passionate about building AI-powered tools and active members of the UofC AI Club. This project was built as a showcase of what a small, driven team can create with modern full-stack development.',
-      role: 'Project Manager · Full Stack',
+      heading: 'Developer',
+      body: 'DIG began as a group project by undergraduate Computer Science students at the University of Calgary. It is now built and maintained by one person, in Toronto — the whole stack, from the data cleaning pipeline and statistical engine to the interface you are reading.',
+      role: 'Full Stack · Data · Design',
     },
     contact: { heading: 'Get in Touch', body: "Have questions or feedback? We'd love to hear from you.", btn: 'Contact us' },
     footer: '© 2026 Dataset Insight Generator',
@@ -60,7 +60,7 @@ const T = {
 
   fr: {
     dir: 'ltr',
-    nav: { features: 'Fonctionnalités', security: 'Sécurité', developers: 'Équipe', contact: 'Contact', menu: 'Menu' },
+    nav: { features: 'Fonctionnalités', security: 'Sécurité', developers: 'Développeur', contact: 'Contact', menu: 'Menu' },
     hero: {
       title: 'Vos données ont une histoire. Nous vous aidons à la lire.',
       subtitle: "Importez n'importe quel fichier CSV ou Excel et obtenez une analyse complète par IA — visualisations, patterns, anomalies et un rapport PDF professionnel. Sans code. Sans configuration. Juste des insights.",
@@ -97,9 +97,9 @@ const T = {
       note: 'Veuillez ne pas importer de données confidentielles ou sensibles.',
     },
     developers: {
-      heading: 'Équipe',
-      body: "Nous sommes une équipe d'étudiants en informatique à l'Université de Calgary — passionnés par les outils IA et membres actifs du club IA de l'UofC. Ce projet démontre ce qu'une petite équipe motivée peut créer avec le développement full-stack moderne.",
-      role: 'Chef de projet · Full Stack',
+      heading: 'Développeur',
+      body: "DIG a commencé comme un projet de groupe mené par des étudiants en informatique à l'Université de Calgary. Il est aujourd'hui développé et maintenu par une seule personne, à Toronto — toute la pile, du pipeline de nettoyage des données et du moteur statistique jusqu'à l'interface que vous lisez.",
+      role: 'Full Stack · Données · Design',
     },
     contact: { heading: 'Nous contacter', body: 'Des questions ou des retours ? Nous serions ravis de vous entendre.', btn: 'Nous contacter' },
     footer: '© 2026 Dataset Insight Generator',
@@ -108,7 +108,7 @@ const T = {
 
   fa: {
     dir: 'rtl',
-    nav: { features: 'ویژگی‌ها', security: 'امنیت', developers: 'تیم', contact: 'تماس', menu: 'منو' },
+    nav: { features: 'ویژگی‌ها', security: 'امنیت', developers: 'توسعه‌دهنده', contact: 'تماس', menu: 'منو' },
     hero: {
       title: 'داده‌های شما یک داستان دارند. ما کمک می‌کنیم آن را بخوانید.',
       subtitle: 'هر فایل CSV یا اکسل را آپلود کنید و تحلیل کامل مبتنی بر هوش مصنوعی دریافت کنید — تصویرسازی، الگوها، ناهنجاری‌ها و یک گزارش PDF حرفه‌ای. بدون کدنویسی. بدون راه‌اندازی.',
@@ -145,9 +145,9 @@ const T = {
       note: 'لطفاً داده‌های محرمانه یا حساس قانونی آپلود نکنید.',
     },
     developers: {
-      heading: 'تیم توسعه',
-      body: 'ما یک تیم از دانشجویان کارشناسی علوم کامپیوتر در دانشگاه کالگاری هستیم — علاقه‌مند به ساخت ابزارهای هوش مصنوعی و اعضای فعال باشگاه هوش مصنوعی UofC.',
-      role: 'مدیر پروژه · فول استک',
+      heading: 'توسعه‌دهنده',
+      body: 'DIG به‌عنوان یک پروژهٔ گروهی توسط دانشجویان کارشناسی علوم کامپیوتر در دانشگاه کالگاری آغاز شد. امروز توسط یک نفر در تورنتو ساخته و نگهداری می‌شود — تمام لایه‌ها، از خط پاک‌سازی داده و موتور آماری تا رابطی که می‌بینید.',
+      role: 'فول‌استک · داده · طراحی',
     },
     contact: { heading: 'تماس با ما', body: 'سؤال یا بازخورد دارید؟ خوشحال می‌شویم بشنویم.', btn: 'تماس با ما' },
     footer: '© ۲۰۲۶ Dataset Insight Generator',
