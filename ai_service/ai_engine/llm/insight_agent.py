@@ -1,33 +1,34 @@
 """
-Gemini 2.5 Flash Client  —  Phase 4 + Report Writing
+Phase 5 — insight agent and report writer.
 
-One comprehensive call that:
+One comprehensive model call that:
   1. Receives full enriched stats + Groq domain context + attribute interpretations
   2. Writes boardroom-quality narrative (NEVER column language — always domain attributes)
   3. Generates up to 5 ranked insights with specific, cited evidence
   4. Specifies chart instructions (type / X / Y / placement) — charts NOT generated here
   5. Writes a 2-3 paragraph Data Quality & Methodology section
-  6. Assigns its own confidence score 1-10 (later reviewed by Groq judge)
+  6. Assigns its own confidence score 1-10 (later reviewed by the Groq judge)
 
-Reliability guarantee: if Gemini fails for any reason (429, timeout, safety block,
-bad JSON), a fallback stats-only report is returned instead of raising — so the
-pipeline always produces a PDF.
+Which model answers is decided in report_writer: a chain of free open-weight
+models, tried in order. This module owns what is model-independent — the
+prompt, the parsing of the reply, and the fallback.
+
+This file was gemini_client.py. It was renamed when Gemini stopped being the
+writer: a module named after a model it no longer calls is how the PDF came to
+credit two models that were not running.
+
+Reliability guarantee: if every model fails (quota, outage, unparseable reply),
+a fallback stats-only report is returned instead of raising, so the pipeline
+always produces a PDF.
 """
 
 import json
 import re
-import time
-import urllib.request
-import urllib.error
 from typing import List, Dict, Any, Optional
 
 from ai_engine.models.models import StatsSummary, LLMReport, ChartInstruction, DomainResult
+from ai_engine.llm.report_writer import write_report
 
-
-# Model id kept separate so usage accounting can label calls without parsing
-# the URL. Both must be updated together when switching models.
-GEMINI_MODEL   = "gemini-2.5-flash"
-GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 
 CHART_COLORS = ["#3b82f6", "#a855f7", "#10b981", "#f97316", "#ec4899"]
 VALID_CHART_TYPES = {"bar", "line", "scatter", "histogram", "heatmap", "box"}
@@ -622,184 +623,24 @@ def _build_fallback_report(stats: StatsSummary, domain: DomainResult) -> LLMRepo
             f"For comprehensive AI-assisted insights and executive narrative, "
             f"re-running the analysis when service availability is restored is recommended."
         ),
-        rawResponse="[fallback report — Gemini service unavailable]",
+        rawResponse="[fallback report — no report model available]",
     )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# API call
+# Reply parsing
 # ─────────────────────────────────────────────────────────────────────────────
 
-def call_gemini(
-    stats: StatsSummary,
-    domain: DomainResult,
-    was_cleaned: bool,
-    dropped_columns: List[str],
-    api_key: str,
-    language: str = "en",
-    tone: str = "professional",
-    insights_count: int = 5,
-    occasion: str = "general",
-    audience: str = "general",
-    depth: str = "standard",
-    focus_on: str = "",
-    comparisons: str = "",
-    must_mention: Optional[List[str]] = None,
-    chart_style: str = "mixed",
-    include_methodology: bool = True,
-    include_confidence: bool = True,
-    tracker=None,
-) -> LLMReport:
+def _parse_report(text: str, stats: StatsSummary, domain: DomainResult) -> Optional[LLMReport]:
     """
-    Phase 5: Insight agent + report writer. Returns full LLMReport.
+    Turn a model's reply into an LLMReport, or None if it isn't one.
 
-    Standard customization:
-      language         — en/fr/es/de/zh/ar/pt/fa
-      tone             — professional/technical/casual/storytelling/academic/simplified
-      insights_count   — 3/5/7
-      occasion         — general/investor/academic/internal/client
-
-    Deep customization (Pro):
-      audience         — general/executive/technical/client/student
-      depth            — quick/standard/deep
-      focus_on         — free text analytical directive ("focus on revenue vs cost")
-      comparisons      — specific comparison directive ("compare male vs female")
-      must_mention     — list of topics/columns that must appear in insights
-      chart_style      — mixed/bar-heavy/trend/distribution/comparison
-      include_methodology / include_confidence — section toggles
-
-    Never raises — returns a stats-only fallback on any failure.
+    Returning None rather than the fallback report is what lets report_writer
+    hand a garbled or truncated reply on to the next model instead of giving up.
     """
-    prompt = _build_prompt(
-        stats, domain, was_cleaned, dropped_columns,
-        language=language, tone=tone,
-        insights_count=insights_count, occasion=occasion,
-        audience=audience, depth=depth,
-        focus_on=focus_on, comparisons=comparisons,
-        must_mention=must_mention, chart_style=chart_style,
-        include_methodology=include_methodology,
-        include_confidence=include_confidence,
-    )
-
-    payload_dict = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature":     0.2,
-            # 16384, not 8192: a deep report is title + introduction + N insight
-            # bodies + conclusion + a methodology section + chart instructions,
-            # all in one JSON object. Overrunning truncates that object, and a
-            # truncated object does not parse — which drops the whole thing into
-            # _build_fallback_report and quietly discards the model's work.
-            "maxOutputTokens": 16384,
-            "topP":            0.9,
-        },
-    }
-
-    url = f"{GEMINI_API_URL}?key={api_key}"
-
-    MAX_RETRIES = 3
-    RETRY_DELAYS = [8, 15]        # seconds between attempts (only 2 gaps for 3 tries)
-    TIMEOUT_SECS = 90             # per-attempt timeout — fail fast, use fallback
-    raw = None
-    last_error = None
-    _started = time.monotonic()
-
-    for attempt in range(MAX_RETRIES):
-        print(f"[Gemini] Calling API (attempt {attempt + 1}/{MAX_RETRIES})...", flush=True)
-        payload = json.dumps(payload_dict).encode("utf-8")
-        req = urllib.request.Request(
-            url, data=payload,
-            headers={
-                "Content-Type": "application/json",
-                "User-Agent":   "Mozilla/5.0 (compatible; DIG-AI/1.0)",
-            },
-            method="POST",
-        )
-
-        try:
-            with urllib.request.urlopen(req, timeout=TIMEOUT_SECS) as resp:
-                raw = json.loads(resp.read().decode("utf-8"))
-            print(f"[Gemini] Response received OK", flush=True)
-
-            # Token counts arrive in usageMetadata on every response and were
-            # previously discarded. Best-effort: telemetry must never break the
-            # analysis, so any failure here is swallowed.
-            if tracker is not None:
-                try:
-                    from ai_engine.telemetry.usage import tokens_from_gemini
-                    tin, tout = tokens_from_gemini(raw)
-                    tracker.record(
-                        provider="gemini",
-                        model=raw.get("modelVersion", GEMINI_MODEL),
-                        phase="insights",
-                        input_tokens=tin, output_tokens=tout,
-                        duration_ms=int((time.monotonic() - _started) * 1000),
-                    )
-                except Exception as e:
-                    print(f"[Usage] Gemini accounting failed (ignored): {e}", flush=True)
-
-            break  # success — exit retry loop
-
-        except urllib.error.HTTPError as e:
-            body = ""
-            try:
-                body = e.read().decode()
-            except Exception:
-                pass
-            last_error = f"Gemini HTTP {e.code}: {body[:200]}"
-            print(f"[Gemini] HTTP {e.code}: {body[:120]}", flush=True)
-
-            if e.code in (429, 503) and attempt < MAX_RETRIES - 1:
-                wait = RETRY_DELAYS[attempt]
-                print(f"[Gemini] Waiting {wait}s before retry...", flush=True)
-                time.sleep(wait)
-                continue
-            # Non-retriable HTTP error or exhausted retries
-            break
-
-        except urllib.error.URLError as e:
-            last_error = f"Gemini connection error: {e.reason}"
-            print(f"[Gemini] URLError: {e.reason}", flush=True)
-            if attempt < MAX_RETRIES - 1:
-                wait = RETRY_DELAYS[attempt]
-                print(f"[Gemini] Waiting {wait}s before retry...", flush=True)
-                time.sleep(wait)
-                continue
-            break
-
-        except Exception as e:
-            last_error = f"Gemini unexpected error: {e}"
-            print(f"[Gemini] Unexpected error: {e}", flush=True)
-            break
-
-    # ── All retries exhausted or non-retriable error ───────────────────────
-    if raw is None:
-        print(f"[Gemini] Failed after {MAX_RETRIES} attempts: {last_error} — using fallback report")
-        return _build_fallback_report(stats, domain)
-
-    # ── Safety block: empty candidates array ──────────────────────────────
-    candidates = raw.get("candidates", [])
-    if not candidates:
-        block_reason = raw.get("promptFeedback", {}).get("blockReason", "unknown")
-        print(f"[Gemini] Empty candidates — blockReason: {block_reason} — using fallback report")
-        return _build_fallback_report(stats, domain)
-
-    # ── Extract text from first candidate ─────────────────────────────────
-    try:
-        candidate = candidates[0]
-        finish_reason = candidate.get("finishReason", "STOP")
-        if finish_reason not in ("STOP", "MAX_TOKENS"):
-            print(f"[Gemini] Unexpected finishReason: {finish_reason} — using fallback report")
-            return _build_fallback_report(stats, domain)
-        text = candidate["content"]["parts"][0]["text"]
-    except (KeyError, IndexError) as e:
-        print(f"[Gemini] Could not extract text from candidate: {e} — using fallback report")
-        return _build_fallback_report(stats, domain)
-
-    # ── Strip markdown fences ─────────────────────────────────────────────
+    # Strip markdown fences
     text = re.sub(r"```(?:json)?", "", text).strip().strip("`").strip()
 
-    # ── Parse JSON ────────────────────────────────────────────────────────
     parsed = None
     try:
         parsed = json.loads(text)
@@ -811,14 +652,21 @@ def call_gemini(
             except json.JSONDecodeError:
                 pass
 
-    if parsed is None:
-        print(f"[Gemini] JSON parse failed — using fallback report. Raw (first 400): {text[:400]}")
-        return _build_fallback_report(stats, domain)
+    if not isinstance(parsed, dict):
+        print(f"[Insights] JSON parse failed. Raw (first 300): {text[:300]}", flush=True)
+        return None
 
-    # ── Parse chart instructions ──────────────────────────────────────────
+    # A dict without the narrative fields is not a report — some models answer
+    # with a bare chart list, or an apology wrapped in braces.
+    if not (parsed.get("insights") or parsed.get("executive_summary")):
+        print("[Insights] reply parsed but has no insights or summary", flush=True)
+        return None
+
     chart_instructions: List[ChartInstruction] = []
-    for i, c in enumerate(parsed.get("chart_instructions", [])):
-        ct = c.get("chart_type", "bar").lower()
+    for i, c in enumerate(parsed.get("chart_instructions", []) or []):
+        if not isinstance(c, dict):
+            continue
+        ct = str(c.get("chart_type", "bar")).lower()
         if ct not in VALID_CHART_TYPES:
             ct = "bar"
         chart_instructions.append(ChartInstruction(
@@ -835,19 +683,19 @@ def call_gemini(
             yColumns=c.get("y_columns") or [],
         ))
 
-    # If Gemini returned no chart instructions, build basic fallback charts
+    # No chart instructions from the model: use the basic fallback charts.
     if not chart_instructions:
-        print("[Gemini] No chart instructions in response — building basic fallback charts")
-        fallback = _build_fallback_report(stats, domain)
-        chart_instructions = fallback.chartInstructions
+        print("[Insights] no chart instructions in reply — using basic fallback charts", flush=True)
+        chart_instructions = _build_fallback_report(stats, domain).chartInstructions
 
-    # Gemini confidence score — clamp to 1-10
-    g_score = parsed.get("gemini_confidence_score", 6)
+    # The model's self-assessed confidence, clamped to 1-10. The JSON key keeps
+    # its historical name; the prompt still asks for it under that name.
+    score = parsed.get("gemini_confidence_score", 6)
     try:
-        g_score = int(g_score)
+        score = int(score)
     except (TypeError, ValueError):
-        g_score = 6
-    g_score = max(1, min(10, g_score))
+        score = 6
+    score = max(1, min(10, score))
 
     return LLMReport(
         reportTitle=parsed.get("report_title", "Dataset Insight Report"),
@@ -856,8 +704,80 @@ def call_gemini(
         insights=parsed.get("insights", []),
         chartInstructions=chart_instructions,
         dataQualitySection=parsed.get("data_quality_section", ""),
-        geminiConfidenceScore=g_score,
+        geminiConfidenceScore=score,
         confidenceNote=parsed.get("confidence_note", ""),
         conclusion=parsed.get("conclusion", ""),
         rawResponse=text,
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Entry point
+# ─────────────────────────────────────────────────────────────────────────────
+
+def generate_report(
+    stats: StatsSummary,
+    domain: DomainResult,
+    was_cleaned: bool,
+    dropped_columns: List[str],
+    api_keys: Dict[str, str],
+    language: str = "en",
+    tone: str = "professional",
+    insights_count: int = 5,
+    occasion: str = "general",
+    audience: str = "general",
+    depth: str = "standard",
+    focus_on: str = "",
+    comparisons: str = "",
+    must_mention: Optional[List[str]] = None,
+    chart_style: str = "mixed",
+    include_methodology: bool = True,
+    include_confidence: bool = True,
+    tracker=None,
+) -> LLMReport:
+    """
+    Phase 5: insight agent + report writer. Returns a full LLMReport.
+
+    api_keys maps a provider name ("openrouter", "groq") to its key. Providers
+    without a key are skipped; report_writer decides the order they are tried.
+
+    Standard customization:
+      language         — en/fr/es/de/zh/ar/pt/fa
+      tone             — professional/technical/casual/storytelling/academic/simplified
+      insights_count   — 3/5/7
+      occasion         — general/investor/academic/internal/client
+
+    Deep customization (Pro):
+      audience         — general/executive/technical/client/student
+      depth            — quick/standard/deep
+      focus_on         — free text analytical directive ("focus on revenue vs cost")
+      comparisons      — specific comparison directive ("compare male vs female")
+      must_mention     — list of topics/columns that must appear in insights
+      chart_style      — mixed/bar-heavy/trend/distribution/comparison
+      include_methodology / include_confidence — section toggles
+
+    Never raises — returns a stats-only fallback when every model fails.
+    """
+    prompt = _build_prompt(
+        stats, domain, was_cleaned, dropped_columns,
+        language=language, tone=tone,
+        insights_count=insights_count, occasion=occasion,
+        audience=audience, depth=depth,
+        focus_on=focus_on, comparisons=comparisons,
+        must_mention=must_mention, chart_style=chart_style,
+        include_methodology=include_methodology,
+        include_confidence=include_confidence,
+    )
+    print(f"[Insights] prompt is ~{len(prompt) // 4:,} tokens", flush=True)
+
+    report, provider = write_report(
+        prompt, api_keys,
+        accept=lambda text: _parse_report(text, stats, domain),
+        tracker=tracker,
+    )
+    if report is None:
+        print("[Insights] no model produced a report — using fallback report", flush=True)
+        return _build_fallback_report(stats, domain)
+
+    report.writerModel = provider.display_name
+    return report

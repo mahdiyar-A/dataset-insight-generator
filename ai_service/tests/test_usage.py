@@ -187,7 +187,14 @@ def test_missing_usage_block_yields_zeroes(raw):
 # ── Sanity on the pricing table itself ───────────────────────────────────────
 
 def test_every_price_is_positive():
+    # A zero is almost always a typo, and it silently hides real spend. The one
+    # legitimate zero is an OpenRouter free endpoint, which says so in its own
+    # id with a ":free" suffix — so only those may be priced at nothing.
     for model, prices in MODEL_PRICING.items():
+        if model.endswith(":free"):
+            assert prices["input"] == 0 and prices["output"] == 0, \
+                f"{model} is a free endpoint but has a price"
+            continue
         assert prices["input"] > 0, f"{model} input price must be positive"
         assert prices["output"] > 0, f"{model} output price must be positive"
 

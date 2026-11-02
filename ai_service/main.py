@@ -20,10 +20,10 @@ print("║   DIG — AI Engine  ·  FastAPI  ·  Port 8000 ║", flush=True)
 print("║   Python  ·  7-Phase Analysis Pipeline      ║", flush=True)
 print("╚══════════════════════════════════════════════╝", flush=True)
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 GROQ_API_KEY   = os.getenv("GROQ_API_KEY",   "")
 
-print(f"[AI] Gemini key : {'✓ set' if GEMINI_API_KEY else '✗ NOT SET — /analyze will fail'}", flush=True)
+print(f"[AI] OpenRouter key : {'✓ set' if OPENROUTER_API_KEY else '✗ NOT SET — reports fall back to Groq only'}", flush=True)
 print(f"[AI] Groq key   : {'✓ set' if GROQ_API_KEY   else '✗ NOT SET — domain gate will use fallback'}", flush=True)
 
 app = FastAPI(title="DIG AI Engine", version="2.0.0")
@@ -83,9 +83,9 @@ def health():
     return {
         "status":          "ok",
         "version":         "2.0.0",
-        "gemini_key_set":  bool(GEMINI_API_KEY),
+        "openrouter_key_set": bool(OPENROUTER_API_KEY),
         "groq_key_set":    bool(GROQ_API_KEY),
-        "pipeline":        "7-phase (Groq gate → Gemini agent → Groq judge)",
+        "pipeline":        "7-phase (Groq gate → free report-writer chain → Groq judge)",
     }
 
 
@@ -195,9 +195,11 @@ async def analyze(
     print(f"[Analyze]   low_conf : {user_confirmed_low}", flush=True)
     print(f"[Analyze]   lang={language} tone={tone} insights={insights_count} occasion={occasion} word={want_word} pptx={want_pptx}", flush=True)
 
-    if not GEMINI_API_KEY:
-        print("[Analyze] ✗ GEMINI_API_KEY not set — aborting", flush=True)
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured.")
+    # At least one report-writer key is needed. Without either, every report
+    # would silently be the stats-only fallback, so refuse loudly instead.
+    if not (OPENROUTER_API_KEY or GROQ_API_KEY):
+        print("[Analyze] ✗ no OPENROUTER_API_KEY or GROQ_API_KEY — aborting", flush=True)
+        raise HTTPException(status_code=500, detail="No report-writer API key configured.")
 
     file_bytes = await file.read()
     if not file_bytes:
@@ -212,7 +214,7 @@ async def analyze(
         file_name=file.filename or "dataset.csv",
         user_wants_cleaning=user_wants_cleaning,
         user_confirmed_low=user_confirmed_low,
-        gemini_api_key=GEMINI_API_KEY,
+        openrouter_api_key=OPENROUTER_API_KEY,
         groq_api_key=GROQ_API_KEY,
         session_id=session_id,
         customization={

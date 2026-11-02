@@ -6,12 +6,12 @@ Phase 1  : Groq #1  — domain classification, column decisions, cleaning direct
 Phase 2  : Inform user about cleaning / get confirmation  (handled by C# chatbot)
 Phase 3  : Context-aware cleaning  (Python, using Groq's directives)
 Phase 4  : Enhanced statistical engine  (Python — normality, groups, temporal, IForest)
-Phase 5  : Gemini  — insight agent + report writer + chart instructions (no chart images yet)
+Phase 5  : Report writer — free open-weight models via OpenRouter / Groq (see llm/report_writer.py)
 Phase 6  : Groq #2  — judge: language audit, chart corrections, confidence score 1-10
 Phase 7  : Apply judge corrections → generate chart images → build PDF
 Phase 8  : Training log
 
-Total LLM calls: 3  (Groq gate → Gemini agent+report → Groq judge)
+Total LLM calls: 3  (Groq gate → report writer → Groq judge)
 """
 
 import io
@@ -23,7 +23,7 @@ from ai_engine.quality.quality_checker   import check_data_quality
 from ai_engine.core.cleaner              import clean_dataset
 from ai_engine.core.stats_analyzer       import build_stats_summary
 from ai_engine.llm.groq_client           import detect_domain, judge_insights
-from ai_engine.llm.gemini_client         import call_gemini
+from ai_engine.llm.insight_agent         import generate_report
 from ai_engine.charts.chart_generator    import generate_charts
 from ai_engine.pdf.pdf_builder           import build_pdf
 from ai_engine.models.models             import (
@@ -112,7 +112,7 @@ def _apply_judge_corrections(report: LLMReport, judge) -> LLMReport:
 
     # Replace chart instructions if judge corrected any
     if judge.corrected_chart_instructions:
-        from ai_engine.llm.gemini_client import CHART_COLORS, VALID_CHART_TYPES
+        from ai_engine.llm.insight_agent import CHART_COLORS, VALID_CHART_TYPES
         corrected: List[ChartInstruction] = []
         by_index = {c.get("index"): c for c in judge.corrected_chart_instructions}
         for i, instr in enumerate(report.chartInstructions):
@@ -147,7 +147,7 @@ def run_pipeline(
     file_name:           str,
     user_wants_cleaning: bool,
     user_confirmed_low:  bool,
-    gemini_api_key:      str,
+    openrouter_api_key:  str = "",
     groq_api_key:        str = "",
     session_id:          str = "",
     customization:       Optional[Dict[str, Any]] = None,
@@ -225,7 +225,7 @@ def run_pipeline(
 
     # ── Phase 2: Cleaning gate ────────────────────────────────────────────
     # User interaction handled by C# chatbot — we receive user_wants_cleaning as a flag.
-    # Confidence is determined later by Gemini (Phase 5) and audited by Groq judge (Phase 6).
+    # Confidence is determined later by the report writer (Phase 5) and audited by the Groq judge (Phase 6).
 
     # ── Phase 3: Context-aware cleaning ───────────────────────────────────
     print(f"[Pipeline] Phase 3 — Cleaning (user_wants={user_wants_cleaning}, needs={quality.needsCleaning})...", flush=True)
@@ -265,17 +265,17 @@ def run_pipeline(
     stats = build_stats_summary(df_work, quality, domain=domain.domain)
     print(f"[Pipeline] Stats done. Numeric cols: {len(stats.numericStats)}, Correlations: {len(stats.topCorrelations)}", flush=True)
 
-    # ── Phase 5: Gemini — insights + report + chart instructions ─────────
-    print(f"[Pipeline] Phase 5 — Gemini insight agent...", flush=True)
-    # call_gemini never raises — on any failure it returns a stats-only fallback report.
+    # ── Phase 5: report writer — insights + report + chart instructions ──
+    print(f"[Pipeline] Phase 5 — report writer...", flush=True)
+    # generate_report never raises — if every model fails it returns a stats-only fallback report.
     # The outer try/except is a last-resort safety net.
     try:
-        llm_report = call_gemini(
+        llm_report = generate_report(
             stats=stats,
             domain=domain,
             was_cleaned=was_cleaned,
             dropped_columns=dropped_columns,
-            api_key=gemini_api_key,
+            api_keys={"openrouter": openrouter_api_key, "groq": groq_api_key},
             language=language,
             tone=tone,
             insights_count=insights_count,
@@ -292,8 +292,8 @@ def run_pipeline(
         )
     except Exception as e:
         # This should not happen, but if it does — build fallback inline
-        print(f"[Pipeline] Unexpected Gemini exception: {e} — building fallback report")
-        from ai_engine.llm.gemini_client import _build_fallback_report
+        print(f"[Pipeline] Unexpected report-writer exception: {e} — building fallback report")
+        from ai_engine.llm.insight_agent import _build_fallback_report
         llm_report = _build_fallback_report(stats, domain)
 
     # Build the report dict to send to judge (before chart generation)
@@ -331,11 +331,11 @@ def run_pipeline(
     # ── Apply judge corrections to report ─────────────────────────────────
     llm_report = _apply_judge_corrections(llm_report, judge)
 
-    # Set the final confidence note combining judge statement + Gemini note
+    # Set the final confidence note combining judge statement + writer's note
     if judge.judge_statement:
         llm_report.confidenceNote = judge.judge_statement
         if llm_report.confidenceNote and llm_report.confidenceNote:
-            # Append Gemini's note as supporting detail
+            # Append the writer's note as supporting detail
             gemini_note = llm_report.confidenceNote
             llm_report.confidenceNote = judge.judge_statement
 

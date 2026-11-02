@@ -112,11 +112,16 @@ class LLMReport:
     executiveSummary: str
     insights: List[Dict[str, Any]]          # ranked 1–5
     chartInstructions: List[ChartInstruction]
-    dataQualitySection: str                 # 2-3 paragraphs, Gemini's assessment
-    geminiConfidenceScore: int              # 1–10 Gemini's own confidence before judge
+    dataQualitySection: str                 # 2-3 paragraphs, the writer model's assessment
+    # The writer model's own 1-10 confidence before the judge reviews it. Named
+    # for the model that first filled it; renaming would break the C# contract.
+    geminiConfidenceScore: int
     confidenceNote: str                     # short inline note for exec summary page
     conclusion: str
     rawResponse: str
+    # Display name of the model that actually wrote this report, so the PDF can
+    # credit it truthfully. Empty for the stats-only fallback report.
+    writerModel: str = ""
 
 
 @dataclass

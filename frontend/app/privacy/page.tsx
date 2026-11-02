@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/privacy' },
 };
 
-const UPDATED = 'LAST UPDATED 27 SEPTEMBER 2026';
+const UPDATED = 'LAST UPDATED 1 NOVEMBER 2026';
 
 const INTRO = [
   'DIG turns a spreadsheet into an analysis report. To do that it has to read your file, so this page explains exactly what happens to it: where it is stored, what is computed locally, what is sent to other companies, and how to get rid of it.',
@@ -71,7 +71,8 @@ const SECTIONS = [
     ],
     list: [
       'Groq — used once per analysis to work out what kind of dataset you uploaded. It receives each column\'s name, data type, how much of it is missing, how many distinct values it holds, basic numeric ranges, the three most frequent values in each text column, and up to five example values taken from each column. Those example values are real cells from your file.',
-      'Google (Gemini) — used to write the report. It receives computed statistics: correlations, group averages, outlier rates, trends, and category labels such as region or product names. It does not receive individual rows.',
+      'Report writing — the written report is produced by open-source AI models, tried strongest first: NVIDIA\u2019s Nemotron models (reached through OpenRouter) and, when those are busy or unavailable, models hosted by Groq. Whichever one writes your report receives computed statistics: correlations, group averages, outlier rates, trends, and category labels such as region or product names. None of them receives individual rows.',
+      'Because these are free AI services, the company running the model may keep a log of what it receives, under its own terms. That is one more reason to leave sensitive columns out — see below.',
       'Stripe — handles payment if you subscribe. Your card details go directly to Stripe and never touch our servers. We receive only a customer reference and your subscription status.',
       'Supabase — hosts the database, authentication and file storage described above.',
     ],
@@ -81,7 +82,7 @@ const SECTIONS = [
     body: [
       'Because up to five real values from each column are sent to Groq, you should not upload files containing personal health records, government identifiers, financial account numbers, credentials, or anything else you are not permitted to share with a third-party processor.',
       'If you need to analyse data like that, remove or mask the sensitive columns first. The statistical engine, data cleaning and quality checks all run entirely on our own servers, so a dataset with identifying columns stripped out still produces a full analysis.',
-      'Each provider handles what it receives under its own terms: Groq (groq.com), Google (policies.google.com/privacy), Stripe (stripe.com/privacy) and Supabase (supabase.com/privacy).',
+      'Each provider handles what it receives under its own terms: Groq (groq.com), OpenRouter (openrouter.ai/privacy), NVIDIA (nvidia.com/privacy), Stripe (stripe.com/privacy) and Supabase (supabase.com/privacy).',
     ],
   },
   {

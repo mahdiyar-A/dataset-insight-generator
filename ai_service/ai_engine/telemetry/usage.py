@@ -31,7 +31,7 @@ from typing import Any, Dict, List, Optional
 # Prices in USD per 1,000,000 tokens. Verified 2026-08.
 # Update MODEL_PRICING_UPDATED whenever a figure changes so a stale table is
 # obvious in the admin dashboard rather than quietly wrong.
-MODEL_PRICING_UPDATED = "2026-09"
+MODEL_PRICING_UPDATED = "2026-11"
 
 MODEL_PRICING: Dict[str, Dict[str, float]] = {
     # Groq — domain classification and the insight judge.
@@ -46,7 +46,14 @@ MODEL_PRICING: Dict[str, Dict[str, float]] = {
     "llama-3.1-8b-instant":     {"input": 0.05, "output": 0.08},
     "llama3-70b-8192":          {"input": 0.59, "output": 0.79},
 
-    # Google — insight generation
+    # OpenRouter free endpoints — the report writer since 2026-11. Listed at
+    # zero on purpose: an unknown model also prices at zero, and a deliberate
+    # entry tells whoever reads the dashboard the zero is real, not a gap.
+    "nvidia/nemotron-3-ultra-550b-a55b:free": {"input": 0.0, "output": 0.0},
+    "nvidia/nemotron-3.5-super-vl:free":      {"input": 0.0, "output": 0.0},
+
+    # Google — wrote the reports until 2026-11. Kept so historical rows still
+    # price correctly.
     "gemini-2.0-flash":         {"input": 0.10, "output": 0.40},
     "gemini-2.0-flash-exp":     {"input": 0.10, "output": 0.40},
     "gemini-1.5-flash":         {"input": 0.075, "output": 0.30},
@@ -58,7 +65,7 @@ MODEL_PRICING: Dict[str, Dict[str, float]] = {
 @dataclass
 class LlmCall:
     """One model invocation."""
-    provider: str            # "groq" | "gemini"
+    provider: str            # "groq" | "openrouter" (historically "gemini")
     model: str
     phase: str               # "domain" | "insights" | "judge" — where in the pipeline
     input_tokens: int

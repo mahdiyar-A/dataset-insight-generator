@@ -1,0 +1,335 @@
+"""
+Tests for the report-writer chain.
+
+Why this matters
+----------------
+The report is the product. When the single paid provider ran out of credit,
+every analysis quietly degraded to the stats-only fallback and nothing said so.
+The chain exists so one dead endpoint cannot do that again — which only holds
+if every kind of failure really does move on to the next model, if a hanging
+model cannot stall an analysis, and if the order (strongest first, and which
+companies see users' statistics) stays as intended.
+
+No network: report_writer._post is replaced with a fake per test.
+"""
+
+import io
+import json
+import time
+import urllib.error
+
+import pytest
+
+from ai_engine.llm import insight_agent, report_writer
+from ai_engine.llm.report_writer import REPORT_PROVIDERS, write_report
+from ai_engine.models.models import LLMReport
+from ai_engine.telemetry.usage import UsageTracker
+
+KEYS = {"openrouter": "or-key", "groq": "groq-key"}
+ULTRA, GPT_OSS_120, SUPER, QWEN, GPT_OSS_20 = (p.model for p in REPORT_PROVIDERS)
+
+GOOD_REPORT = {
+    "report_title": "Sales Review",
+    "executive_summary": "West and Central carry most of the revenue.",
+    "introduction": "intro",
+    "insights": [{"title": "Concentration", "body": "Top two regions hold 71%."}],
+    "chart_instructions": [{"chart_type": "bar", "title": "Revenue by region",
+                            "x_column": "region", "y_column": "revenue"}],
+    "data_quality_section": "clean",
+    "gemini_confidence_score": 8,
+    "confidence_note": "",
+    "conclusion": "Focus on the West.",
+}
+
+
+@pytest.fixture(autouse=True)
+def _fresh_cooldowns():
+    # Cool-downs are process-wide by design; never let one test bench a model
+    # for the next.
+    report_writer.reset_cooldowns()
+    yield
+    report_writer.reset_cooldowns()
+
+
+def ok(content: str, tin: int = 100, tout: int = 50) -> dict:
+    return {"choices": [{"message": {"content": content}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": tin, "completion_tokens": tout}}
+
+
+def http_error(code: int, body: bytes = b"quota exceeded") -> urllib.error.HTTPError:
+    return urllib.error.HTTPError("https://x", code, "err", {}, io.BytesIO(body))
+
+
+def install(monkeypatch, behaviour: dict) -> list:
+    """behaviour maps model id -> response dict, exception, or callable. Returns the call log."""
+    calls = []
+
+    def fake_post(provider, api_key, prompt, timeout):
+        calls.append(provider.model)
+        outcome = behaviour[provider.model]
+        if callable(outcome) and not isinstance(outcome, Exception):
+            outcome = outcome()
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    monkeypatch.setattr(report_writer, "_post", fake_post)
+    return calls
+
+
+def accept_json(text):
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return None
+
+
+# ── The chain itself ──────────────────────────────────────────────────────────
+
+class TestChainShape:
+    def test_strongest_model_is_tried_first(self):
+        # The point of the chain: the best model writes the report whenever it
+        # is available, and weaker ones only cover for it.
+        assert REPORT_PROVIDERS[0].model == "nvidia/nemotron-3-ultra-550b-a55b:free"
+
+    def test_weakest_reliable_model_is_the_last_line(self):
+        assert REPORT_PROVIDERS[-1].model == "openai/gpt-oss-20b"
+
+    def test_only_free_openrouter_endpoints_are_used(self):
+        # Risk: dropping the ":free" suffix silently switches to the paid
+        # endpoint of the same model and starts billing.
+        for p in REPORT_PROVIDERS:
+            if p.provider == "openrouter":
+                assert p.model.endswith(":free"), p.model
+
+    def test_no_google_served_model_in_the_chain(self):
+        # Google AI Studio's free tier may use inputs for training. Users'
+        # statistics must not route there without the privacy policy changing.
+        assert not any(p.model.startswith("google/") for p in REPORT_PROVIDERS)
+
+    def test_groq_requests_fit_the_free_tier_token_budget(self):
+        # Groq's free tier rejects prompt + max_tokens above ~8K per minute. The
+        # report prompt is ~3.3K tokens.
+        for p in REPORT_PROVIDERS:
+            if p.provider == "groq":
+                assert p.max_tokens <= 4500, p.model
+
+
+# ── Falling through ───────────────────────────────────────────────────────────
+
+class TestFallthrough:
+    def test_first_good_answer_wins(self, monkeypatch):
+        calls = install(monkeypatch, {ULTRA: ok('{"a": 1}')})
+        result, provider = write_report("p", KEYS, accept_json)
+        assert result == {"a": 1}
+        assert provider.model == ULTRA
+        assert calls == [ULTRA]
+
+    def test_overloaded_model_moves_to_next(self, monkeypatch):
+        calls = install(monkeypatch, {ULTRA: http_error(503, b"Service temporarily overloaded"),
+                                      GPT_OSS_120: ok('{"b": 2}')})
+        result, provider = write_report("p", KEYS, accept_json)
+        assert result == {"b": 2}
+        assert provider.model == GPT_OSS_120
+        assert calls == [ULTRA, GPT_OSS_120]
+
+    def test_unparseable_reply_moves_to_next_model(self, monkeypatch):
+        install(monkeypatch, {ULTRA: ok("not json at all"), GPT_OSS_120: ok('{"c": 3}')})
+        _, provider = write_report("p", KEYS, accept_json)
+        assert provider.model == GPT_OSS_120
+
+    def test_error_inside_a_200_response_is_a_failure(self, monkeypatch):
+        # OpenRouter reports upstream failures as HTTP 200 with an error body.
+        install(monkeypatch, {ULTRA: {"error": {"message": "Provider returned error"}},
+                              GPT_OSS_120: ok('{"d": 4}')})
+        _, provider = write_report("p", KEYS, accept_json)
+        assert provider.model == GPT_OSS_120
+
+    def test_empty_content_is_a_failure(self, monkeypatch):
+        # Reasoning models can spend the whole budget thinking and return "".
+        empty = {"choices": [{"message": {"content": ""}, "finish_reason": "length"}]}
+        install(monkeypatch, {ULTRA: empty, GPT_OSS_120: ok('{"e": 5}')})
+        _, provider = write_report("p", KEYS, accept_json)
+        assert provider.model == GPT_OSS_120
+
+    def test_reaches_the_weakest_model_when_all_stronger_ones_fail(self, monkeypatch):
+        calls = install(monkeypatch, {ULTRA: TimeoutError("slow"),
+                                      GPT_OSS_120: urllib.error.URLError("refused"),
+                                      SUPER: http_error(429),
+                                      QWEN: ValueError("bad body"),
+                                      GPT_OSS_20: ok('{"f": 6}')})
+        _, provider = write_report("p", KEYS, accept_json)
+        assert provider.model == GPT_OSS_20
+        assert calls == [ULTRA, GPT_OSS_120, SUPER, QWEN, GPT_OSS_20]
+
+    def test_everything_failing_returns_none_and_never_raises(self, monkeypatch):
+        install(monkeypatch, {m: http_error(503) for m in (ULTRA, GPT_OSS_120, SUPER, QWEN, GPT_OSS_20)})
+        assert write_report("p", KEYS, accept_json) == (None, None)
+
+    def test_providers_without_a_key_are_skipped(self, monkeypatch):
+        calls = install(monkeypatch, {GPT_OSS_120: ok('{"g": 7}')})
+        _, provider = write_report("p", {"groq": "groq-key"}, accept_json)
+        assert provider.model == GPT_OSS_120
+        assert calls == [GPT_OSS_120]   # no OpenRouter call was attempted at all
+
+
+# ── Hanging models and the time budget ────────────────────────────────────────
+
+class TestDeadlines:
+    def test_a_hanging_call_is_abandoned_at_its_deadline(self):
+        # Observed: an OpenRouter request held open for 14 minutes, because
+        # filler bytes keep a socket timeout from ever firing.
+        started = time.monotonic()
+        with pytest.raises(TimeoutError):
+            report_writer._with_deadline(lambda: time.sleep(5), 0.2)
+        assert time.monotonic() - started < 2
+
+    def test_a_hanging_model_hands_over_to_the_next(self, monkeypatch):
+        slow = report_writer.ReportProvider("openrouter", "Slow", "u", "slow:free", 100, 1)
+        fast = report_writer.ReportProvider("groq", "Fast", "u", "fast", 100, 5)
+
+        def fake_post(provider, api_key, prompt, timeout):
+            if provider.model == "slow:free":
+                time.sleep(10)
+            return ok('{"h": 8}')
+
+        monkeypatch.setattr(report_writer, "_post", fake_post)
+        started = time.monotonic()
+        result, provider = write_report("p", KEYS, accept_json, providers=(slow, fast))
+        assert provider.model == "fast"
+        assert time.monotonic() - started < 5
+
+    def test_chain_stops_when_the_budget_is_spent(self, monkeypatch):
+        # Risk: five models each using their own full timeout would outlast the
+        # backend's 360s wait for the whole analysis.
+        now = [0.0]
+        clock = lambda: now[0]
+
+        def fake_post(provider, api_key, prompt, timeout):
+            now[0] += 60          # every attempt burns a minute, then fails
+            raise http_error(503)
+
+        monkeypatch.setattr(report_writer, "_post", fake_post)
+        calls = []
+        monkeypatch.setattr(report_writer, "_with_deadline",
+                            lambda fn, s: (calls.append(s), fn())[1])
+        write_report("p", KEYS, accept_json, budget_secs=130, clock=clock)
+        # 0s -> 60s -> 120s: only 10s left, under MIN_USEFUL_SECS, so it stops.
+        assert len(calls) == 2
+
+    def test_a_model_is_never_given_more_time_than_the_budget_has_left(self, monkeypatch):
+        now = [0.0]
+        granted = []
+        monkeypatch.setattr(report_writer, "_with_deadline",
+                            lambda fn, s: (granted.append(s), fn())[1])
+
+        def fake_post(provider, api_key, prompt, timeout):
+            now[0] += 70
+            raise http_error(503)
+
+        monkeypatch.setattr(report_writer, "_post", fake_post)
+        write_report("p", KEYS, accept_json, budget_secs=100, clock=lambda: now[0])
+        assert granted[0] == 90          # Ultra's own limit
+        assert granted[1] == 30          # only 30s of budget remained
+
+
+# ── Cool-downs ────────────────────────────────────────────────────────────────
+
+class TestCooldown:
+    def test_a_failed_model_is_skipped_for_the_next_request(self, monkeypatch):
+        # When the strongest model is overloaded, later visitors should go
+        # straight to one that works instead of each waiting out its timeout.
+        calls = install(monkeypatch, {ULTRA: http_error(503), GPT_OSS_120: ok('{"i": 9}')})
+        write_report("p", KEYS, accept_json)
+        calls.clear()
+        _, provider = write_report("p", KEYS, accept_json)
+        assert provider.model == GPT_OSS_120
+        assert calls == [GPT_OSS_120]
+
+    def test_the_cooldown_expires(self, monkeypatch):
+        now = [0.0]
+        install(monkeypatch, {ULTRA: http_error(503), GPT_OSS_120: ok('{"j": 1}')})
+        write_report("p", KEYS, accept_json, clock=lambda: now[0])
+
+        now[0] += report_writer.COOLDOWN_SECS + 1
+        calls = install(monkeypatch, {ULTRA: ok('{"k": 2}')})
+        _, provider = write_report("p", KEYS, accept_json, clock=lambda: now[0])
+        assert provider.model == ULTRA
+        assert calls == [ULTRA]
+
+    def test_an_unparseable_answer_does_not_bench_the_model(self, monkeypatch):
+        # A bad answer is about that reply, not the endpoint; the model is up.
+        install(monkeypatch, {ULTRA: ok("garbage"), GPT_OSS_120: ok('{"l": 3}')})
+        write_report("p", KEYS, accept_json)
+        calls = install(monkeypatch, {ULTRA: ok('{"m": 4}')})
+        write_report("p", KEYS, accept_json)
+        assert calls == [ULTRA]
+
+
+# ── Accounting ────────────────────────────────────────────────────────────────
+
+class TestAccounting:
+    def test_failed_and_successful_attempts_are_both_recorded(self, monkeypatch):
+        install(monkeypatch, {ULTRA: http_error(429), GPT_OSS_120: ok('{"n": 5}', 300, 120)})
+        tracker = UsageTracker()
+        write_report("p", KEYS, accept_json, tracker=tracker)
+
+        assert [c.model for c in tracker.calls] == [ULTRA, GPT_OSS_120]
+        failed, succeeded = tracker.calls
+        assert failed.ok is False and "429" in (failed.error or "")
+        assert succeeded.ok is True
+        assert (succeeded.input_tokens, succeeded.output_tokens) == (300, 120)
+        assert all(c.phase == "insights" for c in tracker.calls)
+
+    def test_free_openrouter_models_cost_nothing(self, monkeypatch):
+        install(monkeypatch, {ULTRA: ok('{"o": 6}', 5000, 3000)})
+        tracker = UsageTracker()
+        write_report("p", KEYS, accept_json, tracker=tracker)
+        assert tracker.calls[0].cost_usd == 0.0
+
+
+# ── Parsing and the entry point ───────────────────────────────────────────────
+
+class TestParseReport:
+    def test_valid_reply_becomes_a_report(self):
+        r = insight_agent._parse_report(json.dumps(GOOD_REPORT), None, None)
+        assert isinstance(r, LLMReport)
+        assert r.reportTitle == "Sales Review"
+        assert r.geminiConfidenceScore == 8
+        assert r.chartInstructions[0].chartType == "bar"
+
+    def test_markdown_fenced_reply_is_accepted(self):
+        text = "```json\n" + json.dumps(GOOD_REPORT) + "\n```"
+        assert insight_agent._parse_report(text, None, None) is not None
+
+    def test_garbage_is_rejected_so_the_next_model_gets_a_turn(self):
+        assert insight_agent._parse_report("I cannot help with that.", None, None) is None
+
+    def test_json_without_a_narrative_is_not_a_report(self):
+        assert insight_agent._parse_report('{"chart_instructions": []}', None, None) is None
+
+    def test_confidence_is_clamped(self):
+        r = insight_agent._parse_report(json.dumps({**GOOD_REPORT, "gemini_confidence_score": 42}), None, None)
+        assert r.geminiConfidenceScore == 10
+
+
+class TestGenerateReport:
+    def _stub_prompt(self, monkeypatch):
+        monkeypatch.setattr(insight_agent, "_build_prompt", lambda *a, **k: "PROMPT")
+
+    def test_report_credits_the_model_that_actually_wrote_it(self, monkeypatch):
+        # The PDF prints this. Hardcoded credits once named two models that
+        # had stopped running.
+        self._stub_prompt(monkeypatch)
+        install(monkeypatch, {ULTRA: http_error(503), GPT_OSS_120: ok(json.dumps(GOOD_REPORT))})
+        r = insight_agent.generate_report(None, None, False, [], api_keys=KEYS)
+        assert r.writerModel == "OpenAI gpt-oss-120b"
+
+    def test_falls_back_with_no_writer_credit_when_all_models_fail(self, monkeypatch):
+        self._stub_prompt(monkeypatch)
+        sentinel = LLMReport("t", "", "", [], [], "", 5, "", "", "[fallback]")
+        monkeypatch.setattr(insight_agent, "_build_fallback_report", lambda s, d: sentinel)
+        install(monkeypatch, {m: http_error(503) for m in (ULTRA, GPT_OSS_120, SUPER, QWEN, GPT_OSS_20)})
+        r = insight_agent.generate_report(None, None, False, [], api_keys=KEYS)
+        assert r is sentinel
+        assert r.writerModel == ""
