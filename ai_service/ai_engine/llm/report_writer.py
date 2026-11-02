@@ -36,6 +36,11 @@ Three protections, each from something observed:
   - A cool-down. A model that just failed is skipped for a while, so that when
     the strongest one is overloaded, every visitor is not made to wait out its
     timeout before reaching one that works.
+  - Hedging. If the strongest model is slow, the next one starts in parallel
+    after 20s instead of after the strongest model's full timeout, and the
+    strongest still wins if it finishes shortly after. A strongest model that
+    only answers after a fallback has already been used is benched like a
+    failed one: too slow to help is as good as down.
 
 Every provider speaks the OpenAI chat-completions format, so one code path
 serves them all. What they receive is the prompt built by insight_agent:
@@ -46,6 +51,7 @@ names each provider below; keep the two in step.
 from __future__ import annotations
 
 import json
+import queue
 import threading
 import time
 import urllib.error
@@ -65,6 +71,15 @@ DEFAULT_BUDGET_SECS = 180
 # Below this much remaining budget a report cannot realistically be written,
 # so starting another model only delays the fallback.
 MIN_USEFUL_SECS = 15
+
+# Hedging. If the strongest model has not answered after HEDGE_AFTER_SECS, the
+# rest of the chain starts in parallel. If a fallback then answers first, the
+# strongest still gets PREFER_STRONGER_GRACE_SECS to finish and win. Worst
+# case for an overloaded strongest model drops from its full 90s timeout to
+# about 12s + the fallback's own time + 5s. Measured on a 30,000-row file
+# with 20s/10s: 34s in the writer, of which 30s was waiting; hence these.
+HEDGE_AFTER_SECS = 12
+PREFER_STRONGER_GRACE_SECS = 5
 
 # How long a model sits out after failing. Long enough to stop every request
 # queueing behind an overloaded endpoint; short enough that a recovered model
@@ -207,6 +222,84 @@ def _content_of(raw: Dict[str, Any]) -> str:
 
 # ── The chain ─────────────────────────────────────────────────────────────────
 
+def _attempt(
+    p: ReportProvider,
+    key: str,
+    prompt: str,
+    accept: Callable[[str], Optional[T]],
+    limit: float,
+    tracker,
+    clock: Callable[[], float],
+) -> Optional[T]:
+    """One call to one provider: deadline, parsing, accounting and cool-down."""
+    print(f"[Report] trying {p.display_name} ({p.model}, up to {limit:.0f}s)...", flush=True)
+    started = clock()
+    tin = tout = 0
+    error: Optional[str] = None
+    result: Optional[T] = None
+    try:
+        raw = _with_deadline(lambda: _post(p, key, prompt, limit), limit)
+        usage = raw.get("usage") or {}
+        tin = int(usage.get("prompt_tokens", 0) or 0)
+        tout = int(usage.get("completion_tokens", 0) or 0)
+        result = accept(_content_of(raw))
+        if result is None:
+            error = "reply could not be parsed into a report"
+    except urllib.error.HTTPError as e:
+        body = ""
+        try:
+            body = e.read().decode("utf-8", "replace")
+        except Exception:
+            pass
+        error = f"HTTP {e.code}: {body[:160]}"
+    except Exception as e:  # deadline, connection errors, malformed bodies
+        error = f"{type(e).__name__}: {e}"
+
+    duration_ms = int((clock() - started) * 1000)
+    if tracker is not None:
+        try:
+            tracker.record(
+                provider=p.provider, model=p.model, phase="insights",
+                input_tokens=tin, output_tokens=tout, duration_ms=duration_ms,
+                ok=result is not None, error=error,
+            )
+        except Exception as e:  # accounting must never break an analysis
+            print(f"[Usage] report accounting failed (ignored): {e}", flush=True)
+
+    if result is not None:
+        _set_cooldown(p.model, None)
+        print(f"[Report] written by {p.display_name} in {duration_ms / 1000:.1f}s", flush=True)
+        return result
+
+    # An unparseable reply is a property of that answer, not of the endpoint,
+    # so it does not bench the model for everyone else.
+    if error != "reply could not be parsed into a report":
+        _set_cooldown(p.model, clock() + COOLDOWN_SECS)
+    print(f"[Report] {p.display_name} failed: {error}", flush=True)
+    return None
+
+
+def _run_chain(
+    providers: Tuple[Tuple[ReportProvider, str], ...],
+    prompt: str,
+    accept: Callable[[str], Optional[T]],
+    tracker,
+    deadline: float,
+    budget_secs: float,
+    clock: Callable[[], float],
+) -> Tuple[Optional[T], Optional[ReportProvider]]:
+    """Try (provider, key) pairs in order until one produces a report."""
+    for p, key in providers:
+        remaining = deadline - clock()
+        if remaining < MIN_USEFUL_SECS:
+            print(f"[Report] budget spent ({budget_secs:.0f}s) — stopping before {p.display_name}", flush=True)
+            break
+        result = _attempt(p, key, prompt, accept, min(p.timeout_secs, remaining), tracker, clock)
+        if result is not None:
+            return result, p
+    return None, None
+
+
 def write_report(
     prompt: str,
     api_keys: Dict[str, str],
@@ -217,8 +310,8 @@ def write_report(
     clock: Callable[[], float] = time.monotonic,
 ) -> Tuple[Optional[T], Optional[ReportProvider]]:
     """
-    Send `prompt` to each provider in turn, strongest first, until `accept`
-    returns a result.
+    Get a report from the strongest available model, falling back to weaker
+    ones, within `budget_secs`.
 
     `accept` turns the model's text into the finished report, or returns None
     when it can't — truncated JSON, an unparseable reply. A provider that
@@ -227,72 +320,93 @@ def write_report(
     to the stats-only report.
 
     Skipped without a call: providers with no API key, and providers cooling
-    down after a recent failure. Never raises: returns (None, None) when every
-    provider fails or the budget runs out, and the caller decides what to do.
+    down after a recent failure. The first remaining provider is hedged (see
+    HEDGE_AFTER_SECS). Never raises: returns (None, None) when every provider
+    fails or the budget runs out, and the caller decides what to do.
     """
     deadline = clock() + budget_secs
 
+    available = []
     for p in providers:
         key = api_keys.get(p.provider, "")
         if not key:
             print(f"[Report] skip {p.display_name}: no {p.provider} key", flush=True)
-            continue
-
-        now = clock()
-        if _cooling_down(p.model, now):
+        elif _cooling_down(p.model, clock()):
             print(f"[Report] skip {p.display_name}: cooling down after a recent failure", flush=True)
+        else:
+            available.append((p, key))
+
+    if not available:
+        print("[Report] no model available", flush=True)
+        return None, None
+
+    first, first_key = available[0]
+    rest = tuple(available[1:])
+    if not rest:
+        return _run_chain(tuple(available), prompt, accept, tracker, deadline, budget_secs, clock)
+
+    # ── Hedged start ──────────────────────────────────────────────────────
+    outcomes: "queue.Queue[Tuple[str, Optional[T], Optional[ReportProvider]]]" = queue.Queue()
+    first_limit = min(first.timeout_secs, deadline - clock())
+    superseded = threading.Event()
+
+    def run_first() -> None:
+        result = _attempt(first, first_key, prompt, accept, first_limit, tracker, clock)
+        if superseded.is_set():
+            # A fallback was already used. Answering late doesn't help a
+            # visitor, so it sits out like a failure: otherwise a slow-but-alive
+            # strongest model would make everyone wait through the hedge.
+            _set_cooldown(first.model, clock() + COOLDOWN_SECS)
+        outcomes.put(("first", result, first))
+
+    threading.Thread(target=run_first, daemon=True, name="report-writer-first").start()
+
+    try:
+        _, result, _ = outcomes.get(timeout=min(HEDGE_AFTER_SECS, first_limit))
+        if result is not None:
+            return result, first
+        # The strongest failed quickly: carry on down the chain as normal.
+        return _run_chain(rest, prompt, accept, tracker, deadline, budget_secs, clock)
+    except queue.Empty:
+        pass
+
+    print(f"[Report] {first.display_name} is slow — starting fallbacks in parallel", flush=True)
+
+    def run_rest() -> None:
+        result, provider = _run_chain(rest, prompt, accept, tracker, deadline, budget_secs, clock)
+        outcomes.put(("rest", result, provider))
+
+    threading.Thread(target=run_rest, daemon=True, name="report-writer-rest").start()
+
+    first_done = rest_done = False
+    while not (first_done and rest_done):
+        remaining = deadline - clock()
+        if remaining <= 0:
+            break
+        try:
+            who, result, provider = outcomes.get(timeout=remaining)
+        except queue.Empty:
+            break
+
+        if who == "first":
+            first_done = True
+            if result is not None:
+                return result, first
             continue
 
-        remaining = deadline - now
-        if remaining < MIN_USEFUL_SECS:
-            print(f"[Report] budget spent ({budget_secs:.0f}s) — stopping before {p.display_name}", flush=True)
-            break
-        limit = min(p.timeout_secs, remaining)
-
-        print(f"[Report] trying {p.display_name} ({p.model}, up to {limit:.0f}s)...", flush=True)
-        started = clock()
-        tin = tout = 0
-        error: Optional[str] = None
-        result: Optional[T] = None
-        try:
-            raw = _with_deadline(lambda: _post(p, key, prompt, limit), limit)
-            usage = raw.get("usage") or {}
-            tin = int(usage.get("prompt_tokens", 0) or 0)
-            tout = int(usage.get("completion_tokens", 0) or 0)
-            result = accept(_content_of(raw))
-            if result is None:
-                error = "reply could not be parsed into a report"
-        except urllib.error.HTTPError as e:
-            body = ""
+        rest_done = True
+        if result is None:
+            continue   # wait for the strongest, if it is still running
+        if not first_done:
+            # A fallback answered. The strongest still gets a short grace.
             try:
-                body = e.read().decode("utf-8", "replace")
-            except Exception:
+                who2, result2, _ = outcomes.get(timeout=min(PREFER_STRONGER_GRACE_SECS, max(0.0, deadline - clock())))
+                if who2 == "first" and result2 is not None:
+                    return result2, first
+            except queue.Empty:
                 pass
-            error = f"HTTP {e.code}: {body[:160]}"
-        except Exception as e:  # deadline, connection errors, malformed bodies
-            error = f"{type(e).__name__}: {e}"
-
-        duration_ms = int((clock() - started) * 1000)
-        if tracker is not None:
-            try:
-                tracker.record(
-                    provider=p.provider, model=p.model, phase="insights",
-                    input_tokens=tin, output_tokens=tout, duration_ms=duration_ms,
-                    ok=result is not None, error=error,
-                )
-            except Exception as e:  # accounting must never break an analysis
-                print(f"[Usage] report accounting failed (ignored): {e}", flush=True)
-
-        if result is not None:
-            _set_cooldown(p.model, None)
-            print(f"[Report] written by {p.display_name} in {duration_ms / 1000:.1f}s", flush=True)
-            return result, p
-
-        # An unparseable reply is a property of that answer, not of the
-        # endpoint, so it does not bench the model for everyone else.
-        if error != "reply could not be parsed into a report":
-            _set_cooldown(p.model, clock() + COOLDOWN_SECS)
-        print(f"[Report] {p.display_name} failed: {error} — trying next", flush=True)
+        superseded.set()
+        return result, provider
 
     print("[Report] no model produced a report", flush=True)
     return None, None

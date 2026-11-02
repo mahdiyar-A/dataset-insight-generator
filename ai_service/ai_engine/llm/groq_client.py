@@ -1,5 +1,5 @@
 """
-Groq LLM Client  —  Phase 1 (Domain Gate) and Phase 6 (Judge)
+Groq LLM Client  —  Phase 1 (Domain Gate)
 
 Phase 1  →  detect_domain(df, api_key)
   Receives a rich dataset fingerprint (column names, types, sample values,
@@ -9,13 +9,9 @@ Phase 1  →  detect_domain(df, api_key)
     - Attribute interpretations for every kept/key column
     - Cleaning directives (general + column-specific methods)
 
-Phase 6  →  judge_insights(report_json, chart_instructions, stats, domain, api_key)
-  Reviews the full Gemini JSON report. Returns:
-    - Corrected insights (if any used "column" language or were imprecise)
-    - Corrected chart instructions (variety, correct X/Y, sensible placement)
-    - Refined conclusion paragraph
-    - Confidence score 1-10
-    - Judge statement
+There used to be a Phase 6 judge here too, auditing the finished report on
+Groq. It was replaced by ai_engine/core/confidence.py, which scores from the
+statistics instead: see that module for why.
 """
 
 import json
@@ -27,7 +23,7 @@ from typing import Dict, Any, List, Optional
 
 import pandas as pd
 
-from ai_engine.models.models import DomainResult, JudgeResult, StatsSummary
+from ai_engine.models.models import DomainResult
 
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -38,7 +34,7 @@ GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 # produced with domain "general" and a hardcoded confidence of 6/10.
 #
 # gpt-oss-20b is the smallest current model that reliably returns strict JSON
-# for both tasks; 120b is available if the audit needs more depth.
+# for the domain task.
 GROQ_MODEL   = "openai/gpt-oss-20b"
 
 
@@ -388,198 +384,4 @@ def detect_domain(df: pd.DataFrame, api_key: str, tracker=None) -> DomainResult:
         cleaning_needed=bool(parsed.get("cleaning_needed", True)),
         cleaning_methods=validated_methods,
         rejection_reason=parsed.get("rejection_reason"),
-    )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Phase 6 — Judge
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _build_judge_prompt(
-    report_json: Dict[str, Any],
-    stats: StatsSummary,
-    domain: str,
-    attribute_interpretations: Dict[str, str],
-    valid_columns: List[str],
-) -> str:
-
-    # Compact stats context for fact-checking
-    stats_context = {
-        "rows":    stats.rowCount,
-        "columns": stats.columnCount,
-        "domain":  domain,
-        "numeric_stats_summary": {
-            col: {k: v for k, v in info.items() if k in ("mean", "min", "max", "std", "outlier_pct")}
-            for col, info in list(stats.numericStats.items())[:8]
-        },
-        "top_correlations":       stats.topCorrelations[:4],
-        "significant_groups":     [
-            g for g in stats.groupComparisons if g.get("significant")
-        ][:3],
-        "temporal":               stats.temporalInfo,
-        "normality_summary":      [
-            {"col": t["column"], "is_normal": t["is_normal"], "p": t["p_value"]}
-            for t in stats.normalityTests[:5]
-        ],
-    }
-
-    report_text  = json.dumps(report_json,  indent=2)
-    stats_text   = json.dumps(stats_context, indent=2)
-    interp_text  = json.dumps(attribute_interpretations, indent=2)
-    cols_text    = json.dumps(valid_columns)
-
-    return f"""You are the quality director of a top-tier data analytics firm. Your job is to review an AI-generated analysis before it reaches a client, catching any issues that would undermine its credibility.
-
-DOMAIN: {domain}
-VALID COLUMN NAMES: {cols_text}
-ATTRIBUTE INTERPRETATIONS:
-{interp_text}
-
-STATISTICAL GROUND TRUTH:
-{stats_text}
-
-REPORT TO REVIEW:
-{report_text}
-
-YOUR REVIEW — work through each of these:
-
-1. LANGUAGE REVIEW
-   Read through the insights for any raw technical column references — phrases like "the Year column", "column Revenue", "variable X". These undermine the professional tone.
-   If you find any, rewrite the affected insights using the attribute interpretations above. Return the corrected insights list in corrected_insights, or null if nothing needed changing.
-
-2. FACT CHECK
-   Check whether key numbers cited in the insights are consistent with the statistical ground truth provided.
-   If something is materially wrong (not just a rounding difference), flag it in issues_found and correct it.
-   If numbers look reasonable, no action needed.
-
-3. CHART REVIEW
-   Look at the chart instructions for obvious problems:
-   - Are x/y assignments appropriate for the chart type? (bar: categorical x + numeric y; scatter: both numeric; histogram: numeric x only; etc.)
-   - Is the chart selection monotonous when the data would support more variety?
-   - Does each chart meaningfully support the insight it is linked to?
-   Return corrected_chart_instructions with the full corrected list if changes are needed, or null if charts look good.
-
-4. CONCLUSION
-   Write a professional conclusion paragraph (3-4 sentences) that synthesises the most important findings, acknowledges the primary data limitation, and closes with one actionable recommendation appropriate for the {domain} domain. This replaces the Gemini-generated conclusion.
-
-5. CONFIDENCE SCORE
-   Assign an overall confidence score 1-10 reflecting how much weight a decision-maker should give these findings.
-   Consider: data size and completeness, statistical significance, consistency of findings, domain fit.
-   Score guide: 9-10 publication-quality, 7-8 boardroom-ready, 5-6 informative with caveats, 3-4 preliminary, 1-2 unreliable.
-
-Respond ONLY with valid JSON using EXACTLY this structure:
-{{
-  "confidence_score": <integer 1-10>,
-  "confidence_level": "<HIGH (8-10) | MEDIUM (5-7) | LOW (1-4)>",
-  "overall_confidence": <float 0.0-1.0>,
-  "issues_found": [
-    "<description of any issue found and what was done>",
-    "..."
-  ],
-  "corrected_insights": [
-    {{
-      "rank": <integer — must match the original insight rank>,
-      "title": "<corrected or original title>",
-      "body": "<corrected or original body>",
-      "insight_index": <integer matching rank>
-    }}
-  ],
-  "corrected_chart_instructions": [
-    {{
-      "index": <integer — must match the original chart index>,
-      "chart_type": "<corrected or original chart type>",
-      "title": "<corrected or original title>",
-      "x_column": "<EXACT column name or null>",
-      "y_column": "<EXACT column name or null>",
-      "description": "<corrected or original description>",
-      "insight_index": <integer linking chart to insight>
-    }}
-  ],
-  "conclusion": "<3-4 sentence professional conclusion — synthesised findings, honest limitation, one recommendation>",
-  "judge_statement": "<2-3 sentence assessment of overall analysis quality and confidence rationale>",
-  "proceed": <true | false — false only if findings are fundamentally unreliable>
-}}
-
-IMPORTANT:
-- corrected_insights must be the FULL list of all insights (not just changed ones), or null if nothing was changed.
-- corrected_chart_instructions must be the FULL list of all chart instructions (not just changed ones), or null if nothing was changed.
-- Every insight in corrected_insights must include: rank, title, body, insight_index.
-- Every chart in corrected_chart_instructions must include: index, chart_type, title, x_column, y_column, description, insight_index.
-- Do not omit fields — the downstream renderer depends on all of them being present.
-
-No markdown. No text outside the JSON.
-"""
-
-
-def judge_insights(
-    report_json: Dict[str, Any],
-    stats: StatsSummary,
-    domain: str,
-    attribute_interpretations: Dict[str, str],
-    valid_columns: List[str],
-    api_key: str,
-    tracker=None,
-) -> JudgeResult:
-    """Phase 6: Quality audit, corrections, confidence scoring."""
-    prompt = _build_judge_prompt(
-        report_json, stats, domain, attribute_interpretations, valid_columns
-    )
-    messages = [
-        {
-            "role":    "system",
-            "content": (
-                "You are a rigorous data analytics quality director. "
-                "You catch imprecise language, hallucinated statistics, and poor chart choices. "
-                "Respond only with valid JSON."
-            ),
-        },
-        {"role": "user", "content": prompt},
-    ]
-
-    _FALLBACK = JudgeResult(
-        confidence_score=6,
-        confidence_level="MEDIUM",
-        overall_confidence=0.6,
-        issues=[],
-        judge_statement=(
-            "Analysis completed using standard pipeline. "
-            "Results reflect patterns observed in the provided dataset. "
-            "Interpret findings in the context of data completeness and sample size."
-        ),
-        conclusion="",
-        corrected_insights=None,
-        corrected_chart_instructions=None,
-        proceed=True,
-    )
-
-    try:
-        # 6000, not 2500: gpt-oss models emit reasoning tokens before the answer
-        # and charge them against the same budget. On the full judge prompt —
-        # report plus stats plus chart instructions — the budget ran out during
-        # reasoning and the response came back with EMPTY content, which the
-        # parser reported as "could not parse JSON" with nothing after the colon.
-        text   = _groq_call(messages, api_key, max_tokens=6000, temperature=0.15,
-                            tracker=tracker, phase="judge")
-        parsed = _parse_json(text)
-    except Exception as e:
-        print(f"[Groq] Judge call failed: {e} — using default")
-        return _FALLBACK
-
-    score = int(parsed.get("confidence_score", 6))
-    score = max(1, min(10, score))
-
-    level = parsed.get("confidence_level", "MEDIUM").upper()
-    if level not in ("HIGH", "MEDIUM", "LOW"):
-        level = "HIGH" if score >= 8 else "MEDIUM" if score >= 5 else "LOW"
-
-    return JudgeResult(
-        confidence_score=score,
-        confidence_level=level,
-        overall_confidence=float(parsed.get("overall_confidence", score / 10)),
-        issues=parsed.get("issues_found", []),
-        judge_statement=parsed.get("judge_statement", ""),
-        conclusion=parsed.get("conclusion", ""),
-        corrected_insights=parsed.get("corrected_insights"),
-        corrected_chart_instructions=parsed.get("corrected_chart_instructions"),
-        proceed=bool(parsed.get("proceed", True)),
     )

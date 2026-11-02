@@ -22,7 +22,8 @@ from typing import Optional, List, Dict, Any
 from ai_engine.quality.quality_checker   import check_data_quality
 from ai_engine.core.cleaner              import clean_dataset
 from ai_engine.core.stats_analyzer       import build_stats_summary
-from ai_engine.llm.groq_client           import detect_domain, judge_insights
+from ai_engine.llm.groq_client           import detect_domain
+from ai_engine.core.confidence          import assess_confidence, validate_chart_instructions
 from ai_engine.llm.insight_agent         import generate_report
 from ai_engine.charts.chart_generator    import generate_charts
 from ai_engine.pdf.pdf_builder           import build_pdf
@@ -90,52 +91,6 @@ def _load_dataframe(file_bytes: bytes, file_name: str) -> pd.DataFrame:
 # ─────────────────────────────────────────────────────────────────────────────
 # Judge correction merger
 # ─────────────────────────────────────────────────────────────────────────────
-
-def _apply_judge_corrections(report: LLMReport, judge) -> LLMReport:
-    """
-    Merge judge's corrections back into the LLMReport in place.
-    Judge returns corrected_insights and corrected_chart_instructions
-    as full replacement lists (None = nothing changed).
-    """
-    # Replace conclusion with judge's refined version
-    if judge.conclusion:
-        report.conclusion = judge.conclusion
-
-    # Replace insights if judge corrected any
-    if judge.corrected_insights:
-        # Build a lookup by rank
-        by_rank = {ins.get("rank"): ins for ins in judge.corrected_insights}
-        report.insights = [
-            by_rank.get(ins.get("rank"), ins)
-            for ins in report.insights
-        ]
-
-    # Replace chart instructions if judge corrected any
-    if judge.corrected_chart_instructions:
-        from ai_engine.llm.insight_agent import CHART_COLORS, VALID_CHART_TYPES
-        corrected: List[ChartInstruction] = []
-        by_index = {c.get("index"): c for c in judge.corrected_chart_instructions}
-        for i, instr in enumerate(report.chartInstructions):
-            if instr.index in by_index:
-                c = by_index[instr.index]
-                ct = c.get("chart_type", instr.chartType).lower()
-                if ct not in VALID_CHART_TYPES:
-                    ct = instr.chartType
-                corrected.append(ChartInstruction(
-                    index=instr.index,
-                    chartType=ct,
-                    title=c.get("title", instr.title),
-                    xColumn=c.get("x_column", instr.xColumn),
-                    yColumn=c.get("y_column", instr.yColumn) or None,
-                    description=c.get("description", instr.description),
-                    insightIndex=c.get("insight_index", instr.insightIndex),
-                    color=CHART_COLORS[i % len(CHART_COLORS)],
-                ))
-            else:
-                corrected.append(instr)
-        report.chartInstructions = corrected
-
-    return report
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -296,52 +251,20 @@ def run_pipeline(
         from ai_engine.llm.insight_agent import _build_fallback_report
         llm_report = _build_fallback_report(stats, domain)
 
-    # Build the report dict to send to judge (before chart generation)
-    report_for_judge = {
-        "report_title":   llm_report.reportTitle,
-        "executive_summary": llm_report.executiveSummary,
-        "insights":       llm_report.insights,
-        "chart_instructions": [
-            {
-                "index":        c.index,
-                "chart_type":   c.chartType,
-                "title":        c.title,
-                "x_column":     c.xColumn,
-                "y_column":     c.yColumn,
-                "description":  c.description,
-                "insight_index": c.insightIndex,
-            }
-            for c in llm_report.chartInstructions
-        ],
-        "conclusion": llm_report.conclusion,
-    }
-
     print(f"[Pipeline] Phase 5 done. Insights: {len(llm_report.insights)}, Charts: {len(llm_report.chartInstructions)}", flush=True)
 
-    # ── Phase 6: Groq judge — audit, corrections, confidence score ────────
-    print(f"[Pipeline] Phase 6 — Groq judge...", flush=True)
-    judge = _run_judge(
-        report_for_judge, stats, domain.domain,
-        domain.attribute_interpretations,
-        list(df_work.columns),
-        groq_api_key,
-        tracker,
-    )
+    # ── Phase 6: confidence, from the statistics (no model call) ─────────
+    # Was an LLM judge on Groq. It cost 6-20s per analysis waiting on the free
+    # tier's per-minute token budget, and had a weaker model audit a stronger
+    # one. See ai_engine/core/confidence.py.
+    print(f"[Pipeline] Phase 6 — statistical confidence check...", flush=True)
+    llm_report.chartInstructions, chart_issues = validate_chart_instructions(
+        llm_report.chartInstructions, list(df_work.columns))
+    judge = assess_confidence(stats, chart_issues)
+    llm_report.confidenceNote = judge.judge_statement
+    print(f"[Pipeline] Phase 6 done. Confidence: {judge.confidence_score}/10 ({judge.confidence_level})", flush=True)
 
-    # ── Apply judge corrections to report ─────────────────────────────────
-    llm_report = _apply_judge_corrections(llm_report, judge)
-
-    # Set the final confidence note combining judge statement + writer's note
-    if judge.judge_statement:
-        llm_report.confidenceNote = judge.judge_statement
-        if llm_report.confidenceNote and llm_report.confidenceNote:
-            # Append the writer's note as supporting detail
-            gemini_note = llm_report.confidenceNote
-            llm_report.confidenceNote = judge.judge_statement
-
-    print(f"[Pipeline] Phase 6 done. Judge confidence: {judge.confidence_score}/10 ({judge.confidence_level})", flush=True)
-
-    # ── Phase 7: Chart generation (post-judge, using corrected instructions) ──
+    # ── Phase 7: Chart generation (using validated instructions) ─────────
     print(f"[Pipeline] Phase 7 — Generating {len(llm_report.chartInstructions)} chart(s)...", flush=True)
     try:
         charts = generate_charts(df_work, llm_report.chartInstructions)
@@ -493,40 +416,6 @@ def _run_domain_gate(df: pd.DataFrame, groq_api_key: str, tracker=None) -> Domai
     except Exception as e:
         print(f"[Pipeline] Domain gate error: {e} — using fallback")
         return _run_domain_gate(df, "", tracker)   # recurse with empty key → fallback
-
-
-def _run_judge(
-    report_json: dict,
-    stats,
-    domain: str,
-    attribute_interpretations: dict,
-    valid_columns: list,
-    groq_api_key: str,
-    tracker=None,
-):
-    if not groq_api_key:
-        print("[Pipeline] GROQ_API_KEY not set — skipping judge")
-        from ai_engine.models.models import JudgeResult
-        return JudgeResult(
-            confidence_score=6,
-            confidence_level="MEDIUM",
-            overall_confidence=0.6,
-            issues=[],
-            judge_statement="Analysis completed. Results reflect statistical patterns in the provided dataset.",
-            conclusion="",
-            corrected_insights=None,
-            corrected_chart_instructions=None,
-            proceed=True,
-        )
-    try:
-        return judge_insights(
-            report_json, stats, domain,
-            attribute_interpretations, valid_columns, groq_api_key,
-            tracker=tracker,
-        )
-    except Exception as e:
-        print(f"[Pipeline] Judge error: {e}")
-        return _run_judge(report_json, stats, domain, attribute_interpretations, valid_columns, "", tracker)
 
 
 def _log(stats, domain, judge, was_cleaned, user_wanted_clean,

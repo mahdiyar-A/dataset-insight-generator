@@ -333,3 +333,96 @@ class TestGenerateReport:
         r = insight_agent.generate_report(None, None, False, [], api_keys=KEYS)
         assert r is sentinel
         assert r.writerModel == ""
+
+
+# ── Hedging ───────────────────────────────────────────────────────────────────
+
+class TestHedging:
+    """The strongest model is slow far more often than it is down."""
+
+    @pytest.fixture(autouse=True)
+    def _fast_hedge(self, monkeypatch):
+        monkeypatch.setattr(report_writer, "HEDGE_AFTER_SECS", 0.2)
+        monkeypatch.setattr(report_writer, "PREFER_STRONGER_GRACE_SECS", 0.5)
+
+    def _providers(self):
+        strong = report_writer.ReportProvider("openrouter", "Strong", "u", "strong:free", 100, 10)
+        backup = report_writer.ReportProvider("groq", "Backup", "u", "backup", 100, 10)
+        return strong, backup
+
+    def test_a_slow_strongest_model_does_not_hold_up_the_report(self, monkeypatch):
+        strong, backup = self._providers()
+
+        def fake_post(provider, api_key, prompt, timeout):
+            if provider.model == "strong:free":
+                time.sleep(5)
+            return ok('{"from": "%s"}' % provider.model)
+
+        monkeypatch.setattr(report_writer, "_post", fake_post)
+        started = time.monotonic()
+        result, provider = write_report("p", KEYS, accept_json, providers=(strong, backup))
+        elapsed = time.monotonic() - started
+
+        assert provider.model == "backup"
+        # hedge (0.2) + backup (instant) + grace (0.5), never the strong model's 5s
+        assert elapsed < 2
+
+    def test_the_strongest_still_wins_if_it_finishes_within_the_grace(self, monkeypatch):
+        strong, backup = self._providers()
+
+        def fake_post(provider, api_key, prompt, timeout):
+            if provider.model == "strong:free":
+                time.sleep(0.4)   # past the hedge, inside the grace window
+            return ok('{"from": "%s"}' % provider.model)
+
+        monkeypatch.setattr(report_writer, "_post", fake_post)
+        result, provider = write_report("p", KEYS, accept_json, providers=(strong, backup))
+        assert provider.model == "strong:free"
+        assert result == {"from": "strong:free"}
+
+    def test_the_strongest_is_used_when_every_fallback_fails(self, monkeypatch):
+        strong, backup = self._providers()
+
+        def fake_post(provider, api_key, prompt, timeout):
+            if provider.model == "strong:free":
+                time.sleep(0.8)
+                return ok('{"from": "strong"}')
+            raise http_error(503)
+
+        monkeypatch.setattr(report_writer, "_post", fake_post)
+        result, provider = write_report("p", KEYS, accept_json, providers=(strong, backup))
+        assert provider.model == "strong:free"
+
+    def test_a_fast_strongest_model_never_triggers_the_fallbacks(self, monkeypatch):
+        strong, backup = self._providers()
+        calls = []
+
+        def fake_post(provider, api_key, prompt, timeout):
+            calls.append(provider.model)
+            return ok('{"ok": 1}')
+
+        monkeypatch.setattr(report_writer, "_post", fake_post)
+        write_report("p", KEYS, accept_json, providers=(strong, backup))
+        assert calls == ["strong:free"]
+
+
+class TestSlowStrongestIsBenched:
+    def test_answering_after_a_fallback_was_used_benches_the_model(self, monkeypatch):
+        # Otherwise a slow-but-alive strongest model would make every visitor
+        # wait through the hedge, because each late success clears its cool-down.
+        monkeypatch.setattr(report_writer, "HEDGE_AFTER_SECS", 0.1)
+        monkeypatch.setattr(report_writer, "PREFER_STRONGER_GRACE_SECS", 0.1)
+        strong = report_writer.ReportProvider("openrouter", "Strong", "u", "strong:free", 100, 10)
+        backup = report_writer.ReportProvider("groq", "Backup", "u", "backup", 100, 10)
+
+        def fake_post(provider, api_key, prompt, timeout):
+            if provider.model == "strong:free":
+                time.sleep(0.6)
+            return ok('{"x": 1}')
+
+        monkeypatch.setattr(report_writer, "_post", fake_post)
+        _, provider = write_report("p", KEYS, accept_json, providers=(strong, backup))
+        assert provider.model == "backup"
+
+        time.sleep(0.8)   # let the strong model finish in the background
+        assert report_writer._cooling_down("strong:free", time.monotonic())

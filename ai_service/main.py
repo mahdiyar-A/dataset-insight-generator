@@ -85,7 +85,7 @@ def health():
         "version":         "2.0.0",
         "openrouter_key_set": bool(OPENROUTER_API_KEY),
         "groq_key_set":    bool(GROQ_API_KEY),
-        "pipeline":        "7-phase (Groq gate → free report-writer chain → Groq judge)",
+        "pipeline":        "7-phase (Groq gate → free report-writer chain → statistical confidence)",
     }
 
 
