@@ -46,13 +46,13 @@ All green. **276 automated tests.** `tsc --noEmit` clean, eslint 0 errors.
 ## Shipped and verified
 
 ### Analysis pipeline
-Upload → quality check → optional cleaning → statistics → Gemini insights → charts → PDF. Runs in the background with SignalR status updates; the frontend polls `/api/analyses/active`.
+Upload → quality check → optional cleaning → statistics → AI-written insights (free open-source models, strongest first: NVIDIA Nemotron via OpenRouter, then Groq) → charts → PDF. Runs in the background with SignalR status updates; the frontend polls `/api/analyses/active`.
 
 ### Report customization
 Language, tone, insight count, occasion, audience, depth, focus areas, comparisons, must-mention topics, chart style, methodology and confidence toggles. Word and PowerPoint output for Pro.
 
 ### Plans and billing
-Free (2 analyses / 48h, 5 history slots, PDF only) and Pro ($9.99/mo, unlimited, Word + PPTX, chatbot customization, teams, 15 history slots). Stripe checkout, billing portal and webhook handling are wired end to end. No card data is stored server-side.
+Free (2 analyses / 48h, 5 history slots, PDF only) and Pro ($9.99/mo, up to 20 analyses a day, Word + PPTX, chatbot customization, teams, 15 history slots). Stripe checkout, billing portal and webhook handling are wired end to end. No card data is stored server-side.
 
 ### Teams and collaboration
 Team creation, email invites, role management. Shared workspaces with per-file permissions, threaded annotations, and real-time presence and cursors over SignalR.

@@ -34,7 +34,7 @@ namespace backend.Tests.Integration;
 /// billed.
 ///
 /// These drive AnalysisService directly rather than over HTTP, because
-/// StartInBackground is fire-and-forget and an HTTP test would race it.
+/// TryStartAsync is fire-and-forget and an HTTP test would race it.
 /// </summary>
 [TestFixture]
 public class AnalysisFileIsolationTests
@@ -58,6 +58,7 @@ public class AnalysisFileIsolationTests
         _users    = new FakeUserRepository();
         _service  = new AnalysisService(
             _analyses, _storage, _python, _users,
+            new AnalysisGate(new AnalysisLimits()),
             NullLogger<AnalysisService>.Instance);
 
         _userId = Guid.NewGuid();

@@ -71,6 +71,11 @@ public class ChatController : ControllerBase
                     Condition = "not_workable", RequiresResponse = false, Done = false, Failed = true,
                 });
 
+            // Refuse before running a quality check on an analysis that could not
+            // start anyway: plan allowance used up, one already running, or busy.
+            var precheck = await _analysis.CheckAsync(userId);
+            if (!precheck.Allowed) return Ok(Refused(precheck));
+
             // Serialize customization to JSON string for storage + forwarding to pipeline
             string? customizationJson = null;
             if (req.Customization.HasValue && req.Customization.Value.ValueKind != JsonValueKind.Null)
@@ -97,11 +102,12 @@ public class ChatController : ControllerBase
             // If all_good — kick off analysis immediately, no yes/no needed
             if (condition == "all_good")
             {
-                _analysis.StartInBackground(userId, req.FileName ?? "data.csv",
+                var started = await _analysis.TryStartAsync(userId, req.FileName ?? "data.csv",
                     req.FileSizeBytes ?? new System.IO.FileInfo(tempPath).Length,
                     req.RowCount ?? 0, req.ColumnCount ?? 0,
                     userWantsCleaning: false, userConfirmedLow: true,
                     customizationJson: customizationJson);
+                if (!started.Allowed) return Ok(Refused(started));
             }
 
             return Ok(condition switch
@@ -155,7 +161,7 @@ public class ChatController : ControllerBase
                 catch { /* ignore */ }
             }
 
-            _analysis.StartInBackground(
+            var startedAfterAnswer = await _analysis.TryStartAsync(
                 userId,
                 req.FileName      ?? "data.csv",
                 req.FileSizeBytes ?? new System.IO.FileInfo(tempPath).Length,
@@ -165,6 +171,7 @@ public class ChatController : ControllerBase
                 userConfirmedLow,
                 customizationJson: customizationJson
             );
+            if (!startedAfterAnswer.Allowed) return Ok(Refused(startedAfterAnswer));
 
             return Ok(new ChatMessageResponse
             {
@@ -179,6 +186,11 @@ public class ChatController : ControllerBase
         });
     }
 
+    /// <summary>A refused analysis, shown in the chat in the user's own words.</summary>
+    private static ChatMessageResponse Refused(Admission admission) => new()
+    {
+        Reply = admission.Message, Condition = null, RequiresResponse = false, Done = false, Failed = true,
+    };
 }
 
 public class ChatMessageRequest

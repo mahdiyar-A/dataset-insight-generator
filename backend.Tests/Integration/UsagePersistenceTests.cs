@@ -14,7 +14,7 @@ namespace backend.Tests.Integration;
 /// response through AnalysisService into the repository.
 ///
 /// Exercises AnalysisService directly rather than through HTTP because
-/// StartInBackground is fire-and-forget — an HTTP-level test would race the
+/// TryStartAsync is fire-and-forget — an HTTP-level test would race the
 /// background task.
 /// </summary>
 [TestFixture]
@@ -39,6 +39,7 @@ public class UsagePersistenceTests
         _users    = new FakeUserRepository();
         _service  = new AnalysisService(
             _analyses, _storage, _python, _users,
+            new AnalysisGate(new AnalysisLimits()),
             NullLogger<AnalysisService>.Instance);
 
         _userId = Guid.NewGuid();

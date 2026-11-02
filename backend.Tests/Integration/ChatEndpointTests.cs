@@ -196,7 +196,7 @@ public class ChatEndpointTests
     [Test]
     public async Task Yes_WithTempFile_Returns200WithReply()
     {
-        // Risk: "yes" must trigger StartInBackground — if the response is 200
+        // Risk: "yes" must trigger TryStartAsync — if the response is 200
         // but the pipeline was never kicked off, the user waits forever.
         WriteTempCsv(TestAuthHandler.CurrentUserId);
 
@@ -223,7 +223,7 @@ public class ChatEndpointTests
     [Test]
     public async Task Yes_WithNoTempFile_ReturnsFailed()
     {
-        // Risk: "yes" without a file could crash StartInBackground or silently
+        // Risk: "yes" without a file could crash TryStartAsync or silently
         // create a broken DB row.
         var doc = await PostMessage(_client, "yes", pendingCondition: "not_clean");
         doc.RootElement.GetProperty("failed").GetBoolean().Should().BeTrue();

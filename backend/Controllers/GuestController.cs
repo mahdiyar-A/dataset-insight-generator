@@ -1,5 +1,6 @@
 using backend.Application.DTOs.AI;
 using backend.Application.Interfaces;
+using backend.Application.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Text.Json.Serialization;
@@ -16,6 +17,7 @@ namespace backend.Controllers;
 public class GuestController : ControllerBase
 {
     private readonly IPythonAiClient _pythonAi;
+    private readonly AnalysisGate _gate;
     private readonly ILogger<GuestController> _logger;
 
     // Strip newlines/control chars from user-supplied values before logging (log injection prevention)
@@ -24,9 +26,10 @@ public class GuestController : ControllerBase
 
     private static readonly string TempDir = Path.Combine(Path.GetTempPath(), "dig_guest");
 
-    public GuestController(IPythonAiClient pythonAi, ILogger<GuestController> logger)
+    public GuestController(IPythonAiClient pythonAi, AnalysisGate gate, ILogger<GuestController> logger)
     {
         _pythonAi = pythonAi;
+        _gate     = gate;
         _logger   = logger;
         Directory.CreateDirectory(TempDir);
     }
@@ -114,6 +117,11 @@ public class GuestController : ControllerBase
         // ── start_analysis: call Python /check for REAL condition ─────────
         if (message == "start_analysis")
         {
+            // Refuse before spending a quality check on an analysis that could
+            // not start anyway: daily allowance used up, one running, or busy.
+            var precheck = _gate.Check(GuestCaller());
+            if (!precheck.Allowed) return Ok(Refused(precheck));
+
             try
             {
                 var csvBytes  = await System.IO.File.ReadAllBytesAsync(tempPath!);
@@ -129,8 +137,8 @@ public class GuestController : ControllerBase
                 // all_good → fire analysis immediately, no yes/no needed
                 if (condition == "all_good")
                 {
-                    _ = Task.Run(() => RunGuestAnalysisAsync(
-                        req.SessionId ?? "guest", tempPath!, fileName, false, true));
+                    var refused = TryStartGuest(req.SessionId ?? "guest", tempPath!, fileName, false, true);
+                    if (refused != null) return Ok(refused);
 
                     return Ok(new GuestChatResponse
                     {
@@ -187,11 +195,11 @@ public class GuestController : ControllerBase
                 userConfirmedLow  = true;
             }
 
-            _ = Task.Run(() => RunGuestAnalysisAsync(
+            var refusedAfterAnswer = TryStartGuest(
                 req.SessionId ?? "guest", tempPath!,
                 req.FileName ?? "data.csv",
-                userWantsCleaning, userConfirmedLow
-            ));
+                userWantsCleaning, userConfirmedLow);
+            if (refusedAfterAnswer != null) return Ok(refusedAfterAnswer);
 
             var reply = message == "yes"
                 ? "Running the full analysis pipeline now. Your report and charts will appear when done."
@@ -209,6 +217,37 @@ public class GuestController : ControllerBase
             Condition = null, RequiresResponse = false, Done = false, Failed = false,
         });
     }
+
+    // ── Admission ─────────────────────────────────────────────────────────
+
+    // Guests are identified by client IP: sessionId is minted by the browser and
+    // proves nothing. Program.cs makes RemoteIpAddress the real visitor behind
+    // the reverse proxy; without that, every guest would share one allowance.
+    private AnalysisCaller GuestCaller() =>
+        AnalysisCaller.ForGuest(HttpContext.Connection.RemoteIpAddress?.ToString());
+
+    /// <summary>Start a guest analysis through the gate, or return the refusal to show.</summary>
+    private GuestChatResponse? TryStartGuest(
+        string sessionId, string tempPath, string fileName,
+        bool userWantsCleaning, bool userConfirmedLow)
+    {
+        var caller    = GuestCaller();
+        var admission = _gate.TryAdmit(caller);
+        if (!admission.Allowed)
+        {
+            _logger.LogInformation("[Guest] Refused {Caller}: {Code}", caller.Key, admission.Code);
+            return Refused(admission);
+        }
+
+        _ = Task.Run(() => _gate.RunAsync(caller, () =>
+            RunGuestAnalysisAsync(sessionId, tempPath, fileName, userWantsCleaning, userConfirmedLow)));
+        return null;
+    }
+
+    private static GuestChatResponse Refused(Admission admission) => new()
+    {
+        Reply = admission.Message, Condition = null, RequiresResponse = false, Done = false, Failed = true,
+    };
 
     // Helper DTO for Python /check response
     private class CheckResponse

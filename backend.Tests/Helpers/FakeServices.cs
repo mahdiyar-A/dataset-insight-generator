@@ -233,8 +233,12 @@ public class FakeUserRepository : IUserRepository
     public Task SetPlanAsync(Guid userId, string plan, DateTime? planExpiresAt, string? stripeSubscriptionId) =>
         Task.CompletedTask;
     public Task SetStripeCustomerIdAsync(Guid userId, string customerId) => Task.CompletedTask;
-    public Task IncrementReportUsageAsync(Guid userId) => Task.CompletedTask;
-    public Task ResetReportQuotaAsync(Guid userId) => Task.CompletedTask;
+    // Recorded rather than ignored. A no-op here is how the free plan's quota
+    // went unenforced unnoticed: nothing ever called the real one either.
+    public int IncrementCalls { get; private set; }
+    public int ResetCalls     { get; private set; }
+    public Task IncrementReportUsageAsync(Guid userId) { IncrementCalls++; return Task.CompletedTask; }
+    public Task ResetReportQuotaAsync(Guid userId)     { ResetCalls++;     return Task.CompletedTask; }
     public Task UpdateLastActiveAsync(Guid userId) => Task.CompletedTask;
 }
 

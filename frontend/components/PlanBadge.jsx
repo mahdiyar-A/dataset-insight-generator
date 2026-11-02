@@ -52,7 +52,7 @@ export default function PlanBadge({ plan = "free", reportsUsed = 0 }) {
             Pro
           </p>
           <p style={{ margin: 0, fontSize: "0.68rem", color: "#1e3a5f" }}>
-            Unlimited · 15 slots
+            20 a day · 15 slots
           </p>
         </div>
       </div>

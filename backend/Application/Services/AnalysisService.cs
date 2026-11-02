@@ -16,8 +16,9 @@ namespace backend.Application.Services;
 ///   5. Save all outputs (original CSV, cleaned CSV, PDF, Word, PPTX, charts) to Supabase Storage
 ///   6. Update the Analysis row with final status + storage paths
 ///
-/// StartInBackground() fires-and-forgets so the HTTP request to /api/chat/message
-/// returns immediately and the frontend polls /api/analyses/active for status.
+/// TryStartAsync() admits the run through AnalysisGate, then fires-and-forgets so
+/// the HTTP request to /api/chat/message returns immediately and the frontend
+/// polls /api/analyses/active for status.
 ///
 /// Uses IAnalysisRepository (not the old IDatasetRepository) — each analysis run
 /// is a separate row; users keep up to 5 (free) or 15 (pro) in history.
@@ -28,6 +29,7 @@ public class AnalysisService
     private readonly IStorageService          _storage;
     private readonly IPythonAiClient          _pythonAi;
     private readonly IUserRepository          _users;
+    private readonly AnalysisGate             _gate;
     private readonly ILogger<AnalysisService> _logger;
 
     // Same temp directory as DatasetsController — files land here on upload
@@ -38,22 +40,36 @@ public class AnalysisService
         IStorageService          storage,
         IPythonAiClient          pythonAi,
         IUserRepository          users,
+        AnalysisGate             gate,
         ILogger<AnalysisService> logger)
     {
         _analyses = analyses;
         _storage  = storage;
         _pythonAi = pythonAi;
         _users    = users;
+        _gate     = gate;
         _logger   = logger;
     }
 
     // ── Public entry point ─────────────────────────────────────────────────────
 
     /// <summary>
-    /// Kick off analysis without awaiting — returns immediately to the HTTP caller.
-    /// The frontend polls /api/analyses/active to track progress.
+    /// Would this user be allowed to start an analysis right now? Changes
+    /// nothing. Lets the chat refuse before spending a quality check on an
+    /// analysis that could not start anyway.
     /// </summary>
-    public void StartInBackground(
+    public async Task<Admission> CheckAsync(Guid userId)
+    {
+        var user = await _users.GetByIdAsync(userId);
+        return await FreePlanQuotaAsync(userId, user)
+            ?? _gate.Check(AnalysisCaller.ForUser(userId, user?.Plan));
+    }
+
+    /// <summary>
+    /// Admit the analysis and start it in the background, or say why not. The
+    /// HTTP caller returns immediately; the frontend polls /api/analyses/active.
+    /// </summary>
+    public async Task<Admission> TryStartAsync(
         Guid   userId,
         string fileName,
         long   fileSizeBytes,
@@ -63,9 +79,48 @@ public class AnalysisService
         bool   userConfirmedLow    = false,
         string? customizationJson  = null)
     {
-        _ = Task.Run(() => RunAsync(userId, fileName, fileSizeBytes, rowCount, columnCount,
-                                   userWantsCleaning, userConfirmedLow, customizationJson));
+        var user = await _users.GetByIdAsync(userId);
+        var quota = await FreePlanQuotaAsync(userId, user);
+        if (quota != null) return quota;
+
+        var caller    = AnalysisCaller.ForUser(userId, user?.Plan);
+        var admission = _gate.TryAdmit(caller);
+        if (!admission.Allowed)
+        {
+            _logger.LogInformation("[Analysis] Refused for user {UserId}: {Code}", userId, admission.Code);
+            return admission;
+        }
+
+        _ = Task.Run(() => _gate.RunAsync(caller, () =>
+            RunAsync(userId, fileName, fileSizeBytes, rowCount, columnCount,
+                     userWantsCleaning, userConfirmedLow, customizationJson)));
+        return admission;
     }
+
+    /// <summary>
+    /// The free plan's 2-analyses-per-48-hours allowance, or null when it does
+    /// not apply or is not used up. Persisted on the user row rather than kept
+    /// in the gate, so restarting the server does not refill it.
+    /// </summary>
+    private async Task<Admission?> FreePlanQuotaAsync(Guid userId, User? user)
+    {
+        if (user == null || user.Plan != "free") return null;
+
+        if ((DateTime.UtcNow - user.ReportsResetAt).TotalHours >= 48)
+        {
+            await _users.ResetReportQuotaAsync(userId);
+            return null;
+        }
+
+        return user.ReportsUsed >= FreePlanAnalysesPer48h
+            ? new Admission(false, "QUOTA_EXCEEDED",
+                $"The free plan includes {FreePlanAnalysesPer48h} analyses every 48 hours, and you've used them. " +
+                "Upgrade to Pro, or try again once the 48 hours are up.")
+            : null;
+    }
+
+    /// <summary>Must match PlansController's advertised free-plan allowance.</summary>
+    public const int FreePlanAnalysesPer48h = 2;
 
     // ── Pipeline implementation ────────────────────────────────────────────────
 
@@ -273,6 +328,13 @@ public class AnalysisService
             File.Delete(tempPath);
             _logger.LogInformation("[Analysis] Complete for user {UserId}, analysisId={Id}", userId, analysisId);
 
+            // Counts toward the free plan's allowance. Only a completed analysis
+            // counts, so a failure on our side never costs the user one of
+            // theirs. This call used to be missing entirely: the allowance was
+            // checked on every upload but nothing ever incremented it, so the
+            // free-plan limit was never actually enforced.
+            await TryCountUsageAsync(userId);
+
             // Enforce the plan's history limit. Runs last and swallows its own
             // errors — a pruning failure must never fail an analysis the user
             // has already been told succeeded.
@@ -287,6 +349,19 @@ public class AnalysisService
         {
             _logger.LogError(ex, "[Analysis] Unexpected error for user {UserId}", userId);
             if (analysisId.HasValue) await TrySetFailed(analysisId.Value);
+        }
+    }
+
+    /// <summary>Swallows its own errors: the analysis has already succeeded.</summary>
+    private async Task TryCountUsageAsync(Guid userId)
+    {
+        try
+        {
+            await _users.IncrementReportUsageAsync(userId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Analysis] Failed to count usage for user {UserId}", userId);
         }
     }
 

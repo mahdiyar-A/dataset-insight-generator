@@ -14,7 +14,7 @@ namespace backend.Tests.Integration;
 /// -------
 /// The chatbot asked "your dataset has quality issues — shall I clean it?".
 /// The user said yes. ChatController correctly computed userWantsCleaning = true
-/// and passed it to AnalysisService.StartInBackground. AnalysisService accepted
+/// and passed it to AnalysisService.TryStartAsync. AnalysisService accepted
 /// the parameter — and never used it. BuildPythonRequest constructed the
 /// AnalyzeRequestDto without setting UserWantsCleaning, so it defaulted to false.
 /// PythonAiClient serialised that false into the multipart form, and the Python
@@ -31,7 +31,7 @@ namespace backend.Tests.Integration;
 /// because it builds its DTO inline and sets the flags directly.
 ///
 /// These tests exercise AnalysisService directly rather than through HTTP,
-/// because StartInBackground is fire-and-forget — an HTTP-level test would race
+/// because TryStartAsync is fire-and-forget — an HTTP-level test would race
 /// the background task.
 /// </summary>
 [TestFixture]
@@ -56,6 +56,7 @@ public class CleaningFlagPropagationTests
         _users    = new FakeUserRepository();
         _service  = new AnalysisService(
             _analyses, _storage, _python, _users,
+            new AnalysisGate(new AnalysisLimits()),
             NullLogger<AnalysisService>.Instance);
 
         _userId = Guid.NewGuid();

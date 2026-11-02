@@ -18,12 +18,12 @@ const PLANS = [
     features: [
       "2 analyses per 48 hours",
       "5 history slots",
-      "Standard AI model",
+      "AI-written report",
       "PDF report export",
       "CSV download",
     ],
     missing: [
-      "Unlimited analyses",
+      "Up to 20 analyses a day",
       "15 history slots",
       "Word & PowerPoint export",
       "Chatbot customization",
@@ -40,9 +40,9 @@ const PLANS = [
     interval: "/ month CAD",
     badge:    "Most popular",
     features: [
-      "Unlimited analyses",
+      "Up to 20 analyses a day",
       "15 history slots",
-      "Full AI model (Gemini 2.5 Flash)",
+      "AI-written report",
       "PDF, Word & PowerPoint export",
       "Chatbot customization (language, tone, insight count)",
       "Team collaboration workspace",
@@ -116,7 +116,7 @@ export default function PlansPage() {
           Simple, transparent pricing
         </h1>
         <p style={{ color: "#64748b", fontSize: "1rem", maxWidth: "480px", margin: "0 auto" }}>
-          Start free. Upgrade when you need collaboration, unlimited analyses, and premium exports.
+          Start free. Upgrade when you need collaboration, more analyses, and premium exports.
         </p>
       </div>
 

@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/terms' },
 };
 
-const UPDATED = 'LAST UPDATED 27 SEPTEMBER 2026';
+const UPDATED = 'LAST UPDATED 1 NOVEMBER 2026';
 
 const INTRO = [
   'These terms govern your use of DIG. They are written in plain language on purpose — you should be able to read them.',
@@ -72,7 +72,10 @@ const SECTIONS = [
       'Uploads are capped at 50 MB per file.',
       'Analysis history is capped at 5 analyses on the free plan and 15 on Pro. Exceeding the cap deletes your oldest analysis and its files automatically and permanently.',
       'Download your reports if you want to keep them. Your history is working space, not an archive, and we do not undertake to recover a pruned analysis.',
-      'Free accounts may run 2 analyses per 48 hours. Pro accounts are unlimited. The service also applies general request limits to protect against abuse.',
+      'Guests may run 2 analyses a day per connection. Free accounts may run 2 analyses per 48 hours. Pro accounts may run up to 20 analyses a day, as a fair-use limit.',
+      'One analysis runs at a time per person. When the service is busy, a new analysis may be turned away with a request to try again in a few minutes.',
+      'Reports are written by free AI services. If all of them are unavailable at the moment your analysis runs, you still receive the full statistics, charts and data-quality findings, but the written commentary is reduced to a short summary.',
+      'The service also applies general request limits to protect against abuse.',
     ],
   },
   {

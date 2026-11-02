@@ -37,13 +37,13 @@ public class PlansController : ControllerBase
         {
             "2 analyses per 48 hours",
             "5 history slots",
-            "Standard AI model",
+            "AI-written report",
             "PDF report",
             "CSV download",
         },
         missingFeatures = new[]
         {
-            "Unlimited analyses",
+            "Up to 20 analyses a day",
             "Word & PowerPoint export",
             "Chatbot customization",
             "Team collaboration",
@@ -58,13 +58,17 @@ public class PlansController : ControllerBase
         name        = "Pro",
         priceCAD    = 9.99m,
         interval    = "month",
-        reports     = -1,      // unlimited
+        // Was -1 ("unlimited"). The report writer runs on free AI quotas shared
+        // by the whole site, so unlimited was not a promise that could be kept.
+        // Enforced by AnalysisGate (AnalysisLimits.ProPerDay).
+        reports     = 20,
+        reportWindow = "day",
         historyLimit = 15,
         features    = new[]
         {
-            "Unlimited analyses",
+            "Up to 20 analyses a day",
             "15 history slots",
-            "Full AI model (Gemini 2.5 Flash)",
+            "AI-written report",
             "PDF, Word & PowerPoint export",
             "Chatbot customization (language, tone, insights)",
             "Team collaboration workspace",
