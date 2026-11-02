@@ -9,7 +9,12 @@ using System.Net.Http.Json;
 namespace backend.Tests.Integration;
 
 /// <summary>
-/// Integration tests for POST /api/datasets/email-report.
+/// Integration tests for POST /api/analyses/{id}/email.
+///
+/// The previous endpoint, /api/datasets/email-report, read the legacy
+/// datasets table, so it answered NO_DATASET for every analysis run since
+/// history moved to the analyses table — and the frontend never reached it,
+/// because the button called a client method that did not exist.
 ///
 /// This endpoint used to be a stub: it validated the request, then returned
 /// "Report queued for delivery." without sending anything. The UI reported
@@ -60,25 +65,28 @@ public class EmailReportTests
             reportsResetAt: DateTime.UtcNow.AddDays(-1));
     }
 
-    private Dataset SeedDatasetWithReport(string pdfPath)
+    private Guid _analysisId = Guid.NewGuid();
+
+    private Analysis SeedAnalysisWithReport(string pdfPath, Guid? owner = null)
     {
-        var ds = new Dataset(_userId, "data.csv", 2048, $"users/{_userId}/original.csv");
-        ds.SetPdfReport(pdfPath);
-        _factory.DatasetRepo.Store.Add(ds);
-        return ds;
+        var a = new Analysis(owner ?? _userId, "data.csv", 2048);
+        a.SetStatus("done");
+        a.SetPdfPath(pdfPath);
+        _factory.AnalysisRepo.Store.Add(a);
+        _analysisId = a.Id;
+        return a;
     }
 
     private Task<HttpResponseMessage> Post() =>
-        _client.PostAsJsonAsync("/api/datasets/email-report",
-            new { subject = "My report", includeAttachment = true });
+        _client.PostAsync($"/api/analyses/{_analysisId}/email", null);
 
     // ── Guards ───────────────────────────────────────────────────────────────
 
     [Test]
-    public async Task NoDataset_Returns404()
+    public async Task UnknownAnalysis_Returns404()
     {
-        // Risk: attempting to email a report for a user with no analysis at all
-        // must fail cleanly rather than throwing a null reference.
+        // Risk: attempting to email a report that doesn't exist must fail
+        // cleanly rather than throwing a null reference.
         var response = await Post();
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -105,7 +113,7 @@ public class EmailReportTests
         // report exists; storage returns nothing. Sending anyway would deliver an
         // email with a zero-byte attachment and still report success to the user.
         SeedUser();
-        SeedDatasetWithReport($"users/{_userId}/report.pdf");
+        SeedAnalysisWithReport($"users/{_userId}/report.pdf");
         _factory.StorageSvc.SimulateMissingFiles = true;
 
         var response = await Post();
@@ -125,7 +133,7 @@ public class EmailReportTests
         // hands an attacker the mail infrastructure for free.
         SeedUser();
         var path = $"users/{_userId}/report.pdf";
-        SeedDatasetWithReport(path);
+        SeedAnalysisWithReport(path);
         _factory.StorageSvc.Files[path] = "%PDF-1.4 fake"u8.ToArray();
         _factory.EmailSvc.ThrowOnSend = true;
 
@@ -150,7 +158,7 @@ public class EmailReportTests
         // attachment is indistinguishable from success at the HTTP layer.
         SeedUser("recipient@example.com");
         var path = $"users/{_userId}/report.pdf";
-        SeedDatasetWithReport(path);
+        SeedAnalysisWithReport(path);
 
         var pdfBytes = "%PDF-1.4 real report content"u8.ToArray();
         _factory.StorageSvc.Files[path] = pdfBytes;
@@ -174,7 +182,7 @@ public class EmailReportTests
         // notice the report went to a stale address on their account.
         SeedUser("recipient@example.com");
         var path = $"users/{_userId}/report.pdf";
-        SeedDatasetWithReport(path);
+        SeedAnalysisWithReport(path);
         _factory.StorageSvc.Files[path] = "%PDF"u8.ToArray();
 
         var response = await Post();
@@ -188,11 +196,42 @@ public class EmailReportTests
     {
         // Risk: partial failure — returning 404 but having already dispatched.
         SeedUser();
-        SeedDatasetWithReport($"users/{_userId}/report.pdf");
+        SeedAnalysisWithReport($"users/{_userId}/report.pdf");
         _factory.StorageSvc.SimulateMissingFiles = true;
 
         await Post();
 
         _factory.EmailSvc.SentReports.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task SomeoneElsesAnalysis_Returns404AndSendsNothing()
+    {
+        // Risk: guessing another user's analysis id must not email you their
+        // report. Ownership is checked in the repository lookup.
+        SeedUser();
+        var path = "users/someone-else/report.pdf";
+        SeedAnalysisWithReport(path, owner: Guid.NewGuid());
+        _factory.StorageSvc.Files[path] = "%PDF"u8.ToArray();
+
+        var response = await Post();
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        _factory.EmailSvc.SentReports.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task ReportNotReadyYet_Returns400()
+    {
+        SeedUser();
+        var a = new Analysis(_userId, "data.csv", 2048);
+        a.SetStatus("processing");
+        _factory.AnalysisRepo.Store.Add(a);
+        _analysisId = a.Id;
+
+        var response = await Post();
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await response.Content.ReadAsStringAsync()).Should().Contain("NOT_READY");
     }
 }

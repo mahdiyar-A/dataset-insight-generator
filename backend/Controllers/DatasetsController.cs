@@ -187,47 +187,6 @@ public class DatasetsController : ControllerBase
         return Ok(new { url, fileName = dataset.ReportFileName });
     }
 
-    // POST /api/datasets/email-report
-    [HttpPost("email-report")]
-    public async Task<IActionResult> EmailReport([FromBody] EmailReportRequest req)
-    {
-        var userId  = GetUserId();
-        var dataset = await _datasets.GetByUserIdAsync(userId);
-        if (dataset == null) return NotFound(new { error = "NO_DATASET" });
-        if (dataset.PdfReportPath == null)
-            return BadRequest(new { error = "NOT_READY", message = "Report not ready yet." });
-
-        var user = await _users.GetByIdAsync(userId);
-        if (user == null || string.IsNullOrWhiteSpace(user.Email))
-            return BadRequest(new { error = "NO_EMAIL", message = "No email address on file." });
-
-        var pdfBytes = await _storage.DownloadAsync(dataset.PdfReportPath);
-        if (pdfBytes == null || pdfBytes.Length == 0)
-        {
-            // The DB says a report exists but storage disagrees. Surface this as a
-            // clear 404 rather than sending an email with an empty attachment.
-            _logger.LogWarning("[EmailReport] PDF missing in storage for user {UserId}", userId);
-            return NotFound(new { error = "REPORT_MISSING", message = "Report file could not be retrieved." });
-        }
-
-        var fileName = dataset.ReportFileName ?? "DIG_report.pdf";
-        var displayName = string.IsNullOrWhiteSpace(user.UserName) ? "there" : user.UserName;
-
-        try
-        {
-            await _email.SendReportAsync(user.Email, displayName, pdfBytes, fileName);
-        }
-        catch (Exception ex)
-        {
-            // Never surface ex.Message — SMTP errors leak host and credential hints.
-            _logger.LogError(ex, "[EmailReport] Send failed for user {UserId}", userId);
-            return StatusCode(502, new { error = "SEND_FAILED", message = "Could not send the report. Please try again." });
-        }
-
-        _logger.LogInformation("[EmailReport] Report sent to user {UserId}", userId);
-        return Ok(new { message = $"Report sent to {user.Email}.", fileName });
-    }
-
     // DELETE /api/datasets/current
     [HttpDelete("current")]
     public async Task<IActionResult> DeleteCurrent()
@@ -261,5 +220,3 @@ public class DatasetsController : ControllerBase
         isPending      = false,
     };
 }
-
-public record EmailReportRequest(string? Subject, bool IncludeAttachment = true);

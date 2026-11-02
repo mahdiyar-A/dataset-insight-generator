@@ -147,6 +147,16 @@ export default class BackendAPI {
       { headers: authHeaders(token) }, "Download failed");
   }
 
+  /**
+   * Email an analysis's PDF report to the signed-in user's own address.
+   * The server never accepts a destination address, so this can't be used
+   * to send reports anywhere else.
+   */
+  static async emailReport(token, analysisId) {
+    return req(`${API_BASE}/api/analyses/${analysisId}/email`,
+      { method: "POST", headers: authHeaders(token) }, "Email failed");
+  }
+
   /** Get chart objects for an analysis */
   static async getVisualizations(token, analysisId) {
     const res = await fetch(`${API_BASE}/api/analyses/${analysisId}/visualizations`,

@@ -32,6 +32,9 @@ public class SmtpEmailService : IEmailService
 
     private string FromAddress => _config["Email:FromAddress"] ?? "noreply@datainsightgen.com";
     private string FromName    => _config["Email:FromName"]    ?? "DIG";
+    // Mail comes from a no-reply address, so a user hitting Reply would reach
+    // nobody. Replies go to the support inbox instead.
+    private string ReplyTo     => _config["Email:ReplyTo"]     ?? "dataset_insight_generator.ai@proton.me";
     private string AppUrl      => (_config["AppUrl"]           ?? "https://datainsightgen.com").TrimEnd('/');
 
     // ── Base email wrapper ────────────────────────────────────────────────────
@@ -136,6 +139,7 @@ public class SmtpEmailService : IEmailService
             using var client  = CreateClient();
             using var message = new MailMessage();
             message.From       = new MailAddress(FromAddress, FromName);
+            message.ReplyToList.Add(new MailAddress(ReplyTo));
             message.To.Add(new MailAddress(toEmail));
             message.Subject    = subject;
             message.Body       = htmlBody;
@@ -235,6 +239,7 @@ public class SmtpEmailService : IEmailService
             using var client  = CreateClient();
             using var message = new MailMessage();
             message.From       = new MailAddress(FromAddress, FromName);
+            message.ReplyToList.Add(new MailAddress(ReplyTo));
             message.To.Add(new MailAddress(toEmail));
             message.Subject    = $"Your DIG Report: {reportFileName}";
             message.Body       = body;

@@ -3,6 +3,7 @@ using backend.Application.Services;
 using backend.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -24,6 +25,7 @@ public class AnalysisController : ControllerBase
     private readonly IStorageService         _storage;
     private readonly IUserRepository         _users;
     private readonly AnalysisService         _analysis;
+    private readonly IEmailService           _email;
     private readonly ILogger<AnalysisController> _logger;
 
     private static readonly string TempDir = Path.Combine(Path.GetTempPath(), "dig_uploads");
@@ -33,12 +35,14 @@ public class AnalysisController : ControllerBase
         IStorageService     storage,
         IUserRepository     users,
         AnalysisService     analysis,
+        IEmailService       email,
         ILogger<AnalysisController> logger)
     {
         _repo     = repo;
         _storage  = storage;
         _users    = users;
         _analysis = analysis;
+        _email    = email;
         _logger   = logger;
         Directory.CreateDirectory(TempDir);
     }
@@ -216,6 +220,57 @@ public class AnalysisController : ControllerBase
         if (System.IO.File.Exists(tempXlsx)) System.IO.File.Delete(tempXlsx);
 
         return NoContent();
+    }
+
+    // ── POST /api/analyses/{id}/email ────────────────────────────────────────
+    // Emails the analysis's PDF report to the signed-in user's own address.
+    //
+    // Replaces /api/datasets/email-report, which read the legacy datasets
+    // table — every analysis since the move to per-run history lives in
+    // analyses, so it answered NO_DATASET for all of them. The frontend never
+    // reached it anyway: the "Email me the report" button called a client
+    // method that had never been written.
+    //
+    // Only ever to the account's own address, never one supplied in the
+    // request: anything else would make this an open relay for sending PDFs
+    // to arbitrary inboxes. Rate limited for the same reason.
+    [HttpPost("{id:guid}/email")]
+    [EnableRateLimiting("email-report")]
+    public async Task<IActionResult> EmailReport(Guid id)
+    {
+        var userId   = UserId();
+        var analysis = await _repo.GetByIdAsync(id, userId);
+        if (analysis == null) return NotFound(new { error = "NOT_FOUND" });
+        if (analysis.PdfReportPath == null)
+            return BadRequest(new { error = "NOT_READY", message = "This report isn't ready yet." });
+
+        var user = await _users.GetByIdAsync(userId);
+        if (user == null || string.IsNullOrWhiteSpace(user.Email))
+            return BadRequest(new { error = "NO_EMAIL", message = "There's no email address on your account." });
+
+        var pdfBytes = await _storage.DownloadAsync(analysis.PdfReportPath);
+        if (pdfBytes == null || pdfBytes.Length == 0)
+        {
+            // The database says a report exists but storage disagrees. Better a
+            // clear error than an email with an empty attachment.
+            _logger.LogWarning("[EmailReport] PDF missing in storage for analysis {Id}", id);
+            return NotFound(new { error = "REPORT_MISSING", message = "The report file couldn't be retrieved." });
+        }
+
+        var displayName = string.IsNullOrWhiteSpace(user.UserName) ? "there" : user.UserName;
+        try
+        {
+            await _email.SendReportAsync(user.Email, displayName, pdfBytes, analysis.ReportFileName);
+        }
+        catch (Exception ex)
+        {
+            // Never surface ex.Message — SMTP errors leak host and credential hints.
+            _logger.LogError(ex, "[EmailReport] Send failed for analysis {Id}", id);
+            return StatusCode(502, new { error = "SEND_FAILED", message = "We couldn't send the report. Please try again." });
+        }
+
+        _logger.LogInformation("[EmailReport] Report for analysis {Id} sent to its owner", id);
+        return Ok(new { message = $"Report sent to {user.Email}.", fileName = analysis.ReportFileName });
     }
 
     // ── GET /api/analyses/{id}/download/{type} ───────────────────────────────

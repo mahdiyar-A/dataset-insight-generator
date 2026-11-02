@@ -253,6 +253,19 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit  = 0,   // reject immediately; queueing holds a worker
             }));
 
+    // Report emails go only to the account's own address, but each one is a
+    // real send that costs money and sender reputation. Five an hour is far
+    // past any genuine use.
+    options.AddPolicy("email-report", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ClientKey(ctx),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window      = TimeSpan.FromHours(1),
+                QueueLimit  = 0,
+            }));
+
     // Cheap but not free — writes a file to disk.
     options.AddPolicy("guest-upload", ctx =>
         RateLimitPartition.GetFixedWindowLimiter(

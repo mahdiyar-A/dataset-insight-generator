@@ -27,7 +27,7 @@ const T = {
     emailBtn: "Email me the report",
     emailSending: "Sending…",
     emailSent: "✓ Email sent!",
-    emailFrom: "Sent from dataset_insight_generator.ai@proton.me to your registered address.",
+    emailFrom: "Sent from noreply@datainsightgen.com to the email address on your account.",
     whatsIncluded: "What's included in your report",
     sections: [
       { emoji: "📊", title: "Data Overview",         desc: "Row/column counts, data types, and a plain-language summary of your dataset." },
@@ -61,7 +61,7 @@ const T = {
     emailBtn: "M'envoyer le rapport par e-mail",
     emailSending: "Envoi en cours…",
     emailSent: "✓ E-mail envoyé !",
-    emailFrom: "Envoyé depuis dataset_insight_generator.ai@proton.me à votre adresse enregistrée.",
+    emailFrom: "Envoyé depuis noreply@datainsightgen.com à l'adresse e-mail de votre compte.",
     whatsIncluded: "Contenu de votre rapport",
     sections: [
       { emoji: "📊", title: "Aperçu des données",        desc: "Nombre de lignes/colonnes, types de données et résumé du jeu de données." },
@@ -95,7 +95,7 @@ const T = {
     emailBtn: "ارسال گزارش به ایمیل من",
     emailSending: "در حال ارسال…",
     emailSent: "✓ ایمیل ارسال شد!",
-    emailFrom: "ارسال شده از dataset_insight_generator.ai@proton.me به آدرس ثبت‌شده شما.",
+    emailFrom: "ارسال شده از noreply@datainsightgen.com به آدرس ایمیل حساب شما.",
     whatsIncluded: "محتویات گزارش شما",
     sections: [
       { emoji: "📊", title: "مرور کلی داده‌ها",      desc: "تعداد ردیف/ستون، انواع داده و خلاصه‌ای ساده از مجموعه داده شما." },
@@ -163,7 +163,7 @@ export default function DownloadCard({ dataset }) {
 
   const handleDownload = async (type, fallbackName) => {
     try {
-      const { url, fileName } = await BackendAPI.getDownloadUrl(token, type);
+      const { url, fileName } = await BackendAPI.getDownloadUrl(token, dataset.id, type);
       const a = document.createElement("a");
       a.href = url; a.download = fileName || fallbackName; a.target = "_blank"; a.click();
     } catch (err) {
@@ -174,7 +174,7 @@ export default function DownloadCard({ dataset }) {
   const handleViewPdf = async () => {
     try {
       setPdfLoading(true);
-      const { url } = await BackendAPI.getDownloadUrl(token, "report");
+      const { url } = await BackendAPI.getDownloadUrl(token, dataset.id, "report");
       setPdfUrl(url);
       setShowPDF(true);
     } catch (err) {
@@ -187,7 +187,7 @@ export default function DownloadCard({ dataset }) {
   const handleEmail = async () => {
     try {
       setEmailSending(true);
-      await BackendAPI.emailReport(token, { subject: "Your DIG report is ready", includeAttachment: true });
+      await BackendAPI.emailReport(token, dataset.id);
       setEmailSent(true);
       setTimeout(() => setEmailSent(false), 4000);
     } catch (err) {
