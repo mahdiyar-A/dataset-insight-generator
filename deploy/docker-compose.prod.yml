@@ -1,0 +1,76 @@
+# Production stack for the single DIG server (AWS Lightsail, ca-central-1).
+#
+# Run from the checkout root on the server (/opt/dig):
+#   docker compose -f deploy/docker-compose.prod.yml up -d --build
+#
+# Differs from the root docker-compose.yml in three ways:
+#   - Caddy sits in front and is the only thing exposed to the internet. It
+#     obtains and renews the HTTPS certificate for api.datainsightgen.com on
+#     its own, and proxies WebSockets, so SignalR works without extra config.
+#   - The backend is no longer published on a host port; only Caddy reaches it.
+#   - No frontend container. The frontend is served by Vercel.
+#
+# The AI service stays internal exactly as before: it has no authentication of
+# its own, so it must never be reachable except through the .NET backend.
+
+name: dig
+
+services:
+  caddy:
+    image: caddy:2
+    container_name: dig-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data        # certificates — keep across restarts or Let's Encrypt rate-limits you
+      - caddy-config:/config
+    depends_on:
+      - backend
+    networks:
+      - dig-net
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: dig-backend
+    restart: unless-stopped
+    env_file:
+      - ../backend/.env
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:8080
+      ASPNETCORE_ENVIRONMENT: Production
+      AIService__BaseUrl: http://ai_service:8000
+    expose:
+      - "8080"
+    volumes:
+      - backend-storage:/app/storage
+    depends_on:
+      - ai_service
+    networks:
+      - dig-net
+
+  ai_service:
+    build:
+      context: ../ai_service
+      dockerfile: Dockerfile
+    container_name: dig-ai
+    restart: unless-stopped
+    env_file:
+      - ../ai_service/.env
+    expose:
+      - "8000"
+    networks:
+      - dig-net
+
+networks:
+  dig-net:
+    driver: bridge
+
+volumes:
+  backend-storage:
+  caddy-data:
+  caddy-config:

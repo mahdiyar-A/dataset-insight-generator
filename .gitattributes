@@ -1,0 +1,4 @@
+# Shell scripts and the Caddyfile run on Linux. With core.autocrlf=true a Windows
+# checkout turns them CRLF, and bash then fails on "\r" characters.
+*.sh             text eol=lf
+deploy/Caddyfile text eol=lf

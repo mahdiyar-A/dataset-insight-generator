@@ -1,0 +1,10 @@
+# Public entry point for the DIG API.
+#
+# Caddy fetches a Let's Encrypt certificate for this name automatically, as
+# soon as the DNS A record for api.datainsightgen.com points at this server.
+# Until then it retries in the background; nothing needs restarting.
+
+api.datainsightgen.com {
+	encode gzip
+	reverse_proxy backend:8080
+}
