@@ -15,16 +15,19 @@ Total LLM calls: 3  (Groq gate → report writer → Groq judge)
 """
 
 import io
+import json
 import base64
 import pandas as pd
 from typing import Optional, List, Dict, Any
 
+from ai_engine.ingest                    import load_table, UnsupportedFile
 from ai_engine.quality.quality_checker   import check_data_quality
 from ai_engine.core.cleaner              import clean_dataset
 from ai_engine.core.stats_analyzer       import build_stats_summary
 from ai_engine.llm.groq_client           import detect_domain
 from ai_engine.core.confidence          import assess_confidence, validate_chart_instructions
-from ai_engine.llm.insight_agent         import generate_report
+from ai_engine.llm.insight_agent         import generate_report, MAX_INSIGHTS, MIN_INSIGHTS, MAX_QUESTIONS
+from ai_engine.llm.stats_digest          import build_digest
 from ai_engine.charts.chart_generator    import generate_charts
 from ai_engine.pdf.pdf_builder           import build_pdf
 from ai_engine.models.models             import (
@@ -50,42 +53,74 @@ except ImportError:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# File loading
+# Customization
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _load_dataframe(file_bytes: bytes, file_name: str) -> pd.DataFrame:
-    name_lower = file_name.lower()
-    if name_lower.endswith(".xlsx") or name_lower.endswith(".xls"):
-        return pd.read_excel(io.BytesIO(file_bytes))
+WRITING_FORMATS = ("narrative", "bullets", "mixed")
 
-    encodings  = ("utf-8", "utf-8-sig", "latin-1", "cp1252", "iso-8859-1")
-    delimiters = [None, ",", ";", "\t", "|", " "]
-    last_err   = None
 
-    for enc in encodings:
-        for sep in delimiters:
-            try:
-                kwargs = dict(encoding=enc, on_bad_lines="skip")
-                if sep is None:
-                    kwargs["sep"]    = None
-                    kwargs["engine"] = "python"
-                else:
-                    kwargs["sep"] = sep
-                df = pd.read_csv(io.BytesIO(file_bytes), **kwargs)
-                if len(df.columns) == 1 and sep not in (None, " "):
-                    continue
-                if df.empty or len(df.columns) == 0:
-                    continue
-                return df
-            except (UnicodeDecodeError, pd.errors.ParserError) as e:
-                last_err = e
-                continue
+def _int_in(value: Any, low: int, high: int, default: int) -> int:
+    try:
+        return max(low, min(high, int(value)))
+    except (TypeError, ValueError):
+        return default
 
-    raise ValueError(
-        f"Could not parse file as tabular data. "
-        f"Supported: CSV (comma/semicolon/tab/pipe), TSV, Excel (.xlsx/.xls). "
-        f"Last error: {last_err}"
-    )
+
+def parse_questions(raw: Any) -> List[Dict[str, str]]:
+    """
+    The user's own questions, as [{"question", "note"}].
+
+    Accepts a list of strings or of objects, or that list as a JSON string
+    (the form field). Anything else is ignored rather than failing the run.
+    """
+    if isinstance(raw, str):
+        raw = raw.strip()
+        if not raw:
+            return []
+        try:
+            raw = json.loads(raw)
+        except ValueError:
+            raw = [raw]
+    if not isinstance(raw, list):
+        return []
+    out: List[Dict[str, str]] = []
+    for item in raw:
+        if isinstance(item, str):
+            item = {"question": item}
+        if not isinstance(item, dict):
+            continue
+        question = str(item.get("question") or "").strip()
+        if question:
+            out.append({"question": question, "note": str(item.get("note") or "").strip()})
+        if len(out) >= MAX_QUESTIONS:
+            break
+    return out
+
+
+def _chat_context(stats, domain, report, columns: List[str], source: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    What the chat needs to answer questions after the analysis: the digest the
+    report was written from, the report's own words, and the column list.
+
+    Kept small (tens of kilobytes) because the backend stores one per analysis
+    and sends it back with every question.
+    """
+    return {
+        "version": 1,
+        "digest": build_digest(stats, domain),
+        "columns": [{"name": str(c), "type": stats.columnTypes.get(str(c), "")} for c in columns][:200],
+        "file": {k: source.get(k) for k in ("format", "formatLabel", "notes") if source.get(k)},
+        "report": {
+            "title": report.reportTitle,
+            "summary": report.executiveSummary,
+            "insights": [{"rank": i.get("rank"), "title": i.get("title"), "body": i.get("body")}
+                         for i in report.insights],
+            "conclusion": report.conclusion,
+            "questionAnswers": report.questionAnswers,
+            "assumptions": report.assumptions,
+            "writer": report.writerModel,
+        },
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -127,7 +162,7 @@ def run_pipeline(
     cust         = customization or {}
     language     = cust.get("language",     "en")
     tone         = cust.get("tone",         "professional")
-    insights_count = int(cust.get("insightsCount", 5))
+    insights_count = _int_in(cust.get("insightsCount", 5), MIN_INSIGHTS, MAX_INSIGHTS, 5)
     occasion     = cust.get("occasion",     "general")
     audience     = cust.get("audience",     "general")
     depth        = cust.get("depth",        "standard")
@@ -137,6 +172,12 @@ def run_pipeline(
     if isinstance(must_mention, str):
         must_mention = [m.strip() for m in must_mention.split(",") if m.strip()]
     chart_style  = cust.get("chartStyle",   "mixed")
+    assumptions  = str(cust.get("assumptions") or "").strip()
+    avoid        = str(cust.get("avoid") or "").strip()
+    questions    = parse_questions(cust.get("questions"))
+    writing_format = cust.get("writingFormat") or "narrative"
+    if writing_format not in WRITING_FORMATS:
+        writing_format = "narrative"
     include_methodology = bool(cust.get("includeMethodology", True))
     include_confidence  = bool(cust.get("includeConfidence",  True))
     output_fmt   = cust.get("outputFormat") or {}
@@ -153,15 +194,28 @@ def run_pipeline(
     if focus_on:   print(f"[Pipeline]   focusOn:    {focus_on[:80]}", flush=True)
     if comparisons:print(f"[Pipeline]   comparisons:{comparisons[:80]}", flush=True)
     if must_mention:print(f"[Pipeline]   mustMention:{must_mention}", flush=True)
+    if assumptions: print(f"[Pipeline]   assumptions:{assumptions[:80]}", flush=True)
+    if avoid:       print(f"[Pipeline]   avoid:      {avoid[:80]}", flush=True)
+    if questions:   print(f"[Pipeline]   questions:  {len(questions)}", flush=True)
+    if writing_format != "narrative": print(f"[Pipeline]   format:     {writing_format}", flush=True)
 
     # ── Phase 0: Load + basic quality gate ───────────────────────────────
     print(f"[Pipeline] Phase 0 — Loading file: {file_name}", flush=True)
     try:
-        df_original = _load_dataframe(file_bytes, file_name)
+        table = load_table(file_bytes, file_name)
+    except UnsupportedFile as e:
+        return _fail("not_workable", str(e))
     except Exception as e:
-        return _fail("not_workable", f"Could not read file: {e}")
+        print(f"[Pipeline] Unexpected error reading {file_name}: {type(e).__name__}: {e}", flush=True)
+        return _fail("not_workable", "The file could not be read.")
+    df_original = table.df
+    source_file = table.summary(preview_rows=0)
+    source_file = {k: source_file[k] for k in ("format", "formatLabel", "detail", "notes")}
 
-    print(f"[Pipeline] Loaded {len(df_original):,} rows × {len(df_original.columns)} cols", flush=True)
+    print(f"[Pipeline] Loaded {len(df_original):,} rows × {len(df_original.columns)} cols "
+          f"as {table.format} {table.detail}", flush=True)
+    for note in table.notes:
+        print(f"[Pipeline]   {note}", flush=True)
     quality = check_data_quality(df_original)
     if not quality.isUsable:
         return _fail("not_workable", f"Dataset cannot be processed: {'; '.join(quality.errors)}")
@@ -217,7 +271,8 @@ def run_pipeline(
     # The domain reaches the statistics, not just the narrative. Until now it
     # only flavoured the wording of the insight prompt, so every dataset got an
     # identical set of computations regardless of what it was.
-    stats = build_stats_summary(df_work, quality, domain=domain.domain)
+    stats = build_stats_summary(df_work, quality, domain=domain.domain,
+                                type_conversions=table.conversions, source_file=source_file)
     print(f"[Pipeline] Stats done. Numeric cols: {len(stats.numericStats)}, Correlations: {len(stats.topCorrelations)}", flush=True)
 
     # ── Phase 5: report writer — insights + report + chart instructions ──
@@ -244,6 +299,10 @@ def run_pipeline(
             include_methodology=include_methodology,
             include_confidence=include_confidence,
             tracker=tracker,
+            assumptions=assumptions,
+            questions=questions,
+            writing_format=writing_format,
+            avoid=avoid,
         )
     except Exception as e:
         # This should not happen, but if it does — build fallback inline
@@ -293,6 +352,7 @@ def run_pipeline(
             judge_confidence_score=judge.confidence_score if judge else 6,
             judge_confidence_level=judge.confidence_level if judge else "MEDIUM",
             dropped_columns=dropped_columns,
+            language=language,
         )
     except Exception as e:
         _log(stats, domain, judge, was_cleaned, user_wants_cleaning,
@@ -313,7 +373,9 @@ def run_pipeline(
         if WORD_AVAILABLE:
             print(f"[Pipeline] Generating Word report...", flush=True)
             try:
-                word_bytes = build_word_doc(llm_report, file_name=file_name, domain=domain.domain)
+                word_bytes = build_word_doc(llm_report, file_name=file_name, domain=domain.domain,
+                                            charts=charts, language=language,
+                                            confidence_score=judge.confidence_score)
                 import base64 as _b64
                 word_b64 = _b64.b64encode(word_bytes).decode("utf-8")
                 print(f"[Pipeline] Word report generated ({len(word_bytes):,} bytes)", flush=True)
@@ -328,7 +390,9 @@ def run_pipeline(
         if PPTX_AVAILABLE:
             print(f"[Pipeline] Generating PowerPoint...", flush=True)
             try:
-                pptx_bytes = build_pptx(llm_report, file_name=file_name, domain=domain.domain)
+                pptx_bytes = build_pptx(llm_report, file_name=file_name, domain=domain.domain,
+                                        charts=charts, language=language,
+                                        confidence_score=judge.confidence_score)
                 import base64 as _b64
                 pptx_b64 = _b64.b64encode(pptx_bytes).decode("utf-8")
                 print(f"[Pipeline] PPTX generated ({len(pptx_bytes):,} bytes)", flush=True)
@@ -357,6 +421,12 @@ def run_pipeline(
     # Low confidence advisory — report IS generated, but C# asks user if they want to see it
     low_conf_warning = final_score <= LOW_CONFIDENCE_THRESHOLD
 
+    chat_context = None
+    try:
+        chat_context = _chat_context(stats, domain, llm_report, list(df_work.columns), source_file)
+    except Exception as e:  # the chat is an extra; it must never fail the report
+        print(f"[Pipeline] Chat context failed (ignored): {e}", flush=True)
+
     print(f"[Pipeline] Done. Status=done, condition={condition}, low_conf={low_conf_warning}", flush=True)
     print(tracker.summary_line(), flush=True)
     return PipelineResult(
@@ -371,6 +441,7 @@ def run_pipeline(
         lowConfidenceWarning=low_conf_warning,
         confidenceScore=final_score,
         usage=tracker.to_dict(),
+        chatContext=chat_context,
     ).to_response()
 
 

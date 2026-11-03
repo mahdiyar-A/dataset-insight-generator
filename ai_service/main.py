@@ -1,18 +1,21 @@
 import os
+import json
 import time
+import hashlib
+import threading
+from collections import OrderedDict
 from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from ai_engine.core.pipeline import run_pipeline
+from ai_engine.core.pipeline import run_pipeline, parse_questions
+from ai_engine.ingest import load_table, UnsupportedFile
 from ai_engine.quality.quality_checker import check_data_quality
 from ai_engine.quality.confidence_engine import evaluate_confidence
 from ai_engine.training.training_logger import get_training_stats
-import io
-import pandas as pd
+from ai_engine.llm.harness import answer_question, build_brief
 
 # ── Startup banner ────────────────────────────────────────────────────────────
 print("╔══════════════════════════════════════════════╗", flush=True)
@@ -22,11 +25,34 @@ print("╚═══════════════════════�
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 GROQ_API_KEY   = os.getenv("GROQ_API_KEY",   "")
+API_KEYS       = {"openrouter": OPENROUTER_API_KEY, "groq": GROQ_API_KEY}
 
 print(f"[AI] OpenRouter key : {'✓ set' if OPENROUTER_API_KEY else '✗ NOT SET — reports fall back to Groq only'}", flush=True)
 print(f"[AI] Groq key   : {'✓ set' if GROQ_API_KEY   else '✗ NOT SET — domain gate will use fallback'}", flush=True)
 
-app = FastAPI(title="DIG AI Engine", version="2.0.0")
+app = FastAPI(title="DIG AI Engine", version="2.1.0")
+
+
+# ── Warm-up ───────────────────────────────────────────────────────────────────
+# The first analysis after a restart paid about 2.5 s for importing
+# scikit-learn and starting its thread pools. A tiny fit in the background at
+# startup moves that cost off the first user's analysis.
+def _warm_up() -> None:
+    try:
+        started = time.perf_counter()
+        import numpy as np
+        from sklearn.ensemble import HistGradientBoostingRegressor, IsolationForest
+        x = np.random.default_rng(0).normal(size=(200, 3))
+        HistGradientBoostingRegressor(max_iter=5).fit(x, x[:, 0])
+        IsolationForest(n_estimators=5, random_state=0).fit(x)
+        print(f"[AI] warm-up done in {time.perf_counter() - started:.1f}s", flush=True)
+    except Exception as e:
+        print(f"[AI] warm-up skipped: {e}", flush=True)
+
+
+@app.on_event("startup")
+def _start_warm_up() -> None:
+    threading.Thread(target=_warm_up, daemon=True, name="warm-up").start()
 
 
 # ── Request logging middleware ────────────────────────────────────────────────
@@ -44,35 +70,52 @@ async def log_requests(request: Request, call_next):
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-def _load_dataframe(file_bytes: bytes, file_name: str) -> pd.DataFrame:
-    name_lower = file_name.lower()
-    if name_lower.endswith(".xlsx") or name_lower.endswith(".xls"):
-        return pd.read_excel(io.BytesIO(file_bytes))
+def _column_kinds(df) -> list:
+    import pandas as pd
+    kinds = []
+    for col in df.columns:
+        s = df[col]
+        if pd.api.types.is_bool_dtype(s):
+            kind = "bool"
+        elif pd.api.types.is_numeric_dtype(s):
+            kind = "number"
+        elif pd.api.types.is_datetime64_any_dtype(s):
+            kind = "date"
+        else:
+            kind = "text"
+        kinds.append({"name": str(col), "kind": kind})
+    return kinds
 
-    encodings  = ("utf-8", "utf-8-sig", "latin-1", "cp1252", "iso-8859-1")
-    delimiters = [None, ",", ";", "\t", "|", " "]
 
-    last_err = None
-    for enc in encodings:
-        for sep in delimiters:
-            try:
-                kwargs = dict(encoding=enc, on_bad_lines="skip")
-                if sep is None:
-                    kwargs["sep"]    = None
-                    kwargs["engine"] = "python"
-                else:
-                    kwargs["sep"] = sep
-                df = pd.read_csv(io.BytesIO(file_bytes), **kwargs)
-                if len(df.columns) == 1 and sep not in (None, " "):
-                    continue
-                if df.empty or len(df.columns) == 0:
-                    continue
-                return df
-            except (UnicodeDecodeError, pd.errors.ParserError) as e:
-                last_err = e
-                continue
+def _json_form(raw: str, default):
+    if not raw:
+        return default
+    try:
+        return json.loads(raw)
+    except ValueError:
+        return default
 
-    raise ValueError(f"Could not decode file. Last error: {last_err}")
+
+# Tables the chat has queried recently, keyed by a hash of the file's bytes.
+# A conversation asks several questions of the same file; parsing it once
+# per question would make every answer wait on the file again.
+_TABLE_CACHE: "OrderedDict[str, object]" = OrderedDict()
+_TABLE_CACHE_SIZE = 3
+_table_cache_lock = threading.Lock()
+
+
+def _cached_table(file_bytes: bytes, file_name: str):
+    key = hashlib.sha256(file_bytes).hexdigest()
+    with _table_cache_lock:
+        if key in _TABLE_CACHE:
+            _TABLE_CACHE.move_to_end(key)
+            return _TABLE_CACHE[key]
+    table = load_table(file_bytes, file_name)
+    with _table_cache_lock:
+        _TABLE_CACHE[key] = table
+        while len(_TABLE_CACHE) > _TABLE_CACHE_SIZE:
+            _TABLE_CACHE.popitem(last=False)
+    return table
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -82,7 +125,7 @@ def health():
     print("[Health] Health check requested", flush=True)
     return {
         "status":          "ok",
-        "version":         "2.0.0",
+        "version":         "2.1.0",
         "openrouter_key_set": bool(OPENROUTER_API_KEY),
         "groq_key_set":    bool(GROQ_API_KEY),
         "pipeline":        "7-phase (Groq gate → free report-writer chain → statistical confidence)",
@@ -94,6 +137,34 @@ def training_stats():
     """Returns a summary of the local training log."""
     print("[TrainingStats] Fetching training stats", flush=True)
     return JSONResponse(get_training_stats())
+
+
+@app.post("/inspect")
+async def inspect(
+    file: UploadFile = File(...),
+):
+    """
+    What the upload form shows before anything runs: the format the file was
+    read as, its shape, its headers and first rows. No model calls.
+
+    The browser previews CSV itself, but cannot open Parquet, SPSS or a
+    database, so the backend asks here for every upload and stores the answer.
+    """
+    file_bytes = await file.read()
+    name = file.filename or "dataset"
+    print(f"[Inspect] {name}: {len(file_bytes):,} bytes", flush=True)
+    try:
+        table = load_table(file_bytes, name)
+    except UnsupportedFile as e:
+        print(f"[Inspect] ✗ {e}", flush=True)
+        return JSONResponse({"ok": False, "error": str(e)})
+    except Exception as e:
+        print(f"[Inspect] ✗ unexpected: {type(e).__name__}: {e}", flush=True)
+        return JSONResponse({"ok": False, "error": "The file could not be read."})
+    summary = table.summary(preview_rows=5)
+    summary["columnKinds"] = _column_kinds(table.df)
+    print(f"[Inspect] ✓ {summary['format']} {summary['rows']:,}×{summary['columns']}", flush=True)
+    return JSONResponse({"ok": True, **summary})
 
 
 @app.post("/check")
@@ -116,12 +187,17 @@ async def check(
     print(f"[Check] File size: {len(file_bytes):,} bytes", flush=True)
 
     try:
-        df = _load_dataframe(file_bytes, file.filename or "dataset.csv")
-        print(f"[Check] Loaded DataFrame: {len(df):,} rows × {len(df.columns)} cols", flush=True)
+        table = load_table(file_bytes, file.filename or "dataset.csv")
+        df = table.df
+        print(f"[Check] Loaded {table.format}: {len(df):,} rows × {len(df.columns)} cols", flush=True)
+    except UnsupportedFile as e:
+        # These messages are written for users: what is wrong and what to do.
+        print(f"[Check] ✗ {e}", flush=True)
+        return JSONResponse({"condition": "not_workable", "error": str(e)})
     except Exception as e:
         # Log full error server-side but never expose internal details to clients
-        print(f"[Check] ✗ Could not parse file: {e}", flush=True)
-        return JSONResponse({"condition": "not_workable", "error": "Could not parse the uploaded file. Please ensure it is a valid CSV."})
+        print(f"[Check] ✗ Could not parse file: {type(e).__name__}: {e}", flush=True)
+        return JSONResponse({"condition": "not_workable", "error": "The file could not be read."})
 
     quality = check_data_quality(df)
     print(f"[Check] Quality — usable={quality.isUsable}, needsCleaning={quality.needsCleaning}", flush=True)
@@ -129,9 +205,12 @@ async def check(
         for w in quality.warnings:
             print(f"[Check]   ⚠ {w}", flush=True)
 
+    file_info = {"format": table.format, "rows": int(len(df)), "columns": int(len(df.columns)),
+                 "notes": table.notes}
+
     if not quality.isUsable:
         print(f"[Check] ✗ Dataset not usable: {'; '.join(quality.errors)}", flush=True)
-        return JSONResponse({"condition": "not_workable", "error": "; ".join(quality.errors)})
+        return JSONResponse({"condition": "not_workable", "error": "; ".join(quality.errors), "file": file_info})
 
     confidence = evaluate_confidence(df, quality)
 
@@ -143,7 +222,7 @@ async def check(
         condition = "all_good"
 
     print(f"[Check] ✓ Condition: {condition}", flush=True)
-    return JSONResponse({"condition": condition, "error": None})
+    return JSONResponse({"condition": condition, "error": None, "file": file_info})
 
 
 @app.post("/analyze")
@@ -168,22 +247,28 @@ async def analyze(
     include_confidence:  bool = Form(True),
     want_word:           bool = Form(False),
     want_pptx:           bool = Form(False),
+    # The brief: free text from the panel or the chat
+    assumptions:         str  = Form(""),
+    avoid:               str  = Form(""),
+    questions_json:      str  = Form(""),    # JSON list of {"question", "note"} or strings
+    writing_format:      str  = Form("narrative"),
 ):
     """
     Full 8-phase analysis pipeline.
 
     C# sends:
-      - file:                the raw CSV/XLSX bytes
+      - file:                the uploaded file's bytes, in any format ai_engine.ingest reads
       - session_id:          user UUID
       - dataset_id:          optional dataset identifier
       - user_wants_cleaning: true if user agreed to auto-clean
       - user_confirmed_low:  true if user confirmed proceed despite low confidence
 
     Pro customization (optional):
-      - language:       output language code (en/fr/es/de/zh/ar/pt)
+      - language:       output language code (en/fr/es/de/zh/ar/pt/fa)
       - tone:           writing style
-      - insights_count: 3 | 5 | 7
+      - insights_count: 1-10
       - occasion:       report framing context
+      - assumptions, avoid, questions_json, writing_format: the brief
       - want_word:      generate .docx Word report
       - want_pptx:      generate .pptx PowerPoint
     """
@@ -230,6 +315,10 @@ async def analyze(
             "chartStyle":         chart_style,
             "includeMethodology": include_methodology,
             "includeConfidence":  include_confidence,
+            "assumptions":        assumptions,
+            "avoid":              avoid,
+            "questions":          parse_questions(questions_json),
+            "writingFormat":      writing_format,
             "outputFormat": {
                 "pdf":  True,
                 "word": want_word,
@@ -258,6 +347,65 @@ async def analyze(
     print(f"{'='*52}\n", flush=True)
 
     result["session_id"] = session_id
+    return JSONResponse(result)
+
+
+@app.post("/brief")
+async def brief(
+    text:         str = Form(...),
+    columns_json: str = Form(""),     # JSON list of column names
+    ui_language:  str = Form("en"),
+):
+    """
+    Report settings from the user's own description of the report they want.
+    Returns {"settings", "summary", "notPossible", "source"}. See llm.harness.
+    """
+    columns = _json_form(columns_json, [])
+    if not isinstance(columns, list):
+        columns = []
+    columns = [c.get("name") if isinstance(c, dict) else c for c in columns]
+    started = time.perf_counter()
+    result = build_brief(text, [str(c) for c in columns if c is not None], api_keys=API_KEYS,
+                         ui_language=ui_language)
+    print(f"[Brief] {result.get('source')} in {time.perf_counter() - started:.1f}s: "
+          f"{sorted(result.get('settings', {}))}", flush=True)
+    return JSONResponse(result)
+
+
+@app.post("/ask")
+async def ask(
+    question:     str = Form(...),
+    context_json: str = Form(...),    # the chat_context /analyze returned for this analysis
+    history_json: str = Form(""),     # [{"role": "user"|"assistant", "content"}], most recent last
+    ui_language:  str = Form("en"),
+    file:         UploadFile = File(None),   # optional: lets the chat query the data itself
+):
+    """
+    Answer one question about a finished analysis. See llm.harness.
+    """
+    context = _json_form(context_json, None)
+    if not isinstance(context, dict):
+        raise HTTPException(status_code=400, detail="context_json must be the analysis's chat context.")
+    history = _json_form(history_json, [])
+
+    df = None
+    if file is not None:
+        file_bytes = await file.read()
+        if file_bytes:
+            try:
+                df = _cached_table(file_bytes, file.filename or "dataset").df
+            except Exception as e:  # answer from the context alone
+                print(f"[Ask] file unreadable, answering from context: {type(e).__name__}: {e}", flush=True)
+
+    from ai_engine.telemetry.usage import UsageTracker
+    tracker = UsageTracker()
+    started = time.perf_counter()
+    result = answer_question(context, question, history, df=df, api_keys=API_KEYS,
+                             tracker=tracker, ui_language=ui_language)
+    result["usage"] = tracker.to_dict()
+    print(f"[Ask] {'refused' if result.get('refused') else 'answered'} in "
+          f"{time.perf_counter() - started:.1f}s by {result.get('model') or '—'}; "
+          f"queries={len(result.get('queries') or [])} unverified={result.get('unverifiedNumbers')}", flush=True)
     return JSONResponse(result)
 
 
