@@ -13,3 +13,10 @@ Pillow
 python-dotenv
 python-docx
 python-pptx
+# File formats beyond CSV and Excel (ai_engine/ingest): Parquet/Feather/ORC,
+# legacy .xls, OpenDocument, SPSS/SAS, and XML/HTML parsing.
+pyarrow
+xlrd
+odfpy
+pyreadstat
+lxml
