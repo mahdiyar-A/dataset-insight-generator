@@ -46,6 +46,7 @@ const SECTIONS = [
     body: ['Three kinds of data, and nothing else:'],
     list: [
       'Account data — your email address, a hashed password (or the identifier from your sign-in provider), your plan, and the dates you signed up and last signed in. We never store your password itself.',
+      'If you sign in with Google, Microsoft, GitHub or LinkedIn, that company confirms your email address and sends us your name and email. We receive nothing else from them, and never your password for that account.',
       'The files you upload — the spreadsheet or CSV you choose to analyse, exactly as you sent it, plus the reports generated from it.',
       'Operational records — the analyses you have run, their status, timestamps, and errors when something fails. These exist so the product works and so we can fix it when it does not.',
     ],

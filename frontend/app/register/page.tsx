@@ -1,5 +1,6 @@
 'use client';
 
+import SocialSignIn from '@/components/SocialSignIn';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -82,6 +83,8 @@ export default function RegisterPage() {
           ← Back
         </button>
         <h2>Create Account</h2>
+
+        <SocialSignIn />
 
         <div className="name-row">
           <div className="input-group">

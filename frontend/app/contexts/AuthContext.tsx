@@ -5,6 +5,8 @@ import React, {
   useState, useCallback,
 } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { setAuthMarker } from '@/lib/authCookie';
+import { namesFromUser } from '@/lib/socialAuth';
 import type { Session } from '@supabase/supabase-js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -145,11 +147,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // If the email hasn't been confirmed yet, don't allow a session
       if (session?.user && !session.user.email_confirmed_at) {
         await supabase.auth.signOut();
+        setAuthMarker(false);
         setSession(null);
         setUser(null);
         setIsLoading(false);
         return;
       }
+      // Keep the middleware's sign-in marker in step with the real session —
+      // see lib/authCookie.ts for why the dashboard needs it.
+      setAuthMarker(Boolean(session));
       setSession(session);
       if (session?.access_token) {
         const profile = await fetchProfile(session.access_token);
@@ -163,19 +169,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async (event, session) => {
         if (session?.user && !session.user.email_confirmed_at) {
           await supabase.auth.signOut();
+          setAuthMarker(false);
           setSession(null);
           setUser(null);
           return;
         }
 
+        setAuthMarker(Boolean(session));
         setSession(session);
 
         if (session?.access_token) {
           if (event === 'SIGNED_IN') {
             // On first sign-in, sync the user to our DB before fetching profile
-            const u         = session.user;
-            const firstName = u.user_metadata?.first_name ?? u.email?.split('@')[0] ?? 'User';
-            const lastName  = u.user_metadata?.last_name  ?? '';
+            // Names arrive under different keys from email sign-up, Google,
+            // Microsoft, GitHub and LinkedIn; namesFromUser handles each.
+            const u = session.user;
+            const { firstName, lastName } = namesFromUser(u);
             await syncUser(session.access_token, firstName, lastName, u.email ?? '');
           }
           const profile = await fetchProfile(session.access_token);
@@ -226,11 +235,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await supabase.auth.signOut();
       throw new Error('Please verify your email before logging in. Check your inbox.');
     }
+    // Set here as well as in the auth listener: the caller navigates to the
+    // gated dashboard as soon as this resolves.
+    setAuthMarker(true);
     // onAuthStateChange handles the sync + profile fetch after a successful login
   }, []);
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
+    setAuthMarker(false);
     setUser(null);
     setSession(null);
   }, []);

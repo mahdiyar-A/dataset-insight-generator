@@ -1,5 +1,6 @@
 'use client';
 
+import SocialSignIn from '@/components/SocialSignIn';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -26,7 +27,9 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email.trim(), password);
-      router.push('/dashboard');
+      // Back to where the gate stopped them, if anywhere — same-site paths only.
+      const next = new URLSearchParams(window.location.search).get('redirectTo');
+      router.push(next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard');
     } catch (err) {
       // Supabase returns "Email not confirmed" if user hasn't verified
       if (errorMessage(err)?.includes('Email not confirmed')) {
@@ -47,6 +50,8 @@ export default function LoginPage() {
           ← Back
         </button>
         <h2>Login</h2>
+
+        <SocialSignIn />
 
         <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
         <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
