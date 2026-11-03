@@ -57,7 +57,7 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Optional, Tuple, TypeVar
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, Union
 
 T = TypeVar("T")
 
@@ -144,10 +144,17 @@ def reset_cooldowns() -> None:
 
 # ── One call ──────────────────────────────────────────────────────────────────
 
-def _post(provider: ReportProvider, api_key: str, prompt: str, timeout: float) -> Dict[str, Any]:
+Prompt = Union[str, List[Dict[str, str]]]
+
+
+def _post(provider: ReportProvider, api_key: str, prompt: Prompt, timeout: float) -> Dict[str, Any]:
+    # A plain string is one user message (the report). The chat passes a list
+    # of messages so its rules sit in a system message, apart from what the
+    # user typed.
+    messages = [{"role": "user", "content": prompt}] if isinstance(prompt, str) else list(prompt)
     payload = {
         "model": provider.model,
-        "messages": [{"role": "user", "content": prompt}],
+        "messages": messages,
         "temperature": 0.2,
         "max_tokens": provider.max_tokens,
         **provider.extra,
@@ -225,11 +232,12 @@ def _content_of(raw: Dict[str, Any]) -> str:
 def _attempt(
     p: ReportProvider,
     key: str,
-    prompt: str,
+    prompt: Prompt,
     accept: Callable[[str], Optional[T]],
     limit: float,
     tracker,
     clock: Callable[[], float],
+    phase: str = "insights",
 ) -> Optional[T]:
     """One call to one provider: deadline, parsing, accounting and cool-down."""
     print(f"[Report] trying {p.display_name} ({p.model}, up to {limit:.0f}s)...", flush=True)
@@ -259,7 +267,7 @@ def _attempt(
     if tracker is not None:
         try:
             tracker.record(
-                provider=p.provider, model=p.model, phase="insights",
+                provider=p.provider, model=p.model, phase=phase,
                 input_tokens=tin, output_tokens=tout, duration_ms=duration_ms,
                 ok=result is not None, error=error,
             )
@@ -281,12 +289,13 @@ def _attempt(
 
 def _run_chain(
     providers: Tuple[Tuple[ReportProvider, str], ...],
-    prompt: str,
+    prompt: Prompt,
     accept: Callable[[str], Optional[T]],
     tracker,
     deadline: float,
     budget_secs: float,
     clock: Callable[[], float],
+    phase: str = "insights",
 ) -> Tuple[Optional[T], Optional[ReportProvider]]:
     """Try (provider, key) pairs in order until one produces a report."""
     for p, key in providers:
@@ -294,20 +303,21 @@ def _run_chain(
         if remaining < MIN_USEFUL_SECS:
             print(f"[Report] budget spent ({budget_secs:.0f}s) — stopping before {p.display_name}", flush=True)
             break
-        result = _attempt(p, key, prompt, accept, min(p.timeout_secs, remaining), tracker, clock)
+        result = _attempt(p, key, prompt, accept, min(p.timeout_secs, remaining), tracker, clock, phase)
         if result is not None:
             return result, p
     return None, None
 
 
 def write_report(
-    prompt: str,
+    prompt: Prompt,
     api_keys: Dict[str, str],
     accept: Callable[[str], Optional[T]],
     tracker=None,
     providers: Tuple[ReportProvider, ...] = REPORT_PROVIDERS,
     budget_secs: float = DEFAULT_BUDGET_SECS,
     clock: Callable[[], float] = time.monotonic,
+    phase: str = "insights",
 ) -> Tuple[Optional[T], Optional[ReportProvider]]:
     """
     Get a report from the strongest available model, falling back to weaker
@@ -343,7 +353,7 @@ def write_report(
     first, first_key = available[0]
     rest = tuple(available[1:])
     if not rest:
-        return _run_chain(tuple(available), prompt, accept, tracker, deadline, budget_secs, clock)
+        return _run_chain(tuple(available), prompt, accept, tracker, deadline, budget_secs, clock, phase)
 
     # ── Hedged start ──────────────────────────────────────────────────────
     outcomes: "queue.Queue[Tuple[str, Optional[T], Optional[ReportProvider]]]" = queue.Queue()
@@ -351,7 +361,7 @@ def write_report(
     superseded = threading.Event()
 
     def run_first() -> None:
-        result = _attempt(first, first_key, prompt, accept, first_limit, tracker, clock)
+        result = _attempt(first, first_key, prompt, accept, first_limit, tracker, clock, phase)
         if superseded.is_set():
             # A fallback was already used. Answering late doesn't help a
             # visitor, so it sits out like a failure: otherwise a slow-but-alive
@@ -366,14 +376,14 @@ def write_report(
         if result is not None:
             return result, first
         # The strongest failed quickly: carry on down the chain as normal.
-        return _run_chain(rest, prompt, accept, tracker, deadline, budget_secs, clock)
+        return _run_chain(rest, prompt, accept, tracker, deadline, budget_secs, clock, phase)
     except queue.Empty:
         pass
 
     print(f"[Report] {first.display_name} is slow — starting fallbacks in parallel", flush=True)
 
     def run_rest() -> None:
-        result, provider = _run_chain(rest, prompt, accept, tracker, deadline, budget_secs, clock)
+        result, provider = _run_chain(rest, prompt, accept, tracker, deadline, budget_secs, clock, phase)
         outcomes.put(("rest", result, provider))
 
     threading.Thread(target=run_rest, daemon=True, name="report-writer-rest").start()
