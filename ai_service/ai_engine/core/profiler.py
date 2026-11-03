@@ -265,3 +265,27 @@ def protected_columns(df: pd.DataFrame) -> list:
         if is_identifier(df[c], str(c)) or is_reference_key(df[c], str(c))
     ]
 
+
+def key_columns(df: pd.DataFrame) -> frozenset:
+    """
+    Names of the identifier and reference-key columns, computed once per frame.
+
+    Every analysis asks this about every column, and each answer can mean a
+    sort or a date parse of the whole column; on a 250,000-row file the
+    repeated checks cost seconds. The answer is cached on the frame's attrs,
+    keyed by its columns and length, so a sample or a column subset (which
+    pandas gives the same attrs) is recomputed rather than trusted.
+    """
+    signature = (tuple(str(c) for c in df.columns), len(df))
+    cached = df.attrs.get("_dig_key_columns")
+    if cached and cached[0] == signature:
+        return cached[1]
+    keys = frozenset(
+        str(c) for c in df.columns
+        if is_identifier(df[c], str(c)) or is_reference_key(df[c], str(c))
+    )
+    try:
+        df.attrs["_dig_key_columns"] = (signature, keys)
+    except Exception:
+        pass
+    return keys

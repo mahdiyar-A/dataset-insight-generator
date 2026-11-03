@@ -84,16 +84,29 @@ def count_evidence(stats: StatsSummary) -> int:
     """
     Distinct statistically meaningful patterns the report can stand on.
 
-    Counted once each: correlation pairs at |r| >= 0.3 (Pearson or Spearman),
-    group differences significant at p < 0.05, a significant trend, a group
-    effect of at least medium size, and a concentration well above an even
-    split.
+    Counted once each:
+      * a correlation pair at |r| >= 0.3 (Pearson or Spearman) that survives
+        the false-discovery correction, unless the two columns are near-copies
+        of each other (|r| >= 0.98 says they record the same thing, which is
+        redundancy, not a finding);
+      * a group difference that is significant with a non-negligible effect;
+      * a significant trend, a group effect of at least medium size, and a
+        concentration well above an even split;
+      * a driver model that explains the target at least weakly, and any
+        segment that differs significantly from the rest;
+      * up to two significant associations between categories.
+
+    Correlations without a "significant" field (older summaries) count on
+    their size alone.
     """
     pairs = set()
     for item in list(stats.topCorrelations or []) + list(stats.spearmanCorrelations or []):
         r = item.get("correlation", item.get("spearman"))
-        if r is not None and abs(float(r)) >= EVIDENCE_MIN_ABS_R:
-            pairs.add(frozenset((item.get("col1"), item.get("col2"))))
+        if r is None or abs(float(r)) < EVIDENCE_MIN_ABS_R:
+            continue
+        if item.get("nearDuplicate") or item.get("significant") is False:
+            continue
+        pairs.add(frozenset((item.get("col1"), item.get("col2"))))
     evidence = len(pairs)
 
     evidence += sum(1 for g in (stats.groupComparisons or []) if g.get("significant"))
@@ -108,6 +121,14 @@ def count_evidence(stats: StatsSummary) -> int:
         even = 2.0 / conc["groupCount"]
         if conc["top2Share"] - even >= 0.15:
             evidence += 1
+    model = (analyses.get("key_drivers") or {}).get("model") or {}
+    if model.get("fit") in ("weak", "moderate", "strong"):
+        evidence += 1
+    seg = analyses.get("segments") or {}
+    if seg.get("high") or seg.get("low"):
+        evidence += 1
+    evidence += min(2, sum(1 for a in (stats.categoricalAssociations or [])
+                           if a.get("significant") and not a.get("nearDuplicate")))
     return evidence
 
 

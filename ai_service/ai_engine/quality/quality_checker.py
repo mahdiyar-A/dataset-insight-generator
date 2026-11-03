@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from ai_engine.core.profiler import adjusted_fences, fence_tolerance, is_identifier, is_reference_key
+from ai_engine.core.stat_tests import text_columns
 from ai_engine.models.models import DataQualityResult
 
 
@@ -61,7 +62,16 @@ def check_data_quality(df: pd.DataFrame) -> DataQualityResult:
 
     # Mixed type columns — object columns that are mostly numeric but stored as strings
     # (e.g. "C" suppressed entries mixed with real numbers like "979594")
-    for col in df.select_dtypes(include="object").columns:
+    for col in text_columns(df):
+        if pd.api.types.is_bool_dtype(df[col]):
+            continue
+        # Parsing every value of a 500,000-row text column takes a quarter of
+        # a second; a sample settles names and categories first. The probe's
+        # bar (0.3) sits well below the decision's (0.5) so a column the full
+        # test would flag is never skipped by sampling noise.
+        probe = df[col].dropna().head(500)
+        if len(probe) and pd.to_numeric(probe, errors="coerce").notnull().mean() < 0.3:
+            continue
         coerced = pd.to_numeric(df[col], errors="coerce")
         numeric_ratio = coerced.notnull().mean()
         if numeric_ratio > 0.5:

@@ -97,7 +97,7 @@ def log_pipeline_run(
             "categorical_col_count": len(stats.categoricalSummaries),
             "outlier_col_count":     len(stats.outlierSummary),
             "has_strong_correlation": any(
-                c["correlation"] > 0.7 for c in stats.topCorrelations
+                abs(c.get("correlation", 0)) > 0.7 for c in stats.topCorrelations
             ),
 
             # Domain classification (Phase 0+1 output — training target)

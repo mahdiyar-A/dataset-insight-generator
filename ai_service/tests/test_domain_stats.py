@@ -145,7 +145,8 @@ class TestSelectionAndPriority:
         # Same computations either way — only the ordering differs.
         assert set(ecom["analyses"]) == set(health["analyses"])
         assert ecom["priority"][0] == "concentration"
-        assert health["priority"][0] == "group_effect"
+        # Healthcare asks what is associated with an outcome before anything else.
+        assert health["priority"][0] == "key_drivers"
 
     def test_an_unknown_domain_still_analyses(self):
         df = sales_frame()

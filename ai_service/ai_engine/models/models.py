@@ -43,10 +43,26 @@ class StatsSummary:
     groupComparisons: List[Dict[str, Any]] = field(default_factory=list)
     temporalInfo: Optional[Dict[str, Any]] = None
     spearmanCorrelations: List[Dict[str, Any]] = field(default_factory=list)
-    anomalyScores: Dict[str, float] = field(default_factory=dict)
+    # Multivariate anomaly summary from an Isolation Forest: how many rows are
+    # unusual and which measures make them so. See stats_analyzer.
+    anomalyScores: Dict[str, Any] = field(default_factory=dict)
     # Analyses chosen by what the frame structurally supports, ordered by the
     # detected domain. See ai_engine.core.domain_stats.
     domainAnalyses: Dict[str, Any] = field(default_factory=dict)
+    # Cramér's V between pairs of categorical columns.
+    categoricalAssociations: List[Dict[str, Any]] = field(default_factory=list)
+    # Where missing values cluster: a column missing mostly in one region is a
+    # caveat on every finding that uses it.
+    missingnessPatterns: List[Dict[str, Any]] = field(default_factory=list)
+    # Text columns read as numbers ("$1,234" -> 1234). See core.coerce.
+    typeConversions: List[Dict[str, Any]] = field(default_factory=list)
+    # Rows the expensive analyses ran on, when the file was sampled for speed.
+    sampledRows: Optional[int] = None
+    # Share of rows with no missing value at all.
+    completeRowsPct: Optional[float] = None
+    # How the upload was read: {"format", "formatLabel", "detail", "notes"}.
+    # See ai_engine.ingest. Empty when the frame did not come from a file.
+    sourceFile: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -122,6 +138,12 @@ class LLMReport:
     # Display name of the model that actually wrote this report, so the PDF can
     # credit it truthfully. Empty for the stats-only fallback report.
     writerModel: str = ""
+    # Answers to the questions the user asked in the brief:
+    # [{"question", "answer", "answerable"}]. Empty when none were asked.
+    questionAnswers: List[Dict[str, Any]] = field(default_factory=list)
+    # The user's stated assumptions, echoed into the exported documents so a
+    # reader knows what was taken as given.
+    assumptions: str = ""
 
 
 @dataclass
@@ -146,6 +168,11 @@ class PipelineResult:
     # because the token counts in every API response were discarded.
     usage: Optional[Dict[str, Any]] = None
 
+    # What the chat answers from after the analysis: the statistics digest the
+    # report was written from, the report's own text, and the column list.
+    # Stored by the backend next to the report. See llm.harness.
+    chatContext: Optional[Dict[str, Any]] = None
+
     def to_response(self) -> dict:
         return {
             "status":                  self.status,
@@ -159,4 +186,5 @@ class PipelineResult:
             "low_confidence_warning":  self.lowConfidenceWarning,
             "confidence_score":        self.confidenceScore,
             "usage":                   self.usage,
+            "chat_context":            self.chatContext,
         }

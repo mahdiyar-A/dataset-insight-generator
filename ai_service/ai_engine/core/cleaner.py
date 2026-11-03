@@ -23,6 +23,7 @@ import pandas as pd
 from typing import List, Optional
 
 from ai_engine.core.profiler import adjusted_fences, protected_columns
+from ai_engine.core.stat_tests import text_columns
 from ai_engine.models.models import DataQualityResult
 
 
@@ -49,7 +50,14 @@ def clean_dataset(
     # Object columns that are >50% numeric (e.g. "C" suppressed entries mixed
     # with real numbers) get converted to float. Non-parseable values → NaN,
     # which the fallback step below will then impute.
-    for col in df.select_dtypes(include="object").columns:
+    # Same column set and the same sampled probe as the quality checker, so
+    # every column it flags as mixed is one this step converts.
+    for col in text_columns(df):
+        if pd.api.types.is_bool_dtype(df[col]):
+            continue
+        probe = df[col].dropna().head(500)
+        if len(probe) and pd.to_numeric(probe, errors="coerce").notnull().mean() < 0.3:
+            continue
         coerced = pd.to_numeric(df[col], errors="coerce")
         numeric_ratio = coerced.notnull().mean()
         if numeric_ratio > 0.5:
