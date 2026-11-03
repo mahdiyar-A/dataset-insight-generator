@@ -2,6 +2,13 @@
 FROM python:3.11-slim
 WORKDIR /app
 
+# A CJK font, so Chinese, Japanese and Korean text in reports and charts is
+# drawn. DejaVu Sans, which comes with matplotlib, covers Latin, Persian and
+# Arabic (ai_engine/fonts.py).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends fonts-droid-fallback \
+ && rm -rf /var/lib/apt/lists/*
+
 # Install dependencies first (cached layer)
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt

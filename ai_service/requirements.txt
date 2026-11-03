@@ -20,3 +20,8 @@ xlrd
 odfpy
 pyreadstat
 lxml
+# Reports in Persian, Arabic and Chinese: HarfBuzz shaping for the PDF, and
+# joined letters in right-to-left order for chart labels.
+uharfbuzz
+arabic-reshaper
+python-bidi

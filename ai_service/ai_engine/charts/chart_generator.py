@@ -7,8 +7,31 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import seaborn as sns
+from matplotlib import font_manager
+from matplotlib.text import Text
 from typing import List, Dict, Any
+from ai_engine.fonts import RTL_CHARS, cjk_font_file
 from ai_engine.models.models import ChartInstruction
+
+try:
+    import arabic_reshaper
+    from bidi import get_display
+except ImportError:  # charts still draw; Arabic-script labels just come out unjoined
+    arabic_reshaper = None
+
+
+def _font_families() -> List[str]:
+    """DejaVu Sans, then a CJK font for the characters it lacks."""
+    families = ["DejaVu Sans"]
+    path = cjk_font_file()
+    if path:
+        try:
+            font_manager.fontManager.addfont(path)
+            families.append(font_manager.FontProperties(fname=path).get_name())
+        except Exception as e:
+            print(f"[Chart] CJK font {path} unusable: {e}")
+    return families
+
 
 # Clean dark-ish professional style
 plt.rcParams.update({
@@ -22,12 +45,43 @@ plt.rcParams.update({
     "text.color":        "#e2e8f0",
     "grid.color":        "#1e293b",
     "grid.linewidth":    0.5,
-    "font.family":       "DejaVu Sans",
+    "font.family":       _font_families(),
     "font.size":         10,
 })
 
 
+def _display(text: str) -> str:
+    """
+    Arabic-script text the way matplotlib must be given it. matplotlib neither
+    joins Arabic letters nor lays text out right to left, so a Persian chart
+    title came out as separate letters in reverse order. The reshaper picks
+    each letter's joined form and the bidi pass puts the text in visual order.
+    """
+    if arabic_reshaper is None or not text or not RTL_CHARS.search(text):
+        return text
+    return get_display(arabic_reshaper.reshape(text))
+
+
+def _fix_rtl_text(fig) -> None:
+    for ax in fig.axes:   # asking for tick labels fills in their text, no draw needed
+        for axis in (ax.xaxis, ax.yaxis):
+            texts = [t.get_text() for t in axis.get_ticklabels()]
+            if any(RTL_CHARS.search(s) for s in texts):
+                axis.set_ticks(axis.get_ticklocs())
+                axis.set_ticklabels([_display(s) for s in texts])
+    # Titles, axis labels, legends. Tick labels are rewritten from the
+    # formatter set above at the next draw, whatever is done to them here.
+    for t in fig.findobj(Text):
+        s = t.get_text()
+        if RTL_CHARS.search(s):
+            t.set_text(_display(s))
+
+
 def _to_png_base64(fig) -> str:
+    try:
+        _fix_rtl_text(fig)
+    except Exception as e:  # a label problem must not cost the chart
+        print(f"[Chart] right-to-left labels left as they were: {e}")
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=150, bbox_inches="tight",
                 facecolor=fig.get_facecolor())
