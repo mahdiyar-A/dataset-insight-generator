@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/privacy' },
 };
 
-const UPDATED = 'LAST UPDATED 1 NOVEMBER 2026';
+const UPDATED = 'LAST UPDATED 3 NOVEMBER 2026';
 
 const INTRO = [
   'DIG turns a spreadsheet into an analysis report. To do that it has to read your file, so this page explains exactly what happens to it: where it is stored, what is computed locally, what is sent to other companies, and how to get rid of it.',
@@ -46,7 +46,7 @@ const SECTIONS = [
     body: ['Three kinds of data, and nothing else:'],
     list: [
       'Account data — your email address, a hashed password (or the identifier from your sign-in provider), your plan, and the dates you signed up and last signed in. We never store your password itself.',
-      'If you sign in with Google, Microsoft, GitHub or LinkedIn, that company confirms your email address and sends us your name and email. We receive nothing else from them, and never your password for that account.',
+      'If you sign in with Google or GitHub, that company confirms your email address and sends us your name and email. We receive nothing else from them, and never your password for that account.',
       'The files you upload — the spreadsheet or CSV you choose to analyse, exactly as you sent it, plus the reports generated from it.',
       'Operational records — the analyses you have run, their status, timestamps, and errors when something fails. These exist so the product works and so we can fix it when it does not.',
     ],
@@ -76,7 +76,8 @@ const SECTIONS = [
       'Because these are free AI services, the company running the model may keep a log of what it receives, under its own terms. That is one more reason to leave sensitive columns out — see below.',
       'Stripe — handles payment if you subscribe. Your card details go directly to Stripe and never touch our servers. We receive only a customer reference and your subscription status.',
       'Supabase — hosts the database, authentication and file storage described above.',
-      'Amazon Web Services — runs DIG’s servers, in its Canada (Central) region, and sends DIG’s emails: account verification, password resets, and reports you ask us to email you. Processing your file happens on these servers.',
+      'Amazon Web Services — runs DIG’s servers, in its Canada (Central) region. Processing your file happens on these servers.',
+      'Google — delivers DIG’s emails through Gmail: account verification, password resets, and reports you ask us to email you. A report you email yourself passes through Google on its way to your inbox.',
     ],
   },
   {
@@ -84,7 +85,7 @@ const SECTIONS = [
     body: [
       'Because up to five real values from each column are sent to Groq, you should not upload files containing personal health records, government identifiers, financial account numbers, credentials, or anything else you are not permitted to share with a third-party processor.',
       'If you need to analyse data like that, remove or mask the sensitive columns first. The statistical engine, data cleaning and quality checks all run entirely on our own servers, so a dataset with identifying columns stripped out still produces a full analysis.',
-      'Each provider handles what it receives under its own terms: Amazon Web Services (aws.amazon.com/privacy), Groq (groq.com), OpenRouter (openrouter.ai/privacy), NVIDIA (nvidia.com/privacy), Stripe (stripe.com/privacy) and Supabase (supabase.com/privacy).',
+      'Each provider handles what it receives under its own terms: Amazon Web Services (aws.amazon.com/privacy), Google (policies.google.com/privacy), Groq (groq.com), OpenRouter (openrouter.ai/privacy), NVIDIA (nvidia.com/privacy), Stripe (stripe.com/privacy) and Supabase (supabase.com/privacy).',
     ],
   },
   {
