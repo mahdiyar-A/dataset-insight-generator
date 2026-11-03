@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, Work_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import { AuthProvider } from "./contexts/AuthContext";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { SITE_URL } from "@/lib/siteUrl";
@@ -9,17 +9,23 @@ import "./globals.css";
  * Atlas's two faces, self-hosted by next/font so there is no render-blocking
  * request to a font CDN and no layout shift while they load. Exposed as CSS
  * variables rather than a className so a page can opt in per element.
+ *
+ * The files live in app/fonts (latin subset, variable weight, both SIL OFL)
+ * rather than coming from next/font/google, which downloads them from Google
+ * on every build: on 2026-11-03 that download failed on Vercel and in CI's
+ * Docker build at the same moment, and both builds died. A build should not
+ * depend on a font CDN being up.
  */
-const display = Bricolage_Grotesque({
-  subsets: ["latin"],
-  weight: ["500", "700", "800"],
+const display = localFont({
+  src: "./fonts/BricolageGrotesque-latin.woff2",
+  weight: "500 800",
   variable: "--font-display",
   display: "swap",
 });
 
-const sans = Work_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
+const sans = localFont({
+  src: "./fonts/WorkSans-latin.woff2",
+  weight: "400 600",
   variable: "--font-sans",
   display: "swap",
 });
