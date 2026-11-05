@@ -24,10 +24,11 @@ what this module computes, locally, from the full set of columns:
     all segments tried.
 
 Two guards keep the findings honest. Columns that are near-copies of the
-target (revenue_usd beside revenue, or a total that is a sum of the target)
-are excluded and listed, since "revenue predicts revenue" is arithmetic, not a
-driver. And everything is associational: the output says "associated with",
-never "causes", and the prompt is told the same.
+target (revenue_usd beside revenue, or a total that is a sum of the target),
+and columns it is calculated from (units and price, for revenue), are excluded
+and listed, since "revenue predicts revenue" is arithmetic, not a driver. And
+everything is associational: the output says "associated with", never "causes",
+and the prompt is told the same.
 """
 
 from __future__ import annotations
@@ -40,6 +41,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats as scipy_stats
 
+from ai_engine.core.identities import tied_to
 from ai_engine.core.profiler import is_identifier, key_columns
 from ai_engine.core.stat_tests import (
     bh_adjust,
@@ -292,7 +294,12 @@ def _fit_label(metric: str, score: float) -> str:
     return "very weak"
 
 
-def key_drivers(df: pd.DataFrame, headline: Optional[str], time_budget_s: float = 6.0) -> Optional[Dict[str, Any]]:
+def key_drivers(
+    df: pd.DataFrame,
+    headline: Optional[str],
+    time_budget_s: float = 6.0,
+    derived: Optional[List[Dict[str, Any]]] = None,
+) -> Optional[Dict[str, Any]]:
     """
     Rank what is associated with the target, alone and together.
 
@@ -311,12 +318,14 @@ def key_drivers(df: pd.DataFrame, headline: Optional[str], time_budget_s: float 
         return None
 
     screened = _univariate(df, y, nums, cats)
-    derived = [r["feature"] for r in screened
-               if (r["type"] == "numeric" and abs(r.get("rho", 0)) >= DERIVED_THRESHOLD)
-               or (r["type"] == "categorical" and r.get("etaSquared", 0) >= DERIVED_THRESHOLD)]
-    screened = [r for r in screened if r["feature"] not in derived]
-    nums = [c for c in nums if c not in derived]
-    cats = [c for c in cats if c not in derived]
+    calculated = tied_to(target["column"], derived)
+    excluded = [c for c in nums if c in calculated]
+    excluded += [r["feature"] for r in screened
+                 if (r["type"] == "numeric" and abs(r.get("rho", 0)) >= DERIVED_THRESHOLD)
+                 or (r["type"] == "categorical" and r.get("etaSquared", 0) >= DERIVED_THRESHOLD)]
+    screened = [r for r in screened if r["feature"] not in excluded]
+    nums = [c for c in nums if c not in excluded]
+    cats = [c for c in cats if c not in excluded]
 
     model = None
     if time.monotonic() - started < time_budget_s and (nums or cats):
@@ -348,7 +357,7 @@ def key_drivers(df: pd.DataFrame, headline: Optional[str], time_budget_s: float 
         "target": target["column"],
         "targetKind": target["kind"],
         "drivers": top,
-        "excludedAsDerived": derived,
+        "excludedAsDerived": excluded,
         "note": "Associations, not causes: a driver moves with the target in this data.",
     }
     if target["kind"] == "binary":

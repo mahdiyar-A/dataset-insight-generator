@@ -101,8 +101,8 @@ def count_evidence(stats: StatsSummary) -> int:
       * a correlation pair at |r| >= 0.3 (Pearson or Spearman) that survives
         the false-discovery correction, unless the two columns are near-copies
         of each other (|r| >= 0.98 says they record the same thing, which is
-        redundancy, not a finding) or the correlation does not hold inside
-        the groups of a category;
+        redundancy, not a finding), one is calculated from the other, or the
+        correlation does not hold inside the groups of a category;
       * a group difference that is significant with a non-negligible effect;
       * a significant trend, a group effect of at least medium size, and a
         concentration well above an even split;
@@ -120,7 +120,9 @@ def count_evidence(stats: StatsSummary) -> int:
         if r is None or abs(float(r)) < EVIDENCE_MIN_ABS_R:
             continue
         pair = frozenset((item.get("col1"), item.get("col2")))
-        if item.get("nearDuplicate") or item.get("significant") is False or pair in misleading:
+        if item.get("nearDuplicate") or item.get("arithmetic") or item.get("significant") is False:
+            continue
+        if pair in misleading:
             continue
         pairs.add(pair)
     evidence = len(pairs)
