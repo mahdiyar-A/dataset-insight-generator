@@ -51,6 +51,9 @@ class StatsSummary:
     domainAnalyses: Dict[str, Any] = field(default_factory=dict)
     # Cramér's V between pairs of categorical columns.
     categoricalAssociations: List[Dict[str, Any]] = field(default_factory=list)
+    # Correlations that reverse or disappear inside the groups of a category.
+    # See ai_engine.core.confounding.
+    correlationChecks: List[Dict[str, Any]] = field(default_factory=list)
     # Where missing values cluster: a column missing mostly in one region is a
     # caveat on every finding that uses it.
     missingnessPatterns: List[Dict[str, Any]] = field(default_factory=list)
@@ -117,7 +120,7 @@ class ChartInstruction:
     color: str               # hex
     # Complex / multi-series chart fields (optional)
     chartSubtype: str = ""                        # "grouped" | "stacked" | "multi_line" | ""
-    groupColumn: Optional[str] = None            # for grouped bar/line charts
+    groupColumn: Optional[str] = None            # for grouped bar/line charts and split scatters
     yColumns: List[str] = field(default_factory=list)  # for multi-series charts
 
 

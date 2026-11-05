@@ -76,6 +76,7 @@ def _categories(stats: StatsSummary) -> Dict[str, Any]:
 def _correlations(stats: StatsSummary) -> List[Dict[str, Any]]:
     rows = []
     spearman = {frozenset((s["col1"], s["col2"])): s for s in (stats.spearmanCorrelations or [])}
+    checks = {frozenset((c["a"], c["b"])): c for c in (stats.correlationChecks or [])}
     for c in stats.topCorrelations or []:
         r = c.get("correlation")
         if r is None:
@@ -86,6 +87,11 @@ def _correlations(stats: StatsSummary) -> List[Dict[str, Any]]:
                 "strength": c.get("strength")}
         if c.get("nearDuplicate"):
             item["nearDuplicate"] = True
+        check = checks.get(frozenset((c["col1"], c["col2"])))
+        if check:
+            # On the entry itself: a warning kept only in its own block is
+            # easy to miss while writing about this correlation.
+            item["misleading"] = f'{check["kind"]} within {check["by"]}'
         s = spearman.get(frozenset((c["col1"], c["col2"])))
         if s and abs(abs(s.get("spearman", 0)) - abs(r)) >= 0.15:
             # A rank correlation well above the linear one means a monotone
@@ -101,6 +107,14 @@ def _correlations(stats: StatsSummary) -> List[Dict[str, Any]]:
         rows.append(_drop_none({"a": s["col1"], "b": s["col2"], "spearman": s["spearman"],
                                 "n": s.get("n"), "q": s.get("q"), "strength": s.get("strength")}))
     return rows[:8]
+
+
+def _misleading(stats: StatsSummary) -> List[Dict[str, Any]]:
+    return [_drop_none({
+        "a": c["a"], "b": c["b"], "by": c["by"], "kind": c["kind"],
+        "overall_r": c["overallR"], "within_groups_r": c["withinR"],
+        "n": c["n"], "groups": c.get("groups"),
+    }) for c in stats.correlationChecks or []]
 
 
 def _groups(stats: StatsSummary) -> List[Dict[str, Any]]:
@@ -168,6 +182,7 @@ def build_digest(stats: StatsSummary, domain: DomainResult) -> Dict[str, Any]:
         "measures": _measures(stats, key_features),
         "categories": _categories(stats),
         "correlations": _correlations(stats),
+        "misleading_correlations": _misleading(stats),
         "group_differences": _groups(stats),
         "category_associations": [a for a in (stats.categoricalAssociations or []) if a.get("significant")][:4],
         "findings": _findings(stats),

@@ -16,6 +16,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import ai_engine.core.pipeline as pipeline
 import ai_engine.llm.insight_agent as insight_agent
 from ai_engine.core.pipeline import run_pipeline
 
@@ -147,6 +148,33 @@ def test_unreadable_upload_fails_with_a_message_for_the_user(stub_writer):
     assert result["condition"] == "not_workable"
     assert "PDF" in result["error"] and "CSV" in result["error"]
     assert not stub_writer, "no model call for a file that cannot be read"
+
+
+def test_a_correlation_that_reverses_inside_groups_reaches_the_writer_the_chart_and_the_chat(stub_writer, monkeypatch):
+    rng = np.random.default_rng(3)
+    frames = []
+    for region, centre in zip(("North", "East", "South", "West"), (20.0, 30.0, 40.0, 50.0)):
+        spend = rng.normal(centre, 3.0, 150)
+        revenue = 3 * centre - 0.9 * (spend - centre) + rng.normal(0, 2.0, 150)
+        frames.append(pd.DataFrame({"region": region, "ad_spend": spend.round(2), "revenue": revenue.round(2)}))
+    upload = pd.concat(frames, ignore_index=True).to_csv(index=False).encode()
+    # The model asks for the plain scatter it was told not to.
+    monkeypatch.setitem(REPLY, "chart_instructions", [
+        {"index": 1, "chart_type": "scatter", "title": "Spend and revenue", "x_column": "ad_spend",
+         "y_column": "revenue", "description": "", "insight_index": 1},
+    ])
+    charted = []
+    real_generate = pipeline.generate_charts
+    monkeypatch.setattr(pipeline, "generate_charts", lambda df, charts: charted.extend(charts) or real_generate(df, charts))
+
+    result = run_pipeline(file_bytes=upload, file_name="spend.csv", user_wants_cleaning=False,
+                          user_confirmed_low=True, session_id="test")
+
+    assert result["status"] == "done", result.get("error")
+    assert '"misleading":"reversed within region"' in stub_writer[0]
+    assert '"misleading_correlations"' in stub_writer[0]
+    assert charted[0].groupColumn == "region"
+    assert result["chat_context"]["digest"]["misleading_correlations"][0]["kind"] == "reversed"
 
 
 def test_bad_customization_values_fall_back_to_defaults(stub_writer):

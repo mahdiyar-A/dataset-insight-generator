@@ -26,6 +26,7 @@ import json
 import re
 from typing import List, Dict, Any, Optional
 
+from ai_engine.core.confounding import misleading_pairs
 from ai_engine.models.models import StatsSummary, LLMReport, ChartInstruction, DomainResult
 from ai_engine.llm.report_writer import write_report
 from ai_engine.llm.stats_digest import digest_json
@@ -450,7 +451,7 @@ YOUR OUTPUT — respond ONLY with valid JSON
       "x_column": "<EXACT column name, case-sensitive — or null>",
       "y_column": "<EXACT column name — or null>",
       "y_columns": ["<for multi-series: list of EXACT column names, or empty list>"],
-      "group_column": "<for grouped/stacked: EXACT column name — or null>",
+      "group_column": "<for grouped/stacked, or to split a scatter by group: EXACT column name — or null>",
       "description": "<1-2 sentences: what this chart reveals and which insight it supports>",
       "insight_index": <integer matching the insight rank this chart illustrates>,
       "color": "<hex from: #3b82f6 #a855f7 #10b981 #f97316 #ec4899>"
@@ -486,13 +487,21 @@ CHART RULES — structural requirements:
   left out — never describe an incomplete period as a drop.
 - A correlation or association marked nearDuplicate means two columns record
   the same thing. Mention it as redundancy at most; never as an insight.
+- A correlation marked misleading holds across the whole file but not inside
+  the groups of a category; `misleading_correlations` gives overall_r,
+  within_groups_r and each group's own r. kind "reversed" means it runs the
+  other way inside the groups; "vanished" means little is left inside them.
+  Never state one as a plain finding. Leave it out, or report the split with
+  both figures: that is often the most useful thing in the report. Say the
+  groups account for it, not that it is false, and not that the group causes it.
+  To chart one, use a scatter with group_column set to `by`.
 - Correlation signs matter: a negative r means one falls as the other rises.
 - Chart style preference: {chart_guidance}
 - All column names MUST be EXACT case-sensitive matches from the data — no paraphrasing.
 - Chart type field requirements:
     "bar"         → x=categorical, y=numeric
     "line"        → x=temporal/ordered, y=numeric — ONLY if temporal data confirmed in stats
-    "scatter"     → x=numeric, y=numeric
+    "scatter"     → x=numeric, y=numeric; group_column is optional and gives each group its own colour and line
     "histogram"   → x=numeric, y_column MUST be null
     "heatmap"     → x_column AND y_column MUST both be null
     "box"         → x=categorical, y=numeric
@@ -518,6 +527,16 @@ Respond ONLY with JSON. No markdown. No text before or after the JSON object.
 # Fallback report — used when Gemini is unavailable
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _reportable_correlations(stats: StatsSummary) -> List[Dict[str, Any]]:
+    """The correlations a report with no model behind it may state as they are."""
+    misleading = misleading_pairs(stats.correlationChecks)
+    return [
+        c for c in stats.topCorrelations or []
+        if c.get("significant", True) and not c.get("nearDuplicate")
+        and frozenset((c.get("col1"), c.get("col2"))) not in misleading
+    ]
+
+
 def _build_fallback_report(stats: StatsSummary, domain: DomainResult) -> LLMReport:
     """
     Stats-only minimal report. Used when Gemini fails after all retries
@@ -526,6 +545,7 @@ def _build_fallback_report(stats: StatsSummary, domain: DomainResult) -> LLMRepo
     Confidence score is set to 4 to signal reduced analytical depth.
     """
     insights = []
+    correlations = _reportable_correlations(stats)
 
     # Insight 1: Dataset scope
     insights.append({
@@ -541,8 +561,8 @@ def _build_fallback_report(stats: StatsSummary, domain: DomainResult) -> LLMRepo
     })
 
     # Insight 2: Top correlation if available
-    if stats.topCorrelations:
-        corr = stats.topCorrelations[0]
+    if correlations:
+        corr = correlations[0]
         col1 = corr.get("col1", "a key variable")
         col2 = corr.get("col2", "a related measure")
         r_val = corr.get("correlation", 0)
@@ -660,7 +680,7 @@ def _build_fallback_report(stats: StatsSummary, domain: DomainResult) -> LLMRepo
         ),
         executiveSummary=(
             f"Statistical processing of the {domain.domain} dataset completed across all {stats.columnCount} attributes. "
-            + (f"Correlation analysis identified {len(stats.topCorrelations)} notable relationships between attributes. " if stats.topCorrelations else "")
+            + (f"Correlation analysis identified {len(correlations)} notable relationships between attributes. " if correlations else "")
             + f"Manual review of the outputs is recommended to draw domain-specific conclusions."
         ),
         insights=insights,

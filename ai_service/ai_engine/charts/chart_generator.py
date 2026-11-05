@@ -50,6 +50,16 @@ plt.rcParams.update({
 })
 
 
+MAX_SCATTER_POINTS = 500
+MAX_SCATTER_LEVELS = 20    # beyond this a column is labels, not groups
+# In a scatter any group can sit beside any other, so these must stay apart in
+# every pairing, for colour-blind readers too, on the axes colour above. Three
+# is as many as that allows; the rest of the rows are drawn as other groups.
+GROUP_COLORS = ["#3987e5", "#d95926", "#199e70"]
+GROUP_MARKERS = ["o", "s", "^"]
+OTHER_GROUPS_COLOR = "#64748b"
+
+
 def _display(text: str) -> str:
     """
     Arabic-script text the way matplotlib must be given it. matplotlib neither
@@ -185,25 +195,65 @@ def _line_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
     return _to_png_base64(fig)
 
 
+def _trend_line(ax, fitted: pd.DataFrame, drawn: pd.DataFrame, x: str, y: str, **style):
+    """
+    A straight line fitted to `fitted`, across the range of `drawn`. Returns its
+    right-hand end, or None when no line can be fitted.
+
+    Fitted on every row, not the plotted sample: a group's slope is the point
+    of the line, and a few dozen sampled rows can tilt it the wrong way.
+    """
+    if fitted[x].nunique() < 2:
+        return None
+    try:
+        slope, intercept = np.polyfit(fitted[x].astype(float), fitted[y].astype(float), 1)
+        ends = np.array([drawn[x].min(), drawn[x].max()], dtype=float)
+    except (TypeError, ValueError):
+        return None
+    ax.plot(ends, slope * ends + intercept, **style)
+    return ends[1], slope * ends[1] + intercept
+
+
+def _scatter_by_group(ax, points: pd.DataFrame, sample: pd.DataFrame, x: str, y: str, g: str) -> None:
+    """The largest groups in their own colour and shape, each with its own line."""
+    levels = points[g].value_counts().index[:len(GROUP_COLORS)]
+    rest = sample[~sample[g].isin(levels)]
+    if len(rest):
+        ax.scatter(rest[x], rest[y], color=OTHER_GROUPS_COLOR, alpha=0.35, s=14, edgecolors="none",
+                   label="Other groups")
+    for level, color, marker in zip(levels, GROUP_COLORS, GROUP_MARKERS):
+        shown = sample[sample[g] == level]
+        ax.scatter(shown[x], shown[y], color=color, marker=marker, alpha=0.6, s=22, edgecolors="none",
+                   label=str(level))
+        end = _trend_line(ax, points[points[g] == level], shown, x, y, color=color, linewidth=2)
+        if end:
+            ax.annotate(str(level), end, xytext=(5, 0), textcoords="offset points", fontsize=8, va="center")
+
+
 def _scatter_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
     x = _safe_col(df, instr.xColumn)
     y = _safe_col(df, instr.yColumn)
     if not x or not y:
         return None
+    g = _safe_col(df, instr.groupColumn) if instr.groupColumn else None
+    if g in (x, y):
+        g = None
+
+    points = df[[x, y, g] if g else [x, y]].dropna()
+    if points.empty:
+        return None
+    sample = points.sample(min(MAX_SCATTER_POINTS, len(points)), random_state=0)
+    grouped = bool(g) and 2 <= points[g].nunique() <= MAX_SCATTER_LEVELS
 
     fig, ax = plt.subplots(figsize=(7, 5))
-    sample = df[[x, y]].dropna().sample(min(500, len(df)))  # cap at 500 points
-    ax.scatter(sample[x], sample[y], color=instr.color, alpha=0.55, s=20, edgecolors="none")
-
-    # Add trend line
-    try:
-        z = np.polyfit(sample[x].astype(float), sample[y].astype(float), 1)
-        p = np.poly1d(z)
-        xline = np.linspace(sample[x].min(), sample[x].max(), 100)
-        ax.plot(xline, p(xline), color="#f8fafc", linewidth=1.2, linestyle="--", alpha=0.6, label="Trend")
+    if grouped:
+        _scatter_by_group(ax, points, sample, x, y, g)
+    else:
+        ax.scatter(sample[x], sample[y], color=instr.color, alpha=0.55, s=20, edgecolors="none")
+    _trend_line(ax, points, sample, x, y, color="#f8fafc", linewidth=1.2, linestyle="--", alpha=0.6,
+                label="Overall trend" if grouped else "Trend")
+    if ax.get_legend_handles_labels()[0]:
         ax.legend(fontsize=8)
-    except Exception:
-        pass
 
     ax.set_xlabel(x)
     ax.set_ylabel(y)
