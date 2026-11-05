@@ -66,7 +66,7 @@ MAX_SQLITE_TABLES = 200
 MAX_XML_ELEMENTS = 5_000_000
 
 # Extensions a user can upload. The backend (FileFormats.cs) and the upload
-# form (UploadCard.jsx) keep their own copies of this list; keep all three in
+# form (lib/uploadFormats.js) keep their own copies of this list; keep all three in
 # step.
 SUPPORTED_EXTENSIONS = (
     ".csv", ".tsv", ".tab", ".txt", ".dat", ".psv",

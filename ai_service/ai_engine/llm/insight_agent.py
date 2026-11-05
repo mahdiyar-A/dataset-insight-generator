@@ -172,7 +172,7 @@ def _build_prompt(
     #   min(count, 3) on quick, max(count, 7) on deep — so a Pro user who
     #   explicitly picked 3 insights and deep analysis silently received 7, and
     #   one who picked 7 with quick received 3. Insight count is its own
-    #   advertised control (3/5/7); depth governs how much is written about
+    #   advertised control (1-10); depth governs how much is written about
     #   each insight, not how many there are.
     #
     #   max_charts is capped at MAX_CHARTS everywhere. Deep asked for 7, but the

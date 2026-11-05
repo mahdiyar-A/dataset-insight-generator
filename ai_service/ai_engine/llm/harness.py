@@ -169,6 +169,8 @@ Settings you may set (leave out any the description does not imply):
 - questions: list of at most {MAX_QUESTIONS} objects {{"question": "...", "note": "..."}}. Specific questions
   the user wants answered; note is optional context they gave for that question.
 - insightsCount: whole number 1-10, only when they say how many points, findings or insights.
+- outputFormat: object with "word": true and/or "pptx": true, only for files they ask for by name
+  (a Word document, a PowerPoint or slides). The PDF is always made, so never list it as not possible.
 {choices}
 
 Use the column list to turn the user's words into real column names where it is clear ("sales" →
@@ -200,6 +202,11 @@ def validate_settings(raw: Any) -> Dict[str, Any]:
             out["insightsCount"] = max(1, min(10, int(count)))
         except (TypeError, ValueError):
             pass
+    formats = raw.get("outputFormat")
+    if isinstance(formats, dict):
+        chosen = {name: True for name in ("word", "pptx") if formats.get(name) is True}
+        if chosen:
+            out["outputFormat"] = chosen
     mentions = raw.get("mustMention")
     if isinstance(mentions, str):
         mentions = [m for m in mentions.split(",")]

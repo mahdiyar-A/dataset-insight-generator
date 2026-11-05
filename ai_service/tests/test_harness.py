@@ -272,3 +272,13 @@ def test_injection_checks():
 ])
 def test_ungrounded_numbers(reply, flagged):
     assert ungrounded_numbers(reply, [json.dumps(CONTEXT)]) == flagged
+
+
+def test_a_brief_can_ask_for_word_and_powerpoint_but_nothing_else():
+    # Risk: without this a user who writes "make me a PowerPoint" is told it
+    # isn't possible, when it is one click in the same panel.
+    assert validate_settings({"outputFormat": {"pptx": True}}) == {"outputFormat": {"pptx": True}}
+    assert validate_settings({"outputFormat": {"word": True, "pdf": False, "exe": True}}) == {
+        "outputFormat": {"word": True}}
+    assert validate_settings({"outputFormat": {"word": "yes", "pptx": False}}) == {}
+    assert validate_settings({"outputFormat": "pptx"}) == {}
