@@ -21,6 +21,7 @@ Operations:
   count        {"op": "count", "by": [col?], "where": [...]}
   correlation  {"op": "correlation", "a": col, "b": col, "where": [...]}
   trend        {"op": "trend", "measure": col, "date": col?, "period": "D|W|M|Q|Y", "agg": "sum|mean|count"}
+               The result has a "change" entry if the series moved or turned at a moment.
 
 A filter is {"column": col, "op": "==|!=|>|>=|<|<=|in|not_in|contains|between|is_missing|not_missing",
 "value": v}. Text comparisons ignore case, since a person typing "north" means "North".
@@ -35,6 +36,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+
+from ai_engine.core.changepoint import labelled_shift
 
 MAX_QUERIES = 3
 MAX_RESULT_ROWS = 15
@@ -371,8 +374,13 @@ def _trend(df: pd.DataFrame, q: Dict[str, Any]) -> Dict[str, Any]:
     series = getattr(frame.groupby("period")["_v"], agg)().sort_index()
     rows = [{"period": str(k), "value": _clean(v)} for k, v in series.items()]
     # The most recent periods matter most in a conversation; keep those.
-    return {"date_column": date_col, "measure": measure, "agg": agg, "period": period,
-            "periods": len(rows), "rows": rows[-MAX_RESULT_ROWS:], "truncated": len(rows) > MAX_RESULT_ROWS}
+    result = {"date_column": date_col, "measure": measure, "agg": agg, "period": period,
+              "periods": len(rows), "rows": rows[-MAX_RESULT_ROWS:], "truncated": len(rows) > MAX_RESULT_ROWS}
+    known = series.dropna()
+    change = labelled_shift(known.to_numpy(dtype="float64"), known.index)
+    if change:
+        result["change"] = change
+    return result
 
 
 _HANDLERS = {

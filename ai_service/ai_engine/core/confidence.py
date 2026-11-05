@@ -130,7 +130,8 @@ def count_evidence(stats: StatsSummary) -> int:
     evidence += sum(1 for g in (stats.groupComparisons or []) if g.get("significant"))
 
     analyses = (stats.domainAnalyses or {}).get("analyses", {}) or {}
-    if (analyses.get("trend") or {}).get("significant"):
+    trend = analyses.get("trend") or {}
+    if trend.get("significant") or trend.get("changePoint"):
         evidence += 1
     if (analyses.get("group_effect") or {}).get("strength") in ("medium", "large"):
         evidence += 1
