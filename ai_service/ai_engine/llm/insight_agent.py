@@ -487,6 +487,11 @@ CHART RULES — structural requirements:
   left out — never describe an incomplete period as a drop.
 - A correlation or association marked nearDuplicate means two columns record
   the same thing. Mention it as redundancy at most; never as an insight.
+- `derived_columns` are calculated from other columns, as in `formula`. How one
+  moves with its own parts is arithmetic, not a finding: never report it as a
+  relationship, and never call a part a driver of it. mismatched_rows counts
+  rows where the calculation does not hold; that is a data-quality point worth
+  raising.
 - A correlation marked misleading holds across the whole file but not inside
   the groups of a category; `misleading_correlations` gives overall_r,
   within_groups_r and each group's own r. kind "reversed" means it runs the
@@ -532,7 +537,7 @@ def _reportable_correlations(stats: StatsSummary) -> List[Dict[str, Any]]:
     misleading = misleading_pairs(stats.correlationChecks)
     return [
         c for c in stats.topCorrelations or []
-        if c.get("significant", True) and not c.get("nearDuplicate")
+        if c.get("significant", True) and not c.get("nearDuplicate") and not c.get("arithmetic")
         and frozenset((c.get("col1"), c.get("col2"))) not in misleading
     ]
 

@@ -42,6 +42,7 @@ from scipy import stats as scipy_stats
 
 from ai_engine.core.domain_stats import build_domain_analyses
 from ai_engine.core.confounding import check_correlations
+from ai_engine.core.identities import arithmetic_pairs, find_derived_columns
 from ai_engine.core.profiler import adjusted_fences, key_columns
 from ai_engine.core.stat_tests import (
     association_strength,
@@ -307,13 +308,18 @@ def _normality_tests(df: pd.DataFrame, cols: List[str]) -> List[Dict[str, Any]]:
 # Relationships
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _correlations(df: pd.DataFrame, cols: List[str], method: str, top_n: int = 8) -> List[Dict[str, Any]]:
+def _correlations(
+    df: pd.DataFrame, cols: List[str], method: str, top_n: int = 8, arithmetic: Set[frozenset] = frozenset(),
+) -> List[Dict[str, Any]]:
     """
     Signed pairwise correlations with p, n, CI and BH q, strongest first.
 
     Pairwise-complete: each pair uses every row where both values exist, and
     reports that n, because two columns with 40% missing may share far fewer
     rows than the file has.
+
+    Pairs in `arithmetic` are linked by calculation. They rank last, so they
+    never take a place from a correlation that says something.
     """
     if len(cols) < 2:
         return []
@@ -360,10 +366,13 @@ def _correlations(df: pd.DataFrame, cols: List[str], method: str, top_n: int = 8
             item["spearman"] = round(rv, 3)
         if abs(rv) >= NEAR_DUPLICATE_R:
             item["nearDuplicate"] = True
+        if frozenset((str(c1), str(c2))) in arithmetic:
+            item["arithmetic"] = True
         rows.append(item)
 
     key = "correlation" if method == "pearson" else "spearman"
-    rows.sort(key=lambda d: (d["significant"], not d.get("nearDuplicate", False), abs(d[key])), reverse=True)
+    rows.sort(key=lambda d: (not d.get("arithmetic", False), d["significant"],
+                             not d.get("nearDuplicate", False), abs(d[key])), reverse=True)
     return rows[:top_n]
 
 
@@ -666,8 +675,10 @@ def build_stats_summary(
     outlier_summary = _outlier_summary(df, measures, fences)
     normality = _normality_tests(sample, measures)
 
-    pearson = _correlations(sample, measures, "pearson")
-    spearman = _correlations(sample, measures, "spearman")
+    derived = find_derived_columns(sample, measures)
+    arithmetic = arithmetic_pairs(derived)
+    pearson = _correlations(sample, measures, "pearson", arithmetic=arithmetic)
+    spearman = _correlations(sample, measures, "spearman", arithmetic=arithmetic)
 
     group_cats = _categories(sample, keys, MAX_GROUP_LEVELS)
     groups = _group_comparisons(sample, group_cats, measures)
@@ -698,7 +709,7 @@ def build_stats_summary(
     # is structural — the domain only orders them — so a wrong domain guess
     # costs relevance, never correctness.
     domain_analyses = build_domain_analyses(sample if sampled_rows else df, domain=domain, date_col=time_col,
-                                            full_frame=df)
+                                            full_frame=df, derived=derived)
 
     elapsed = time.monotonic() - started
     print(f"[Stats] {len(df):,} rows x {len(df.columns)} cols in {elapsed:.2f}s "
@@ -721,6 +732,7 @@ def build_stats_summary(
         anomalyScores=anomalies,
         domainAnalyses=domain_analyses,
         categoricalAssociations=assoc,
+        derivedColumns=derived,
         correlationChecks=correlation_checks,
         missingnessPatterns=missing_patterns,
         typeConversions=list(type_conversions or []),

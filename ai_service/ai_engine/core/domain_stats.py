@@ -514,6 +514,7 @@ def build_domain_analyses(
     domain: str = "general",
     date_col: Optional[str] = None,
     full_frame: Optional[pd.DataFrame] = None,
+    derived: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
     Run every analysis the frame structurally supports, ordered by domain.
@@ -535,7 +536,7 @@ def build_domain_analyses(
         "repeat_entity": lambda: repeat_entity(whole),
         "trend":         lambda: trend(whole, date_col),
         "group_effect":  lambda: group_effect(df),
-        "key_drivers":   lambda: key_drivers(df, headline),
+        "key_drivers":   lambda: key_drivers(df, headline, derived=derived),
         "segments":      lambda: segments(df, headline),
     }
 

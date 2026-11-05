@@ -51,6 +51,9 @@ class StatsSummary:
     domainAnalyses: Dict[str, Any] = field(default_factory=dict)
     # Cramér's V between pairs of categorical columns.
     categoricalAssociations: List[Dict[str, Any]] = field(default_factory=list)
+    # Columns calculated from two others (revenue = units x unit_price).
+    # See ai_engine.core.identities.
+    derivedColumns: List[Dict[str, Any]] = field(default_factory=list)
     # Correlations that reverse or disappear inside the groups of a category.
     # See ai_engine.core.confounding.
     correlationChecks: List[Dict[str, Any]] = field(default_factory=list)

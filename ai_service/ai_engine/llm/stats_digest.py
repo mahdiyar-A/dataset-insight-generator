@@ -79,7 +79,9 @@ def _correlations(stats: StatsSummary) -> List[Dict[str, Any]]:
     checks = {frozenset((c["a"], c["b"])): c for c in (stats.correlationChecks or [])}
     for c in stats.topCorrelations or []:
         r = c.get("correlation")
-        if r is None:
+        # A calculated column and its parts are left out altogether: a writer
+        # cannot call arithmetic a finding if it never sees the figure.
+        if r is None or c.get("arithmetic"):
             continue
         if not c.get("significant", True) and abs(r) < 0.3:
             continue
@@ -102,11 +104,18 @@ def _correlations(stats: StatsSummary) -> List[Dict[str, Any]]:
     seen = {frozenset((r["a"], r["b"])) for r in rows}
     for s in stats.spearmanCorrelations or []:
         key = frozenset((s["col1"], s["col2"]))
-        if key in seen or not s.get("significant", True) or abs(s.get("spearman", 0)) < 0.3:
+        if key in seen or not s.get("significant", True) or abs(s.get("spearman", 0)) < 0.3 or s.get("arithmetic"):
             continue
         rows.append(_drop_none({"a": s["col1"], "b": s["col2"], "spearman": s["spearman"],
                                 "n": s.get("n"), "q": s.get("q"), "strength": s.get("strength")}))
     return rows[:8]
+
+
+def _derived(stats: StatsSummary) -> List[Dict[str, Any]]:
+    return [_drop_none({
+        "column": d["column"], "formula": d["formula"],
+        "mismatched_rows": d.get("mismatchedRows") or None,
+    }) for d in stats.derivedColumns or []]
 
 
 def _misleading(stats: StatsSummary) -> List[Dict[str, Any]]:
@@ -181,6 +190,7 @@ def build_digest(stats: StatsSummary, domain: DomainResult) -> Dict[str, Any]:
         "dataset": dataset,
         "measures": _measures(stats, key_features),
         "categories": _categories(stats),
+        "derived_columns": _derived(stats),
         "correlations": _correlations(stats),
         "misleading_correlations": _misleading(stats),
         "group_differences": _groups(stats),

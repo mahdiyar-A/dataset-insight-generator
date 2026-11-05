@@ -148,7 +148,8 @@ def check_correlations(
     """
     pairs = [
         (c["col1"], c["col2"]) for c in correlations
-        if abs(c.get("correlation") or 0) >= MIN_PAIR_R and c.get("significant") and not c.get("nearDuplicate")
+        if abs(c.get("correlation") or 0) >= MIN_PAIR_R and c.get("significant")
+        and not c.get("nearDuplicate") and not c.get("arithmetic")
         and c["col1"] in df.columns and c["col2"] in df.columns
     ]
     if not pairs:
