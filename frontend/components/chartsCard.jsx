@@ -446,8 +446,9 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
               return (
                 <button key={i} onClick={() => setActive(i)}
                   style={{
-                    flex: 1, padding: "9px 4px", background: "transparent", border: "none",
-                    borderBottom: isActive ? `2px solid ${tabColor}` : "2px solid transparent",
+                    flex: 1, padding: "9px 4px", background: "transparent",
+                    borderWidth: "0 0 2px", borderStyle: "solid",
+                    borderColor: isActive ? tabColor : "transparent",
                     color: isActive ? tabColor : "#4b5563",
                     fontSize: "0.72rem", fontWeight: isActive ? 700 : 500,
                     cursor: "pointer", transition: "color 0.2s, border-color 0.2s",
