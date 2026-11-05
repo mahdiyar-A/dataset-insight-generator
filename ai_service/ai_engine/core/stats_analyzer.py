@@ -41,6 +41,7 @@ import pandas as pd
 from scipy import stats as scipy_stats
 
 from ai_engine.core.domain_stats import build_domain_analyses
+from ai_engine.core.confounding import check_correlations
 from ai_engine.core.profiler import adjusted_fences, key_columns
 from ai_engine.core.stat_tests import (
     association_strength,
@@ -670,6 +671,7 @@ def build_stats_summary(
 
     group_cats = _categories(sample, keys, MAX_GROUP_LEVELS)
     groups = _group_comparisons(sample, group_cats, measures)
+    correlation_checks = check_correlations(sample, pearson, group_cats)
     assoc = _categorical_associations(sample, _categories(sample, keys, MAX_ASSOCIATION_LEVELS))
     missing_patterns = _missingness_patterns(sample, group_cats, measures)
 
@@ -719,6 +721,7 @@ def build_stats_summary(
         anomalyScores=anomalies,
         domainAnalyses=domain_analyses,
         categoricalAssociations=assoc,
+        correlationChecks=correlation_checks,
         missingnessPatterns=missing_patterns,
         typeConversions=list(type_conversions or []),
         sampledRows=sampled_rows,

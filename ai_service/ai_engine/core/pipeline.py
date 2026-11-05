@@ -25,7 +25,7 @@ from ai_engine.quality.quality_checker   import check_data_quality
 from ai_engine.core.cleaner              import clean_dataset
 from ai_engine.core.stats_analyzer       import build_stats_summary
 from ai_engine.llm.groq_client           import detect_domain
-from ai_engine.core.confidence          import assess_confidence, validate_chart_instructions
+from ai_engine.core.confidence          import assess_confidence, split_misleading_scatters, validate_chart_instructions
 from ai_engine.llm.insight_agent         import generate_report, MAX_INSIGHTS, MIN_INSIGHTS, MAX_QUESTIONS
 from ai_engine.llm.stats_digest          import build_digest
 from ai_engine.charts.chart_generator    import generate_charts
@@ -319,6 +319,7 @@ def run_pipeline(
     print(f"[Pipeline] Phase 6 — statistical confidence check...", flush=True)
     llm_report.chartInstructions, chart_issues = validate_chart_instructions(
         llm_report.chartInstructions, list(df_work.columns))
+    split_misleading_scatters(llm_report.chartInstructions, stats)
     judge = assess_confidence(stats, chart_issues)
     llm_report.confidenceNote = judge.judge_statement
     print(f"[Pipeline] Phase 6 done. Confidence: {judge.confidence_score}/10 ({judge.confidence_level})", flush=True)

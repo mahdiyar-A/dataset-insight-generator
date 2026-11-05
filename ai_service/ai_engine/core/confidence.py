@@ -25,6 +25,7 @@ from __future__ import annotations
 
 from typing import Dict, Iterable, List, Optional, Tuple
 
+from ai_engine.core.confounding import misleading_pairs
 from ai_engine.models.models import ChartInstruction, JudgeResult, StatsSummary
 
 # Below this many rows no finding is more than anecdote.
@@ -78,6 +79,18 @@ def validate_chart_instructions(
     return kept, issues
 
 
+def split_misleading_scatters(charts: List[ChartInstruction], stats: StatsSummary) -> None:
+    """
+    A plain scatter of a misleading pair draws the very picture that misleads,
+    one rising line beside text saying otherwise. The writer is asked to split
+    it; this makes sure. Runs on validated charts, so column names are exact.
+    """
+    split_by = {frozenset((c["a"], c["b"])): c["by"] for c in stats.correlationChecks or []}
+    for chart in charts:
+        if chart.chartType == "scatter" and chart.yColumn and not chart.groupColumn:
+            chart.groupColumn = split_by.get(frozenset((chart.xColumn, chart.yColumn)))
+
+
 # ── Evidence ─────────────────────────────────────────────────────────────────
 
 def count_evidence(stats: StatsSummary) -> int:
@@ -88,7 +101,8 @@ def count_evidence(stats: StatsSummary) -> int:
       * a correlation pair at |r| >= 0.3 (Pearson or Spearman) that survives
         the false-discovery correction, unless the two columns are near-copies
         of each other (|r| >= 0.98 says they record the same thing, which is
-        redundancy, not a finding);
+        redundancy, not a finding) or the correlation does not hold inside
+        the groups of a category;
       * a group difference that is significant with a non-negligible effect;
       * a significant trend, a group effect of at least medium size, and a
         concentration well above an even split;
@@ -100,13 +114,15 @@ def count_evidence(stats: StatsSummary) -> int:
     their size alone.
     """
     pairs = set()
+    misleading = misleading_pairs(stats.correlationChecks)
     for item in list(stats.topCorrelations or []) + list(stats.spearmanCorrelations or []):
         r = item.get("correlation", item.get("spearman"))
         if r is None or abs(float(r)) < EVIDENCE_MIN_ABS_R:
             continue
-        if item.get("nearDuplicate") or item.get("significant") is False:
+        pair = frozenset((item.get("col1"), item.get("col2")))
+        if item.get("nearDuplicate") or item.get("significant") is False or pair in misleading:
             continue
-        pairs.add(frozenset((item.get("col1"), item.get("col2"))))
+        pairs.add(pair)
     evidence = len(pairs)
 
     evidence += sum(1 for g in (stats.groupComparisons or []) if g.get("significant"))
