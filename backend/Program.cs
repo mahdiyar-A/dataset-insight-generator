@@ -87,6 +87,13 @@ builder.Services.AddScoped<IUserProfileService,  UserProfileService>();
 builder.Services.AddScoped<IStripeService,       StripeService>();
 builder.Services.AddHttpClient<IPythonAiClient,  PythonAiClient>();
 builder.Services.AddScoped<AnalysisService>();
+builder.Services.AddScoped<UploadIntake>();
+
+// ── Chat allowances ───────────────────────────────────────────────────────────
+// Questions and report briefs run on the same free AI quotas as the report
+// writer. Limits live in config; the defaults are in ChatLimits.
+builder.Services.AddSingleton(builder.Configuration.GetSection("ChatLimits").Get<ChatLimits>() ?? new ChatLimits());
+builder.Services.AddSingleton(_ => new ChatQuota());
 
 // ── Analysis admission ────────────────────────────────────────────────────────
 // One gate for authenticated and guest analyses alike: they compete for the

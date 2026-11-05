@@ -26,9 +26,8 @@ public class AnalysisController : ControllerBase
     private readonly IUserRepository         _users;
     private readonly AnalysisService         _analysis;
     private readonly IEmailService           _email;
+    private readonly UploadIntake            _intake;
     private readonly ILogger<AnalysisController> _logger;
-
-    private static readonly string TempDir = Path.Combine(Path.GetTempPath(), "dig_uploads");
 
     public AnalysisController(
         IAnalysisRepository repo,
@@ -36,6 +35,7 @@ public class AnalysisController : ControllerBase
         IUserRepository     users,
         AnalysisService     analysis,
         IEmailService       email,
+        UploadIntake        intake,
         ILogger<AnalysisController> logger)
     {
         _repo     = repo;
@@ -43,8 +43,8 @@ public class AnalysisController : ControllerBase
         _users    = users;
         _analysis = analysis;
         _email    = email;
+        _intake   = intake;
         _logger   = logger;
-        Directory.CreateDirectory(TempDir);
     }
 
     private Guid UserId()
@@ -115,7 +115,8 @@ public class AnalysisController : ControllerBase
     }
 
     // ── POST /api/analyses/upload ─────────────────────────────────────────────
-    // Saves the CSV to the server temp folder.
+    // Saves the upload to the server temp folder, in any format FileFormats
+    // accepts, and returns how the AI service reads it (shape, headers, first rows).
     // The file is NOT in the DB yet — that only happens after the pipeline succeeds.
     [HttpPost("upload")]
     [RequestSizeLimit(52_428_800)]
@@ -126,13 +127,6 @@ public class AnalysisController : ControllerBase
     {
         if (file == null || file.Length == 0)
             return BadRequest(new { error = "NO_FILE" });
-
-        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-        if (ext != ".csv" && ext != ".xlsx")
-            return BadRequest(new { error = "INVALID_TYPE", message = "Only .csv and .xlsx files accepted." });
-
-        if (file.Length > 50 * 1024 * 1024)
-            return BadRequest(new { error = "TOO_LARGE", message = "Max 50 MB." });
 
         // Check if user has hit their 48h report quota (free users only)
         var userId = UserId();
@@ -156,31 +150,15 @@ public class AnalysisController : ControllerBase
             }
         }
 
-        var tempPath = Path.Combine(TempDir, $"{userId}{ext}");
-        using (var stream = System.IO.File.Create(tempPath))
-            await file.CopyToAsync(stream);
+        var outcome = await _intake.AcceptAsync(UploadStore.Users, userId, file, rows, columns);
+        if (!outcome.Accepted)
+            return BadRequest(new { error = outcome.Code, message = outcome.Message });
 
-        int rowCount = rows ?? 0, colCount = columns ?? 0;
-        if (!rows.HasValue || !columns.HasValue)
-        {
-            var lines = System.IO.File.ReadAllLines(tempPath)
-                .Where(l => !string.IsNullOrWhiteSpace(l)).ToArray();
-            rowCount = Math.Max(0, lines.Length - 1);
-            colCount = lines.Length > 0 ? lines[0].Split(',').Length : 0;
-        }
+        var summary = outcome.Summary!;
+        _logger.LogInformation("[Analysis] Temp upload — user {UserId}, {Name} ({Format}, {Rows}r × {Cols}c)",
+            userId, file.FileName, summary.Format ?? "unread", summary.Rows, summary.Columns);
 
-        _logger.LogInformation("[Analysis] Temp upload — user {UserId}, {Name} ({Rows}r × {Cols}c)",
-            userId, file.FileName, rowCount, colCount);
-
-        return Ok(new
-        {
-            fileName      = file.FileName,
-            fileSizeBytes = file.Length,
-            rowCount,
-            columnCount   = colCount,
-            status        = "pending",
-            isPending     = true,
-        });
+        return Ok(summary.ToResponse());
     }
 
     // ── GET /api/analyses/{id}/status ─────────────────────────────────────────
@@ -213,12 +191,9 @@ public class AnalysisController : ControllerBase
         await _storage.DeleteAnalysisFilesAsync(userId, id);
         await _repo.DeleteAsync(id, userId);
 
-        // Clean up temp file if it still exists
-        var tempCsv  = Path.Combine(TempDir, $"{userId}.csv");
-        var tempXlsx = Path.Combine(TempDir, $"{userId}.xlsx");
-        if (System.IO.File.Exists(tempCsv))  System.IO.File.Delete(tempCsv);
-        if (System.IO.File.Exists(tempXlsx)) System.IO.File.Delete(tempXlsx);
-
+        // The waiting upload is left alone. It belongs to the next analysis,
+        // not to this history entry: deleting it here meant that removing an
+        // old report also threw away a file the user had just uploaded.
         return NoContent();
     }
 
@@ -297,7 +272,7 @@ public class AnalysisController : ControllerBase
         var fileName = type switch
         {
             "original" => analysis.FileName,
-            "cleaned"  => $"cleaned_{analysis.FileName}",
+            "cleaned"  => FileFormats.CleanedFileName(analysis.FileName),
             "word"     => analysis.ReportFileName.Replace(".pdf", ".docx"),
             "pptx"     => analysis.ReportFileName.Replace(".pdf", ".pptx"),
             _          => analysis.ReportFileName,

@@ -6,12 +6,13 @@ namespace backend.Application.Interfaces;
 /// Path layout
 /// -----------
 ///   users/{userId}/profile.{ext}                       — account-level, one per user
-///   users/{userId}/analyses/{analysisId}/original.csv
+///   users/{userId}/analyses/{analysisId}/original.{ext}    — as uploaded: .csv, .xlsx, .parquet, ...
 ///   users/{userId}/analyses/{analysisId}/cleaned.csv
 ///   users/{userId}/analyses/{analysisId}/report.pdf
 ///   users/{userId}/analyses/{analysisId}/report.docx
 ///   users/{userId}/analyses/{analysisId}/report.pptx
 ///   users/{userId}/analyses/{analysisId}/chart_{n}.png
+///   users/{userId}/analyses/{analysisId}/chat_context.json — what the chat answers from
 ///
 /// Every analysis output is keyed by analysisId. It previously was not: the PDF,
 /// both CSVs and the charts all wrote to users/{userId}/report.pdf and friends,
@@ -29,12 +30,28 @@ public interface IStorageService
     Task<string> SaveProfilePictureAsync(Guid userId, IFormFile file);
 
     Task<string> SaveOriginalCsvAsync(Guid userId, Guid analysisId, IFormFile file);
-    Task<string> SaveOriginalCsvAsync(Guid userId, Guid analysisId, byte[] csvBytes);
+
+    /// <summary>
+    /// The upload as the user sent it. The stored name keeps the upload's
+    /// extension, so an Excel file downloads as Excel rather than as a ".csv"
+    /// full of binary.
+    /// </summary>
+    Task<string> SaveOriginalFileAsync(Guid userId, Guid analysisId, byte[] bytes, string fileName);
     Task<string> SaveCleanedCsvAsync(Guid userId, Guid analysisId, byte[] csvBytes);
     Task<string> SavePdfReportAsync(Guid userId, Guid analysisId, byte[] pdfBytes);
     Task<string> SaveWordReportAsync(Guid userId, Guid analysisId, byte[] docxBytes);
     Task<string> SavePptxReportAsync(Guid userId, Guid analysisId, byte[] pptxBytes);
     Task<string> SaveChartAsync(Guid userId, Guid analysisId, int index, byte[] pngBytes);
+
+    /// <summary>
+    /// The context the chat answers this analysis's questions from. There is
+    /// no column for it on the analysis row, so it lives at a fixed path, and
+    /// these two methods are the only code that knows it.
+    /// </summary>
+    Task SaveChatContextAsync(Guid userId, Guid analysisId, string json);
+
+    /// <returns>The stored JSON, or null for analyses run before the chat existed.</returns>
+    Task<string?> ReadChatContextAsync(Guid userId, Guid analysisId);
 
     /// <summary>
     /// Delete every file belonging to one analysis, leaving other analyses alone.

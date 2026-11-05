@@ -1,4 +1,5 @@
 using backend.Application.Interfaces;
+using backend.Application.Services;
 
 namespace backend.Infrastructure.Storage;
 
@@ -44,9 +45,15 @@ public class SupabaseStorageService : IStorageService
         return await UploadAsync(file, $"{AnalysisDir(userId, analysisId)}/original.csv");
     }
 
-    public async Task<string> SaveOriginalCsvAsync(Guid userId, Guid analysisId, byte[] csvBytes)
-        => await UploadBytesAsync(csvBytes,
-            $"{AnalysisDir(userId, analysisId)}/original.csv", "text/csv");
+    public async Task<string> SaveOriginalFileAsync(Guid userId, Guid analysisId, byte[] bytes, string fileName)
+    {
+        var ext = FileFormats.ExtensionOf(fileName) ?? ".csv";
+        // Only CSV gets a specific type. octet-stream is what the bucket is
+        // known to accept (see SavePdfReportAsync), and the extension in the
+        // stored name is what the download relies on anyway.
+        var contentType = ext == ".csv" ? "text/csv" : "application/octet-stream";
+        return await UploadBytesAsync(bytes, $"{AnalysisDir(userId, analysisId)}/original{ext}", contentType);
+    }
 
     public async Task<string> SaveCleanedCsvAsync(Guid userId, Guid analysisId, byte[] csvBytes)
         => await UploadBytesAsync(csvBytes,
@@ -71,6 +78,19 @@ public class SupabaseStorageService : IStorageService
         => await UploadBytesAsync(pngBytes,
             $"{AnalysisDir(userId, analysisId)}/chart_{index}.png", "image/png");
 
+    private static string ChatContextPath(Guid userId, Guid analysisId) =>
+        $"{AnalysisDir(userId, analysisId)}/chat_context.json";
+
+    public async Task SaveChatContextAsync(Guid userId, Guid analysisId, string json)
+        => await UploadBytesAsync(System.Text.Encoding.UTF8.GetBytes(json),
+            ChatContextPath(userId, analysisId), "application/octet-stream");
+
+    public async Task<string?> ReadChatContextAsync(Guid userId, Guid analysisId)
+    {
+        var bytes = await DownloadAsync(ChatContextPath(userId, analysisId));
+        return bytes is { Length: > 0 } ? System.Text.Encoding.UTF8.GetString(bytes) : null;
+    }
+
     // ── Deletion ─────────────────────────────────────────────────────────────
 
     public async Task DeleteAnalysisFilesAsync(Guid userId, Guid analysisId)
@@ -78,15 +98,20 @@ public class SupabaseStorageService : IStorageService
         // Scoped to this analysis's directory. The previous version listed
         // users/{userId}/report.pdf and friends, so deleting one analysis wiped
         // the PDF, CSVs and charts shared by every other analysis the user had.
+        //
+        // Every name an analysis can have written, rather than a listing of
+        // the directory: the original keeps its upload's extension, so it is
+        // one of ~30 names, and removing a name that does not exist is free.
         var dir = AnalysisDir(userId, analysisId);
         var paths = new List<string>
         {
-            $"{dir}/original.csv",
             $"{dir}/cleaned.csv",
             $"{dir}/report.pdf",
             $"{dir}/report.docx",
             $"{dir}/report.pptx",
+            $"{dir}/chat_context.json",
         };
+        paths.AddRange(FileFormats.Extensions.Select(ext => $"{dir}/original{ext}"));
         for (var i = 0; i < MaxCharts; i++) paths.Add($"{dir}/chart_{i}.png");
 
         try

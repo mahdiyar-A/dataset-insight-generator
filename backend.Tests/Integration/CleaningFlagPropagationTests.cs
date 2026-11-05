@@ -165,6 +165,12 @@ public class CleaningFlagPropagationTests
         {"language":"fr","tone":"technical","insightsCount":7,"audience":"executive"}
         """;
 
+        // Customization is a Pro feature: a free user's is ignored on purpose.
+        _users.DefaultUser = backend.Domain.Entities.User.Restore(
+            _userId, "pro-user", "pro@example.com", "supabase-auth",
+            null, null, true, true, DateTime.UtcNow.AddDays(-10), null,
+            plan: "pro", reportsUsed: 0, reportsResetAt: DateTime.UtcNow);
+
         await _service.RunAsync(
             _userId, "data.csv", 1024, 100, 5,
             userWantsCleaning: true, userConfirmedLow: true,

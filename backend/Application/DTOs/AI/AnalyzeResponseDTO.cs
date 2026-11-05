@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace backend.Application.DTOs.AI;
@@ -40,6 +41,12 @@ public class AnalyzeResponseDto
     // job, and dropping it here is what made cost-per-analysis unanswerable.
     [JsonPropertyName("usage")]
     public UsageDto? Usage { get; set; }
+
+    // What the chat answers questions from: the statistics digest the report
+    // was written from, the report's text and the columns. Stored next to the
+    // report and sent back to /ask unchanged; this side never reads inside it.
+    [JsonPropertyName("chat_context")]
+    public JsonElement? ChatContext { get; set; }
 }
 
 public class UsageDto

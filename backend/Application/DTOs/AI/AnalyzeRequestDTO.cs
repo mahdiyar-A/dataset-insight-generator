@@ -19,7 +19,7 @@ public class AnalyzeRequestDto
     // ── Standard customization ────────────────────────────────────────────────
     public string Language      { get; set; } = "en";             // en|fr|es|de|zh|ar|pt|fa
     public string Tone          { get; set; } = "professional";   // professional|technical|casual|storytelling|academic|simplified
-    public int    InsightsCount { get; set; } = 5;                // 3|5|7
+    public int    InsightsCount { get; set; } = 5;                // 1-10 (the panel offers 3|5|7)
     public string Occasion      { get; set; } = "general";        // general|investor|academic|internal|client
 
     // ── Deep customization ────────────────────────────────────────────────────
@@ -31,6 +31,12 @@ public class AnalyzeRequestDto
     public string ChartStyle         { get; set; } = "mixed";     // mixed|bar-heavy|trend|distribution|comparison
     public bool   IncludeMethodology { get; set; } = true;
     public bool   IncludeConfidence  { get; set; } = true;
+
+    // ── The brief: what the user wants said, from the panel or the chat ───────
+    public string Assumptions        { get; set; } = "";          // free text taken as given
+    public string Avoid              { get; set; } = "";          // free text: what to leave out
+    public string QuestionsJson      { get; set; } = "";          // JSON [{"question","note"}], at most 5
+    public string WritingFormat      { get; set; } = "narrative"; // narrative|bullets|mixed
 
     // ── Output format ─────────────────────────────────────────────────────────
     public bool   WantWord      { get; set; } = false;

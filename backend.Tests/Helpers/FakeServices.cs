@@ -270,8 +270,29 @@ public class FakeStorageService : IStorageService
     public Task<string> SaveOriginalCsvAsync(Guid userId, Guid analysisId, IFormFile file) =>
         Record($"{Dir(userId, analysisId)}/original.csv");
 
-    public Task<string> SaveOriginalCsvAsync(Guid userId, Guid analysisId, byte[] csvBytes) =>
-        Record($"{Dir(userId, analysisId)}/original.csv");
+    public async Task<string> SaveOriginalFileAsync(Guid userId, Guid analysisId, byte[] bytes, string fileName)
+    {
+        // Same rule as the real service: the stored name keeps the upload's
+        // extension. Bytes are kept so a question can read the file back.
+        var ext  = backend.Application.Services.FileFormats.ExtensionOf(fileName) ?? ".csv";
+        var path = await Record($"{Dir(userId, analysisId)}/original{ext}");
+        Files[path] = bytes;
+        return path;
+    }
+
+    private static string ChatContextPath(Guid userId, Guid analysisId) =>
+        $"{Dir(userId, analysisId)}/chat_context.json";
+
+    public async Task SaveChatContextAsync(Guid userId, Guid analysisId, string json)
+    {
+        var path = await Record(ChatContextPath(userId, analysisId));
+        Files[path] = System.Text.Encoding.UTF8.GetBytes(json);
+    }
+
+    public Task<string?> ReadChatContextAsync(Guid userId, Guid analysisId) =>
+        Task.FromResult(Files.TryGetValue(ChatContextPath(userId, analysisId), out var bytes)
+            ? System.Text.Encoding.UTF8.GetString(bytes)
+            : null);
 
     public Task<string> SaveCleanedCsvAsync(Guid userId, Guid analysisId, byte[] csvBytes) =>
         Record($"{Dir(userId, analysisId)}/cleaned.csv");
@@ -376,9 +397,77 @@ public class FakePythonAiClient : IPythonAiClient
     /// </summary>
     public string? UsageJson { get; set; }
 
+    /// <summary>Raw JSON for the response's "chat_context", or null to omit it (an older image).</summary>
+    public string? ChatContextJson { get; set; }
+
+    /// <summary>Set to what /check says is wrong with the file, for a not_workable condition.</summary>
+    public string? CheckError { get; set; }
+
+    /// <summary>File names handed to /check, in order.</summary>
+    public List<string> CheckedFileNames { get; } = new();
+
+    /// <summary>What /inspect answers. The default reads the file as a small table.</summary>
+    public string InspectJson { get; set; } = """
+    {
+      "ok": true, "format": "parquet", "formatLabel": "Parquet", "rows": 1200, "columns": 3,
+      "headers": ["date", "region", "revenue"],
+      "preview": [["2024-01-01", "North", "10.5"]],
+      "columnKinds": [{"name": "date", "kind": "date"}, {"name": "region", "kind": "text"}, {"name": "revenue", "kind": "number"}],
+      "detail": "", "notes": ["Read 1,200 rows."]
+    }
+    """;
+
+    /// <summary>Set to true to make /inspect, /brief and /ask throw, as when the AI service is down.</summary>
+    public bool SimulateDown { get; set; } = false;
+
+    /// <summary>File names handed to /inspect, in order.</summary>
+    public List<string> InspectedFileNames { get; } = new();
+
+    public string BriefJson { get; set; } = """
+    {"settings": {"tone": "casual", "insightsCount": 3}, "summary": "Short and casual.", "notPossible": [], "source": "model"}
+    """;
+
+    public record BriefCall(string Text, IReadOnlyList<string> Columns, string UiLanguage);
+
+    public List<BriefCall> BriefCalls { get; } = new();
+
+    public string AskJson { get; set; } = """
+    {"answer": "South leads with 42%.", "refused": false, "queries": [], "unverifiedNumbers": [],
+     "model": "Stub", "grounding": "analysis", "usage": {"total_cost_usd": 0}}
+    """;
+
+    public record AskCall(string Question, string ContextJson, string HistoryJson, string UiLanguage,
+                          byte[]? FileBytes, string? FileName);
+
+    public List<AskCall> AskCalls { get; } = new();
+
+    public Task<string> InspectAsync(byte[] fileBytes, string fileName)
+    {
+        InspectedFileNames.Add(fileName);
+        if (SimulateDown) throw new HttpRequestException("Simulated: AI service unreachable");
+        return Task.FromResult(InspectJson);
+    }
+
+    public Task<string> BriefAsync(string text, IReadOnlyList<string> columns, string uiLanguage)
+    {
+        BriefCalls.Add(new BriefCall(text, columns, uiLanguage));
+        if (SimulateDown) throw new TimeoutException("Simulated: /brief timed out");
+        return Task.FromResult(BriefJson);
+    }
+
+    public Task<string> AskAsync(string question, string contextJson, string historyJson, string uiLanguage,
+                                 byte[]? fileBytes, string? fileName)
+    {
+        AskCalls.Add(new AskCall(question, contextJson, historyJson, uiLanguage, fileBytes, fileName));
+        if (SimulateDown) throw new TimeoutException("Simulated: /ask timed out");
+        return Task.FromResult(AskJson);
+    }
+
     public Task<string> CheckQualityAsync(byte[] csvBytes, string fileName, Guid sessionId)
     {
-        var json = $"{{\"condition\":\"{CheckCondition}\",\"error\":null}}";
+        CheckedFileNames.Add(fileName);
+        var error = CheckError is null ? "null" : System.Text.Json.JsonSerializer.Serialize(CheckError);
+        var json  = $"{{\"condition\":\"{CheckCondition}\",\"error\":{error}}}";
         return Task.FromResult(json);
     }
 
@@ -405,6 +494,7 @@ public class FakePythonAiClient : IPythonAiClient
           "charts": [{{charts}}],
           "confidence_score": 8,
           "usage": {{UsageJson ?? "null"}},
+          "chat_context": {{ChatContextJson ?? "null"}},
           "error": null
         }
         """);

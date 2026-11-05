@@ -1,4 +1,5 @@
 using backend.Application.Interfaces;
+using backend.Application.Services;
 using backend.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,23 +17,23 @@ public class DatasetsController : ControllerBase
     private readonly IStorageService         _storage;
     private readonly IUserRepository         _users;
     private readonly IEmailService           _email;
+    private readonly UploadIntake            _intake;
     private readonly ILogger<DatasetsController> _logger;
-
-    private static readonly string TempDir = Path.Combine(Path.GetTempPath(), "dig_uploads");
 
     public DatasetsController(
         IDatasetRepository datasets,
         IStorageService storage,
         IUserRepository users,
         IEmailService email,
+        UploadIntake intake,
         ILogger<DatasetsController> logger)
     {
         _datasets = datasets;
         _storage  = storage;
         _users    = users;
         _email    = email;
+        _intake   = intake;
         _logger   = logger;
-        Directory.CreateDirectory(TempDir);
     }
 
     private Guid GetUserId()
@@ -44,7 +45,7 @@ public class DatasetsController : ControllerBase
     }
 
     // POST /api/datasets/upload
-    // Saves CSV to server temp folder ONLY — nothing goes to Supabase until analysis succeeds
+    // Saves the upload to server temp folder ONLY — nothing goes to Supabase until analysis succeeds
     [HttpPost("upload")]
     [RequestSizeLimit(52_428_800)]
     public async Task<IActionResult> Upload(
@@ -54,46 +55,18 @@ public class DatasetsController : ControllerBase
     {
         _logger.LogInformation("[Upload] Incoming file: {Name} ({Size} bytes)", file?.FileName, file?.Length);
 
-        if (file == null || file.Length == 0)
-            return BadRequest(new { error = "NO_FILE", message = "No file provided." });
+        var userId  = GetUserId();
+        var outcome = await _intake.AcceptAsync(UploadStore.Users, userId, file, rows, columns);
+        if (!outcome.Accepted)
+            return BadRequest(new { error = outcome.Code, message = outcome.Message });
 
-        if (Path.GetExtension(file.FileName).ToLowerInvariant() != ".csv")
-            return BadRequest(new { error = "INVALID_TYPE", message = "Only .csv files are accepted." });
-
-        if (file.Length > 50 * 1024 * 1024)
-            return BadRequest(new { error = "TOO_LARGE", message = "File exceeds 50 MB limit." });
-
-        var userId   = GetUserId();
-        _logger.LogInformation("[Upload] User {UserId} uploading {Name} ({SizeMB:0.##} MB)", userId, file.FileName, file.Length / 1_048_576.0);
-        var tempPath = Path.Combine(TempDir, $"{userId}.csv");
-
-        using (var stream = System.IO.File.Create(tempPath))
-            await file.CopyToAsync(stream);
-
-        int rowCount    = rows    ?? 0;
-        int columnCount = columns ?? 0;
-
-        if (!rows.HasValue || !columns.HasValue)
-        {
-            var lines   = System.IO.File.ReadAllLines(tempPath)
-                              .Where(l => !string.IsNullOrWhiteSpace(l)).ToArray();
-            rowCount    = Math.Max(0, lines.Length - 1);
-            columnCount = lines.Length > 0 ? lines[0].Split(',').Length : 0;
-        }
-
-        _logger.LogInformation("[Upload] ✓ Saved to temp — rows={Rows}, cols={Cols}", rowCount, columnCount);
-        return Ok(new
-        {
-            fileName      = file.FileName,
-            fileSizeBytes = file.Length,
-            rowCount,
-            columnCount,
-            status        = "pending",
-            uploadedAt    = DateTime.UtcNow,
-            hasCleanedCsv = false,
-            hasPdfReport  = false,
-            isPending     = true,
-        });
+        var body = outcome.Summary!.ToResponse();
+        body["uploadedAt"]    = DateTime.UtcNow;
+        body["hasCleanedCsv"] = false;
+        body["hasPdfReport"]  = false;
+        _logger.LogInformation("[Upload] ✓ Saved to temp — rows={Rows}, cols={Cols}",
+            outcome.Summary.Rows, outcome.Summary.Columns);
+        return Ok(body);
     }
 
     // GET /api/datasets/current — only returns data that's been through analysis
@@ -145,9 +118,8 @@ public class DatasetsController : ControllerBase
     [HttpGet("temp/exists")]
     public IActionResult TempExists()
     {
-        var userId   = GetUserId();
-        var tempPath = Path.Combine(TempDir, $"{userId}.csv");
-        return Ok(new { exists = System.IO.File.Exists(tempPath) });
+        var userId = GetUserId();
+        return Ok(new { exists = UploadStore.Users.Find(userId) != null });
     }
 
     // GET /api/datasets/download/original
@@ -171,7 +143,7 @@ public class DatasetsController : ControllerBase
         if (dataset.CleanedCsvPath == null)
             return NotFound(new { error = "NOT_READY", message = "Cleaned CSV not ready yet." });
         var url = await _storage.GetSignedUrlAsync(dataset.CleanedCsvPath, 3600);
-        return Ok(new { url, fileName = $"cleaned_{dataset.FileName}" });
+        return Ok(new { url, fileName = FileFormats.CleanedFileName(dataset.FileName) });
     }
 
     // GET /api/datasets/download/report
@@ -191,11 +163,10 @@ public class DatasetsController : ControllerBase
     [HttpDelete("current")]
     public async Task<IActionResult> DeleteCurrent()
     {
-        var userId   = GetUserId();
-        var tempPath = Path.Combine(TempDir, $"{userId}.csv");
+        var userId = GetUserId();
 
         // Always clean temp file
-        if (System.IO.File.Exists(tempPath)) System.IO.File.Delete(tempPath);
+        UploadStore.Users.Delete(userId);
 
         var dataset = await _datasets.GetByUserIdAsync(userId);
         if (dataset == null) return NotFound(new { error = "NO_DATASET" });

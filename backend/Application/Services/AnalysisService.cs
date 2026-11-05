@@ -9,11 +9,12 @@ namespace backend.Application.Services;
 /// Orchestrates the full analysis pipeline for authenticated users.
 ///
 /// Flow:
-///   1. Read the temp CSV the user uploaded earlier
+///   1. Read the file the user uploaded earlier (any format in FileFormats)
 ///   2. Create an Analysis row (pending) so the frontend can poll status immediately
 ///   3. Store any Pro customization JSON on the Analysis entity
 ///   4. Send the file + customization to the Python AI service (8-phase pipeline)
-///   5. Save all outputs (original CSV, cleaned CSV, PDF, Word, PPTX, charts) to Supabase Storage
+///   5. Save all outputs (original file, cleaned CSV, PDF, Word, PPTX, charts,
+///      chat context) to Supabase Storage
 ///   6. Update the Analysis row with final status + storage paths
 ///
 /// TryStartAsync() admits the run through AnalysisGate, then fires-and-forgets so
@@ -32,8 +33,8 @@ public class AnalysisService
     private readonly AnalysisGate             _gate;
     private readonly ILogger<AnalysisService> _logger;
 
-    // Same temp directory as DatasetsController — files land here on upload
-    private static readonly string TempDir = Path.Combine(Path.GetTempPath(), "dig_uploads");
+    // Where uploads wait until their analysis runs. See UploadStore.
+    private static UploadStore Uploads => UploadStore.Users;
 
     public AnalysisService(
         IAnalysisRepository      analyses,
@@ -135,7 +136,6 @@ public class AnalysisService
         string? customizationJson  = null)
     {
         _logger.LogInformation("[Analysis] Starting for user {UserId}", userId);
-        var tempPath = Path.Combine(TempDir, $"{userId}.csv");
 
         // analysisId is set once the DB row is created; used for all subsequent updates
         Guid? analysisId = null;
@@ -143,11 +143,28 @@ public class AnalysisService
         try
         {
             // ── Step 1: Make sure the temp file is there ──────────────────────
-            if (!File.Exists(tempPath))
+            var tempPath = Uploads.Find(userId);
+            if (tempPath == null)
             {
                 _logger.LogError("[Analysis] Temp file missing for user {UserId}", userId);
                 return;  // nothing to set failed — no DB row yet
             }
+
+            // The browser cannot count rows in Excel or Parquet; the upload's
+            // own reading of the file can.
+            var uploaded = Uploads.ReadMeta(userId);
+            if (rowCount <= 0 && uploaded != null)
+            {
+                rowCount    = uploaded.Rows;
+                columnCount = uploaded.Columns;
+            }
+
+            // Report customization is a Pro feature. The panel is locked for
+            // free users, and the server now agrees: a request crafted to send
+            // customization anyway (Word and PowerPoint included) is ignored.
+            var user = await _users.GetByIdAsync(userId);
+            if (user?.Plan is not ("pro" or "admin"))
+                customizationJson = null;
 
             // ── Step 2: Create a DB placeholder so the frontend can poll status ─
             var analysis = new Analysis(userId, fileName, fileSizeBytes);
@@ -173,6 +190,9 @@ public class AnalysisService
             // ── Step 4: Call the Python AI pipeline ───────────────────────────
             var csvBytes = await File.ReadAllBytesAsync(tempPath);
             request.CsvFileBytes = csvBytes;
+            // The upload's own name is the better hint for the AI service's
+            // reader ("sales.parquet"), in case the client sent a generic one.
+            request.CsvFileName = uploaded?.FileName ?? fileName;
             _logger.LogInformation("[Analysis] Sending to Python AI, analysisId={Id}", analysisId);
 
             var rawJson = await _pythonAi.CallPythonAiAsync(request);
@@ -197,9 +217,12 @@ public class AnalysisService
                 return;
             }
 
-            // ── Step 5a: Save original CSV ────────────────────────────────────
-            var originalCsvPath = await _storage.SaveOriginalCsvAsync(userId, analysisId.Value, csvBytes);
-            await _analyses.UpdateOriginalCsvPathAsync(analysisId.Value, originalCsvPath);
+            // ── Step 5a: Save the original upload, in its own format ──────────
+            // The extension comes from the stored upload, which was checked
+            // against FileFormats when it arrived.
+            var originalPath = await _storage.SaveOriginalFileAsync(
+                userId, analysisId.Value, csvBytes, Path.GetFileName(tempPath));
+            await _analyses.UpdateOriginalCsvPathAsync(analysisId.Value, originalPath);
 
             // ── Step 5b: Save cleaned CSV (only if user requested cleaning) ────
             string? cleanedCsvPath = null;
@@ -315,6 +338,21 @@ public class AnalysisService
                 }
             }
 
+            // ── Step 5h: Save what the chat answers from ──────────────────────
+            // Best-effort, like usage: without it the report is still complete,
+            // only questions about it are unavailable.
+            if (result.ChatContext is { ValueKind: JsonValueKind.Object } chatContext)
+            {
+                try
+                {
+                    await _storage.SaveChatContextAsync(userId, analysisId.Value, chatContext.GetRawText());
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[Analysis] Failed to save chat context for {Id} — continuing", analysisId);
+                }
+            }
+
             // ── Step 6: Mark analysis done in DB ─────────────────────────────
             await _analyses.UpdateChartUrlsAsync(analysisId.Value, JsonSerializer.Serialize(chartMeta));
             await _analyses.UpdateStatusAsync(
@@ -325,7 +363,7 @@ public class AnalysisService
                 pptxPath:        pptxPath);
 
             // Clean up temp file now everything is safely in Supabase Storage
-            File.Delete(tempPath);
+            Uploads.Delete(userId);
             _logger.LogInformation("[Analysis] Complete for user {UserId}, analysisId={Id}", userId, analysisId);
 
             // Counts toward the free plan's allowance. Only a completed analysis
@@ -439,48 +477,104 @@ public class AnalysisService
         if (string.IsNullOrWhiteSpace(customizationJson))
             return req;
 
+        JsonElement cust;
         try
         {
-            var cust = JsonSerializer.Deserialize<JsonElement>(customizationJson);
-
-            // Standard
-            req.Language      = cust.TryGetProperty("language",      out var l)  ? l.GetString()  ?? "en"            : "en";
-            req.Tone          = cust.TryGetProperty("tone",          out var t)  ? t.GetString()  ?? "professional"   : "professional";
-            req.InsightsCount = cust.TryGetProperty("insightsCount", out var ic) ? ic.GetInt32()                      : 5;
-            req.Occasion      = cust.TryGetProperty("occasion",      out var oc) ? oc.GetString() ?? "general"        : "general";
-
-            // Deep customization
-            req.Audience    = cust.TryGetProperty("audience",    out var au) ? au.GetString() ?? "general"   : "general";
-            req.Depth       = cust.TryGetProperty("depth",       out var dp) ? dp.GetString() ?? "standard"  : "standard";
-            req.FocusOn     = cust.TryGetProperty("focusOn",     out var fo) ? fo.GetString() ?? ""           : "";
-            req.Comparisons = cust.TryGetProperty("comparisons", out var cp) ? cp.GetString() ?? ""           : "";
-            req.ChartStyle  = cust.TryGetProperty("chartStyle",  out var cs) ? cs.GetString() ?? "mixed"      : "mixed";
-
-            req.IncludeMethodology = !cust.TryGetProperty("includeMethodology", out var im) || im.GetBoolean();
-            req.IncludeConfidence  = !cust.TryGetProperty("includeConfidence",  out var iconf) || iconf.GetBoolean();
-
-            // mustMention — stored as JSON array, forwarded as comma-separated string
-            if (cust.TryGetProperty("mustMention", out var mm))
-            {
-                if (mm.ValueKind == JsonValueKind.Array)
-                    req.MustMention = string.Join(",", mm.EnumerateArray().Select(x => x.GetString() ?? ""));
-                else if (mm.ValueKind == JsonValueKind.String)
-                    req.MustMention = mm.GetString() ?? "";
-            }
-
-            // Output formats
-            if (cust.TryGetProperty("outputFormat", out var fmt))
-            {
-                req.WantWord = fmt.TryGetProperty("word", out var w) && w.GetBoolean();
-                req.WantPptx = fmt.TryGetProperty("pptx", out var p) && p.GetBoolean();
-            }
+            cust = JsonSerializer.Deserialize<JsonElement>(customizationJson);
         }
-        catch (Exception)
+        catch (JsonException)
         {
-            // Malformed customization JSON — use defaults, never abort the pipeline
+            return req;  // Malformed customization JSON — use defaults, never abort the pipeline
+        }
+        if (cust.ValueKind != JsonValueKind.Object)
+            return req;
+
+        // Each setting is read on its own. They used to be read in one try
+        // block, so a single odd value ("insightsCount": "7", or a null
+        // outputFormat) threw and silently reset every other setting too.
+        // Values are passed on as given: the AI service checks each against
+        // its allowed choices and cleans the free text.
+
+        // Standard
+        req.Language      = Str(cust, "language") ?? req.Language;
+        req.Tone          = Str(cust, "tone")     ?? req.Tone;
+        req.InsightsCount = Math.Clamp(Int(cust, "insightsCount") ?? req.InsightsCount, 1, 10);
+        req.Occasion      = Str(cust, "occasion") ?? req.Occasion;
+
+        // Deep customization
+        req.Audience    = Str(cust, "audience")    ?? req.Audience;
+        req.Depth       = Str(cust, "depth")       ?? req.Depth;
+        req.FocusOn     = Str(cust, "focusOn")     ?? "";
+        req.Comparisons = Str(cust, "comparisons") ?? "";
+        req.ChartStyle  = Str(cust, "chartStyle")  ?? req.ChartStyle;
+
+        req.IncludeMethodology = Bool(cust, "includeMethodology") ?? true;
+        req.IncludeConfidence  = Bool(cust, "includeConfidence")  ?? true;
+
+        // mustMention — stored as JSON array, forwarded as comma-separated string
+        if (cust.TryGetProperty("mustMention", out var mm))
+        {
+            if (mm.ValueKind == JsonValueKind.Array)
+                req.MustMention = string.Join(",", mm.EnumerateArray()
+                    .Where(x => x.ValueKind == JsonValueKind.String).Select(x => x.GetString()));
+            else if (mm.ValueKind == JsonValueKind.String)
+                req.MustMention = mm.GetString() ?? "";
+        }
+
+        // The brief
+        req.Assumptions   = Str(cust, "assumptions") ?? "";
+        req.Avoid         = Str(cust, "avoid")       ?? "";
+        var writing = Str(cust, "writingFormat");
+        req.WritingFormat = writing is "bullets" or "mixed" ? writing : "narrative";
+        req.QuestionsJson = QuestionsJson(cust);
+
+        // Output formats
+        if (cust.TryGetProperty("outputFormat", out var fmt) && fmt.ValueKind == JsonValueKind.Object)
+        {
+            req.WantWord = Bool(fmt, "word") ?? false;
+            req.WantPptx = Bool(fmt, "pptx") ?? false;
         }
 
         return req;
+    }
+
+    /// <summary>The questions the report should answer, as the AI service's questions_json.</summary>
+    private static string QuestionsJson(JsonElement cust)
+    {
+        if (!cust.TryGetProperty("questions", out var qs) || qs.ValueKind != JsonValueKind.Array)
+            return "";
+
+        var list = new List<Dictionary<string, string>>();
+        foreach (var q in qs.EnumerateArray())
+        {
+            string? question = null, note = null;
+            if (q.ValueKind == JsonValueKind.String)
+                question = q.GetString();
+            else if (q.ValueKind == JsonValueKind.Object)
+                (question, note) = (Str(q, "question"), Str(q, "note"));
+            if (string.IsNullOrWhiteSpace(question)) continue;
+            list.Add(new() { ["question"] = question.Trim(), ["note"] = note?.Trim() ?? "" });
+            if (list.Count == 5) break;  // the AI service answers at most five
+        }
+        return list.Count == 0 ? "" : JsonSerializer.Serialize(list);
+    }
+
+    private static string? Str(JsonElement e, string name) =>
+        e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+
+    private static bool? Bool(JsonElement e, string name) =>
+        e.TryGetProperty(name, out var v) && v.ValueKind is JsonValueKind.True or JsonValueKind.False
+            ? v.GetBoolean()
+            : null;
+
+    private static int? Int(JsonElement e, string name)
+    {
+        if (!e.TryGetProperty(name, out var v)) return null;
+        if (v.ValueKind == JsonValueKind.Number && v.TryGetDouble(out var d) && double.IsFinite(d))
+            return (int)Math.Clamp(Math.Round(d), int.MinValue, int.MaxValue);
+        if (v.ValueKind == JsonValueKind.String && int.TryParse(v.GetString(), out var n))
+            return n;
+        return null;
     }
 
     /// <summary>
