@@ -6,6 +6,7 @@ import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
 import { useSettings } from "@/app/contexts/SettingsContext";
 import ChatCustomizationPanel from "@/components/ChatCustomizationPanel";
+import AnalysisQA from "@/components/AnalysisQA";
 
 /*
   4 dataset conditions returned by backend:
@@ -48,7 +49,7 @@ const T = {
     idleTitle: "Ready to analyse",
     idleDesc: (fileName) => fileName
       ? <>Press <strong style={{ color:"#bfdbfe" }}>Start</strong> to begin the analysis pipeline.</>
-      : "Upload a CSV above first, then start the analysis.",
+      : "Upload a data file above first, then start the analysis.",
     start: "Start",
     cancel: "Cancel",
     yes: "Yes",
@@ -65,7 +66,7 @@ const T = {
     idleTitle: "Prêt à analyser",
     idleDesc: (fileName) => fileName
       ? <>Appuyez sur <strong style={{ color:"#bfdbfe" }}>Démarrer</strong> pour lancer l&apos;analyse.</>
-      : "Importez d'abord un CSV, puis démarrez l'analyse.",
+      : "Importez d'abord un fichier de données, puis démarrez l'analyse.",
     start: "Démarrer",
     cancel: "Annuler",
     yes: "Oui",
@@ -82,7 +83,7 @@ const T = {
     idleTitle: "آماده برای تحلیل",
     idleDesc: (fileName) => fileName
       ? <><strong style={{ color:"#bfdbfe" }}>شروع</strong> را فشار دهید تا تحلیل آغاز شود.</>
-      : "ابتدا یک فایل CSV آپلود کنید، سپس تحلیل را شروع کنید.",
+      : "ابتدا یک فایل داده آپلود کنید، سپس تحلیل را شروع کنید.",
     start: "شروع",
     cancel: "لغو",
     yes: "بله",
@@ -104,12 +105,18 @@ const T = {
  *   guestMode?: boolean,
  *   guestSessionId?: string | null,
  *   plan?: string,
+ *   settings?: object | null,
+ *   onSettingsChange?: (settings: object) => void,
  * }} props
+ *
+ * settings live in the dashboard, not here: this card remounts on every upload,
+ * and a brief written before the file went in has to survive that.
  */
 export default function AnalysisAssistantCard({
   dataset, reportReady, onViewReport, onAnalysisStarted,
   guestMode = false, guestSessionId = null,
   plan = "free",
+  settings = null, onSettingsChange,
 }) {
   const { token } = useAuth();
   const { lang } = useSettings();
@@ -123,7 +130,6 @@ export default function AnalysisAssistantCard({
   const [sending,          setSending]          = useState(false);
   const [condition,        setCondition]        = useState(null);
   const [sessionId,        setSessionId]        = useState(null);
-  const [customization,    setCustomization]    = useState(null); // pro: report options
 
   const bottomRef = useRef(null);
   const timerRef  = useRef(null);
@@ -159,7 +165,7 @@ export default function AnalysisAssistantCard({
         pendingCondition: pendingCondition,
         analysisId:       dataset?.id ?? null,
         // Pro users: attach their report customization options
-        customization:    isPro ? customization : null,
+        customization:    isPro ? settings : null,
       };
 
       let res;
@@ -371,7 +377,8 @@ export default function AnalysisAssistantCard({
           {!guestMode && (
             <ChatCustomizationPanel
               isPro={isPro}
-              onChange={setCustomization}
+              value={settings}
+              onChange={onSettingsChange}
               onUpgrade={() => { if (typeof window !== "undefined") window.location.href = "/plans"; }}
             />
           )}
@@ -437,6 +444,8 @@ export default function AnalysisAssistantCard({
             </svg>
             {t.goReport}
           </button>
+
+          {!guestMode && dataset?.id && <AnalysisQA analysisId={dataset.id} plan={plan} />}
         </>
       )}
 

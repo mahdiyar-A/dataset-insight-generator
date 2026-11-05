@@ -37,16 +37,16 @@ export const metadata: Metadata = {
   // duplicates competing with each other.
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Dataset Insight Generator — turn a CSV into a written analysis",
+    default: "Dataset Insight Generator — turn a data file into a written analysis",
     template: "%s · Dataset Insight Generator",
   },
   // A page with no description leaves Google to invent the snippet from
   // whatever text it finds first.
   description:
-    "Upload a CSV or Excel file and get back a written analysis: data quality "
-    + "checks, optional cleaning, charts and a PDF report. No formulas, no setup.",
+    "Upload a CSV, Excel, JSON, Parquet or SPSS file and get back a written analysis: "
+    + "data quality checks, optional cleaning, charts and a PDF report. No formulas, no setup.",
   keywords: [
-    "dataset analysis", "CSV analysis", "automated data report",
+    "dataset analysis", "CSV analysis", "Excel analysis", "automated data report",
     "data cleaning", "AI data insights", "PDF data report",
   ],
   alternates: { canonical: "/" },
@@ -56,13 +56,13 @@ export const metadata: Metadata = {
     url: SITE_URL,
     title: "Turn a spreadsheet into a written analysis",
     description:
-      "Data quality checks, cleaning you approve, charts and a PDF report — from one CSV.",
+      "Data quality checks, cleaning you approve, charts and a PDF report — from one data file.",
   },
   twitter: {
     card: "summary_large_image",
     title: "Turn a spreadsheet into a written analysis",
     description:
-      "Data quality checks, cleaning you approve, charts and a PDF report — from one CSV.",
+      "Data quality checks, cleaning you approve, charts and a PDF report — from one data file.",
   },
   icons: {
     icon: "/DIG_Icon.png",

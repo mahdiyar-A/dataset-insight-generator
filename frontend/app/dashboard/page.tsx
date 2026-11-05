@@ -126,6 +126,10 @@ export default function DashboardPage() {
   const [reportReady,    setReportReady]    = useState(false);
   const [hasPdfReport,   setHasPdfReport]   = useState(false);
 
+  // Pro report settings. Held here because the assistant card remounts on each
+  // upload, and a brief written before the file went in must survive that.
+  const [reportSettings, setReportSettings] = useState<object | null>(null);
+
   // History list (loaded once on mount)
   const [history,        setHistory]        = useState<Analysis[]>([]);
 
@@ -185,6 +189,16 @@ export default function DashboardPage() {
     setHasPdfReport(false);
     setAnalysisKey(k => k + 1);
   }, []);
+
+  // ── Upload refused ──────────────────────────────────────────────────────────
+  // The server dropped whatever was waiting, so Start must not offer it. A
+  // finished analysis on screen stays: it is stored, and unaffected.
+  const handleUploadFailed = useCallback(() => {
+    if (!analysis?.isPending) return;
+    setAnalysis(null);
+    setAnalysisStatus(null);
+    setAnalysisKey(k => k + 1);
+  }, [analysis]);
 
   // ── Analysis started (chatbot confirmed) ────────────────────────────────────
   const handleAnalysisStarted = useCallback((analysisId: string) => {
@@ -264,6 +278,7 @@ export default function DashboardPage() {
     setAnalysisStatus(null);
     setReportReady(false);
     setHasPdfReport(false);
+    setReportSettings(null);
     setAnalysisKey(k => k + 1);
     setUploadResetKey(k => k + 1);
     scrollTo("section-upload", uploadRef);
@@ -494,7 +509,7 @@ export default function DashboardPage() {
 
         {/* 1. Upload + Chatbot */}
         <section className="upper-grid" id="section-upload" ref={uploadRef}>
-          <UploadCard onUploadSuccess={handleUploadSuccess} resetKey={uploadResetKey} />
+          <UploadCard onUploadSuccess={handleUploadSuccess} onUploadFailed={handleUploadFailed} resetKey={uploadResetKey} />
           <AnalysisAssistantCard
             key={analysisKey}
             dataset={analysis}
@@ -502,6 +517,8 @@ export default function DashboardPage() {
             onViewReport={scrollToReport}
             onAnalysisStarted={handleAnalysisStarted}
             plan={plan}
+            settings={reportSettings}
+            onSettingsChange={setReportSettings}
           />
         </section>
 

@@ -1,58 +1,67 @@
 // @ts-nocheck
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
 import { useSettings } from "@/app/contexts/SettingsContext";
+import {
+  MAX_UPLOAD_BYTES, UPLOAD_ACCEPT, canPreviewInBrowser, extensionOf, isAcceptedFile, previewFromUpload,
+} from "@/lib/uploadFormats";
 
 const T = {
   en: {
     title: "Upload Dataset",
-    hint: "Drag and drop your .csv file here, or click to browse. Max 50 MB.",
+    hint: "CSV, Excel, JSON, XML, Parquet, SPSS, Stata, SAS, SQLite and more, zipped or not. Max 50 MB.",
     drop: "Drop your file here",
-    browse: "or click to choose a .csv file",
+    browse: "or click to choose a data file",
+    badType: (ext) => `${ext ? ext + " files" : "That file"} can't be analysed. Use CSV, Excel, JSON, XML, Parquet, SPSS, Stata, SAS or SQLite.`,
+    tooLarge: "That file is over the 50 MB limit.",
     status: { idle: "Idle", uploading: "Uploading", done: "Ready", error: "Failed" },
     statusMsg: {
       idle: "No file selected.",
-      uploading: "Uploading…",
+      uploading: "Uploading and reading your file…",
       done: "Upload complete.",
     },
     stats: { rows: "Rows", columns: "Columns", size: "Size" },
     preview: "Dataset Preview",
-    previewSub: (cols, total) => `First 10 rows · ${cols} of ${total} cols shown`,
+    previewSub: (rows, cols, total) => `First ${rows} rows · ${cols} of ${total} cols shown`,
     missing: "⚠ Missing / null values shown in red — these will be addressed during analysis.",
   },
   fr: {
     title: "Importer un dataset",
-    hint: "Glissez-déposez votre fichier .csv ici, ou cliquez pour parcourir. Max 50 Mo.",
+    hint: "CSV, Excel, JSON, XML, Parquet, SPSS, Stata, SAS, SQLite et plus, compressés ou non. Max 50 Mo.",
     drop: "Déposez votre fichier ici",
-    browse: "ou cliquez pour choisir un fichier .csv",
+    browse: "ou cliquez pour choisir un fichier de données",
+    badType: (ext) => `${ext ? "Les fichiers " + ext : "Ce fichier"} ne peuvent pas être analysés. Utilisez CSV, Excel, JSON, XML, Parquet, SPSS, Stata, SAS ou SQLite.`,
+    tooLarge: "Ce fichier dépasse la limite de 50 Mo.",
     status: { idle: "Inactif", uploading: "Import…", done: "Prêt", error: "Échec" },
     statusMsg: {
       idle: "Aucun fichier sélectionné.",
-      uploading: "Import en cours…",
+      uploading: "Import et lecture du fichier…",
       done: "Import terminé.",
     },
     stats: { rows: "Lignes", columns: "Colonnes", size: "Taille" },
     preview: "Aperçu du dataset",
-    previewSub: (cols, total) => `10 premières lignes · ${cols} sur ${total} colonnes`,
+    previewSub: (rows, cols, total) => `${rows} premières lignes · ${cols} sur ${total} colonnes`,
     missing: "⚠ Valeurs manquantes / nulles en rouge — elles seront traitées lors de l'analyse.",
   },
   fa: {
     title: "آپلود دیتاست",
-    hint: "فایل .csv خود را اینجا بکشید و رها کنید، یا برای انتخاب کلیک کنید. حداکثر ۵۰ مگابایت.",
+    hint: "CSV، اکسل، JSON، XML، Parquet، SPSS، Stata، SAS، SQLite و بیشتر، فشرده یا معمولی. حداکثر ۵۰ مگابایت.",
     drop: "فایل خود را اینجا رها کنید",
-    browse: "یا برای انتخاب فایل .csv کلیک کنید",
+    browse: "یا برای انتخاب فایل داده کلیک کنید",
+    badType: (ext) => `${ext ? "فایل‌های " + ext : "این فایل"} قابل تحلیل نیستند. از CSV، اکسل، JSON، XML، Parquet، SPSS، Stata، SAS یا SQLite استفاده کنید.`,
+    tooLarge: "این فایل از سقف ۵۰ مگابایت بزرگ‌تر است.",
     status: { idle: "آماده", uploading: "در حال آپلود", done: "آماده", error: "خطا" },
     statusMsg: {
       idle: "فایلی انتخاب نشده.",
-      uploading: "در حال آپلود…",
+      uploading: "در حال آپلود و خواندن فایل…",
       done: "آپلود کامل شد.",
     },
     stats: { rows: "ردیف‌ها", columns: "ستون‌ها", size: "حجم" },
     preview: "پیش‌نمایش دیتاست",
-    previewSub: (cols, total) => `۱۰ ردیف اول · ${cols} از ${total} ستون`,
+    previewSub: (rows, cols, total) => `${rows} ردیف اول · ${cols} از ${total} ستون`,
     missing: "⚠ مقادیر گم‌شده / تهی با رنگ قرمز نشان داده شده‌اند — در طول تحلیل رفع می‌شوند.",
   },
 };
@@ -61,6 +70,7 @@ const T = {
  * @param {{
  *   onUploadSuccess: (meta: import("@/lib/types").UploadedFileMeta) => void,
  *   onUploadStart?: () => void,
+ *   onUploadFailed?: () => void,
  *   resetKey: number,
  *   guestMode?: boolean,
  *   guestSessionId?: string | null,
@@ -69,12 +79,16 @@ const T = {
  * onUploadStart is optional — it is called with `?.()` and the authenticated
  * dashboard does not supply it. Typing it as required made the dashboard fail
  * the production type check.
+ *
+ * onUploadFailed fires when the server refuses a file. By then it has dropped
+ * any upload that was waiting, so the dashboard must stop offering Start for it.
  */
-export default function UploadCard({ onUploadSuccess, onUploadStart, resetKey, guestMode = false, guestSessionId = null }) {
+export default function UploadCard({ onUploadSuccess, onUploadStart, onUploadFailed, resetKey, guestMode = false, guestSessionId = null }) {
   const { token } = useAuth();
   const { lang } = useSettings();
   const t = T[lang] || T.en;
   const fileInputRef = useRef(null);
+  const uploadingRef = useRef(false); // a ref, so a second drop sees it straight away
 
   const [file,     setFile]     = useState(null);
   const [status,   setStatus]   = useState("idle");
@@ -82,6 +96,8 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, resetKey, g
   const [preview,  setPreview]  = useState(null);
   const [dragging, setDragging] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [notice,   setNotice]   = useState(""); // a file refused here, before any upload
+  const [reading,  setReading]  = useState(null); // { formatLabel, notes } from the server
 
   // Reset when analysis completes (resetKey incremented by dashboard)
   useEffect(() => {
@@ -91,6 +107,8 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, resetKey, g
     setStats({ rows: null, columns: null, size: null });
     setPreview(null);
     setErrorMsg("");
+    setNotice("");
+    setReading(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, [resetKey]);
 
@@ -121,69 +139,78 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, resetKey, g
   };
 
   const handleFile = async (selectedFile) => {
-    if (!selectedFile || !selectedFile.name.endsWith(".csv")) {
-      alert("Please upload a .csv file.");
+    if (!selectedFile || uploadingRef.current) return;
+
+    // Refused here, nothing has changed: anything already uploaded still stands.
+    const clearInput = () => { if (fileInputRef.current) fileInputRef.current.value = ""; };
+    if (!isAcceptedFile(selectedFile.name)) {
+      setNotice(t.badType(extensionOf(selectedFile.name)));
+      clearInput();
       return;
     }
-    if (selectedFile.size > 50 * 1024 * 1024) {
-      alert("File exceeds 50 MB limit.");
+    if (selectedFile.size > MAX_UPLOAD_BYTES) {
+      setNotice(t.tooLarge);
+      clearInput();
       return;
     }
 
+    uploadingRef.current = true;
     onUploadStart?.();           // notify parent before fetch — fires on success AND fail
     setFile(selectedFile);
     setStatus("uploading");
     setErrorMsg("");
+    setNotice("");
+    setReading(null);
 
-    const uploadTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    const sizeKB     = (selectedFile.size / 1024).toFixed(1);
-    const text       = await selectedFile.text();
-    const parsed     = parseCSV(text);
+    const size = `${(selectedFile.size / 1024).toFixed(1)} KB`;
+    setStats({ rows: null, columns: null, size });
+    setPreview(null);
 
-    // Show preview immediately from client-side parse — no waiting for backend
+    // A plain CSV can be shown at once. Every other format waits for the
+    // server's reading, because the browser cannot open it.
+    const parsed = canPreviewInBrowser(selectedFile.name) ? parseCSV(await selectedFile.text()) : null;
     if (parsed) {
-      setStats({
-        rows:    parsed.totalRows.toLocaleString(),
-        columns: parsed.totalCols,
-        size:    `${sizeKB} KB`,
-      });
+      setStats({ rows: parsed.totalRows.toLocaleString(), columns: parsed.totalCols, size });
       setPreview({ headers: parsed.headers, rows: parsed.rows, totalCols: parsed.totalCols });
     }
 
     // Send to backend to save as temp file (needed for analysis later)
     try {
-      let result;
-      if (guestMode) {
-        const form = new FormData();
-        form.append("file",      selectedFile);
-        form.append("sessionId", guestSessionId ?? "guest");
-        form.append("rows",      String(parsed?.totalRows ?? 0));
-        form.append("columns",   String(parsed?.totalCols ?? 0));
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5150"}/api/guest/upload`, { method: "POST", body: form });
-        if (!res.ok) throw new Error("Upload failed");
-        result = await res.json();
-      } else {
-        result = await BackendAPI.uploadDataset(
-          token, selectedFile,
-          parsed?.totalRows ?? 0,
-          parsed?.totalCols ?? 0
-        );
+      const rows    = parsed?.totalRows ?? 0;
+      const columns = parsed?.totalCols ?? 0;
+      const result  = guestMode
+        ? await BackendAPI.guestUpload(selectedFile, guestSessionId ?? "guest", rows, columns)
+        : await BackendAPI.uploadDataset(token, selectedFile, rows, columns);
+
+      // The server's reading replaces the quick one: it handles quoted commas,
+      // other delimiters and encodings, which splitting on "," does not.
+      const read = previewFromUpload(result);
+      if (read) setPreview(read);
+      if (result?.rowCount > 0) {
+        setStats({ rows: result.rowCount.toLocaleString(), columns: result.columnCount, size });
       }
+      setReading({ formatLabel: result?.formatLabel ?? null, notes: result?.notes ?? [] });
       setStatus("done");
       onUploadSuccess?.(result);
     } catch (err) {
       console.error("Upload error:", err);
       setStatus("error");
       setErrorMsg(err?.message || "Upload failed. Try again.");
+      setStats({ rows: null, columns: null, size: null });
+      setPreview(null);
+      clearInput();
+      onUploadFailed?.();
+    } finally {
+      uploadingRef.current = false;
     }
   };
 
-  const onDrop = useCallback((e) => {
+  const onDrop = (e) => {
     e.preventDefault();
     setDragging(false);
     const f = e.dataTransfer.files?.[0];
     if (f) handleFile(f);
-  }, [token]);
+  };
 
   const progressWidth = { idle: "0%", uploading: "55%", done: "100%", error: "100%" };
   const statusLabel   = { idle: t.status.idle, uploading: t.status.uploading, done: t.status.done, error: t.status.error };
@@ -216,7 +243,7 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, resetKey, g
         <input
           type="file"
           ref={fileInputRef}
-          accept=".csv"
+          accept={UPLOAD_ACCEPT}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
         />
         <div className="dropzone-inner">
@@ -237,6 +264,10 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, resetKey, g
           </div>
         </div>
       </label>
+
+      {notice && (
+        <p role="alert" style={{ margin: 0, fontSize: "0.78rem", lineHeight: 1.5, color: "#f97373" }}>{notice}</p>
+      )}
 
       {/* Progress bar */}
       <div className="upload-status-bar">
@@ -285,7 +316,8 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, resetKey, g
               {t.preview}
             </span>
             <span className="pill">
-              {t.previewSub(preview.headers.length, preview.totalCols)}
+              {reading?.formatLabel ? `${reading.formatLabel} · ` : ""}
+              {t.previewSub(preview.rows.length, preview.headers.length, preview.totalCols)}
             </span>
           </div>
           <div style={{
@@ -329,6 +361,11 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, resetKey, g
           <p className="muted-small" style={{ marginTop: "6px" }}>
             {t.missing}
           </p>
+          {reading?.notes?.length > 0 && (
+            <ul className="muted-small" dir="auto" style={{ margin: "6px 0 0", paddingInlineStart: "16px" }}>
+              {reading.notes.map((note, i) => <li key={i}>{note}</li>)}
+            </ul>
+          )}
         </div>
       )}
     </div>

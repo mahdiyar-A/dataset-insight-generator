@@ -13,6 +13,10 @@ import LegalPage from '@/components/LegalPage';
  * (ai_service/ai_engine/llm/groq_client.py, _build_fingerprint), which the
  * usual "we only send anonymous metadata" boilerplate would have hidden.
  *
+ * The same goes for the chat: the query results it sends to a model are
+ * summaries (ai_engine/llm/query_tools.py), but a narrow enough filter reaches
+ * one record, so the page does not claim that no row-level fact can leave.
+ *
  * Operator, jurisdiction and retention were supplied by the operator on
  * 2026-09-27: sole individual, Toronto, Ontario. There are no placeholders
  * left on the page. The 30-day log retention is a commitment the hosting
@@ -26,10 +30,10 @@ export const metadata: Metadata = {
   alternates: { canonical: '/privacy' },
 };
 
-const UPDATED = 'LAST UPDATED 3 NOVEMBER 2026';
+const UPDATED = 'LAST UPDATED 5 NOVEMBER 2026';
 
 const INTRO = [
-  'DIG turns a spreadsheet into an analysis report. To do that it has to read your file, so this page explains exactly what happens to it: where it is stored, what is computed locally, what is sent to other companies, and how to get rid of it.',
+  'DIG turns a data file into an analysis report and answers questions about it. To do that it has to read your file, so this page explains exactly what happens to it: where it is stored, what is computed locally, what is sent to other companies, and how to get rid of it.',
   'It is written to be specific rather than reassuring. Where something does leave our servers, it says so.',
 ];
 
@@ -43,11 +47,12 @@ const SECTIONS = [
   },
   {
     heading: 'What we collect',
-    body: ['Three kinds of data, and nothing else:'],
+    body: ['Four kinds of data, and nothing else:'],
     list: [
       'Account data — your email address, a hashed password (or the identifier from your sign-in provider), your plan, and the dates you signed up and last signed in. We never store your password itself.',
       'If you sign in with Google or GitHub, that company confirms your email address and sends us your name and email. We receive nothing else from them, and never your password for that account.',
-      'The files you upload — the spreadsheet or CSV you choose to analyse, exactly as you sent it, plus the reports generated from it.',
+      'The files you upload — the data file you choose to analyse, exactly as you sent it, plus the reports generated from it and the summary of the analysis that lets you ask questions about it.',
+      'What you type to the assistant — your report settings are kept with the analysis they produced. Your questions and the answers are not stored by us: the conversation lives in your browser and ends when you leave it.',
       'Operational records — the analyses you have run, their status, timestamps, and errors when something fails. These exist so the product works and so we can fix it when it does not.',
     ],
   },
@@ -61,7 +66,7 @@ const SECTIONS = [
   {
     heading: 'Where your file is stored',
     body: [
-      'Uploaded files and generated reports are held in private storage on Supabase, which hosts our database and file storage. The storage bucket is private: files are not reachable by URL, and access requires a signed request tied to your account.',
+      'Uploaded files, generated reports and analysis summaries are held in private storage on Supabase, which hosts our database and file storage. The storage bucket is private: files are not reachable by URL, and access requires a signed request tied to your account.',
       'Our database enforces row-level security, meaning the rules that restrict each row to its owner are applied by the database itself rather than only by application code. A bug in the application cannot hand your rows to another user.',
     ],
   },
@@ -72,20 +77,21 @@ const SECTIONS = [
     ],
     list: [
       'Groq — used once per analysis to work out what kind of dataset you uploaded. It receives each column\'s name, data type, how much of it is missing, how many distinct values it holds, basic numeric ranges, the three most frequent values in each text column, and up to five example values taken from each column. Those example values are real cells from your file.',
-      'Report writing — the written report is produced by open-source AI models, tried strongest first: NVIDIA\u2019s Nemotron models (reached through OpenRouter) and, when those are busy or unavailable, models hosted by Groq. Whichever one writes your report receives computed statistics: correlations, group averages, outlier rates, trends, and category labels such as region or product names. None of them receives individual rows.',
+      'Report writing — the written report is produced by open-source AI models, tried strongest first: NVIDIA\u2019s Nemotron models (reached through OpenRouter) and, when those are busy or unavailable, models hosted by Groq. Whichever one writes your report receives computed statistics: correlations, group averages, outlier rates, trends, and category labels such as region or product names. If you customize the report, it also receives what you wrote: your focus, assumptions and questions. None of them receives individual rows.',
+      'The assistant — the same models handle the chat. When you describe a report, they receive your description and your file\u2019s column names. When you ask about an analysis, they receive your question, the last few messages of the conversation, the statistics above and the report\u2019s text. If those cannot answer it, DIG runs a query on your file on our own servers and sends the model the result: totals, averages, counts or the most common values, at most 15 lines per query. The file itself is not sent, but a question narrow enough to single out one record can return that record\u2019s value.',
       'Because these are free AI services, the company running the model may keep a log of what it receives, under its own terms. That is one more reason to leave sensitive columns out — see below.',
       'Stripe — handles payment if you subscribe. Your card details go directly to Stripe and never touch our servers. We receive only a customer reference and your subscription status.',
       'Supabase — hosts the database, authentication and file storage described above.',
       'Amazon Web Services — runs DIG’s servers, in its Canada (Central) region. Processing your file happens on these servers.',
-      'Google — delivers DIG’s emails through Gmail: account verification, password resets, and reports you ask us to email you. A report you email yourself passes through Google on its way to your inbox.',
+      'Brevo — delivers DIG’s emails: account verification, password resets, and reports you ask us to email you. A report you email yourself passes through Brevo on its way to your inbox.',
     ],
   },
   {
     heading: 'Why this matters for sensitive data',
     body: [
-      'Because up to five real values from each column are sent to Groq, you should not upload files containing personal health records, government identifiers, financial account numbers, credentials, or anything else you are not permitted to share with a third-party processor.',
+      'Because up to five real values from each column are sent to Groq, and answers to your questions can draw on your data, you should not upload files containing personal health records, government identifiers, financial account numbers, credentials, or anything else you are not permitted to share with a third-party processor.',
       'If you need to analyse data like that, remove or mask the sensitive columns first. The statistical engine, data cleaning and quality checks all run entirely on our own servers, so a dataset with identifying columns stripped out still produces a full analysis.',
-      'Each provider handles what it receives under its own terms: Amazon Web Services (aws.amazon.com/privacy), Google (policies.google.com/privacy), Groq (groq.com), OpenRouter (openrouter.ai/privacy), NVIDIA (nvidia.com/privacy), Stripe (stripe.com/privacy) and Supabase (supabase.com/privacy).',
+      'Each provider handles what it receives under its own terms: Amazon Web Services (aws.amazon.com/privacy), Brevo (brevo.com/legal/privacypolicy), Groq (groq.com), OpenRouter (openrouter.ai/privacy), NVIDIA (nvidia.com/privacy), Stripe (stripe.com/privacy) and Supabase (supabase.com/privacy).',
     ],
   },
   {
