@@ -15,11 +15,11 @@ const T = {
     nav: { features: 'Features', security: 'Security', developers: 'Developer', contact: 'Contact', menu: 'Menu' },
     hero: {
       title: 'Your Data Has a Story. We Help You Read It.',
-      subtitle: 'Drop in any CSV or Excel file and get back a full AI-powered analysis — visualizations, patterns, anomalies, and a professional PDF report. No coding. No setup. Just an insightful report.',
+      subtitle: 'Drop in a CSV, Excel, JSON, Parquet or SPSS file and get back a full AI-powered analysis — visualizations, patterns, anomalies, and a professional PDF report. No coding. No setup. Just an insightful report.',
       login: 'Login', register: 'Register', guest: 'Continue as Guest',
       note: 'No account needed for a one-time report. Create an account to save your results.',
       howTitle: 'How it works?',
-      step1: 'Upload your dataset — CSV or Excel, up to 50MB.',
+      step1: 'Upload your dataset — CSV, Excel, JSON, Parquet, SPSS and more, up to 50MB.',
       step2: 'Our AI engine profiles your data, detects patterns, and generates charts.',
       step3: 'Download a clean, professional PDF report in seconds.',
     },
@@ -64,11 +64,11 @@ const T = {
     nav: { features: 'Fonctionnalités', security: 'Sécurité', developers: 'Développeur', contact: 'Contact', menu: 'Menu' },
     hero: {
       title: 'Vos données ont une histoire. Nous vous aidons à la lire.',
-      subtitle: "Importez n'importe quel fichier CSV ou Excel et obtenez une analyse complète par IA — visualisations, patterns, anomalies et un rapport PDF professionnel. Sans code. Sans configuration. Juste des insights.",
+      subtitle: "Importez un fichier CSV, Excel, JSON, Parquet ou SPSS et obtenez une analyse complète par IA — visualisations, patterns, anomalies et un rapport PDF professionnel. Sans code. Sans configuration. Juste des insights.",
       login: 'Connexion', register: "S'inscrire", guest: 'Continuer en invité',
       note: 'Aucun compte requis pour un rapport ponctuel. Créez un compte pour sauvegarder vos résultats.',
       howTitle: 'Comment ça marche ?',
-      step1: "Importez votre dataset — CSV ou Excel, jusqu'à 50 Mo.",
+      step1: "Importez votre dataset — CSV, Excel, JSON, Parquet, SPSS et plus, jusqu'à 50 Mo.",
       step2: 'Notre moteur IA profile vos données, détecte les tendances et génère des graphiques.',
       step3: 'Téléchargez un rapport PDF professionnel en quelques secondes.',
     },
@@ -113,11 +113,11 @@ const T = {
     nav: { features: 'ویژگی‌ها', security: 'امنیت', developers: 'توسعه‌دهنده', contact: 'تماس', menu: 'منو' },
     hero: {
       title: 'داده‌های شما یک داستان دارند. ما کمک می‌کنیم آن را بخوانید.',
-      subtitle: 'هر فایل CSV یا اکسل را آپلود کنید و تحلیل کامل مبتنی بر هوش مصنوعی دریافت کنید — تصویرسازی، الگوها، ناهنجاری‌ها و یک گزارش PDF حرفه‌ای. بدون کدنویسی. بدون راه‌اندازی.',
+      subtitle: 'یک فایل CSV، اکسل، JSON، Parquet یا SPSS را آپلود کنید و تحلیل کامل مبتنی بر هوش مصنوعی دریافت کنید — تصویرسازی، الگوها، ناهنجاری‌ها و یک گزارش PDF حرفه‌ای. بدون کدنویسی. بدون راه‌اندازی.',
       login: 'ورود', register: 'ثبت‌نام', guest: 'ادامه به عنوان مهمان',
       note: 'برای یک گزارش یکبار مصرف نیازی به حساب نیست. برای ذخیره نتایج حساب بسازید.',
       howTitle: 'چطور کار می‌کند؟',
-      step1: 'دیتاست خود را آپلود کنید — CSV یا اکسل، حداکثر ۵۰ مگابایت.',
+      step1: 'دیتاست خود را آپلود کنید — CSV، اکسل، JSON، Parquet، SPSS و بیشتر، حداکثر ۵۰ مگابایت.',
       step2: 'موتور هوش مصنوعی ما داده‌هایتان را پروفایل می‌کند، الگوها را شناسایی می‌کند و نمودار می‌سازد.',
       step3: 'یک گزارش PDF حرفه‌ای را در چند ثانیه دانلود کنید.',
     },
@@ -538,10 +538,10 @@ export default function HomePage() {
   });
 
   const marqueeWords = lang === 'fr'
-    ? ['CSV EN ENTRÉE', 'ANALYSE EN SORTIE', 'SANS FORMULES', 'RAPPORT PDF', '8 LANGUES']
+    ? ['DONNÉES EN ENTRÉE', 'ANALYSE EN SORTIE', 'SANS FORMULES', 'RAPPORT PDF', '8 LANGUES']
     : lang === 'fa'
-      ? ['ورودی CSV', 'خروجی تحلیل', 'بدون فرمول', 'گزارش PDF', '۸ زبان']
-      : ['CSV IN', 'ANALYSIS OUT', 'NO FORMULAS', 'PDF REPORT', '8 LANGUAGES'];
+      ? ['ورودی داده', 'خروجی تحلیل', 'بدون فرمول', 'گزارش PDF', '۸ زبان']
+      : ['DATA IN', 'ANALYSIS OUT', 'NO FORMULAS', 'PDF REPORT', '8 LANGUAGES'];
 
   return (
     <div

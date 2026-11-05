@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/terms' },
 };
 
-const UPDATED = 'LAST UPDATED 1 NOVEMBER 2026';
+const UPDATED = 'LAST UPDATED 5 NOVEMBER 2026';
 
 const INTRO = [
   'These terms govern your use of DIG. They are written in plain language on purpose — you should be able to read them.',
@@ -37,7 +37,7 @@ const SECTIONS = [
   {
     heading: 'The service',
     body: [
-      'DIG accepts a spreadsheet or CSV file, cleans and profiles it, runs statistical analysis on it, and produces a written report with charts. Some of that work is done by our own code and some by AI models operated by other companies, as described in our Privacy Policy.',
+      'DIG accepts a data file (a spreadsheet, a CSV, or one of the other formats listed on the upload form), cleans and profiles it, runs statistical analysis on it, produces a written report with charts, and answers questions about the result. Some of that work is done by our own code and some by AI models operated by other companies, as described in our Privacy Policy.',
       'DIG is run by Mahdiyar Ashrafioun, an individual based in Toronto, Ontario, Canada. It is not incorporated. We may add, change or remove features. If we remove something you depend on, we will tell registered users by email.',
     ],
   },

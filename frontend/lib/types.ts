@@ -61,6 +61,13 @@ export interface UploadedFileMeta {
   status?: string;
   uploadedAt?: string;
 
+  /** What the server read. Missing when the AI service could not be reached. */
+  format?: string | null;
+  formatLabel?: string | null;
+  headers?: string[] | null;
+  preview?: (string | null)[][] | null;
+  notes?: string[] | null;
+
   /** Client-side only: set between upload and the first server response. */
   isPending?: boolean;
 }

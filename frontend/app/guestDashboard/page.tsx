@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation";
 import UploadCard            from "@/components/UploadCard";
 import AnalysisAssistantCard from "@/components/AnalysisChatCard";
+import { cleanedFileName } from "@/lib/uploadFormats";
 import ChartsCard            from "@/components/chartsCard";
 import InfoCards             from "@/components/infoCards";
 import type { UploadedFileMeta, ChartMeta, ChatReply, DatasetCondition } from "@/lib/types";
@@ -224,6 +225,11 @@ export default function GuestDashboardPage() {
     setCharts([]);
   }, []);
 
+  // ── Upload refused: the server dropped whatever was waiting ────────────
+  const handleUploadFailed = useCallback(() => {
+    setDataset(prev => (prev?.isPending ? null : prev));
+  }, []);
+
   // ── Analysis started (chatbot fired yes/no) ───────────────────────────
   const handleAnalysisStarted = useCallback(() => {
     setDataset(prev => prev ? { ...prev, status: "processing" } : prev);
@@ -279,7 +285,7 @@ export default function GuestDashboardPage() {
     const blob  = new Blob([bytes], { type: "text/csv" });
     const a = Object.assign(document.createElement("a"), {
       href: URL.createObjectURL(blob),
-      download: `cleaned_${dataset?.fileName ?? "dataset.csv"}`,
+      download: cleanedFileName(dataset?.fileName),
     });
     a.click(); URL.revokeObjectURL(a.href);
   };
@@ -384,6 +390,7 @@ export default function GuestDashboardPage() {
         <section className="upper-grid" id="section-upload" ref={uploadRef}>
           <UploadCard
             onUploadSuccess={handleUploadSuccess}
+            onUploadFailed={handleUploadFailed}
             resetKey={uploadResetKey}
             guestMode={true}
             guestSessionId={sessionId}

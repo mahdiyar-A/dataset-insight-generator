@@ -5,6 +5,7 @@ import React, { useState } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useSettings } from "@/app/contexts/SettingsContext";
 import BackendAPI from "@/lib/BackendAPI";
+import { cleanedFileName } from "@/lib/uploadFormats";
 
 const T = {
   en: {
@@ -22,6 +23,8 @@ const T = {
     viewPdf: "View PDF",
     loadingPdf: "Loading…",
     downloadPdf: (name) => `↓ Download PDF Report — ${name}`,
+    downloadWord: "↓ Download Word Report",
+    downloadPptx: "↓ Download PowerPoint",
     downloadCsv: "↓ Download Cleaned CSV",
     csvNA: "Cleaned CSV — not applicable for your dataset",
     emailBtn: "Email me the report",
@@ -56,6 +59,8 @@ const T = {
     viewPdf: "Voir PDF",
     loadingPdf: "Chargement…",
     downloadPdf: (name) => `↓ Télécharger le rapport PDF — ${name}`,
+    downloadWord: "↓ Télécharger le rapport Word",
+    downloadPptx: "↓ Télécharger le PowerPoint",
     downloadCsv: "↓ Télécharger le CSV nettoyé",
     csvNA: "CSV nettoyé — non applicable pour ce jeu de données",
     emailBtn: "M'envoyer le rapport par e-mail",
@@ -90,6 +95,8 @@ const T = {
     viewPdf: "مشاهده PDF",
     loadingPdf: "در حال بارگذاری…",
     downloadPdf: (name) => `↓ دانلود گزارش PDF — ${name}`,
+    downloadWord: "↓ دانلود گزارش Word",
+    downloadPptx: "↓ دانلود PowerPoint",
     downloadCsv: "↓ دانلود CSV پاک‌شده",
     csvNA: "CSV پاک‌شده — برای این مجموعه داده قابل اجرا نیست",
     emailBtn: "ارسال گزارش به ایمیل من",
@@ -159,6 +166,8 @@ export default function DownloadCard({ dataset }) {
 
   const reportReady  = dataset?.hasPdfReport  === true;
   const cleanedReady = dataset?.hasCleanedCsv === true;
+  const wordReady    = dataset?.hasWordReport === true;
+  const pptxReady    = dataset?.hasPptx       === true;
   const reportFileName = dataset?.reportFileName ?? "analysis_report.pdf";
 
   const handleDownload = async (type, fallbackName) => {
@@ -250,9 +259,21 @@ export default function DownloadCard({ dataset }) {
 
         {/* Secondary exports */}
         <div className="export-buttons">
+          {wordReady && (
+            <button className="secondary-btn"
+              onClick={() => handleDownload("word", reportFileName.replace(/\.pdf$/i, ".docx"))}>
+              {t.downloadWord}
+            </button>
+          )}
+          {pptxReady && (
+            <button className="secondary-btn"
+              onClick={() => handleDownload("pptx", reportFileName.replace(/\.pdf$/i, ".pptx"))}>
+              {t.downloadPptx}
+            </button>
+          )}
           {cleanedReady ? (
             <button className="secondary-btn"
-              onClick={() => handleDownload("cleaned", `cleaned_${dataset?.fileName}`)}>
+              onClick={() => handleDownload("cleaned", cleanedFileName(dataset?.fileName))}>
               {t.downloadCsv}
             </button>
           ) : (

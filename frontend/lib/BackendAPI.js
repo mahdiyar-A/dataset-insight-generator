@@ -36,6 +36,24 @@ async function req(url, options, errorMsg) {
   return res.json();
 }
 
+/**
+ * Like req, but the thrown error keeps the server's code and status. The chat
+ * shows different things for a used-up allowance, an outage and an old analysis.
+ *
+ * @param {string} url
+ * @param {RequestInit} options
+ * @param {string} errorMsg
+ */
+async function chatReq(url, options, errorMsg) {
+  const res = await fetch(url, options);
+  if (res.ok) return res.json();
+  const body = await res.json().catch(() => null);
+  throw Object.assign(new Error(body?.message || errorMsg), {
+    code: body?.error ?? null,
+    status: res.status,
+  });
+}
+
 export default class BackendAPI {
 
   // ── USER PROFILE ──────────────────────────────────────────────────────────
@@ -120,15 +138,17 @@ export default class BackendAPI {
   }
 
   /**
-   * Upload a CSV/XLSX to the server temp folder.
+   * Upload a data file to the server temp folder. The server reads it and
+   * replies with its format, shape and first rows. rows and columns are only
+   * a fallback for when that reading is unavailable.
    * The file is NOT persisted to the DB yet — that happens after pipeline success.
+   *
+   * @param {string} token
+   * @param {File} file
+   * @param {number} [rows]
+   * @param {number} [columns]
    */
-  static async uploadDataset(token, file) {
-    const text    = await file.text();
-    const lines   = text.split("\n").filter(l => l.trim());
-    const rows    = Math.max(0, lines.length - 1);
-    const columns = lines[0]?.split(",").length ?? 0;
-
+  static async uploadDataset(token, file, rows = 0, columns = 0) {
     const form = new FormData();
     form.append("file",    file);
     form.append("rows",    String(rows));
@@ -353,10 +373,7 @@ export default class BackendAPI {
    * Send a chat message to the analysis assistant.
    * message: "start_analysis" | "yes" | "no"
    * meta: { fileName, fileSizeBytes, rowCount, columnCount, pendingCondition, analysisId }
-   * customization (pro only): { language, tone, audience, depth, insightsCount, occasion,
-   *   focusOn, comparisons, mustMention[], chartStyle,
-   *   includeMethodology, includeConfidence,
-   *   outputFormat: { pdf, word, pptx } }
+   * customization (pro only): see DEFAULT_SETTINGS in lib/reportSettings.js
    */
   static async sendChatMessage(token, message, meta = {}) {
     return req(`${API_BASE}/api/chat/message`,
@@ -377,14 +394,50 @@ export default class BackendAPI {
       "Failed to send message");
   }
 
+  /**
+   * Turn the user's own description of a report into settings for the panel.
+   * Nothing runs: the user reviews the result. Pro only.
+   *
+   * @param {string} token
+   * @param {string} text
+   * @param {string} [uiLanguage]
+   * @returns {Promise<{ settings: Record<string, any>, summary: string, notPossible: string[],
+   *   source: string, remaining: number }>}
+   */
+  static async chatBrief(token, text, uiLanguage = "en") {
+    return chatReq(`${API_BASE}/api/chat/brief`,
+      { method: "POST", headers: authHeaders(token), body: JSON.stringify({ text, uiLanguage }) },
+      "The assistant couldn't be reached.");
+  }
+
+  /**
+   * Ask about a finished analysis. The conversation lives in the browser, so
+   * the earlier turns go with each question.
+   *
+   * @param {string} token
+   * @param {string} analysisId
+   * @param {string} question
+   * @param {{ role: string, content: string }[]} [history]
+   * @param {string} [uiLanguage]
+   * @returns {Promise<{ answer: string, refused: boolean, failed: boolean, grounding: string,
+   *   unverifiedNumbers: string[], queries: unknown[], remaining: number, limit: number }>}
+   */
+  static async chatAsk(token, analysisId, question, history = [], uiLanguage = "en") {
+    return chatReq(`${API_BASE}/api/chat/ask`,
+      { method: "POST", headers: authHeaders(token),
+        body: JSON.stringify({ analysisId, question, history, uiLanguage }) },
+      "The assistant couldn't be reached.");
+  }
+
   // ── GUEST ─────────────────────────────────────────────────────────────────
 
-  static async guestUpload(file, sessionId) {
-    const text    = await file.text();
-    const lines   = text.split("\n").filter(l => l.trim());
-    const rows    = Math.max(0, lines.length - 1);
-    const columns = lines[0]?.split(",").length ?? 0;
-
+  /**
+   * @param {File} file
+   * @param {string} sessionId
+   * @param {number} [rows]
+   * @param {number} [columns]
+   */
+  static async guestUpload(file, sessionId, rows = 0, columns = 0) {
     const form = new FormData();
     form.append("file",      file);
     form.append("sessionId", sessionId);

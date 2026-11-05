@@ -180,3 +180,76 @@ describe("annotations", () => {
     expect(lastUrl()).toContain("fileType=pdf");
   });
 });
+
+describe("uploads", () => {
+  it("never reads the file, which may be binary", async () => {
+    // Risk: this used to call file.text() and count commas, on Parquet and SPSS too.
+    const file = new File(["PAR1"], "sales.parquet");
+    const text = vi.spyOn(file, "text");
+
+    await BackendAPI.uploadDataset(TOKEN, file);
+
+    expect(text).not.toHaveBeenCalled();
+    expect(lastUrl()).toBe(`${BASE}/api/analyses/upload`);
+    const form = lastInit().body as FormData;
+    expect(form.get("rows")).toBe("0");
+    expect(form.get("columns")).toBe("0");
+  });
+
+  it("passes on the browser's count of a CSV", async () => {
+    await BackendAPI.uploadDataset(TOKEN, new File(["a,b"], "a.csv"), 12, 2);
+
+    const form = lastInit().body as FormData;
+    expect(form.get("rows")).toBe("12");
+    expect(form.get("columns")).toBe("2");
+  });
+
+  it("shows the server's reason for refusing a guest's file", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(
+      { error: "UNREADABLE", message: "This zip is password-protected." }, { ok: false, status: 400 }));
+
+    await expect(BackendAPI.guestUpload(new File(["x"], "a.zip"), "s1"))
+      .rejects.toThrow("This zip is password-protected.");
+  });
+});
+
+describe("the chat", () => {
+  it("sends a brief with the interface language", async () => {
+    await BackendAPI.chatBrief(TOKEN, "Short and casual", "fa");
+
+    expect(lastUrl()).toBe(`${BASE}/api/chat/brief`);
+    expect(lastInit().method).toBe("POST");
+    expect(JSON.parse(String(lastInit().body))).toEqual({ text: "Short and casual", uiLanguage: "fa" });
+  });
+
+  it("sends a question with the conversation so far", async () => {
+    const history = [{ role: "user", content: "Hi" }];
+
+    await BackendAPI.chatAsk(TOKEN, "a1", "Why?", history, "fr");
+
+    expect(lastUrl()).toBe(`${BASE}/api/chat/ask`);
+    expect(JSON.parse(String(lastInit().body))).toEqual({
+      analysisId: "a1", question: "Why?", history, uiLanguage: "fr",
+    });
+    expect((lastInit().headers as Record<string, string>).Authorization).toBe(`Bearer ${TOKEN}`);
+  });
+
+  it("keeps the server's error code, which decides what the user sees", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(
+      { error: "CHAT_LIMIT", message: "Used up." }, { ok: false, status: 429 }));
+
+    await expect(BackendAPI.chatAsk(TOKEN, "a1", "Why?")).rejects.toMatchObject({
+      message: "Used up.", code: "CHAT_LIMIT", status: 429,
+    });
+  });
+
+  it("still throws a usable error when the reply isn't JSON", async () => {
+    fetchMock.mockResolvedValue({
+      ok: false, status: 502, json: async () => { throw new SyntaxError("not json"); },
+    } as unknown as Response);
+
+    await expect(BackendAPI.chatBrief(TOKEN, "x")).rejects.toMatchObject({
+      message: "The assistant couldn't be reached.", code: null, status: 502,
+    });
+  });
+});
