@@ -30,6 +30,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
+from ai_engine.core.changepoint import labelled_shift
 from ai_engine.core.profiler import is_reference_key, key_columns
 from ai_engine.core.stat_tests import fmt_p, gini, mann_kendall, pareto_share, text_columns
 
@@ -422,6 +423,7 @@ def trend(df: pd.DataFrame, date_col: Optional[str]) -> Optional[Dict[str, Any]]
         if agg(prior):
             result["yearOverYearPct"] = round(float((agg(recent) - agg(prior)) / abs(agg(prior)) * 100), 2)
 
+    tested = values
     season = _seasonality(pd.Series(values, index=ts_index), period_name, mk["senSlope"])
     if season:
         offsets, keys = season.pop("_offsets"), season.pop("_keys")
@@ -431,6 +433,7 @@ def trend(df: pd.DataFrame, date_col: Optional[str]) -> Optional[Dict[str, Any]]
         # With the month-of-year pattern removed, the test sees the growth.
         if season["significant"]:
             adjusted = values - np.array([offsets[int(k)] for k in keys])
+            tested = adjusted
             mk_adj = mann_kendall(adjusted)
             if mk_adj:
                 result.update({
@@ -446,6 +449,12 @@ def trend(df: pd.DataFrame, date_col: Optional[str]) -> Optional[Dict[str, Any]]
                     "slopePerDay": round(mk_adj["senSlope"] / period_days, 4),
                     "deseasonalized": True,
                 })
+
+    # A trend test reads a jump as steady growth, and a rise then a fall as no
+    # trend at all, so the shape is checked as well as the direction.
+    shift = labelled_shift(tested, series.index)
+    if shift:
+        result["changePoint"] = shift
 
     # Volume: is the number of rows per period changing too? A rising total
     # can be more orders or bigger ones, and the report should say which.

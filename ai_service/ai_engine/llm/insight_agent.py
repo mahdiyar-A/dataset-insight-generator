@@ -485,6 +485,16 @@ CHART RULES — structural requirements:
   deseasonalized is true, the trend is what remains after the seasonal swing;
   describe both. If partialPeriodsDropped is present, an incomplete period was
   left out — never describe an incomplete period as a drop.
+- `findings.trend.changePoint` means the series changed at a moment, so lead
+  with that rather than the overall direction, which alone misleads here. kind
+  "step": the level moved from `before` to `after` around `period`; never call
+  it steady growth or decline. kind "turning_point": the direction changed
+  around `period`, from slopeBeforePerPeriod to slopeAfterPerPeriod; a rise then
+  a fall can show as no overall trend, so report the turn instead of "no trend".
+  The exact period is uncertain: if earliestPeriod and latestPeriod differ, give
+  that range. Say what changed and when, never why, because the data does not
+  show the cause. If deseasonalized is true, these figures have the seasonal
+  swing removed.
 - A correlation or association marked nearDuplicate means two columns record
   the same thing. Mention it as redundancy at most; never as an insight.
 - `derived_columns` are calculated from other columns, as in `formula`. How one

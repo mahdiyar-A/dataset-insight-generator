@@ -1,7 +1,7 @@
 # DIG — Project Status
 
-**Branch:** `main` (feature/workspace-collab merged 2026-09-12)
-**Last updated:** 2026-09-12
+**Branch:** `main`
+**Last updated:** 2026-11-05
 
 ---
 
@@ -9,12 +9,56 @@
 
 | Suite | Count | Command |
 |---|---|---|
-| C# — unit, integration, edge cases | 155 | `dotnet test backend.Tests/backend.Tests.csproj` |
-| Python — cleaning convergence + usage telemetry | 59 | `cd ai_service && pytest tests/` |
-| Frontend — Vitest | 62 | `cd frontend && npm test` |
+| C# — unit, integration, edge cases | 274 | `dotnet test backend.Tests/backend.Tests.csproj` |
+| Python — stats, ingest, chat harness, reports, full pipeline | 493 | `cd ai_service && pytest tests/` |
+| Frontend — Vitest, including rendered components | 163 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
 
-All green. **276 automated tests.** `tsc --noEmit` clean, eslint 0 errors.
+---
+
+## Built 2026-11, not live yet
+
+The server code below is on `main` but not on the server yet, and the frontend
+commit is held back locally. **Order matters:** deploy the server first
+(`bash deploy/deploy.sh`), check it, then `git push origin main` so Vercel
+builds the frontend. The old frontend works with the new server. The new
+frontend on the old server would offer formats it refuses and chat calls that
+fail, and its privacy page would describe things that are not live.
+
+Tested with a faked server in a real browser, not yet against the real one.
+Analyses made before the deploy have no chat context, so their questions box
+says to run them again.
+
+- **Any common data file.** CSV and other delimited text, Excel, ODS, JSON and
+  JSON Lines, GeoJSON, XML, Parquet, Feather, ORC, Stata, SAS, SPSS, SQLite, and
+  compressed or zipped copies of these. The server reads the file and reports
+  what it found; the browser no longer counts commas. `frontend/lib/uploadFormats.js`
+  and `backend/Application/Services/FileFormats.cs` hold the lists.
+- **Report settings in your own words (Pro).** A brief fills in the panel for
+  the user to check. Assumptions, things to leave out, up to five questions
+  with notes, writing format, 1-10 insights, Word and PowerPoint.
+- **Questions after the analysis.** Bounded to the analysis: it refuses other
+  topics, works from the stored digest, can run limited queries on the data, and
+  flags figures it could not check. Free 10 a day, Pro 100, briefs 30 a day.
+- **Word and PowerPoint** buttons on the dashboard. Both files were already
+  being built and stored; nothing offered them.
+- **Stats engine.** A check that each strong correlation holds inside groups
+  (`ai_engine/core/confounding.py`): Simpson's paradox and confounded pairs
+  reach the writer and the chat with both figures, stop counting as evidence,
+  and are charted with a line per group. Columns calculated from other columns
+  are recognised (`ai_engine/core/identities.py`), so a formula is not reported
+  as a finding or fed to the driver model. Trends now say when a series jumped
+  or turned (`ai_engine/core/changepoint.py`), in reports and chat answers.
+- **Known defect, fix before deploying.** If a category was calculated from the
+  two measures being checked, such as a tier set on `a + b`, `confounding.py`
+  falsely reports "reversed" or "vanished": up to 95% and 98.5% of the time on
+  simulated files. Planned fix: spot a category that a straight score of the
+  numeric columns cuts into touching bands, and skip the pairs it was cut from.
+- **Change-point tests are not finished.** The run breaking each guard was
+  stopped at 31 of 44: 23 caught, 8 not caught by any test. Those 8 are the
+  minimum periods, the leftover-pattern refusal, the percentage of a negative
+  base, the reversal direction check, both halves of the takes-back rule, and
+  two steps in the simulation.
 
 ---
 
@@ -46,7 +90,7 @@ All green. **276 automated tests.** `tsc --noEmit` clean, eslint 0 errors.
 ## Shipped and verified
 
 ### Analysis pipeline
-Upload → quality check → optional cleaning → statistics → AI-written insights (free open-source models, strongest first: NVIDIA Nemotron via OpenRouter, then Groq) → charts → PDF. Runs in the background with SignalR status updates; the frontend polls `/api/analyses/active`.
+Upload → quality check → optional cleaning → statistics → AI-written insights (free open-source models, strongest first: NVIDIA Nemotron via OpenRouter, then Groq) → charts → PDF, Word and PowerPoint. Runs in the background with SignalR status updates; the frontend polls `/api/analyses/active`.
 
 ### Report customization
 Language, tone, insight count, occasion, audience, depth, focus areas, comparisons, must-mention topics, chart style, methodology and confidence toggles. Word and PowerPoint output for Pro.
@@ -138,53 +182,48 @@ Three separate failures, none visible from the dev server:
 
 `.github/workflows/ci.yml` runs on every push and pull request:
 
-1. **Backend** — restore, build Release, run the 133 NUnit tests, upload TRX results.
-2. **AI service** — install requirements, run the 37 pytest tests, upload JUnit XML.
+1. **Backend** — restore, build Release, run the NUnit tests, upload TRX results.
+2. **AI service** — install requirements, run the pytest tests, upload JUnit XML.
 3. **Frontend** — `npm ci`, lint, `next build` (which type-checks the whole app).
 4. **Docker** — build all three images with layer caching. Built, not pushed.
 5. **CI** — a single summary job to point branch protection at.
 
 The test suites replace Supabase, Stripe, SMTP and the Python service with in-memory fakes, so CI needs no secrets and no running services.
 
-**Deliberately no deploy stage.** AWS and Supabase provisioning are manual, so a deploy job would need long-lived cloud credentials in repository secrets for no benefit. The workflow is committed but not yet pushed.
+**Deliberately no deploy stage.** Vercel builds the frontend from `main`. The server is deployed by hand with `bash deploy/deploy.sh`, because a deploy job would need long-lived cloud credentials in repository secrets for no benefit.
 
 ---
 
 ## Not done — manual
 
-- **AWS provisioning.** Docker images build cleanly and are deployment-ready;
-  nothing is running. Constraints decided 2026-09-12: strictly pay-per-usage
-  with a hard spend cap (service stopping beats overspending); note SignalR
-  needs a persistent connection, which conflicts with pure scale-to-zero.
-- **Supabase project setup.** Stays on the free tier. Schema (migrations 001
-  and 002), buckets and RLS are applied through the Supabase console. Watch
-  the 1 GB storage cap — per-analysis files add up; pruning helps but
-  retention may need tightening.
 - **Branch protection.** Point the required check at the `CI` job. The remote
   already warns "changes must be made through a pull request" but does not
   enforce it — align the rule with the actual workflow.
+- **Stripe live keys.** Still `sk_test_`, and a live webhook needs to point at
+  api.datainsightgen.com.
+- **Google Search Console.** The site still has to be submitted.
+- **Supabase storage.** Free tier, 1 GB. Per-analysis files add up; pruning
+  helps but retention may need tightening.
 
 ---
 
 ## Not done — tracked debt
 
-- **`react-hooks/exhaustive-deps` warnings (56).** Existing usages are
-  deliberate — animation phase transitions and derived state from async loads —
-  but each should be reviewed. Not blocking: lint passes with 0 errors.
-- **No component/interaction tests.** The Vitest suite covers pure logic
-  (annotation tree, error handling, request building). Rendering tests over the
-  upload flow and chat card would be the next coverage gain.
+- **`react-hooks/exhaustive-deps` warnings.** Existing usages are deliberate —
+  animation phase transitions and derived state from async loads — but each
+  should be reviewed. Not blocking: lint passes with 0 errors.
 - **File previews.** The workspace centre panel describes each file and offers a
   download rather than rendering it inline. See FUTURE_EXPANSION.md.
-- **Guest endpoint has no rate limit.** It runs the full pipeline with no
-  account and no quota.
+- **Chart legends are English.** "Trend", "Overall trend" and "Other groups"
+  stay in English in a report written in another language.
+- **Guest dashboard.** To be changed or removed; raise it when planning
+  frontend work.
 
 ## Next up
 
-1. Enable branch protection on the `CI` check.
-2. Apply migrations 001 + 002 in the Supabase console.
-3. Provision AWS under the pay-per-use + hard-cap constraints and deploy.
-4. Pick a UI direction from the design canvas and implement it.
-5. Format choice after analysis rather than before.
+1. Deploy the server, verify it, then push the frontend.
+2. Move from Lightsail to Lambda before the AWS credits end on 2027-04-09. The
+   blockers are the background analyses and SignalR.
+3. Bring the dashboard and PDF report up to the Atlas design.
 
 See FUTURE_EXPANSION.md for the full inventory and designs.
