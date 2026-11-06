@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Iterable, List, Set
+from typing import Iterable, List, Set, Tuple
 
 # Fence markers the prompts use around user text and data. Stripped from user
 # input so it cannot fake the end of a fenced block.
@@ -96,15 +96,20 @@ def leaks_prompt(reply: str) -> bool:
     return CANARY in (reply or "")
 
 
-_NUMBER = re.compile(r"(?<![\w.])[-+]?\d[\d,]*(?:\.\d+)?%?")
+_NUMBER = re.compile(
+    r"(?<![\w.])([-+]?\d[\d,]*(?:\.\d+)?)(%)?"
+    r"(?:(k|K|M|B|mn|bn)|\s?(thousand|million|billion|trillion))?"
+)
+_SCALES = {"k": 1e3, "K": 1e3, "thousand": 1e3, "M": 1e6, "mn": 1e6, "million": 1e6,
+           "B": 1e9, "bn": 1e9, "billion": 1e9, "trillion": 1e12}
 
 
-def _numbers(text: str) -> List[float]:
+def _figures(text: str) -> List[Tuple[float, float]]:
+    """Each number as written, with what its suffix multiplies it by."""
     out = []
-    for raw in _NUMBER.findall(text or ""):
-        cleaned = raw.replace(",", "").rstrip("%")
+    for digits, _percent, short, word in _NUMBER.findall(text or ""):
         try:
-            out.append(float(cleaned))
+            out.append((float(digits.replace(",", "")), _SCALES.get(short or word, 1.0)))
         except ValueError:
             continue
     return out
@@ -117,22 +122,25 @@ def ungrounded_numbers(reply: str, sources: Iterable[str], tolerance: float = 0.
     Rounding is allowed for: "about 41%" grounds on 0.4123 or 41.23, and
     "1.2 million" on 1,203,455. Small integers (0-12) are ignored because they
     are counts, ranks and ordinals in ordinary prose ("the top 3 regions").
+
+    A suffix counts. "$90,281.67k" is a thousand times 90,281.67, and a model
+    really wrote that about a total of 90,281.67: the digits alone would pass.
     """
-    pool: Set[float] = set()
+    exact: Set[float] = set()
     for src in sources:
-        for v in _numbers(src):
-            pool.add(v)
-            pool.add(v * 100)      # a share written as a percentage
-            pool.add(v / 100)
-            for scale in (1e3, 1e6, 1e9):
-                pool.add(v / scale)  # 1,203,455 quoted as 1.2 million
+        for v, scale in _figures(src):
+            exact.update((v, v * scale, v * 100, v / 100))  # a share written as a percentage
+    # Without a suffix to go on, 1,203,455 may be quoted as "1.2" in a sentence
+    # about millions.
+    pool = exact | {v / scale for v in exact for scale in (1e3, 1e6, 1e9)}
+
     found = []
-    for v in _numbers(reply):
-        if abs(v) <= 12 and float(v).is_integer():
+    for v, scale in _figures(reply):
+        if scale == 1 and abs(v) <= 12 and float(v).is_integer():
             continue
-        if any(_close(v, p, tolerance) for p in pool):
+        if any(_close(v * scale, p, tolerance) for p in (exact if scale != 1 else pool)):
             continue
-        found.append(v)
+        found.append(v * scale)
     return found
 
 

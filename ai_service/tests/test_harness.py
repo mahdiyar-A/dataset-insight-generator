@@ -277,6 +277,26 @@ def test_ungrounded_numbers(reply, flagged):
     assert ungrounded_numbers(reply, [json.dumps(CONTEXT)]) == flagged
 
 
+@pytest.mark.parametrize("reply, source, flagged", [
+    # The real server's answer: right digits, a thousand times too big.
+    ("West has the highest total, at $90,281.67k.", "90281.67", [90281670.0]),
+    ("About $90.3k.", "90281.67", []),
+    ("About $90k.", "90281.67", []),
+    ("1.2 million", "1203455", []),
+    ("1.2M", "1203455", []),
+    ("$1.2bn", "1203455", [1200000000.0]),
+    ("1.2 billion", "1203455", [1200000000.0]),
+    ("1,200,000", "1.2 million", []),
+    ("5k rows", "5000", []),
+    # Not suffixes.
+    ("12.5 km away", "12.5", []),
+    ("41 kilos", "41", []),
+    ("A share of 41.2%", "0.412", []),
+])
+def test_a_suffix_changes_the_figure(reply, source, flagged):
+    assert ungrounded_numbers(reply, [source]) == flagged
+
+
 def test_a_brief_can_ask_for_word_and_powerpoint_but_nothing_else():
     # Risk: without this a user who writes "make me a PowerPoint" is told it
     # isn't possible, when it is one click in the same panel.
