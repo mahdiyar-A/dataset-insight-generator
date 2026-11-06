@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using backend.Application.DTOs.User;
 using backend.Application.Interfaces;
+using backend.Application.Services;
 
 namespace backend.Controllers;
 
@@ -107,33 +108,6 @@ public class UserProfileController : ControllerBase
         }
     }
 
-    // ── PATCH /api/user/me/password ──────────────────────────────────────  ← NEW
-    [HttpPatch("me/password")]
-    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequestDto req)
-    {
-        if (string.IsNullOrEmpty(req.CurrentPassword) || string.IsNullOrEmpty(req.NewPassword))
-            return BadRequest(new { error = "MISSING_FIELDS", message = "Both current and new password are required." });
-
-        var id = GetCurrentUserId();
-        try
-        {
-            await _svc.ChangePasswordAsync(id, req.CurrentPassword, req.NewPassword);
-            return Ok(new { message = "Password updated successfully." });
-        }
-        catch (InvalidOperationException ex) when (ex.Message == "WRONG_PASSWORD")
-        {
-            return BadRequest(new { error = "WRONG_PASSWORD", message = "Current password is incorrect." });
-        }
-        catch (InvalidOperationException ex) when (ex.Message == "PASSWORD_TOO_SHORT")
-        {
-            return BadRequest(new { error = "PASSWORD_TOO_SHORT", message = "Password must be at least 8 characters." });
-        }
-        catch (InvalidOperationException ex) when (ex.Message == "User not found")
-        {
-            return NotFound(new { error = "NOT_FOUND", message = "User not found" });
-        }
-    }
-
     // ── POST /api/user/me/profile-picture ────────────────────────────────
     [HttpPost("me/profile-picture")]
     [RequestSizeLimit(5_000_000)]
@@ -157,14 +131,42 @@ public class UserProfileController : ControllerBase
         }
     }
 
+    // ── DELETE /api/user/me/profile-picture ──────────────────────────────
+    [HttpDelete("me/profile-picture")]
+    public async Task<IActionResult> RemoveProfilePicture()
+    {
+        try
+        {
+            await _svc.RemoveProfilePictureAsync(GetCurrentUserId());
+            return NoContent();
+        }
+        catch (InvalidOperationException ex) when (ex.Message == "User not found")
+        {
+            return NotFound(new { error = "NOT_FOUND", message = "User not found" });
+        }
+    }
+
     // ── DELETE /api/user/me ──────────────────────────────────────────────
     [HttpDelete("me")]
-    public async Task<IActionResult> DeleteMe()
+    public async Task<IActionResult> DeleteMe([FromServices] AccountDeletion deletion)
     {
         var id = GetCurrentUserId();
-        _logger.LogWarning("[Profile] DELETE /me — user {UserId} deactivating account", id);
-        await _svc.DeactivateAsync(id);
-        _logger.LogInformation("[Profile] ✓ Account deactivated for {UserId}", id);
+        _logger.LogWarning("[Profile] DELETE /me — deleting account {UserId}", id);
+        try
+        {
+            await deletion.DeleteAsync(id);
+        }
+        catch (Exception ex)
+        {
+            // Never surface ex.Message: it can carry hosts and paths.
+            _logger.LogError(ex, "[Profile] Account deletion failed for {UserId}", id);
+            return StatusCode(502, new
+            {
+                error   = "DELETE_FAILED",
+                message = "We couldn't finish deleting your account. Please try again.",
+            });
+        }
+        _logger.LogInformation("[Profile] ✓ Account deleted for {UserId}", id);
         return NoContent();
     }
 }

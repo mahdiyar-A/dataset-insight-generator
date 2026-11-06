@@ -1,5 +1,6 @@
 using backend.Application.Interfaces;
 using backend.Domain.Entities;
+using Newtonsoft.Json;
 using Supabase.Postgrest.Attributes;
 using Supabase.Postgrest.Models;
 using static Supabase.Postgrest.Constants;
@@ -20,9 +21,11 @@ public class AnalysisRow : BaseModel
     [Column("pdf_report_path")]     public string?   PdfReportPath   { get; set; }
     [Column("word_report_path")]    public string?   WordReportPath  { get; set; }
     [Column("pptx_report_path")]    public string?   PptxReportPath  { get; set; }
-    [Column("chart_urls")]          public string?   ChartUrls       { get; set; }
+    [Column("chart_urls")]
+    [JsonConverter(typeof(JsonbTextConverter))]     public string?   ChartUrls       { get; set; }
     [Column("status")]              public string    Status          { get; set; } = "pending";
-    [Column("customization")]       public string?   Customization   { get; set; }
+    [Column("customization")]
+    [JsonConverter(typeof(JsonbTextConverter))]     public string?   Customization   { get; set; }
     [Column("created_at")]          public DateTime  CreatedAt       { get; set; }
     [Column("completed_at")]        public DateTime? CompletedAt     { get; set; }
     [Column("session_id")]          public string?   SessionId       { get; set; }
@@ -57,6 +60,14 @@ public class AnalysisRepository : IAnalysisRepository
         return row == null ? null : ToDomain(row);
     }
 
+    /// <summary>
+    /// A run still marked as going after this long was cut off by a restart: the
+    /// backend stops waiting for the AI service after 6 minutes, and the row is
+    /// only created once the run has its slot. Without a limit the dashboard
+    /// would show that run as in progress for good.
+    /// </summary>
+    private static readonly TimeSpan ActiveFor = TimeSpan.FromMinutes(15);
+
     public async Task<Analysis?> GetActiveAsync(Guid userId)
     {
         var result = await _db.From<AnalysisRow>()
@@ -64,7 +75,9 @@ public class AnalysisRepository : IAnalysisRepository
             .Order("created_at", Ordering.Descending)
             .Limit(5)
             .Get();
-        var row = result.Models.FirstOrDefault(r => r.Status is "pending" or "processing");
+        var cutoff = DateTime.UtcNow - ActiveFor;
+        var row = result.Models.FirstOrDefault(r =>
+            r.Status is "pending" or "processing" && r.CreatedAt.ToUniversalTime() > cutoff);
         return row == null ? null : ToDomain(row);
     }
 

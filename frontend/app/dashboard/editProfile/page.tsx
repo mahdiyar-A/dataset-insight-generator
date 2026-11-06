@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
+import { supabase } from "@/lib/supabaseClient";
 
 /** Inline status banner: a kind plus the text to show, or nothing. */
 type StatusMsg = { type: "success" | "error" | "info"; text: string } | null;
@@ -21,6 +22,8 @@ export default function AccountSettingsPage() {
   const [savingPw, setSavingPw] = useState(false);
   const [pwMsg,    setPwMsg]    = useState<StatusMsg>(null);
   const [showPw,   setShowPw]   = useState(false);
+  // Someone who signs in with Google or GitHub has no DIG password to change.
+  const [hasPassword, setHasPassword] = useState(true);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting,          setDeleting]          = useState(false);
@@ -43,6 +46,13 @@ export default function AccountSettingsPage() {
     }
   }, [currentUser, initialized]);
 
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const providers = session?.user?.app_metadata?.providers as string[] | undefined;
+      if (providers) setHasPassword(providers.includes("email"));
+    });
+  }, []);
+
   if (isLoading) return <div style={loadingStyle}>Loading…</div>;
 
   const avatarLetter = (form.firstName?.charAt(0) || form.lastName?.charAt(0) || currentUser?.email?.charAt(0) || "U").toUpperCase();
@@ -60,10 +70,10 @@ export default function AccountSettingsPage() {
     setProfileMsg(null);
     try {
       const userName = `${form.firstName.trim()} ${form.lastName.trim()}`.trim();
-      await Promise.all([
-        BackendAPI.updateUsername(token, userName),
-        BackendAPI.updatePhone(token, form.phoneNumber.trim() || null),
-      ]);
+      // One after the other. Each save rewrites the whole profile from what it
+      // just read, so at the same time one could undo the other.
+      await BackendAPI.updateUsername(token, userName);
+      await BackendAPI.updatePhone(token, form.phoneNumber.trim() || null);
       await refreshUser();
       setProfileMsg({ type: "success", text: "Profile updated." });
     } catch (err) {
@@ -92,10 +102,15 @@ export default function AccountSettingsPage() {
     }
   };
 
-  const handleRemovePhoto = () => {
-    setAvatarUrl(null);
-    updateUser({ profilePicture: undefined });
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  const handleRemovePhoto = async () => {
+    try {
+      await BackendAPI.removeProfilePicture(token);
+      setAvatarUrl(null);
+      updateUser({ profilePicture: undefined });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (err) {
+      setProfileMsg({ type: "error", text: (err as Error)?.message || "Couldn't remove the picture." });
+    }
   };
 
   // ── Change password
@@ -115,8 +130,18 @@ export default function AccountSettingsPage() {
     setSavingPw(true);
     setPwMsg(null);
     try {
-      await BackendAPI.changePassword(token, pwForm.current, pwForm.next);
-      await refreshUser();
+      // Passwords live in Supabase Auth, not in DIG's own tables, so that is
+      // where the old one is checked and the new one saved.
+      const { error: wrongPassword } = await supabase.auth.signInWithPassword({
+        email: currentUser?.email ?? "",
+        password: pwForm.current,
+      });
+      if (wrongPassword) {
+        setPwMsg({ type: "error", text: "Current password is incorrect." });
+        return;
+      }
+      const { error } = await supabase.auth.updateUser({ password: pwForm.next });
+      if (error) throw error;
       setPwMsg({ type: "success", text: "Password changed successfully." });
       setPwForm({ current: "", next: "", confirm: "" });
     } catch (err) {
@@ -207,6 +232,11 @@ export default function AccountSettingsPage() {
         {/* ── CHANGE PASSWORD ── */}
         <div className="card" style={sectionStyle}>
           <h2 style={sectionHeadStyle}>Change Password</h2>
+          {!hasPassword ? (
+            <p style={{ margin: "-8px 0 0", color: "#6b7280", fontSize: "0.82rem" }}>
+              You sign in with Google or GitHub, so there is no DIG password to change.
+            </p>
+          ) : (<>
           <p style={{ margin: "-8px 0 0", color: "#6b7280", fontSize: "0.82rem" }}>Minimum 8 characters.</p>
 
           <Field label="Current password"    type={showPw ? "text" : "password"} value={pwForm.current} onChange={(v) => setPwForm(p => ({ ...p, current: v }))} placeholder="Your current password" />
@@ -226,6 +256,7 @@ export default function AccountSettingsPage() {
             onClick={handlePasswordSave} disabled={savingPw}>
             {savingPw ? "Updating…" : "Update password"}
           </button>
+          </>)}
         </div>
 
        

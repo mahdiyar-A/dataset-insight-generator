@@ -173,9 +173,13 @@ public class UserRepository : IUserRepository
             PasswordHash         = u.PasswordHash,
             PhoneNumber          = u.PhoneNumber,
             ProfilePictureUrl    = u.ProfilePicture,
+            IsEmailVerified      = u.IsEmailVerified,
             CreatedAt            = u.CreatedAt,
             LastLoginAt          = u.LastLoginAt,
-            LastActiveAt         = u.LastActive,
+            // The column refuses a null, and a column default does not apply
+            // when the client sends one. A brand new account has no last
+            // activity yet, so this used to fail every sign-up.
+            LastActiveAt         = u.LastActive ?? DateTime.UtcNow,
             Plan                 = u.Plan,
             PlanExpiresAt        = u.PlanExpiresAt,
             StripeCustomerId     = u.StripeCustomerId,

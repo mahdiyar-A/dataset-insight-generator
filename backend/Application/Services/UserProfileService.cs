@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using backend.Application.Interfaces;
 using backend.Application.DTOs.User;
 using backend.Domain.Entities;
@@ -10,7 +9,6 @@ public class UserProfileService : IUserProfileService
 {
     private readonly IUserRepository          _repo;
     private readonly IStorageService          _storage;
-    private readonly PasswordHasher<User>     _hasher = new();
 
     public UserProfileService(IUserRepository repo, IStorageService storage)
     {
@@ -21,7 +19,28 @@ public class UserProfileService : IUserProfileService
     public async Task<GetMeResponseDto> GetMeAsync(Guid userId)
     {
         var user = await _repo.GetByIdAsync(userId) ?? throw new InvalidOperationException("User not found");
-        return Map(user);
+        var dto  = Map(user);
+        dto.ProfilePicture = await PictureUrlAsync(user.ProfilePicture);
+        return dto;
+    }
+
+    /// <summary>
+    /// The row holds a path in a private bucket, which a browser cannot load, so
+    /// a saved picture disappeared on the next visit. A broken picture must not
+    /// break the profile, so a signing failure means no picture.
+    /// </summary>
+    private async Task<string?> PictureUrlAsync(string? stored)
+    {
+        if (string.IsNullOrEmpty(stored) || stored.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            return stored;
+        try
+        {
+            return await _storage.GetSignedUrlAsync(stored, 3600);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 
     public async Task<GetMeResponseDto> UpdateUserNameAsync(Guid userId, string userName)
@@ -51,24 +70,6 @@ public class UserProfileService : IUserProfileService
         return Map(user);
     }
 
-    // ── NEW: change password ─────────────────────────────────────────────
-    public async Task ChangePasswordAsync(Guid userId, string currentPassword, string newPassword)
-    {
-        var user = await _repo.GetByIdAsync(userId) ?? throw new InvalidOperationException("User not found");
-
-        // Verify current password using the same PasswordHasher as AuthService
-        var verifyResult = _hasher.VerifyHashedPassword(user, user.PasswordHash, currentPassword);
-        if (verifyResult == PasswordVerificationResult.Failed)
-            throw new InvalidOperationException("WRONG_PASSWORD");
-
-        if (newPassword.Length < 8)
-            throw new InvalidOperationException("PASSWORD_TOO_SHORT");
-
-        var newHash = _hasher.HashPassword(user, newPassword);
-        user.SetPasswordHash(newHash);
-        await _repo.UpdateAsync(user);
-    }
-
     public async Task<string> UploadProfilePictureAsync(Guid userId, IFormFile file)
     {
         var user = await _repo.GetByIdAsync(userId) ?? throw new InvalidOperationException("User not found");
@@ -78,11 +79,16 @@ public class UserProfileService : IUserProfileService
         return path;
     }
 
-    public async Task DeactivateAsync(Guid userId)
+    public async Task RemoveProfilePictureAsync(Guid userId)
     {
         var user = await _repo.GetByIdAsync(userId) ?? throw new InvalidOperationException("User not found");
-        user.Deactivate();
+        var stored = user.ProfilePicture;
+        if (string.IsNullOrEmpty(stored)) return;
+
+        user.SetProfilePicture(null);
         await _repo.UpdateAsync(user);
+        if (!stored.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            await _storage.DeleteFileAsync(stored);
     }
 
     // ── Map domain → DTO ─────────────────────────────────────────────────

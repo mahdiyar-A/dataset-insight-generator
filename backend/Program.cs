@@ -87,6 +87,8 @@ builder.Services.AddScoped<IUserProfileService,  UserProfileService>();
 builder.Services.AddScoped<IStripeService,       StripeService>();
 builder.Services.AddHttpClient<IPythonAiClient,  PythonAiClient>();
 builder.Services.AddScoped<AnalysisService>();
+builder.Services.AddScoped<AccountDeletion>();
+builder.Services.AddHttpClient<IAuthAdmin, SupabaseAuthAdmin>();
 builder.Services.AddScoped<UploadIntake>();
 
 // ── Chat allowances ───────────────────────────────────────────────────────────

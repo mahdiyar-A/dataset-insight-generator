@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using backend.Application.Services;
 using backend.Controllers;
 using backend.Domain.Entities;
 using backend.Tests.Helpers;
@@ -35,6 +36,10 @@ public class AdminAnalyticsTests
         _callerId = Guid.NewGuid();
     }
 
+    private AccountDeletion Deletion() => new(
+        _users, _storage, new FakeTeamRepository(), new FakeWorkspaceRepository(),
+        new NoOpStripeService(), new FakeAuthAdmin());
+
     private AdminController Controller(string callerPlan)
     {
         _users.DefaultUser = User.Restore(
@@ -44,7 +49,7 @@ public class AdminAnalyticsTests
             plan: callerPlan);
 
         var controller = new AdminController(
-            _users, _analyses, _storage, NullLogger<AdminController>.Instance)
+            _users, _analyses, NullLogger<AdminController>.Instance)
         {
             ControllerContext = new ControllerContext
             {
@@ -141,7 +146,7 @@ public class AdminAnalyticsTests
         var keeper = Guid.NewGuid();
         _storage.Files[$"users/{keeper}/profile.jpg"] = new byte[] { 4 };
 
-        var result = await Controller("admin").DeleteUser(victim);
+        var result = await Controller("admin").DeleteUser(victim, Deletion());
 
         result.Should().BeOfType<NoContentResult>();
         _storage.Files.Keys.Should().NotContain(k => k.StartsWith($"users/{victim}/"),
@@ -156,7 +161,7 @@ public class AdminAnalyticsTests
         var victim = Guid.NewGuid();
         _storage.Files[$"users/{victim}/profile.jpg"] = new byte[] { 1 };
 
-        var result = await Controller("pro").DeleteUser(victim);
+        var result = await Controller("pro").DeleteUser(victim, Deletion());
 
         result.Should().BeOfType<ForbidResult>();
         _storage.Files.Keys.Should().Contain($"users/{victim}/profile.jpg",

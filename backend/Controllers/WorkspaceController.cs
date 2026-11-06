@@ -1,4 +1,5 @@
 using backend.Application.Interfaces;
+using backend.Application.Services;
 using backend.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -102,8 +103,8 @@ public class WorkspaceController : ControllerBase
         if (!await _teams.IsMemberAsync(req.TeamId, userId))
             return Forbid();
 
-        var workspace = new SharedWorkspace(req.TeamId, req.AnalysisId, userId);
-        await _workspaces.ShareAnalysisAsync(workspace);
+        var workspace = await _workspaces.ShareAnalysisAsync(
+            new SharedWorkspace(req.TeamId, req.AnalysisId, userId));
 
         _logger.LogInformation("[Workspace] User {UserId} shared analysis {AnalysisId} with team {TeamId}",
             userId, req.AnalysisId, req.TeamId);
@@ -115,7 +116,18 @@ public class WorkspaceController : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Unshare(Guid id)
     {
-        await _workspaces.UnshareAsync(id, UserId());
+        var userId    = UserId();
+        var workspace = await _workspaces.GetWorkspaceAsync(id);
+        if (workspace == null) return NotFound();
+
+        // The person who shared it, or the owner of the team it was shared with
+        if (workspace.SharedBy != userId)
+        {
+            var team = await _teams.GetTeamAsync(workspace.TeamId);
+            if (team?.OwnerId != userId) return Forbid();
+        }
+
+        await _workspaces.UnshareAsync(id);
         return NoContent();
     }
 
@@ -211,6 +223,41 @@ public class WorkspaceController : ControllerBase
     {
         await _workspaces.EditAnnotationAsync(aid, UserId(), req.Content);
         return Ok(new { message = "Annotation updated" });
+    }
+
+    // ── GET /api/workspaces/{id}/download/{fileKey} ───────────────────────
+    // The analysis download route is for its owner, so a teammate needs this
+    // one. Permissions are checked here, not only in the page: a "none" must
+    // hold for anyone calling the API directly.
+    [HttpGet("{id:guid}/download/{fileKey}")]
+    public async Task<IActionResult> Download(
+        Guid id, string fileKey, [FromServices] IStorageService storage)
+    {
+        var userId    = UserId();
+        var workspace = await _workspaces.GetWorkspaceAsync(id);
+        if (workspace == null) return NotFound();
+        if (!await _teams.IsMemberAsync(workspace.TeamId, userId)) return Forbid();
+
+        var mine = (await _workspaces.GetPermissionsAsync(id)).Where(p => p.UserId == userId).ToList();
+        var permission = mine.FirstOrDefault(p => p.FileType == fileKey)
+                      ?? mine.FirstOrDefault(p => p.FileType == "all");
+        if (permission?.Permission == "none") return Forbid();
+
+        var analysis = await _analyses.GetByIdAsync(workspace.AnalysisId, workspace.SharedBy);
+        if (analysis == null) return NotFound();
+
+        var type = fileKey switch
+        {
+            "pdf"          => "report",
+            "cleaned_csv"  => "cleaned",
+            "original_csv" => "original",
+            _              => fileKey,
+        };
+        var (path, fileName) = AnalysisFiles.Find(analysis, type);
+        if (path == null) return NotFound(new { error = "FILE_NOT_READY" });
+
+        var url = await storage.GetSignedUrlAsync(path, 3600);
+        return Ok(new { url, fileName });
     }
 
     // ── POST /api/workspaces/{wid}/annotations/{aid}/resolve ──────────────────

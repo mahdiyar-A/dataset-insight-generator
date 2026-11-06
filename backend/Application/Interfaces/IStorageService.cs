@@ -58,7 +58,14 @@ public interface IStorageService
     /// </summary>
     Task DeleteAnalysisFilesAsync(Guid userId, Guid analysisId);
 
-    /// <summary>Delete everything for a user. Used by the delete-account flow.</summary>
+    /// <summary>Delete one stored file by the path a Save method returned.</summary>
+    Task DeleteFileAsync(string storagePath);
+
+    /// <summary>
+    /// Delete everything for a user. Used by the delete-account flow. Unlike the
+    /// other deletes this one throws on failure: the caller must not go on to
+    /// remove the account record while its files are still stored.
+    /// </summary>
     Task DeleteUserFilesAsync(Guid userId);
 
     Task<string> GetSignedUrlAsync(string storagePath, int expiresInSeconds = 3600);

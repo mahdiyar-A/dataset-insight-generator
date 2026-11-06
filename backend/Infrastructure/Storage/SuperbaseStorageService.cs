@@ -34,7 +34,16 @@ public class SupabaseStorageService : IStorageService
     {
         ValidateImage(file);
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-        return await UploadAsync(file, $"users/{userId}/profile{ext}");
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms);
+        // Named by the extension just checked, not by what the browser claims.
+        var contentType = ext switch
+        {
+            ".png"  => "image/png",
+            ".webp" => "image/webp",
+            _       => "image/jpeg",
+        };
+        return await UploadBytesAsync(ms.ToArray(), $"users/{userId}/profile{ext}", contentType);
     }
 
     // ── Analysis outputs ─────────────────────────────────────────────────────
@@ -48,10 +57,7 @@ public class SupabaseStorageService : IStorageService
     public async Task<string> SaveOriginalFileAsync(Guid userId, Guid analysisId, byte[] bytes, string fileName)
     {
         var ext = FileFormats.ExtensionOf(fileName) ?? ".csv";
-        // Only CSV gets a specific type. octet-stream is what the bucket is
-        // known to accept (see SavePdfReportAsync), and the extension in the
-        // stored name is what the download relies on anyway.
-        var contentType = ext == ".csv" ? "text/csv" : "application/octet-stream";
+        var contentType = ext == ".csv" ? "text/csv" : AnyFile;
         return await UploadBytesAsync(bytes, $"{AnalysisDir(userId, analysisId)}/original{ext}", contentType);
     }
 
@@ -60,19 +66,13 @@ public class SupabaseStorageService : IStorageService
             $"{AnalysisDir(userId, analysisId)}/cleaned.csv", "text/csv");
 
     public async Task<string> SavePdfReportAsync(Guid userId, Guid analysisId, byte[] pdfBytes)
-        // Supabase rejects application/pdf on upload — octet-stream is accepted
-        // and the download still opens correctly because the file name carries
-        // the extension.
-        => await UploadBytesAsync(pdfBytes,
-            $"{AnalysisDir(userId, analysisId)}/report.pdf", "application/octet-stream");
+        => await UploadBytesAsync(pdfBytes, $"{AnalysisDir(userId, analysisId)}/report.pdf", "application/pdf");
 
     public async Task<string> SaveWordReportAsync(Guid userId, Guid analysisId, byte[] docxBytes)
-        => await UploadBytesAsync(docxBytes, $"{AnalysisDir(userId, analysisId)}/report.docx",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        => await UploadBytesAsync(docxBytes, $"{AnalysisDir(userId, analysisId)}/report.docx", AnyFile);
 
     public async Task<string> SavePptxReportAsync(Guid userId, Guid analysisId, byte[] pptxBytes)
-        => await UploadBytesAsync(pptxBytes, $"{AnalysisDir(userId, analysisId)}/report.pptx",
-            "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+        => await UploadBytesAsync(pptxBytes, $"{AnalysisDir(userId, analysisId)}/report.pptx", AnyFile);
 
     public async Task<string> SaveChartAsync(Guid userId, Guid analysisId, int index, byte[] pngBytes)
         => await UploadBytesAsync(pngBytes,
@@ -83,7 +83,7 @@ public class SupabaseStorageService : IStorageService
 
     public async Task SaveChatContextAsync(Guid userId, Guid analysisId, string json)
         => await UploadBytesAsync(System.Text.Encoding.UTF8.GetBytes(json),
-            ChatContextPath(userId, analysisId), "application/octet-stream");
+            ChatContextPath(userId, analysisId), AnyFile);
 
     public async Task<string?> ReadChatContextAsync(Guid userId, Guid analysisId)
     {
@@ -127,21 +127,21 @@ public class SupabaseStorageService : IStorageService
         }
     }
 
+    public async Task DeleteFileAsync(string storagePath) =>
+        await _client.Storage.From(_bucket).Remove(new List<string> { storagePath });
+
     public async Task DeleteUserFilesAsync(Guid userId)
     {
         // Recursive: enumerate everything under the user's prefix rather than
         // guessing file names. Account deletion must not leave orphans behind,
         // and analyses live in per-id subdirectories now.
-        try
-        {
-            var paths = await ListAllUnderAsync($"users/{userId}");
-            if (paths.Count > 0)
-                await _client.Storage.From(_bucket).Remove(paths);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[Storage] DeleteUserFilesAsync warning: {ex.Message}");
-        }
+        //
+        // A failure reaches the caller on purpose. The privacy page promises
+        // every file goes with the account, so deleting the row after a failure
+        // here would strand files with nothing left pointing at them.
+        var paths = await ListAllUnderAsync($"users/{userId}");
+        if (paths.Count > 0)
+            await _client.Storage.From(_bucket).Remove(paths);
     }
 
     /// <summary>
@@ -152,7 +152,9 @@ public class SupabaseStorageService : IStorageService
     {
         var found = new List<string>();
 
-        var entries = await _client.Storage.From(_bucket).List(prefix);
+        // The default page is 100, which a long-standing user could outgrow.
+        var entries = await _client.Storage.From(_bucket)
+            .List(prefix, new Supabase.Storage.SearchOptions { Limit = 1000 });
         foreach (var entry in entries ?? new())
         {
             if (string.IsNullOrEmpty(entry.Name)) continue;
@@ -200,6 +202,13 @@ public class SupabaseStorageService : IStorageService
 
     // ── Upload helpers ───────────────────────────────────────────────────────
 
+    /// <summary>
+    /// The bucket only accepts a fixed list of types, and Word, PowerPoint, JSON
+    /// and most data formats are not on it. This one is, and nothing depends on
+    /// the stored type: a download is named by its file name.
+    /// </summary>
+    private const string AnyFile = "application/octet-stream";
+
     private async Task<string> UploadAsync(IFormFile file, string storagePath)
     {
         using var ms = new MemoryStream();
@@ -210,7 +219,10 @@ public class SupabaseStorageService : IStorageService
     private async Task<string> UploadBytesAsync(byte[] bytes, string storagePath, string contentType)
     {
         var options = new Supabase.Storage.FileOptions { ContentType = contentType, Upsert = true };
-        await _client.Storage.From(_bucket).Upload(bytes, storagePath, options);
+        // inferContentType must stay off. By default the library ignores the
+        // type above and guesses from the file name, which is how report.docx
+        // and chat_context.json reached the bucket as types it refuses.
+        await _client.Storage.From(_bucket).Upload(bytes, storagePath, options, inferContentType: false);
         // Return the relative storage path, never a public URL. The caller
         // persists this and later passes it back to GetSignedUrlAsync, which is
         // what keeps files written under the old flat layout resolvable.

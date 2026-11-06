@@ -168,7 +168,10 @@ public class TeamsController : ControllerBase
         if (user?.Email != invite.Email)
             return Forbid(); // wrong account
 
-        await _teams.AddMemberAsync(new TeamMember(invite.TeamId, userId, invite.Role));
+        // A second invite to someone already in the team must not fail on the
+        // one-membership-per-team rule in the database.
+        if (!await _teams.IsMemberAsync(invite.TeamId, userId))
+            await _teams.AddMemberAsync(new TeamMember(invite.TeamId, userId, invite.Role));
         await _teams.AcceptInviteAsync(token);
 
         return Ok(new { message = "Joined team successfully", teamId = invite.TeamId });

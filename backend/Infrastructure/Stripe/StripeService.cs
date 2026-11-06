@@ -84,6 +84,22 @@ public class StripeService : IStripeService
         return session.Url;
     }
 
+    public async Task CancelSubscriptionAsync(string subscriptionId)
+    {
+        try
+        {
+            await new SubscriptionService().CancelAsync(subscriptionId);
+        }
+        catch (StripeException e) when (e.HttpStatusCode is System.Net.HttpStatusCode.NotFound
+                                                         or System.Net.HttpStatusCode.BadRequest)
+        {
+            // Already cancelled, or an id from test mode. Either way nothing is
+            // left to bill, and it must not block deleting the account.
+            _logger.LogInformation("[Stripe] Nothing to cancel for {Subscription}: {Message}",
+                subscriptionId, e.Message);
+        }
+    }
+
     public Task<StripeWebhookResult> HandleWebhookAsync(string payload, string signature)
     {
         Event stripeEvent;

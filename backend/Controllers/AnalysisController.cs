@@ -256,28 +256,10 @@ public class AnalysisController : ControllerBase
         var analysis = await _repo.GetByIdAsync(id, UserId());
         if (analysis == null) return NotFound(new { error = "NOT_FOUND" });
 
-        string? path = type switch
-        {
-            "original" => analysis.OriginalCsvPath,
-            "cleaned"  => analysis.CleanedCsvPath,
-            "report"   => analysis.PdfReportPath,
-            "word"     => analysis.WordReportPath,
-            "pptx"     => analysis.PptxReportPath,
-            _          => null,
-        };
-
+        var (path, fileName) = AnalysisFiles.Find(analysis, type);
         if (path == null) return NotFound(new { error = "FILE_NOT_READY" });
 
-        var url      = await _storage.GetSignedUrlAsync(path, 3600);
-        var fileName = type switch
-        {
-            "original" => analysis.FileName,
-            "cleaned"  => FileFormats.CleanedFileName(analysis.FileName),
-            "word"     => analysis.ReportFileName.Replace(".pdf", ".docx"),
-            "pptx"     => analysis.ReportFileName.Replace(".pdf", ".pptx"),
-            _          => analysis.ReportFileName,
-        };
-
+        var url = await _storage.GetSignedUrlAsync(path, 3600);
         return Ok(new { url, fileName });
     }
 

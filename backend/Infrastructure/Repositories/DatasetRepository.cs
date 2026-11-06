@@ -1,5 +1,6 @@
 using backend.Application.Interfaces;
 using backend.Domain.Entities;
+using Newtonsoft.Json;
 using Supabase.Postgrest.Attributes;
 using Supabase.Postgrest.Models;
 using static Supabase.Postgrest.Constants;
@@ -19,7 +20,8 @@ public class DatasetRow : BaseModel
     [Column("cleaned_csv_url")]     public string?   CleanedCsvUrl   { get; set; }
     [Column("pdf_report_url")]      public string?   PdfReportUrl    { get; set; }
     [Column("status")]              public string    Status          { get; set; } = "pending";
-    [Column("chart_urls")]          public string?   ChartUrls       { get; set; }
+    [Column("chart_urls")]
+    [JsonConverter(typeof(JsonbTextConverter))]     public string?   ChartUrls       { get; set; }
     [Column("uploaded_at")]         public DateTime  UploadedAt      { get; set; }
     [Column("completed_at")]        public DateTime? CompletedAt     { get; set; }
 }

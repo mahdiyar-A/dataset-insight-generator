@@ -89,10 +89,11 @@ export default class BackendAPI {
     return res.json();
   }
 
-  static async changePassword(token, currentPassword, newPassword) {
-    return req(`${API_BASE}/api/user/me/password`,
-      { method: "PATCH", headers: authHeaders(token), body: JSON.stringify({ currentPassword, newPassword }) },
-      "Failed to change password");
+  static async removeProfilePicture(token) {
+    const res = await fetch(`${API_BASE}/api/user/me/profile-picture`,
+      { method: "DELETE", headers: authHeaders(token) });
+    if (!res.ok) throw new Error((await readError(res)) || "Failed to remove picture");
+    return true;
   }
 
   static async deleteAccount(token) {
@@ -295,6 +296,12 @@ export default class BackendAPI {
   static async getWorkspace(token, workspaceId) {
     return req(`${API_BASE}/api/workspaces/${workspaceId}`,
       { headers: authHeaders(token) }, "Failed to fetch workspace");
+  }
+
+  /** A signed URL for a file in a shared workspace, for any team member allowed it. */
+  static async getWorkspaceDownloadUrl(token, workspaceId, fileKey) {
+    return req(`${API_BASE}/api/workspaces/${workspaceId}/download/${fileKey}`,
+      { headers: authHeaders(token) }, "Download failed");
   }
 
   static async shareAnalysis(token, analysisId, teamId) {
