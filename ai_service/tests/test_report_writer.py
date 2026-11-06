@@ -16,6 +16,8 @@ No network: report_writer._post is replaced with a fake per test.
 import email.message
 import io
 import json
+
+from ai_engine.llm.guard import without_unbacked_margins
 import time
 import urllib.error
 
@@ -530,3 +532,21 @@ class TestSlowStrongestIsBenched:
 
         time.sleep(0.8)   # let the strong model finish in the background
         assert report_writer._cooling_down("strong:free", time.monotonic())
+
+# ── A report claims only what the file measures ──────────────────────────────
+
+def test_no_cost_column_means_no_margin_claim():
+    text = "The high-margin Sandwich beats low\u2011margin items and the High Margin line."
+    assert without_unbacked_margins(text, ["store", "revenue"]) == (
+        "The high-revenue Sandwich beats low-revenue items and the High-revenue line.")
+
+
+def test_a_file_with_costs_can_talk_about_margin():
+    text = "The high-margin Sandwich."
+    assert without_unbacked_margins(text, ["revenue", "unit_cost"]) == text
+
+
+def test_marginal_is_a_different_word():
+    text = "Discounts play a marginal role, with a margin of error."
+    assert without_unbacked_margins(text, ["revenue"]) == text
+

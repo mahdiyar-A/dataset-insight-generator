@@ -104,6 +104,20 @@ _SCALES = {"k": 1e3, "K": 1e3, "thousand": 1e3, "M": 1e6, "mn": 1e6, "million": 
            "B": 1e9, "bn": 1e9, "billion": 1e9, "trillion": 1e12}
 
 
+_MARGIN_CLAIM = re.compile(r"\b(high|low)[\s\-\u2010-\u2015]margin\b", re.IGNORECASE)
+_COST_COLUMN = re.compile(r"cost|margin|profit|cogs", re.IGNORECASE)
+
+
+def without_unbacked_margins(text: str, columns: Iterable[str]) -> str:
+    """
+    A model called sandwiches "high-margin" from a file with no costs, and did it
+    again when told not to. Without a cost column, it can only mean revenue.
+    """
+    if any(_COST_COLUMN.search(str(c)) for c in columns):
+        return text
+    return _MARGIN_CLAIM.sub(lambda m: f"{m.group(1)}-revenue", text)
+
+
 def _figures(text: str) -> List[Tuple[float, float]]:
     """Each number as written, with what its suffix multiplies it by."""
     out = []

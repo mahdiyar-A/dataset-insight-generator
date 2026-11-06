@@ -164,6 +164,38 @@ def test_off_topic_questions_get_the_models_refusal(model):
     assert out["refused"] and out["reason"] == "off_topic"
 
 
+def test_a_question_about_a_total_is_answered_from_the_file(model):
+    # A real reply gave the store with the best average for "made the most revenue".
+    fake = model({"action": "answer", "answer": "Downtown has the highest average, 219.57."},
+                 {"action": "query", "queries": [{"op": "aggregate", "measure": "revenue", "agg": "sum", "by": ["store"]}]},
+                 {"action": "answer", "answer": "Downtown made the most, 30."})
+    df = pd.DataFrame({"store": ["Downtown", "Downtown", "Midtown"], "revenue": [10, 20, 5]})
+    out = answer_question({**CONTEXT, "columns": ["store", "revenue"]},
+                          "Which store made the most revenue?", df=df)
+    assert out["answer"] == "Downtown made the most, 30."
+    assert len(out["queries"]) == 1 and len(fake.calls) == 3
+
+
+def test_a_first_answer_stands_when_the_second_try_gets_no_reply(model):
+    model({"action": "answer", "answer": "Downtown."}, None)
+    df = pd.DataFrame({"store": ["Downtown"], "revenue": [10]})
+    out = answer_question({**CONTEXT, "columns": ["store", "revenue"]},
+                          "Which store made the most revenue?", df=df)
+    assert out["answer"] == "Downtown."
+
+
+@pytest.mark.parametrize("question, has_file", [
+    ("Is revenue skewed?", True),                  # asks for no amount
+    ("What is the total of it all?", True),        # names no column
+    ("Which store made the most revenue?", False), # no file to query
+])
+def test_a_plain_answer_costs_one_call(model, question, has_file):
+    fake = model({"action": "answer", "answer": "It is."})
+    df = pd.DataFrame({"store": ["Downtown"], "revenue": [10]}) if has_file else None
+    answer_question({**CONTEXT, "columns": ["store", "revenue"]}, question, df=df)
+    assert len(fake.calls) == 1
+
+
 def test_a_question_naming_a_column_is_not_written_off_as_off_topic(model):
     fake = model({"action": "refuse", "answer": "I can't answer that with the data provided."},
                  {"action": "answer", "answer": "Sales and region move together."})
