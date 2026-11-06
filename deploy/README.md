@@ -27,6 +27,14 @@ bash deploy/deploy.sh
 It ships the committed code (`git archive HEAD`) plus the two `.env` files, then
 rebuilds and restarts on the server. It refuses to run with uncommitted changes.
 
+Then check it with real files and real models, about three minutes:
+
+```bash
+ssh -i ~/.ssh/dig-key.pem ubuntu@3.96.77.210 "docker exec -i dig-ai python -" < deploy/live_check.py
+```
+
+The last line says `ALL PASSED` or names what failed.
+
 ## Rebuild the server from nothing
 
 The server is deliberately stateless — every piece of user data lives in Supabase.
