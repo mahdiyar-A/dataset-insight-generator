@@ -10,6 +10,7 @@ import matplotlib.ticker as mticker
 import seaborn as sns
 from matplotlib import font_manager
 from matplotlib.text import Text
+from dataclasses import replace
 from typing import List, Dict, Any
 from ai_engine.fonts import RTL_CHARS, cjk_font_file
 from ai_engine.models.models import ChartInstruction
@@ -167,18 +168,26 @@ def _bar_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
     return _to_png_base64(fig)
 
 
+_ROW_COUNT = "__rows__"
+
+
 def _line_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
     x = _safe_col(df, instr.xColumn)
     y = _safe_col(df, instr.yColumn)
-    if not x or not y:
+    if not x:
         return None
 
+    # Text cannot be averaged, so a line of it counts rows at each point.
+    counting = not y or not pd.api.types.is_numeric_dtype(df[y])
+    if counting:
+        df, y = df.groupby(x).size().reset_index(name=_ROW_COUNT), _ROW_COUNT
+
     fig, ax = plt.subplots(figsize=(8, 4.5))
-    how = _measure(instr)
-    y_label = _axis_label(y, how)
+    how = "sum" if counting else _measure(instr)
+    y_label = "Count" if counting else _axis_label(y, how)
 
     if pd.api.types.is_numeric_dtype(df[x]):
-        y_label = y
+        y_label = "Count" if counting else y
         sorted_df = df[[x, y]].dropna().sort_values(x)
         ax.plot(sorted_df[x], sorted_df[y], color=instr.color, linewidth=2, alpha=0.9)
         ax.fill_between(sorted_df[x], sorted_df[y], alpha=0.15, color=instr.color)
@@ -379,6 +388,7 @@ def _grouped_bar_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
         return _bar_chart(df, instr)   # graceful fallback
 
     if g and g in df.columns and df[g].nunique() <= 12:
+        numeric    = pd.api.types.is_numeric_dtype(df[y])
         fig, ax = plt.subplots(figsize=(10, 5))
         groups     = df[g].dropna().unique()[:6]
         x_vals     = df[x].dropna().unique()[:12]
@@ -388,17 +398,17 @@ def _grouped_bar_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
         colors     = plt.cm.Blues(np.linspace(0.4, 0.9, n_groups))
 
         for gi, (grp, col) in enumerate(zip(groups, colors)):
-            subset = df[df[g] == grp]
-            means  = [subset[subset[x] == xv][y].mean() if xv in subset[x].values else 0
-                      for xv in x_vals]
-            offset = (gi - n_groups / 2 + 0.5) * bar_width
-            ax.bar(x_indices + offset, means, bar_width * 0.9,
+            subset  = df[df[g] == grp]
+            at_x    = [subset[subset[x] == xv] for xv in x_vals]
+            heights = [(rows[y].mean() if numeric else len(rows)) if len(rows) else 0 for rows in at_x]
+            offset  = (gi - n_groups / 2 + 0.5) * bar_width
+            ax.bar(x_indices + offset, heights, bar_width * 0.9,
                    label=str(grp), color=col, alpha=0.85, edgecolor="#0f172a", linewidth=0.4)
 
         ax.set_xticks(x_indices)
         ax.set_xticklabels([str(v) for v in x_vals], rotation=35, ha="right", fontsize=8)
         ax.set_xlabel(x)
-        ax.set_ylabel(y)
+        ax.set_ylabel(y if numeric else "Count")
         ax.set_title(instr.title, fontsize=12, fontweight="bold", pad=12)
         ax.legend(title=str(g), fontsize=7, title_fontsize=8)
         ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:,.0f}"))
@@ -470,6 +480,11 @@ MAX_CHARTS = 5
 """Kept in step with gemini_client.MAX_CHARTS and AnalysisService's Take(5)."""
 
 
+def _is_measure(df: pd.DataFrame, column: str | None) -> bool:
+    name = _safe_col(df, column) if column else None
+    return bool(name) and pd.api.types.is_numeric_dtype(df[name])
+
+
 def generate_charts(df: pd.DataFrame, instructions: List[ChartInstruction]) -> List[Dict[str, Any]]:
     """
     Generate charts from LLM instructions.
@@ -478,6 +493,7 @@ def generate_charts(df: pd.DataFrame, instructions: List[ChartInstruction]) -> L
     Returns list of {type, label, desc, color, insight_index, image_base64} — max 5 charts.
     """
     results = []
+    counted = set()   # x columns already shown as a count, so no chart repeats
     # Truncation is announced rather than silent. The slice used to be a bare
     # [:5]: when depth="deep" asked the model for 7 charts, two were discarded
     # here with no trace, so the report simply had fewer charts than the
@@ -497,16 +513,32 @@ def generate_charts(df: pd.DataFrame, instructions: List[ChartInstruction]) -> L
         builder = _CHART_BUILDERS.get(chart_type, _bar_chart)
         try:
             img_b64 = builder(df, instr)
-            if img_b64:
-                results.append({
-                    "type":          chart_type,
-                    "label":         instr.title,
-                    "desc":          instr.description,
-                    "color":         instr.color,
-                    "insight_index": instr.insightIndex,
-                    "image_base64":  img_b64,
-                })
         except Exception as e:
-            print(f"[Chart] Failed to generate '{instr.title}': {e}")
+            print(f"[Chart] Could not draw '{instr.title}' as {chart_type}: {e}")
+            plt.close("all")
+            img_b64 = None
+
+        # Most of these want numbers, and a file of text has none: 19 of 32 ways
+        # of asking for a chart of one drew nothing. Counting always works.
+        if not img_b64 and instr.xColumn not in counted:
+            try:
+                img_b64 = _bar_chart(df, replace(instr, yColumn=None))
+                chart_type = "bar"
+            except Exception as e:
+                print(f"[Chart] Failed to generate '{instr.title}': {e}")
+                plt.close("all")
+        if not img_b64:
+            continue
+
+        if chart_type == "bar" and not _is_measure(df, instr.yColumn):
+            counted.add(instr.xColumn)
+        results.append({
+            "type":          chart_type,
+            "label":         instr.title,
+            "desc":          instr.description,
+            "color":         instr.color,
+            "insight_index": instr.insightIndex,
+            "image_base64":  img_b64,
+        })
 
     return results

@@ -248,3 +248,52 @@ def test_a_week_with_no_sales_is_left_out_not_drawn_as_nothing(drawn):
     df = df[~df["date"].between("2025-03-01", "2025-03-20")]
     fig = chart_generator._line_chart(df, titled("Weekly Total Revenue", "date", "revenue", "line"))
     assert min(fig.axes[0].lines[0].get_ydata()) > 0
+
+
+# ── A file with no numbers ────────────────────────────────────────────────────
+
+def text_table(n=120):
+    rng = np.random.default_rng(3)
+    return pd.DataFrame({
+        "sector": rng.choice(["Tech", "Finance", "Health"], n),
+        "city": rng.choice(["Toronto", "Calgary"], n),
+        "term": rng.choice(["Summer", "Fall"], n),
+    })
+
+
+@pytest.mark.parametrize("chart_type", ["bar", "line", "scatter", "histogram", "box", "heatmap",
+                                        "grouped_bar", "multi_line"])
+@pytest.mark.parametrize("y, group", [("city", None), (None, None), ("city", "term")])
+def test_a_file_of_text_gets_every_chart_it_asks_for(chart_type, y, group):
+    # A real job list planned five charts and got two.
+    charts = generate_charts(text_table(), [instruction(group, x="sector", y=y, chart_type=chart_type)])
+    assert len(charts) == 1
+
+
+def test_charts_that_fall_back_do_not_repeat_each_other():
+    asked = [instruction(x="sector", y="city", chart_type=kind) for kind in ("histogram", "box", "heatmap")]
+    assert len(generate_charts(text_table(), asked)) == 1
+
+
+def test_a_grouped_bar_of_text_counts_rows(drawn):
+    df = text_table()
+    fig = chart_generator._grouped_bar_chart(df, instruction("term", x="sector", y="city"))
+    ax = fig.axes[0]
+    assert ax.get_ylabel() == "Count"
+    assert sum(bar.get_height() for bar in ax.patches) == len(df)
+
+
+def test_a_line_of_text_over_dates_counts_rows(drawn):
+    df = pd.DataFrame({"day": ["2026-01-01"] * 3 + ["2026-01-02"] * 5, "status": ["open"] * 8})
+    fig = chart_generator._line_chart(df, instruction(x="day", y="status", chart_type="line"))
+    ax = fig.axes[0]
+    assert ax.get_ylabel() == "Count"
+    assert list(ax.lines[0].get_ydata()) == [3, 5]
+
+
+def test_a_chart_of_numbers_never_falls_back(drawn, monkeypatch):
+    called = []
+    real = chart_generator._bar_chart
+    monkeypatch.setattr(chart_generator, "_bar_chart", lambda *a: called.append(a) or real(*a))
+    generate_charts(regions(), [instruction(chart_type="scatter")])
+    assert not called
