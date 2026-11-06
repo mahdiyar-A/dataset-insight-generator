@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace backend.Controllers;
 
@@ -267,16 +268,46 @@ public class AnalysisController : ControllerBase
     [HttpGet("{id:guid}/visualizations")]
     public async Task<IActionResult> GetVisualizations(Guid id)
     {
-        var analysis = await _repo.GetByIdAsync(id, UserId());
+        var userId   = UserId();
+        var analysis = await _repo.GetByIdAsync(id, userId);
         if (analysis == null || analysis.ChartUrls == null)
             return Ok(Array.Empty<object>());
 
+        JsonArray charts;
         try
         {
-            var charts = JsonSerializer.Deserialize<List<object>>(analysis.ChartUrls);
-            return Ok(charts ?? new List<object>());
+            if (JsonNode.Parse(analysis.ChartUrls) is not JsonArray parsed)
+                return Ok(Array.Empty<object>());
+            charts = parsed;
         }
-        catch { return Ok(Array.Empty<object>()); }
+        catch (JsonException) { return Ok(Array.Empty<object>()); }
+
+        // The links saved with a run expire after 24 hours, which left every
+        // older analysis with broken charts. Each one is signed again here, and
+        // one that cannot be signed keeps its old link rather than costing the rest.
+        foreach (var chart in charts.OfType<JsonObject>())
+        {
+            var path = ChartPath(chart["url"]?.GetValue<string>(), userId);
+            if (path == null) continue;
+            try { chart["url"] = await _storage.GetSignedUrlAsync(path, 3600); }
+            catch (Exception ex) { _logger.LogWarning(ex, "[Charts] Could not sign {Path}", path); }
+        }
+        return Ok(charts);
+    }
+
+    /// <summary>
+    /// Where a saved chart link points, read from the link itself. Charts that
+    /// failed to save leave gaps in the numbering, so a position in the list
+    /// does not give the file's name.
+    /// </summary>
+    internal static string? ChartPath(string? url, Guid userId)
+    {
+        if (string.IsNullOrEmpty(url)) return null;
+        var start = url.IndexOf($"/users/{userId}/", StringComparison.OrdinalIgnoreCase);
+        if (start < 0) return null;
+        var end = url.IndexOf('?', start);
+        var path = end < 0 ? url[(start + 1)..] : url[(start + 1)..end];
+        return Uri.UnescapeDataString(path);
     }
 
     // ── DTO mapper ────────────────────────────────────────────────────────────

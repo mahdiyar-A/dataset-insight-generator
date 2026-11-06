@@ -267,6 +267,42 @@ public class AnalysisEndpointTests
         chart.GetProperty("type").GetString().Should().Be("bar");
     }
 
+    [Test]
+    public async Task GetVisualizations_AnExpiredLinkIsSignedAgain()
+    {
+        // Links saved with a run lasted 24 hours, then every older chart broke.
+        var userId = TestAuthHandler.CurrentUserId;
+        var a = new Analysis(userId, "charts_data.csv", 1024);
+        a.SetStatus("done");
+        var path = $"users/{userId}/analyses/{a.Id}/chart_3.png";
+        a.SetChartUrls($$"""[{"type":"bar","label":"Revenue","url":"https://x.supabase.co/storage/v1/object/sign/dig_files/{{path}}?token=old"}]""");
+        _factory.AnalysisRepo.Store.Add(a);
+
+        var response = await _client.GetAsync($"/api/analyses/{a.Id}/visualizations");
+        var doc      = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        var chart = doc.RootElement[0];
+        chart.GetProperty("url").GetString().Should().Be($"https://fake-storage.example.com/{path}?expires=3600");
+        chart.GetProperty("label").GetString().Should().Be("Revenue");
+    }
+
+    [Test]
+    public async Task GetVisualizations_ALinkToAnotherAccountIsNotSigned()
+    {
+        // A stored value must never be able to open someone else's file.
+        var userId = TestAuthHandler.CurrentUserId;
+        var a = new Analysis(userId, "charts_data.csv", 1024);
+        a.SetStatus("done");
+        var theirs = $"https://x.supabase.co/storage/v1/object/sign/dig_files/users/{Guid.NewGuid()}/analyses/1/chart_0.png?token=old";
+        a.SetChartUrls($$"""[{"type":"bar","url":"{{theirs}}"}]""");
+        _factory.AnalysisRepo.Store.Add(a);
+
+        var response = await _client.GetAsync($"/api/analyses/{a.Id}/visualizations");
+        var doc      = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        doc.RootElement[0].GetProperty("url").GetString().Should().Be(theirs);
+    }
+
     // ── Delete ───────────────────────────────────────────────────────────────
 
     [Test]
