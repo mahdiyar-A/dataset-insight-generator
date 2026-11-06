@@ -139,6 +139,24 @@ def test_xlsx_upload_with_a_brief_produces_every_output(stub_writer):
     assert len(json.dumps(ctx)) < 60_000
 
 
+def test_the_report_says_which_sheets_were_not_read(stub_writer, monkeypatch):
+    seen = {}
+    real_build = pipeline.build_pdf
+
+    def keep(report, **kwargs):
+        seen["section"] = report.dataQualitySection
+        return real_build(report=report, **kwargs)
+
+    monkeypatch.setattr(pipeline, "build_pdf", keep)
+    result = run_pipeline(
+        file_bytes=_xlsx_bytes(_sales_frame()), file_name="sales.xlsx",
+        user_wants_cleaning=False, user_confirmed_low=True,
+        openrouter_api_key="", groq_api_key="", session_id="test",
+    )
+    assert result["status"] == "done", result.get("error")
+    assert '"Orders"' in seen["section"] and "Not read: About" in seen["section"]
+
+
 def test_a_model_cannot_drop_a_real_column(stub_writer, monkeypatch):
     # A real run lost discount_pct this way, and the questions box then said the
     # file had no discount information.

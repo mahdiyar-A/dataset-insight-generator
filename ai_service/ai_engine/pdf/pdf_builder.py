@@ -686,7 +686,8 @@ def build_pdf(
     pdf.set_text_color(*BRAND_MUTED)
     writer = getattr(report, "writerModel", "")
     note = (f"Confidence assessed by {CONFIDENCE_CREDIT} from sample size, completeness "
-            f"and the strength of the statistical evidence (final: {judge_confidence_score}/10).")
+            f"and the strength of the statistical evidence (final: {judge_confidence_score}/10). "
+            f"It rates the data, not the writing.")
     if g_score and writer:
         note += f" Initial self-assessment by {writer}: {g_score}/10."
     pdf.multi_cell(0, 4, pdf.t(note))

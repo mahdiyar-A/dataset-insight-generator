@@ -134,6 +134,23 @@ def test_xlsx_picks_the_data_sheet_and_lists_the_others(base):
     _same_shape(t)
 
 
+def test_the_sheets_left_out_are_named_first(base):
+    # A real five-sheet workbook was read as one sheet and nothing said so.
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as w:
+        pd.DataFrame({"note": ["read me"]}).to_excel(w, sheet_name="Notes", index=False)
+        base.to_excel(w, sheet_name="Data", index=False)
+    note = load_table(buf.getvalue(), "x.xlsx").notes[0]
+    assert '"Data"' in note and "Not read: Notes" in note
+
+
+def test_a_workbook_of_one_sheet_mentions_no_others(base):
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as w:
+        base.to_excel(w, sheet_name="Data", index=False)
+    assert not any("Not read" in n for n in load_table(buf.getvalue(), "x.xlsx").notes)
+
+
 def test_xlsx_title_rows_and_a_wrong_extension(base):
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as w:

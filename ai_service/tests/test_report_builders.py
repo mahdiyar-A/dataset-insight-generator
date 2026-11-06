@@ -16,7 +16,7 @@ from pptx import Presentation
 from ai_engine.models.models import DomainResult, LLMReport
 from ai_engine.pdf.pdf_builder import build_pdf, needs_unicode
 from ai_engine.pptx.pptx_builder import FULL_WIDTH_CHARS, _weight, build_pptx, chunk_text
-from ai_engine.report_labels import LABELS, labels_for
+from ai_engine.report_labels import LABELS, labels_for, left_out_line
 from ai_engine.word.word_builder import build_word_doc
 
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
@@ -57,6 +57,22 @@ CHARTS = [{"image_base64": PNG, "label": "Revenue by region", "desc": "Totals.",
 
 
 # ── Labels ────────────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("lang", sorted(LABELS))
+def test_the_left_out_line_names_both_parts_in_every_language(lang):
+    line = left_out_line({"sheet": "Company Bank", "otherSheets": ["Notes", "Lookups"]}, lang)
+    assert "Company Bank" in line and "Notes, Lookups" in line
+
+
+def test_the_left_out_line_shortens_a_long_list():
+    line = left_out_line({"table": "orders", "otherTables": [f"t{i}" for i in range(8)]})
+    assert "t4, ..." in line and "t5" not in line
+
+
+def test_nothing_left_out_needs_no_line():
+    assert left_out_line({"sheet": "Data"}) == ""
+    assert left_out_line({}) == ""
+
 
 def test_every_language_has_every_label():
     keys = set(LABELS["en"])

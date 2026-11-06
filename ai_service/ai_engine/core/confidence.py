@@ -219,7 +219,7 @@ def assess_confidence(
 
     support = (f"{evidence} statistically significant pattern{'s' if evidence != 1 else ''}"
                if evidence else "no statistically significant patterns")
-    statement = (f"Confidence is {level.lower()} ({score}/10), based on {n:,} rows "
+    statement = (f"Confidence in the data is {level.lower()} ({score}/10), based on {n:,} rows "
                  f"with {missing:.1f}% of values missing and {support} in the data.")
     if reasons and level != "HIGH":
         statement += " It is held back by " + _join(reasons) + "."
