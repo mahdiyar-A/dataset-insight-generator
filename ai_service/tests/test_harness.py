@@ -185,6 +185,70 @@ def test_a_question_about_a_total_asks_for_a_query_up_front(model):
     assert len(fake.calls) == 2
 
 
+class TestWaitingOutAShortLimit:
+    KEYS = {"groq": "k", "openrouter": "k"}
+
+    @pytest.fixture(autouse=True)
+    def clean(self):
+        from ai_engine.llm import report_writer
+        report_writer.reset_cooldowns()
+        yield
+        report_writer.reset_cooldowns()
+
+    def hold_every_model(self, secs):
+        from ai_engine.llm import report_writer
+        for p in harness.CHAT_PROVIDERS:
+            report_writer._set_cooldown(p.model, 100.0 + secs)
+
+    def ask(self, **kwargs):
+        slept = []
+        out = answer_question(CONTEXT, "Which region leads?", clock=lambda: 100.0, sleep=slept.append, **kwargs)
+        return out, slept
+
+    def test_a_short_hold_is_waited_out(self, model):
+        # On the real server a second question in the same minute was told to
+        # try again, though the limit cleared seconds later.
+        model(None, {"action": "answer", "answer": "The West leads."})
+        self.hold_every_model(8)
+        out, slept = self.ask(api_keys=self.KEYS)
+        assert out["answer"] == "The West leads." and not out.get("failed")
+        assert slept == [8]
+
+    def test_the_soonest_model_sets_the_wait(self, model):
+        from ai_engine.llm import report_writer
+        model(None, {"action": "answer", "answer": "The West leads."})
+        self.hold_every_model(600)
+        report_writer._set_cooldown(harness.CHAT_PROVIDERS[-1].model, 103.0)
+        _, slept = self.ask(api_keys=self.KEYS)
+        assert slept == [3]
+
+    def test_a_daily_allowance_is_not_waited_for(self, model):
+        fake = model(None, {"action": "answer", "answer": "Never reached."})
+        self.hold_every_model(3600)
+        out, slept = self.ask(api_keys=self.KEYS)
+        assert out["failed"] and slept == [] and len(fake.calls) == 1
+
+    def test_no_keys_means_nothing_to_wait_for(self, model):
+        fake = model(None)
+        out, slept = self.ask(api_keys={})
+        assert out["failed"] and slept == [] and len(fake.calls) == 1
+
+    def test_it_waits_once_only(self, model):
+        fake = model(None, None, None)
+        self.hold_every_model(5)
+        out, slept = self.ask(api_keys=self.KEYS)
+        assert out["failed"] and slept == [5] and len(fake.calls) == 2
+
+    def test_no_wait_that_would_run_past_the_deadline(self, model):
+        fake = model(None, {"action": "answer", "answer": "Never reached."})
+        self.hold_every_model(20)
+        now = iter([100.0, 100.0, 100.0, 150.0, 150.0, 150.0])
+        slept = []
+        out = answer_question(CONTEXT, "Which region leads?", api_keys=self.KEYS,
+                              clock=lambda: next(now), sleep=slept.append)
+        assert out["failed"] and slept == [] and len(fake.calls) == 1
+
+
 def test_every_free_model_gets_its_turn_at_a_question():
     # One model's daily allowance running out must not stop answers.
     assert len({p.model for p in harness.CHAT_PROVIDERS}) >= 4

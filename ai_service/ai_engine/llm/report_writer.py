@@ -146,6 +146,13 @@ def _set_cooldown(model: str, until: Optional[float]) -> None:
             _cooldown_until[model] = until
 
 
+def seconds_until_free(providers: Tuple[ReportProvider, ...], api_keys: Dict[str, str], now: float) -> Optional[float]:
+    """How long until the soonest of these models can be tried. None if none of them has a key."""
+    with _cooldown_lock:
+        waits = [max(_cooldown_until.get(p.model, 0.0) - now, 0.0) for p in providers if api_keys.get(p.provider)]
+    return min(waits) if waits else None
+
+
 def reset_cooldowns() -> None:
     """Forget every cool-down. For tests, and for operators after an outage."""
     with _cooldown_lock:

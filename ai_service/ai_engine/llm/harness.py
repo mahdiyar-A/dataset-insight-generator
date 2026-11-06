@@ -57,6 +57,7 @@ from ai_engine.llm.report_writer import (
     MIN_USEFUL_SECS,
     OPENROUTER_URL,
     ReportProvider,
+    seconds_until_free,
     write_report,
 )
 
@@ -92,6 +93,11 @@ BRIEF_BUDGET_SECS = 35
 # backend stops waiting at 70 seconds. Past that the person gets a timeout even
 # if an answer was seconds away, so steps stop being started well before it.
 CHAT_DEADLINE_SECS = 60
+
+# Each free model takes about one question a minute, and its limit clears in
+# seconds. When every model is on hold and one frees up soon, a short wait beats
+# telling the person to try again. A hold longer than this is a daily allowance.
+MAX_WAIT_FOR_A_MODEL_SECS = 25
 
 MAX_QUESTION_CHARS = 600
 MAX_BRIEF_CHARS = 1500
@@ -434,6 +440,7 @@ def answer_question(
     ui_language: str = "en",
     providers: Tuple[ReportProvider, ...] = CHAT_PROVIDERS,
     clock: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
 ) -> Dict[str, Any]:
     """
     Answer one question about an analysis. Never raises.
@@ -469,7 +476,7 @@ def answer_question(
     model = ""
     deadline = clock() + CHAT_DEADLINE_SECS
 
-    def call(msgs) -> Optional[Dict[str, Any]]:
+    def attempt(msgs) -> Optional[Dict[str, Any]]:
         nonlocal model
         left = deadline - clock()
         if left < MIN_USEFUL_SECS:
@@ -480,6 +487,17 @@ def answer_question(
         if provider is not None:
             model = provider.display_name
         return result
+
+    def call(msgs) -> Optional[Dict[str, Any]]:
+        result = attempt(msgs)
+        if result is not None:
+            return result
+        wait = seconds_until_free(providers, api_keys or {}, clock())
+        if wait is None or wait > MAX_WAIT_FOR_A_MODEL_SECS or clock() + wait + MIN_USEFUL_SECS > deadline:
+            return None
+        print(f"[Ask] every model is on hold; waiting {wait:.0f}s for the next", flush=True)
+        sleep(wait)
+        return attempt(msgs)
 
     step = call(messages)
 
