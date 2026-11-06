@@ -139,6 +139,30 @@ def test_xlsx_upload_with_a_brief_produces_every_output(stub_writer):
     assert len(json.dumps(ctx)) < 60_000
 
 
+def test_a_model_cannot_drop_a_real_column(stub_writer, monkeypatch):
+    # A real run lost discount_pct this way, and the questions box then said the
+    # file had no discount information.
+    real_gate = pipeline._run_domain_gate
+
+    def wants_it_gone(df, *args, **kwargs):
+        domain = real_gate(df, *args, **kwargs)
+        domain.column_decisions["drop"] = ["units"]
+        domain.cleaning_methods = [*domain.cleaning_methods, "drop_column:units"]
+        return domain
+
+    monkeypatch.setattr(pipeline, "_run_domain_gate", wants_it_gone)
+    df = _sales_frame()
+    df.loc[df.index[:30], "units"] = np.nan
+    result = run_pipeline(
+        file_bytes=df.to_csv(index=False).encode(), file_name="sales.csv",
+        user_wants_cleaning=True, user_confirmed_low=True,
+        openrouter_api_key="", groq_api_key="", session_id="test",
+    )
+    assert result["status"] == "done", result.get("error")
+    assert "units" in [c["name"] for c in result["chat_context"]["columns"]]
+    assert result["chat_context"]["columnsLeftOutOfTheReport"] == []
+
+
 def test_unreadable_upload_fails_with_a_message_for_the_user(stub_writer):
     result = run_pipeline(
         file_bytes=b"%PDF-1.7 not a table", file_name="report.pdf",

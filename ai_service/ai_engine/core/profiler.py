@@ -147,6 +147,11 @@ def medcouple(values: np.ndarray) -> float:
     return float(np.clip(np.median(h), -1.0, 1.0))
 
 
+# Outliers are rare. A fence that takes in more than this share of a column has
+# found a real group, not errors: every sandwich at 8.90 among cheaper drinks.
+MAX_OUTLIER_SHARE = 0.05
+
+
 def adjusted_fences(series: pd.Series, k: float = 3.0) -> Tuple[float, float]:
     """
     Outlier fences corrected for skewness (Hubert & Vandervieren, 2008).
@@ -162,7 +167,8 @@ def adjusted_fences(series: pd.Series, k: float = 3.0) -> Tuple[float, float]:
     k defaults to 3 — the "extreme outlier" distance this pipeline has always
     used — rather than the 1.5 of the original paper.
 
-    Returns (-inf, inf) when the column has no spread to measure.
+    Returns (-inf, inf) when the column has no spread to measure, or when more
+    than MAX_OUTLIER_SHARE of it lies outside the fences.
     """
     clean = series.dropna()
     clean = clean[np.isfinite(clean.to_numpy(dtype="float64", na_value=np.nan))]
@@ -182,6 +188,10 @@ def adjusted_fences(series: pd.Series, k: float = 3.0) -> Tuple[float, float]:
     else:
         lower = q1 - k * float(np.exp(-3.0 * mc)) * iqr
         upper = q3 + k * float(np.exp(4.0 * mc)) * iqr
+
+    values = clean.to_numpy(dtype="float64")
+    if np.mean((values < lower) | (values > upper)) > MAX_OUTLIER_SHARE:
+        return (-np.inf, np.inf)
 
     return (lower, upper)
 
