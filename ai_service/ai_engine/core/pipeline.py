@@ -22,7 +22,7 @@ from typing import Optional, List, Dict, Any
 
 from ai_engine.ingest                    import load_table, UnsupportedFile
 from ai_engine.quality.quality_checker   import check_data_quality
-from ai_engine.core.cleaner              import clean_dataset
+from ai_engine.core.cleaner              import clean_dataset, droppable_columns
 from ai_engine.core.stats_analyzer       import build_stats_summary
 from ai_engine.llm.groq_client           import detect_domain
 from ai_engine.core.confidence          import assess_confidence, split_misleading_scatters, validate_chart_instructions
@@ -97,7 +97,8 @@ def parse_questions(raw: Any) -> List[Dict[str, str]]:
     return out
 
 
-def _chat_context(stats, domain, report, columns: List[str], source: Dict[str, Any]) -> Dict[str, Any]:
+def _chat_context(stats, domain, report, columns: List[str], source: Dict[str, Any],
+                  set_aside: Optional[List[str]] = None) -> Dict[str, Any]:
     """
     What the chat needs to answer questions after the analysis: the digest the
     report was written from, the report's own words, and the column list.
@@ -109,6 +110,7 @@ def _chat_context(stats, domain, report, columns: List[str], source: Dict[str, A
         "version": 1,
         "digest": build_digest(stats, domain),
         "columns": [{"name": str(c), "type": stats.columnTypes.get(str(c), "")} for c in columns][:200],
+        "columnsLeftOutOfTheReport": [str(c) for c in (set_aside or [])][:50],
         "file": {k: source.get(k) for k in ("format", "formatLabel", "notes") if source.get(k)},
         "report": {
             "title": report.reportTitle,
@@ -229,8 +231,16 @@ def run_pipeline(
         return _fail("not_workable", f"Dataset rejected: {domain.rejection_reason}")
 
     # Columns Groq said to drop
-    groq_drops   = domain.column_decisions.get("drop", [])
-    groq_methods = domain.cleaning_methods
+    suggested    = domain.column_decisions.get("drop", [])
+    groq_drops   = droppable_columns(df_original, suggested)
+    kept_back    = [c for c in suggested if c not in groq_drops]
+    groq_methods = [m for m in domain.cleaning_methods
+                    if not m.startswith("drop_column:")
+                    or m.split(":", 1)[1] in droppable_columns(df_original, [m.split(":", 1)[1]])]
+    if kept_back:
+        print(f"[Pipeline] Kept column(s) the model suggested dropping: {kept_back}", flush=True)
+        domain.column_decisions["drop"] = groq_drops
+        domain.column_decisions.setdefault("keep", []).extend(kept_back)
 
     # ── Phase 2: Cleaning gate ────────────────────────────────────────────
     # User interaction handled by C# chatbot — we receive user_wants_cleaning as a flag.
@@ -424,7 +434,8 @@ def run_pipeline(
 
     chat_context = None
     try:
-        chat_context = _chat_context(stats, domain, llm_report, list(df_work.columns), source_file)
+        chat_context = _chat_context(stats, domain, llm_report, list(df_work.columns), source_file,
+                                     dropped_columns)
     except Exception as e:  # the chat is an extra; it must never fail the report
         print(f"[Pipeline] Chat context failed (ignored): {e}", flush=True)
 

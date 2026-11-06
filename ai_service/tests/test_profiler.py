@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ai_engine.core.cleaner import clean_dataset
+from ai_engine.core.cleaner import clean_dataset, droppable_columns
 from ai_engine.core.profiler import (
     adjusted_fences,
     identifier_columns,
@@ -104,6 +104,57 @@ class TestMedcouple:
 
 
 # ── Adjusted fences ──────────────────────────────────────────────────────────
+
+class TestARealGroupIsNotAnOutlier:
+    # Prices from a real run: a fifth of the rows are sandwiches at 8.90, and
+    # cleaning capped every one of them as an "extreme outlier".
+    PRICES = pd.Series([3.1] * 481 + [4.2] * 486 + [5.25] * 463 + [5.75] * 468 + [8.9] * 462)
+
+    def test_no_fence_when_a_fifth_of_the_column_would_fall_outside_it(self):
+        assert adjusted_fences(self.PRICES) == (-np.inf, np.inf)
+
+    def test_a_rare_extreme_value_is_still_an_outlier(self):
+        rng = np.random.default_rng(3)
+        s = pd.Series(np.append(rng.normal(100, 10, 1000), [900.0, 950.0]))
+        lower, upper = adjusted_fences(s)
+        assert np.isfinite(upper) and upper < 900
+
+    def test_cleaning_leaves_the_group_alone(self):
+        df = pd.DataFrame({"price": self.PRICES, "units": range(len(self.PRICES))})
+        out = clean_dataset(df, check_data_quality(df))
+        assert out["price"].max() == 8.9
+
+    def test_a_model_asking_to_cap_it_changes_nothing(self):
+        df = pd.DataFrame({"price": self.PRICES, "units": range(len(self.PRICES))})
+        out = clean_dataset(df, check_data_quality(df), groq_methods=["cap_outliers:price"])
+        assert out["price"].max() == 8.9
+
+    def test_the_checker_does_not_ask_for_cleaning_that_will_not_happen(self):
+        df = pd.DataFrame({"price": self.PRICES, "units": range(len(self.PRICES))})
+        assert not any("price" in w for w in check_data_quality(df).warnings)
+
+
+class TestDroppableColumns:
+    N = 200
+    FRAME = pd.DataFrame({
+        "row_id": range(N),
+        "discount_pct": [0, 0, 0, 10, 15] * (N // 5),
+        "store": ["Downtown", "Harbour"] * (N // 2),
+        "note": [f"called on day {i}" for i in range(N)],
+        "constant": [1] * N,
+        "mostly_empty": [1.0] + [None] * (N - 1),
+    })
+
+    @pytest.mark.parametrize("name, allowed", [
+        ("row_id", True), ("note", True), ("constant", True), ("mostly_empty", True),
+        ("discount_pct", False), ("store", False),
+    ])
+    def test_only_columns_with_nothing_to_analyse_can_go(self, name, allowed):
+        assert (droppable_columns(self.FRAME, [name]) == [name]) is allowed
+
+    def test_a_name_the_file_does_not_have_is_ignored(self):
+        assert droppable_columns(self.FRAME, ["nothing"]) == []
+
 
 class TestAdjustedFences:
     def test_symmetric_column_stays_close_to_the_plain_iqr_rule(self):

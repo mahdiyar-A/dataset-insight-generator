@@ -27,6 +27,29 @@ from ai_engine.core.stat_tests import text_columns
 from ai_engine.models.models import DataQualityResult
 
 
+def droppable_columns(df: pd.DataFrame, columns: List[str]) -> List[str]:
+    """
+    Which of a model's "drop this column" suggestions may stand.
+
+    A model dropped discount_pct from a sales file, and neither the report nor
+    the questions box then knew the file had discounts. A suggestion stands only
+    for a column there is nothing to analyse in: one that names rows, holds one
+    value, is mostly empty, or is free text with hardly a repeat.
+    """
+    keys = set(protected_columns(df))
+    allowed = []
+    for name in columns:
+        if name not in df.columns:
+            continue
+        s = df[name]
+        filled = s.dropna()
+        free_text = (not pd.api.types.is_numeric_dtype(s) and len(filled) > 0
+                     and filled.nunique() / len(filled) > 0.5)
+        if name in keys or filled.nunique() <= 1 or s.isna().mean() >= 0.85 or free_text:
+            allowed.append(name)
+    return allowed
+
+
 def clean_dataset(
     df: pd.DataFrame,
     quality: DataQualityResult,
@@ -127,14 +150,9 @@ def clean_dataset(
 
         elif method_name == "cap_outliers":
             if pd.api.types.is_numeric_dtype(s):
-                clean = s.dropna()
-                if len(clean) >= 10:
-                    q1, q3 = clean.quantile(0.25), clean.quantile(0.75)
-                    iqr = q3 - q1
-                    if iqr > 0:
-                        lower = q1 - 1.5 * iqr
-                        upper = q3 + 1.5 * iqr
-                        df[col_name] = s.clip(lower=lower, upper=upper)
+                lower, upper = adjusted_fences(s, k=1.5)
+                if np.isfinite(lower) and np.isfinite(upper):
+                    df[col_name] = s.clip(lower=lower, upper=upper)
 
         elif method_name == "drop_column":
             if col_name in df.columns:
