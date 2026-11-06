@@ -9,27 +9,45 @@
 
 | Suite | Count | Command |
 |---|---|---|
-| C# — unit, integration, edge cases | 274 | `dotnet test backend.Tests/backend.Tests.csproj` |
-| Python — stats, ingest, chat harness, reports, full pipeline | 629 | `cd ai_service && pytest tests/` |
+| C# — unit, integration, edge cases, the real Supabase client against a stand-in server | 317 | `dotnet test backend.Tests/backend.Tests.csproj` |
+| Python — stats, ingest, chat harness, reports, full pipeline | 664 | `cd ai_service && pytest tests/` |
 | Frontend — Vitest, including rendered components | 163 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
 
 ---
 
-## Built 2026-11, not live yet
+## Built 2026-11
 
-None of this is live yet. The whole round is on the branch
-`release/november-round`, with CI green. **Order matters:** deploy the server
-from that branch (`bash deploy/deploy.sh`), check it with `deploy/live_check.py`,
-then merge the branch so Vercel builds the frontend. The old frontend works with
-the new server. The new
-frontend on the old server would offer formats it refuses and chat calls that
-fail, and its privacy page would describe things that are not live.
+The server runs this round, and `deploy/live_check.py` passes on it. The frontend
+goes live when `release/november-round` is merged, because Vercel builds from
+`main`. **Order matters:** deploy the server first (`bash deploy/deploy.sh`), check
+it, then merge. The old frontend works with the new server. The new frontend on
+the old server would offer formats it refuses and chat calls that fail, and its
+privacy page would describe things that are not live.
 
-Tested with a faked server in a real browser, and with the real service and real
-models on a local machine, not yet on the real server.
+Tested on the real server with real models for the AI service. The signed-in path
+through the live database has not been run end to end: it is tested through the
+real Supabase client against a stand-in server, using the live schema.
 Analyses made before the deploy have no chat context, so their questions box
 says to run them again.
+
+**The app against the live database (found and fixed in this round):**
+
+- Every sign-up since `users.last_active_at` became NOT NULL (about 2026-09-12)
+  would have failed at the profile step. The two existing accounts are older.
+- The bucket refused Word, PowerPoint, chat context and many original files,
+  because the client library guessed types from file names.
+- Delete Account removed nothing. It now cancels any subscription and removes
+  the files, the row and the sign-in record (`AccountDeletion`).
+- Workspace, comment, permission and member reads made up new ids and dates.
+  Second shares, permission changes and invite accepts broke unique rules.
+  Teammates could not download shared files.
+- Changing a password could never work, name and phone could overwrite each
+  other, saved pictures did not load after a reload, and Remove picture was not
+  saved.
+- `analyses` is still empty on the live database, so the first real signed-in
+  run is the last check. The two rows in the old `datasets` table don't appear in
+  history.
 
 - **Any common data file.** CSV and other delimited text, Excel, ODS, JSON and
   JSON Lines, GeoJSON, XML, Parquet, Feather, ORC, Stata, SAS, SPSS, SQLite, and
