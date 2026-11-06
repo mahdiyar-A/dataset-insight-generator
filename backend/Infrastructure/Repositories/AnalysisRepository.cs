@@ -105,6 +105,17 @@ public class AnalysisRepository : IAnalysisRepository
         await q.Update();
     }
 
+    public async Task<int> FailUnfinishedAsync(DateTime startedBefore)
+    {
+        var stuck = await _db.From<AnalysisRow>()
+            .Filter("status", Operator.Equals, "processing")
+            .Filter("created_at", Operator.LessThan, startedBefore.ToString("o"))
+            .Get();
+        foreach (var row in stuck.Models)
+            await UpdateStatusAsync(Guid.Parse(row.Id), "failed");
+        return stuck.Models.Count;
+    }
+
     public async Task UpdateUsageAsync(Guid analysisId,
         decimal costUsd, long tokensIn, long tokensOut, string? usageJson)
     {

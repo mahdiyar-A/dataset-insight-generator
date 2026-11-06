@@ -80,6 +80,16 @@ public class FakeAnalysisRepository : IAnalysisRepository
         return Task.CompletedTask;
     }
 
+    public virtual Task<int> FailUnfinishedAsync(DateTime startedBefore)
+    {
+        lock (_lock)
+        {
+            var stuck = _store.Where(a => a.Status == "processing" && a.CreatedAt < startedBefore).ToList();
+            stuck.ForEach(a => a.SetStatus("failed"));
+            return Task.FromResult(stuck.Count);
+        }
+    }
+
     public Task UpdateChartUrlsAsync(Guid analysisId, string chartUrlsJson)
     {
         lock (_lock)
