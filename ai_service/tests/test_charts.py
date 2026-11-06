@@ -198,8 +198,8 @@ def daily_sales(days=200, rows_per_day=4):
     return pd.DataFrame({"date": dates, "revenue": 10.0, "store": ["A", "B"] * (days * rows_per_day // 2)})
 
 
-def titled(title, x, y, chart_type):
-    return ChartInstruction(index=1, chartType=chart_type, title=title, xColumn=x, yColumn=y, description="",
+def titled(title, x, y, chart_type, description=""):
+    return ChartInstruction(index=1, chartType=chart_type, title=title, xColumn=x, yColumn=y, description=description,
                             insightIndex=1, color="#3b82f6")
 
 
@@ -209,6 +209,19 @@ def test_a_weekly_total_is_a_total(drawn):
     ax = fig.axes[0]
     assert max(ax.lines[0].get_ydata()) == 10.0 * 4 * 7
     assert ax.get_ylabel() == "revenue (total)"
+
+
+def test_a_description_promising_totals_gets_totals(drawn):
+    # "Weekly Revenue Trend", described as "the weekly total revenue".
+    fig = chart_generator._line_chart(daily_sales(), titled("Weekly Revenue Trend", "date", "revenue", "line",
+                                                            "Displays the weekly total revenue over the year."))
+    assert fig.axes[0].get_ylabel() == "revenue (total)"
+
+
+def test_a_title_saying_average_is_not_overruled_by_its_description(drawn):
+    fig = chart_generator._bar_chart(daily_sales(), titled("Average Revenue by Store", "store", "revenue", "bar",
+                                                           "Downtown takes a third of total revenue."))
+    assert fig.axes[0].get_ylabel() == "revenue (average)"
 
 
 def test_a_line_with_no_total_in_its_title_says_it_is_an_average(drawn):

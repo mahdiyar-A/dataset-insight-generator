@@ -120,14 +120,19 @@ def _infer_top_n(title: str, default: int = 10) -> int:
     return default
 
 
-def _measure(title: str) -> str:
+def _measure(instr: ChartInstruction) -> str:
     """
-    "sum" when a chart's title promises totals, otherwise "mean".
+    "sum" when a chart promises totals, otherwise "mean".
 
-    A model writes the title. One called a chart "Weekly Total Revenue" over
-    weekly averages, so a week of 7,000 read as 160.
+    A model writes the words. One called a chart "Weekly Total Revenue" over
+    weekly averages, so a week of 7,000 read as 160. A title that says average
+    settles it; otherwise the title or the description can ask for a total.
     """
-    return "sum" if re.search(r"\b(totals?|sums?)\b", title or "", re.IGNORECASE) else "mean"
+    title = instr.title or ""
+    if re.search(r"\b(average|avg|mean|median)\b", title, re.IGNORECASE):
+        return "mean"
+    words = f"{title} {instr.description or ''}"
+    return "sum" if re.search(r"\b(totals?|sums?)\b", words, re.IGNORECASE) else "mean"
 
 
 def _axis_label(column: str, how: str) -> str:
@@ -144,7 +149,7 @@ def _bar_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
     fig, ax = plt.subplots(figsize=(8, 4.5))
 
     if y and pd.api.types.is_numeric_dtype(df[y]):
-        how = _measure(instr.title)
+        how = _measure(instr)
         data = df.groupby(x)[y].agg(how).sort_values(ascending=False).head(top_n)
         ax.bar(data.index.astype(str), data.values, color=instr.color, alpha=0.85, edgecolor="#0f172a", linewidth=0.5)
         ax.set_ylabel(_axis_label(y, how))
@@ -169,7 +174,7 @@ def _line_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
         return None
 
     fig, ax = plt.subplots(figsize=(8, 4.5))
-    how = _measure(instr.title)
+    how = _measure(instr)
     y_label = _axis_label(y, how)
 
     if pd.api.types.is_numeric_dtype(df[x]):
