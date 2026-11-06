@@ -682,7 +682,7 @@ def build_stats_summary(
 
     group_cats = _categories(sample, keys, MAX_GROUP_LEVELS)
     groups = _group_comparisons(sample, group_cats, measures)
-    correlation_checks = check_correlations(sample, pearson, group_cats)
+    correlation_checks = check_correlations(sample, pearson, group_cats, measures)
     assoc = _categorical_associations(sample, _categories(sample, keys, MAX_ASSOCIATION_LEVELS))
     missing_patterns = _missingness_patterns(sample, group_cats, measures)
 
