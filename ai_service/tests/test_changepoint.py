@@ -14,11 +14,10 @@ import pandas as pd
 import pytest
 
 from ai_engine.core.changepoint import (
-    MAX_PERIODS,
-    MIN_PERIODS,
     _candidates,
     _describe,
     _pattern,
+    _simulate,
     _wander,
     find_shift,
     labelled_shift,
@@ -94,6 +93,13 @@ class TestSteps:
         found = find_shift(make(np.random.default_rng(5)))
         assert found["after"] < found["before"]
 
+    def test_only_a_jump_the_slope_takes_back_is_held_to_the_stricter_bar(self):
+        # That is the shape of a step imitating a wave. Going with the slope, or
+        # against one too slight to undo it, is not, and either is found 8 times in
+        # 10 under this much memory. The stricter bar would cost a quarter to a half.
+        assert flagged(lambda r: LONG / 4 + 6 * (LONG >= 30) + with_memory(r, 60, 0.4), "step", runs=100) >= 0.7
+        assert flagged(lambda r: 6 * (LONG >= 30) + with_memory(r, 60, 0.4), "step", runs=100) >= 0.72
+
     def test_a_step_with_no_noise_at_all(self):
         # A price list: one fee, then another. Nothing is left over to read.
         found = find_shift(exact_step(30))
@@ -159,6 +165,7 @@ class TestNotAMoment:
         ("small counts", 0.05, lambda r: r.poisson(5, 36).astype("float64")),
         ("quiet compound growth", 0.02, lambda r: 100 * 20 ** (LONG / 59) * (1 + 0.02 * r.standard_normal(60))),
         ("noisy compound growth", 0.05, lambda r: np.exp(3 * LONG / 59) + 0.3 * r.standard_normal(60)),
+        ("gentle compound growth", 0.05, lambda r: 100 * 3 ** (LONG / 59) * (1 + 0.05 * r.standard_normal(60))),
         ("a slow S-curve", 0.05, lambda r: 100 / (1 + np.exp(-(LONG / 59 - 0.5) * 6)) + r.standard_normal(60)),
         ("two slow waves", 0.05, lambda r: 3 * np.sin(4 * np.pi * LONG / 59) + r.standard_normal(60)),
         ("a yearly wave", 0.05, lambda r: 3 * np.sin(2 * np.pi * LONG / 12) + r.standard_normal(60)),
@@ -178,11 +185,21 @@ class TestNotAMoment:
         assert flagged(lambda r: np.cumsum(r.standard_normal(24)), "step") <= 0.03
         assert flagged(lambda r: np.cumsum(r.standard_normal(24))) <= 0.1
 
+    def test_a_long_wander_names_no_moment(self):
+        # What a shape leaves of a wander still predicts itself. Without that
+        # refusal, one in nine of these would get a moment.
+        assert flagged(lambda r: np.cumsum(r.standard_normal(120)), runs=100) <= 0.03
+
     def test_a_jump_in_the_last_two_periods_is_too_late_to_call_a_step(self):
         assert flagged(lambda r: r.standard_normal(36) + 6 * (T >= 34), "step") <= 0.05
 
     def test_an_exactly_straight_line(self):
         assert find_shift(5 + 2 * T) is None
+
+    @pytest.mark.parametrize("periods, start, slope", [(53, 1e6, 12345.678), (101, 3.3, 1 / 3), (102, 3.3, 1 / 3)])
+    def test_rounding_on_an_exact_line_is_not_a_moment(self, periods, start, slope):
+        # What rounding leaves of these lines happens to look like a shape.
+        assert find_shift(start + slope * np.arange(float(periods))) is None
 
     def test_an_exact_parabola_has_no_sharp_moment(self):
         assert find_shift(T ** 2) is None
@@ -190,12 +207,12 @@ class TestNotAMoment:
 
 class TestInputs:
     def test_too_few_periods(self):
-        assert find_shift(exact_step(MIN_PERIODS - 1)) is None
-        assert find_shift(exact_step(MIN_PERIODS)) is not None
+        assert find_shift(exact_step(11)) is None
+        assert find_shift(exact_step(12)) is not None
 
     def test_too_many_periods_for_the_memory_of_the_server(self):
-        assert find_shift(exact_step(MAX_PERIODS)) is not None
-        assert find_shift(exact_step(MAX_PERIODS + 1)) is None
+        assert find_shift(exact_step(120)) is not None
+        assert find_shift(exact_step(121)) is None
 
     def test_a_constant_series(self):
         assert find_shift(np.full(36, 7.0)) is None
@@ -225,6 +242,17 @@ class TestReadings:
             best = steps[int(np.argmax((steps @ residual) ** 2))]
             readings.append(_pattern(residual - (best @ residual) * best))
         assert abs(float(np.mean(readings))) < 0.04
+
+    def test_simulated_series_hold_the_curve_as_fitted_and_leave_what_the_real_one_leaves(self):
+        line, curve, _, _, _ = _candidates(36)
+        residual = line @ (0.05 * T ** 2 + np.random.default_rng(1).standard_normal(36))
+        fitted = (curve @ residual) * curve
+
+        simulated = _simulate(residual, line, curve, 0.5, np.random.default_rng(2))
+
+        assert curve @ simulated == pytest.approx(np.full(299, curve @ residual))
+        assert np.linalg.norm(simulated - fitted[:, None], axis=0) == pytest.approx(
+            np.full(299, np.linalg.norm(residual - fitted)))
 
     def test_changes_read_memory_where_a_fit_would_hide_it(self):
         readings = [_wander(with_memory(np.random.default_rng(seed), 60, 0.7), 30) for seed in range(300)]
