@@ -9,6 +9,5 @@ public interface IUserProfileService
     Task<backend.Application.DTOs.User.GetMeResponseDto> UpdateEmailAsync(Guid userId, string email);
     Task<backend.Application.DTOs.User.GetMeResponseDto> UpdatePhoneAsync(Guid userId, string? phoneNumber);  // ← NEW
     Task<string> UploadProfilePictureAsync(Guid userId, IFormFile file);
-    Task ChangePasswordAsync(Guid userId, string currentPassword, string newPassword);  // ← NEW
-    Task DeactivateAsync(Guid userId);
+    Task RemoveProfilePictureAsync(Guid userId);
 }

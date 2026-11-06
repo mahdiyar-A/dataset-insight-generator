@@ -62,6 +62,9 @@ public class TeamMember
     }
 
     public void SetRole(string role) => Role = role;
+
+    public static TeamMember Restore(Guid id, Guid teamId, Guid userId, string role, DateTime joinedAt) =>
+        new() { Id = id, TeamId = teamId, UserId = userId, Role = role, JoinedAt = joinedAt };
 }
 
 /// <summary>

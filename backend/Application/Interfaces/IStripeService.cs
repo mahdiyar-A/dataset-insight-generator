@@ -15,6 +15,9 @@ public interface IStripeService
     // Creates a Stripe Billing Portal session so the user can manage / cancel their subscription
     Task<string> CreateBillingPortalSessionAsync(string stripeCustomerId, string returnUrl);
 
+    /// <summary>End a subscription now. Not an error if Stripe has already ended it.</summary>
+    Task CancelSubscriptionAsync(string subscriptionId);
+
     // Verifies a Stripe webhook payload and returns the event type + relevant data
     Task<StripeWebhookResult> HandleWebhookAsync(string payload, string signature);
 }

@@ -326,8 +326,20 @@ public class FakeStorageService : IStorageService
         return Task.CompletedTask;
     }
 
+    public List<string> DeletedFiles { get; } = new();
+
+    public Task DeleteFileAsync(string storagePath)
+    {
+        DeletedFiles.Add(storagePath);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Makes DeleteUserFilesAsync fail, as an unreachable bucket would.</summary>
+    public bool FailUserFileDeletion { get; set; }
+
     public Task DeleteUserFilesAsync(Guid userId)
     {
+        if (FailUserFileDeletion) throw new InvalidOperationException("Exception: bucket unreachable");
         var prefix = $"users/{userId}/";
         foreach (var key in Files.Keys.Where(k => k.StartsWith(prefix)).ToList())
             Files.Remove(key);

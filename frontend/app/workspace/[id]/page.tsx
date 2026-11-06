@@ -220,9 +220,7 @@ export default function WorkspacePage() {
     if (!token || !workspace) return;
     if (!canAccess(fileKey)) { alert("You don't have permission to download this file."); return; }
     try {
-      const type = fileKey === "pdf" ? "report" : fileKey.replace("_csv", "");
-      const { url, fileName } = await BackendAPI.getDownloadUrl(
-        token, workspace.analysisId, type);
+      const { url, fileName } = await BackendAPI.getWorkspaceDownloadUrl(token, wsId, fileKey);
       const a = Object.assign(document.createElement("a"),
         { href: url, download: fileName, target: "_blank" });
       a.click();

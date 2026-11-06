@@ -192,17 +192,19 @@ public class TeamRepository : ITeamRepository
             .Filter("team_id", Operator.Equals, teamId.ToString())
             .Delete();
 
+    public async Task ClearInviterAsync(Guid userId) =>
+        await _db.From<TeamInviteRow>()
+            .Filter("invited_by", Operator.Equals, userId.ToString())
+            .Set(r => r.InvitedBy!, null)
+            .Update();
+
     // ── Mappers ───────────────────────────────────────────────────────────────
 
-    private static Team TeamToDomain(TeamRow r)
-    {
-        var t = new Team(Guid.Parse(r.OwnerId), r.Name);
-        // Use reflection-free approach with object initializer through Restore
-        return Team.Restore(Guid.Parse(r.Id), r.Name, Guid.Parse(r.OwnerId), r.InviteCode, r.CreatedAt);
-    }
+    private static Team TeamToDomain(TeamRow r) =>
+        Team.Restore(Guid.Parse(r.Id), r.Name, Guid.Parse(r.OwnerId), r.InviteCode, r.CreatedAt);
 
     private static TeamMember MemberToDomain(TeamMemberRow r) =>
-        new(Guid.Parse(r.TeamId), Guid.Parse(r.UserId), r.Role);
+        TeamMember.Restore(Guid.Parse(r.Id), Guid.Parse(r.TeamId), Guid.Parse(r.UserId), r.Role, r.JoinedAt);
 
     private static TeamInvite InviteToDomain(TeamInviteRow r) =>
         TeamInvite.Restore(

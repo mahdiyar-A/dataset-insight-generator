@@ -1,5 +1,6 @@
 using backend.Application.Interfaces;
 using backend.Domain.Entities;
+using Newtonsoft.Json;
 using Supabase.Postgrest.Attributes;
 using Supabase.Postgrest.Models;
 using static Supabase.Postgrest.Constants;
@@ -38,7 +39,8 @@ public class AnnotationRow : BaseModel
     [Column("user_id")]                     public string    UserId            { get; set; } = "";
     [Column("file_type")]                   public string    FileType          { get; set; } = "";
     [Column("content")]                     public string    Content           { get; set; } = "";
-    [Column("position")]                    public string?   Position          { get; set; }
+    [Column("position")]
+    [JsonConverter(typeof(JsonbTextConverter))]                 public string?   Position          { get; set; }
     [Column("created_at")]                  public DateTime  CreatedAt         { get; set; }
     [Column("updated_at")]                  public DateTime  UpdatedAt         { get; set; }
     [Column("resolved_at")]                 public DateTime? ResolvedAt        { get; set; }
@@ -89,7 +91,17 @@ public class WorkspaceRepository : IWorkspaceRepository
 
     public async Task<SharedWorkspace> ShareAnalysisAsync(SharedWorkspace ws)
     {
-        await _db.From<SharedWorkspaceRow>().Upsert(new SharedWorkspaceRow
+        // An analysis has one workspace per team (a unique rule in the
+        // database). Sharing it again gives back the one that exists, with its
+        // annotations, instead of an error.
+        var existing = await _db.From<SharedWorkspaceRow>()
+            .Filter("team_id",     Operator.Equals, ws.TeamId.ToString())
+            .Filter("analysis_id", Operator.Equals, ws.AnalysisId.ToString())
+            .Get();
+        if (existing.Models.FirstOrDefault() is { } row)
+            return WorkspaceToDomain(row);
+
+        await _db.From<SharedWorkspaceRow>().Insert(new SharedWorkspaceRow
         {
             Id         = ws.Id.ToString(),
             TeamId     = ws.TeamId.ToString(),
@@ -100,14 +112,10 @@ public class WorkspaceRepository : IWorkspaceRepository
         return ws;
     }
 
-    public async Task UnshareAsync(Guid workspaceId, Guid requestingUserId)
-    {
-        // Only the person who shared it (or team owner) can unshare
+    public async Task UnshareAsync(Guid workspaceId) =>
         await _db.From<SharedWorkspaceRow>()
-            .Filter("id",        Operator.Equals, workspaceId.ToString())
-            .Filter("shared_by", Operator.Equals, requestingUserId.ToString())
+            .Filter("id", Operator.Equals, workspaceId.ToString())
             .Delete();
-    }
 
     // ── Permissions ───────────────────────────────────────────────────────────
 
@@ -120,7 +128,26 @@ public class WorkspaceRepository : IWorkspaceRepository
 
     public async Task SetPermissionAsync(WorkspaceFilePermission perm)
     {
-        await _db.From<WorkspacePermissionRow>().Upsert(new WorkspacePermissionRow
+        // One row per person per file type (a unique rule in the database), so
+        // changing a permission has to find the row it is changing. Upserting
+        // on a fresh id made every second change fail.
+        var existing = await _db.From<WorkspacePermissionRow>()
+            .Filter("shared_workspace_id", Operator.Equals, perm.SharedWorkspaceId.ToString())
+            .Filter("user_id",             Operator.Equals, perm.UserId.ToString())
+            .Filter("file_type",           Operator.Equals, perm.FileType)
+            .Get();
+        if (existing.Models.FirstOrDefault() is { } row)
+        {
+            await _db.From<WorkspacePermissionRow>()
+                .Filter("id", Operator.Equals, row.Id)
+                .Set(r => r.Permission, perm.Permission)
+                .Set(r => r.GrantedBy!, perm.GrantedBy?.ToString())
+                .Set(r => r.UpdatedAt,  perm.UpdatedAt)
+                .Update();
+            return;
+        }
+
+        await _db.From<WorkspacePermissionRow>().Insert(new WorkspacePermissionRow
         {
             Id                = perm.Id.ToString(),
             SharedWorkspaceId = perm.SharedWorkspaceId.ToString(),
@@ -192,27 +219,53 @@ public class WorkspaceRepository : IWorkspaceRepository
             .Set(r => r.ResolvedAt!, DateTime.UtcNow)
             .Update();
 
-    public async Task DeleteAnnotationAsync(Guid annotationId, Guid userId) =>
-        await _db.From<AnnotationRow>()
+    public async Task DeleteAnnotationAsync(Guid annotationId, Guid userId)
+    {
+        var own = await _db.From<AnnotationRow>()
             .Filter("id",      Operator.Equals, annotationId.ToString())
             .Filter("user_id", Operator.Equals, userId.ToString())
+            .Get();
+        if (own.Models.Count == 0) return;
+
+        // The database refuses to delete a comment that still has replies.
+        await _db.From<AnnotationRow>()
+            .Filter("parent_id", Operator.Equals, annotationId.ToString())
             .Delete();
+        await _db.From<AnnotationRow>()
+            .Filter("id", Operator.Equals, annotationId.ToString())
+            .Delete();
+    }
+
+    public async Task DeleteRepliesToUserAsync(Guid userId)
+    {
+        var own = await _db.From<AnnotationRow>()
+            .Filter("user_id", Operator.Equals, userId.ToString())
+            .Get();
+
+        foreach (var annotation in own.Models)
+            await _db.From<AnnotationRow>()
+                .Filter("parent_id", Operator.Equals, annotation.Id)
+                .Delete();
+    }
 
     // ── Mappers ───────────────────────────────────────────────────────────────
 
-    private static SharedWorkspace WorkspaceToDomain(SharedWorkspaceRow r) => new(
-        Guid.Parse(r.TeamId), Guid.Parse(r.AnalysisId), Guid.Parse(r.SharedBy))
-    {
-        // We need SharedWorkspace to expose a Restore for Id/SharedAt
-    };
+    // Restore, never the constructors. Those are for new records and make up a
+    // fresh id and date, so a saved workspace came back with an id nothing could
+    // find, and a reply could never match its parent.
+
+    private static SharedWorkspace WorkspaceToDomain(SharedWorkspaceRow r) => SharedWorkspace.Restore(
+        Guid.Parse(r.Id), Guid.Parse(r.TeamId), Guid.Parse(r.AnalysisId), Guid.Parse(r.SharedBy), r.SharedAt);
 
     private static WorkspaceFilePermission PermToDomain(WorkspacePermissionRow r) =>
-        new(Guid.Parse(r.SharedWorkspaceId), Guid.Parse(r.UserId),
+        WorkspaceFilePermission.Restore(
+            Guid.Parse(r.Id), Guid.Parse(r.SharedWorkspaceId), Guid.Parse(r.UserId),
             r.FileType, r.Permission,
-            r.GrantedBy != null ? Guid.Parse(r.GrantedBy) : Guid.Empty);
+            r.GrantedBy != null ? Guid.Parse(r.GrantedBy) : null,
+            r.UpdatedAt);
 
-    private static Annotation AnnToDomain(AnnotationRow r) => new(
-        Guid.Parse(r.SharedWorkspaceId), Guid.Parse(r.UserId),
-        r.FileType, r.Content, r.Position,
+    private static Annotation AnnToDomain(AnnotationRow r) => Annotation.Restore(
+        Guid.Parse(r.Id), Guid.Parse(r.SharedWorkspaceId), Guid.Parse(r.UserId),
+        r.FileType, r.Content, r.Position, r.CreatedAt, r.UpdatedAt, r.ResolvedAt,
         r.ParentId != null ? Guid.Parse(r.ParentId) : null);
 }

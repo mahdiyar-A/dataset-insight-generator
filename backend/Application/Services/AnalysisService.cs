@@ -220,9 +220,19 @@ public class AnalysisService
             // ── Step 5a: Save the original upload, in its own format ──────────
             // The extension comes from the stored upload, which was checked
             // against FileFormats when it arrived.
-            var originalPath = await _storage.SaveOriginalFileAsync(
-                userId, analysisId.Value, csvBytes, Path.GetFileName(tempPath));
-            await _analyses.UpdateOriginalCsvPathAsync(analysisId.Value, originalPath);
+            // Best-effort like every other output: losing this copy costs the
+            // user a download and data lookups in the chat, not the report they
+            // just waited for.
+            try
+            {
+                var originalPath = await _storage.SaveOriginalFileAsync(
+                    userId, analysisId.Value, csvBytes, Path.GetFileName(tempPath));
+                await _analyses.UpdateOriginalCsvPathAsync(analysisId.Value, originalPath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Analysis] Failed to save the original upload — continuing");
+            }
 
             // ── Step 5b: Save cleaned CSV (only if user requested cleaning) ────
             string? cleanedCsvPath = null;

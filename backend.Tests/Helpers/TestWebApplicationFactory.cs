@@ -30,6 +30,9 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
     public FakeStorageService     StorageSvc     { get; } = new();
     public FakePythonAiClient     PythonAi       { get; } = new();
     public NoOpEmailService       EmailSvc       { get; } = new();
+    public FakeTeamRepository     TeamRepo       { get; } = new();
+    public FakeWorkspaceRepository WorkspaceRepo { get; } = new();
+    public FakeAuthAdmin          AuthAdmin      { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -98,6 +101,15 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
 
             services.RemoveAll<IPythonAiClient>();
             services.AddScoped<IPythonAiClient>(_ => PythonAi);
+
+            services.RemoveAll<ITeamRepository>();
+            services.AddScoped<ITeamRepository>(_ => TeamRepo);
+
+            services.RemoveAll<IWorkspaceRepository>();
+            services.AddScoped<IWorkspaceRepository>(_ => WorkspaceRepo);
+
+            services.RemoveAll<IAuthAdmin>();
+            services.AddScoped<IAuthAdmin>(_ => AuthAdmin);
 
             // Email and Stripe don't need to be replaced unless a test
             // specifically exercises those paths, but remove to avoid
@@ -175,6 +187,8 @@ public class NoOpStripeService : IStripeService
 
     public Task<string> CreateBillingPortalSessionAsync(string customerId, string returnUrl) =>
         Task.FromResult("https://billing.stripe.com/fake");
+
+    public Task CancelSubscriptionAsync(string subscriptionId) => Task.CompletedTask;
 
     public Task<StripeWebhookResult> HandleWebhookAsync(string payload, string signature) =>
         Task.FromResult(new StripeWebhookResult("fake_event", null, null, "active", null));

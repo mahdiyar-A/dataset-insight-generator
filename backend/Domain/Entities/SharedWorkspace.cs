@@ -61,6 +61,15 @@ public class WorkspaceFilePermission
     }
 
     public void SetPermission(string p) { Permission = p; UpdatedAt = DateTime.UtcNow; }
+
+    public static WorkspaceFilePermission Restore(
+        Guid id, Guid workspaceId, Guid userId, string fileType, string permission,
+        Guid? grantedBy, DateTime updatedAt) =>
+        new()
+        {
+            Id = id, SharedWorkspaceId = workspaceId, UserId = userId, FileType = fileType,
+            Permission = permission, GrantedBy = grantedBy, UpdatedAt = updatedAt,
+        };
 }
 
 /// <summary>
@@ -109,4 +118,14 @@ public class Annotation
     public void Edit(string content) { Content = content; UpdatedAt = DateTime.UtcNow; }
     public void Resolve()             => ResolvedAt = DateTime.UtcNow;
     public void Reopen()              => ResolvedAt = null;
+
+    public static Annotation Restore(
+        Guid id, Guid workspaceId, Guid userId, string fileType, string content, string? position,
+        DateTime createdAt, DateTime updatedAt, DateTime? resolvedAt, Guid? parentId) =>
+        new()
+        {
+            Id = id, SharedWorkspaceId = workspaceId, UserId = userId, FileType = fileType,
+            Content = content, Position = position, CreatedAt = createdAt, UpdatedAt = updatedAt,
+            ResolvedAt = resolvedAt, ParentId = parentId,
+        };
 }

@@ -307,7 +307,8 @@ internal class StubWorkspaceRepository : IWorkspaceRepository
     public Task<List<SharedWorkspace>> GetTeamWorkspacesAsync(Guid teamId) => Task.FromResult(new List<SharedWorkspace>());
     public Task<List<SharedWorkspace>> GetUserSharedWorkspacesAsync(Guid userId) => Task.FromResult(new List<SharedWorkspace>());
     public Task<SharedWorkspace> ShareAnalysisAsync(SharedWorkspace workspace) => Task.FromResult(workspace);
-    public Task UnshareAsync(Guid workspaceId, Guid requestingUserId) => Task.CompletedTask;
+    public Task UnshareAsync(Guid workspaceId) => Task.CompletedTask;
+    public Task DeleteRepliesToUserAsync(Guid userId) => Task.CompletedTask;
     public Task<List<WorkspaceFilePermission>> GetPermissionsAsync(Guid workspaceId) => Task.FromResult(new List<WorkspaceFilePermission>());
     public Task SetPermissionAsync(WorkspaceFilePermission permission) => Task.CompletedTask;
     public Task RemovePermissionAsync(Guid workspaceId, Guid userId, string fileType) => Task.CompletedTask;
@@ -339,6 +340,7 @@ internal class StubTeamRepository : ITeamRepository
     public Task<TeamInvite> CreateInviteAsync(TeamInvite invite) => Task.FromResult(invite);
     public Task AcceptInviteAsync(string token) => Task.CompletedTask;
     public Task RevokeInviteAsync(Guid inviteId, Guid teamId) => Task.CompletedTask;
+    public Task ClearInviterAsync(Guid userId) => Task.CompletedTask;
 }
 
 internal record SentMessage(string Method, object?[] Args);

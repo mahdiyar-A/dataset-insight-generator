@@ -24,4 +24,11 @@ public interface ITeamRepository
     Task<TeamInvite>       CreateInviteAsync(TeamInvite invite);
     Task                   AcceptInviteAsync(string token);
     Task                   RevokeInviteAsync(Guid inviteId, Guid teamId);
+
+    /// <summary>
+    /// Forget who sent these invites, so the sender's account can be deleted.
+    /// The live database refuses to delete a user an invite still points at.
+    /// The invites stay valid: they belong to the team, not to the sender.
+    /// </summary>
+    Task                   ClearInviterAsync(Guid userId);
 }
