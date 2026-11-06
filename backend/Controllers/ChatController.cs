@@ -333,15 +333,21 @@ public class ChatController : ControllerBase
                 limit,
             });
 
+        // Questions read the data the report read, so a total here matches the
+        // total there. Cleaning can remove duplicates and cap extreme values.
+        var (path, fileName) = AnalysisFiles.Find(analysis, analysis.CleanedCsvPath != null ? "cleaned" : "original");
         byte[]? fileBytes = null;
-        if (analysis.OriginalCsvPath != null && analysis.FileSizeBytes is > 0 and <= MaxFileForQuestions)
-            fileBytes = await _storage.DownloadAsync(analysis.OriginalCsvPath);
+        if (path != null && analysis.FileSizeBytes is > 0 and <= MaxFileForQuestions)
+        {
+            fileBytes = await _storage.DownloadAsync(path);
+            if (fileBytes?.Length > MaxFileForQuestions) fileBytes = null;   // a CSV can outgrow a compressed upload
+        }
 
         try
         {
             var raw = await _pythonAi.AskAsync(
                 question, context, HistoryJson(req.History), UiLanguage(req.UiLanguage),
-                fileBytes, analysis.FileName);
+                fileBytes, fileName);
             using var doc = JsonDocument.Parse(raw);
             var root = doc.RootElement;
 

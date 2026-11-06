@@ -294,8 +294,12 @@ public class FakeStorageService : IStorageService
             ? System.Text.Encoding.UTF8.GetString(bytes)
             : null);
 
-    public Task<string> SaveCleanedCsvAsync(Guid userId, Guid analysisId, byte[] csvBytes) =>
-        Record($"{Dir(userId, analysisId)}/cleaned.csv");
+    public async Task<string> SaveCleanedCsvAsync(Guid userId, Guid analysisId, byte[] csvBytes)
+    {
+        var path = await Record($"{Dir(userId, analysisId)}/cleaned.csv");
+        Files[path] = csvBytes;
+        return path;
+    }
 
     public Task<string> SavePdfReportAsync(Guid userId, Guid analysisId, byte[] pdfBytes) =>
         Record($"{Dir(userId, analysisId)}/report.pdf");
