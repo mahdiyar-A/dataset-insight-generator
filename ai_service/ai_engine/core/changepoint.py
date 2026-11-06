@@ -181,7 +181,9 @@ def _reverses(y: np.ndarray, k: int) -> bool:
 
 
 def _percent(before: float, change: float) -> Optional[float]:
-    if before <= 0 or abs(change) > MAX_RISE_MULTIPLE * before:
+    # Nothing passes this from a level of zero or below, where a percentage would
+    # mean the opposite of what happened.
+    if abs(change) >= MAX_RISE_MULTIPLE * before:
         return None
     return change / before * 100
 
