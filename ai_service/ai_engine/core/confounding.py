@@ -23,6 +23,16 @@ shrink a correlation without touching the relationship: "age_band" made from
 "age" narrows the range of age inside each group, and a narrower range means a
 smaller r whatever the truth. The slope is what narrowing leaves alone.
 
+A category calculated from the measures themselves explains nothing, and it
+does worse than narrow them. Tiers set on a + b force a relationship between a
+and b: inside one tier, a low a has to come with a high b. Without a check this
+reported a false reversal on up to 95% of simulated files. Such a category gives
+itself away along the score it was cut from: each group stops dead where the
+next begins, where real groups overlap, sit apart or taper off. Two limits stay.
+A tier cut from something this file does not hold cannot be seen. Small files
+show their edges less clearly, so some get through: about 1 in 15 at 150 rows, 1
+in 7 at 100, and up to 1 in 4 for tiers on three measures.
+
 This finds a relationship that groups account for. It does not show that the
 group causes it: if the group sits between the two measures, the relationship
 is real and runs through the group. So a flagged correlation is one to report
@@ -32,10 +42,11 @@ thereby proven either.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
+from scipy.linalg import eigh
 
 from ai_engine.core.stat_tests import bh_adjust, correlation_p_value, fisher_ci, fmt_p
 
@@ -56,6 +67,19 @@ MAX_GROUPS_SHOWN = 4
 
 # A group's spread below this share of the groups' total is rounding error.
 NO_SPREAD = 1e-12
+
+# Enough rows to see where a group ends.
+EDGE_ROWS = 5000
+# Neighbouring groups touch if the gap between them is within this share of their spread.
+TOUCHING = 0.25
+# A group's last tenth, against the fifth before it, which makes this indifferent
+# to scale. A cut stops dead: 0.45 when evenly spread, about 0.7 on heavily skewed
+# money columns. A real group tapers off: 1.4 on a normal curve. The bar sits
+# nearer the taper because small files read loosely and the two mistakes differ:
+# a real group taken for a cut only loses this check, the other way is a false claim.
+SHARP_EDGE = 1.2
+ANGLES = 180
+MIN_PART_SHARE = 0.05     # a measure the groups barely differ on is no part of a cut
 
 
 def _measure(a: np.ndarray, b: np.ndarray, codes: np.ndarray, levels: Sequence[Any]) -> Optional[Dict[str, Any]]:
@@ -134,17 +158,134 @@ def _verdict(m: Dict[str, Any], q: Optional[float]) -> Optional[str]:
     return None
 
 
+def _layout(score: np.ndarray, codes: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """Where each group starts and ends along a score, lowest first, and its spread."""
+    groups = [score[codes == code] for code in np.unique(codes)]
+    groups = sorted((g for g in groups if len(g) >= MIN_GROUP_ROWS), key=np.median)
+    if len(groups) < 2:
+        return np.empty((0, 6)), np.empty(0)
+    return (np.array([np.quantile(g, [0.01, 0.1, 0.3, 0.7, 0.9, 0.99]) for g in groups]),
+            np.array([g.std() for g in groups]))
+
+
+def _separations(scores: np.ndarray, codes: np.ndarray) -> np.ndarray:
+    """
+    The narrowest gap between neighbouring groups along each column of scores, in
+    units of their spread. All columns at once: one at a time took over a minute
+    on the largest files, with a server this size to run on.
+    """
+    groups = [scores[codes == code] for code in np.unique(codes)]
+    groups = [g for g in groups if len(g) >= MIN_GROUP_ROWS]
+    if len(groups) < 2:
+        return np.full(scores.shape[1], -np.inf)
+    bottom, middle, top = np.stack([np.quantile(g, [0.01, 0.5, 0.99], axis=0) for g in groups], axis=1)
+    order = np.argsort(middle, axis=0)
+    gaps = np.take_along_axis(bottom, order, axis=0)[1:] - np.take_along_axis(top, order, axis=0)[:-1]
+    pooled = np.sqrt(np.mean([g.var(axis=0) for g in groups], axis=0))
+    return np.divide(gaps.min(axis=0), pooled, out=np.full(len(pooled), -np.inf), where=pooled > 0)
+
+
+def _step(values: np.ndarray) -> float:
+    """The step these values move in, as with whole-number ages or ratings."""
+    steps = np.diff(np.unique(values))
+    return float(np.median(steps)) if len(steps) else 0.0
+
+
+def _cuts_into_bands(score: np.ndarray, codes: np.ndarray, step: float) -> bool:
+    """
+    Whether the groups lie end to end along this score, each stopping dead at the
+    next. Whole numbers pile up on their steps, which hides a taper and leaves a
+    gap at every cut, so they are spread evenly across a `step` first. A mix takes
+    that from its columns: the weights scatter it too finely to read from the score.
+    """
+    if not _layout(score, codes)[1].any():
+        return False  # one value per group: a code for the group, not a band of anything
+    spread_out = score + step * (np.random.default_rng(0).random(len(score)) - 0.5)
+    ends, spreads = _layout(spread_out, codes)
+    pooled = float(np.sqrt((spreads ** 2).mean()))
+    low, high = ends[:-1], ends[1:]
+    touching = np.abs(high[:, 0] - low[:, 5]) <= TOUCHING * pooled
+    sharp_top = low[:, 5] - low[:, 4] <= SHARP_EDGE * (low[:, 4] - low[:, 3])
+    sharp_bottom = high[:, 1] - high[:, 0] <= SHARP_EDGE * (high[:, 2] - high[:, 1])
+    return bool((touching & sharp_top & sharp_bottom).all())
+
+
+def _standardised(matrix: np.ndarray) -> np.ndarray:
+    spread = matrix.std(axis=0)
+    return (matrix[:, spread > 0] - matrix[:, spread > 0].mean(axis=0)) / spread[spread > 0]
+
+
+def _edge_rows(codes: np.ndarray, usable: np.ndarray) -> np.ndarray:
+    rows = np.flatnonzero((codes >= 0) & usable)
+    return rows if len(rows) <= EDGE_ROWS else rows[np.linspace(0, len(rows) - 1, EDGE_ROWS).astype(int)]
+
+
+def _mix_cuts_groups(a: np.ndarray, b: np.ndarray, codes: np.ndarray) -> bool:
+    """
+    Whether a weighted mix of two measures cuts the groups into bands. One
+    weight is all there is to search, so every angle is tried. A shortcut would
+    miss skewed money columns, whose cut edge no average points at.
+    """
+    rows = _edge_rows(codes, np.isfinite(a) & np.isfinite(b))
+    pair = _standardised(np.column_stack([a[rows], b[rows]]))
+    if pair.shape[1] < 2:
+        return False
+    angles = np.linspace(0, np.pi, ANGLES, endpoint=False)
+    weights = np.vstack([np.cos(angles), np.sin(angles)])
+    scores = pair @ weights
+    best = int(np.argmax(_separations(scores, codes[rows])))
+    step = max(abs(weight) * _step(column) for weight, column in zip(weights[:, best], pair.T))
+    return _cuts_into_bands(scores[:, best], codes[rows], step)
+
+
+def _measures_cut_groups(measures: np.ndarray, codes: np.ndarray) -> bool:
+    """
+    Whether the groups are bands of any one measure, or of a straight score of
+    several: tiers on a total, or a rating built from three columns.
+    """
+    for column in measures.T:
+        rows = _edge_rows(codes, np.isfinite(column))
+        if len(rows) and _cuts_into_bands(column[rows], codes[rows], _step(column[rows])):
+            return True
+
+    rows = _edge_rows(codes, np.isfinite(measures).all(axis=1))
+    if not len(rows):
+        return False
+    matrix = _standardised(measures[rows])
+    _, labels = np.unique(codes[rows], return_inverse=True)
+    counts = np.bincount(labels)
+    means = np.stack([matrix[labels == label].mean(axis=0) for label in range(len(counts))])
+    # With unit spread, this is the share of each measure that lies between groups.
+    # All of it means one value per group: a code for them, not what they were cut from.
+    shares = (counts[:, None] * means ** 2).sum(axis=0) / len(labels)
+    parts = (shares >= MIN_PART_SHARE) & (shares < 1 - NO_SPREAD)
+    if parts.sum() < 3:
+        return False  # one measure and any two are tried on their own
+    inside = (matrix - means[labels])[:, parts]
+    between = (means[:, parts] * counts[:, None]).T @ means[:, parts] / len(labels)
+    within = inside.T @ inside / len(labels)
+    best = eigh(between, within + 1e-6 * np.eye(len(within)))[1][:, -1]
+    step = max(abs(weight) * _step(column) for weight, column in zip(best, matrix[:, parts].T))
+    return _cuts_into_bands(matrix[:, parts] @ best, labels, step)
+
+
+def _as_numbers(column: pd.Series) -> np.ndarray:
+    return pd.to_numeric(column, errors="coerce").to_numpy(dtype="float64", na_value=np.nan)
+
+
 def check_correlations(
     df: pd.DataFrame,
     correlations: Sequence[Dict[str, Any]],
     categories: Sequence[str],
+    measures: Sequence[str] = (),
 ) -> List[Dict[str, Any]]:
     """
     Correlations that groups reverse or explain away, the most striking first.
 
     `correlations` are the rows stats_analyzer ranked; only significant ones
     strong enough to be findings are checked. Each pair is reported once, for
-    the category that changes it most.
+    the category that changes it most. `measures` are the columns a category
+    might have been calculated from.
     """
     pairs = [
         (c["col1"], c["col2"]) for c in correlations
@@ -155,10 +296,10 @@ def check_correlations(
     if not pairs:
         return []
     grouped = {by: pd.factorize(df[by]) for by in categories if by in df.columns}
-    numbers = {
-        col: pd.to_numeric(df[col], errors="coerce").to_numpy(dtype="float64", na_value=np.nan)
-        for col in {col for pair in pairs for col in pair}
-    }
+    numbers = {col: _as_numbers(df[col]) for col in dict.fromkeys(col for pair in pairs for col in pair)}
+    edge_rows = np.unique(np.linspace(0, len(df) - 1, EDGE_ROWS).astype(int))
+    every_measure: Optional[np.ndarray] = None
+    cut_by_measures: Dict[str, bool] = {}
 
     measured = []
     for a, b in pairs:
@@ -175,6 +316,17 @@ def check_correlations(
     for m, q in zip(measured, bh_adjust([m["p"] for m in measured])):
         kind = _verdict(m, q)
         if kind is None:
+            continue
+        codes = grouped[m["by"]][0]
+        if every_measure is None:
+            # Read only now, and thinly: most files get here with nothing flagged, and
+            # a wide file on this server cannot afford a second copy of every column.
+            part = df.iloc[edge_rows]
+            named = dict.fromkeys([*numbers, *(col for col in measures if col in df.columns)])
+            every_measure = np.column_stack([_as_numbers(part[col]) for col in named])
+        if m["by"] not in cut_by_measures:
+            cut_by_measures[m["by"]] = _measures_cut_groups(every_measure, codes[edge_rows])
+        if cut_by_measures[m["by"]] or _mix_cuts_groups(numbers[m["a"]], numbers[m["b"]], codes):
             continue
         rank = (kind == "reversed", abs(m["overall"] - m["within"]))
         key = frozenset((m["a"], m["b"]))

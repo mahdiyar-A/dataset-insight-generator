@@ -13,7 +13,13 @@ import pytest
 from scipy import stats as scipy_stats
 
 from ai_engine.core.confidence import count_evidence
-from ai_engine.core.confounding import _measure, check_correlations, misleading_pairs
+from ai_engine.core.confounding import (
+    _edge_rows,
+    _measure,
+    _measures_cut_groups,
+    check_correlations,
+    misleading_pairs,
+)
 from ai_engine.core.stats_analyzer import _correlations, build_stats_summary
 from ai_engine.llm.insight_agent import _build_fallback_report
 from ai_engine.llm.stats_digest import _correlations as digest_correlations
@@ -455,3 +461,275 @@ def test_a_digest_with_nothing_misleading_says_nothing():
     stats = build_stats_summary(genuine(), SimpleNamespace(warnings=[], errors=[]))
 
     assert "misleading_correlations" not in build_digest(stats, DOMAIN)
+
+
+# --- Categories calculated from the measures ---------------------------------
+# Tiers set on x + y force a relationship: inside a tier a low x has to come with
+# a high y. Every file below would report a false finding without the guard.
+
+
+def correlated(rng, n=2000, r=0.5):
+    shared = rng.standard_normal(n)
+    return (np.sqrt(r) * shared + np.sqrt(1 - r) * rng.standard_normal(n),
+            np.sqrt(r) * shared + np.sqrt(1 - r) * rng.standard_normal(n))
+
+
+def tiers(score, k=3):
+    return pd.qcut(score, k, labels=[f"t{i}" for i in range(k)]).astype(str)
+
+
+def checked(df, by="tier"):
+    """The kinds reported, with every number in the file offered as a measure."""
+    measures = [c for c in df.columns if c != by]
+    return [c["kind"] for c in check_correlations(df, pair(df), [by], measures)]
+
+
+def on_the_sum(rng):
+    x, y = correlated(rng)
+    return pd.DataFrame({"x": x, "y": y, "tier": tiers(x + y)})
+
+
+def in_two_tiers(rng):
+    x, y = correlated(rng)
+    return pd.DataFrame({"x": x, "y": y, "tier": tiers(x + y, 2)})
+
+
+def on_a_weighted_sum(rng):
+    x, y = correlated(rng)
+    return pd.DataFrame({"x": x, "y": y, "tier": tiers(0.7 * x + 0.3 * y)})
+
+
+def on_skewed_money(rng):
+    x, y = np.exp(correlated(rng))
+    return pd.DataFrame({"x": x, "y": y, "tier": tiers(x + y)})
+
+
+def on_unequal_skewed_money(rng):
+    x, y = np.exp(correlated(rng))
+    return pd.DataFrame({"x": x, "y": y, "tier": tiers(x + 3 * y)})
+
+
+def on_a_total_in_the_file(rng):
+    x, y = correlated(rng)
+    total = x + y + rng.standard_normal(len(x))
+    return pd.DataFrame({"x": x, "y": y, "total": total, "tier": tiers(total)})
+
+
+def on_three_measures(rng, n=2000):
+    x, y = correlated(rng, n)
+    z = rng.standard_normal(n)
+    return pd.DataFrame({"x": x, "y": y, "z": z, "tier": tiers(x + y + z)})
+
+
+def on_three_measures_among_others(rng, n=2000, others=4):
+    df = on_three_measures(rng, n)
+    for i in range(others):
+        df[f"other{i}"] = rng.standard_normal(n)
+    return df
+
+
+def on_a_product_in_the_file(rng):
+    x, y = np.exp(correlated(rng))
+    return pd.DataFrame({"x": x, "y": y, "product": x * y, "tier": tiers(x * y)})
+
+
+def in_whole_number_bands(rng):
+    x, y = correlated(rng)
+    age = np.round(x * 10 + 40)
+    return pd.DataFrame({"x": age, "y": y, "tier": tiers(age, 4)})
+
+
+def with_holes(rng):
+    df = on_the_sum(rng)
+    df.loc[rng.choice(len(df), 100, replace=False), "x"] = np.nan
+    return df
+
+
+def with_holes_in_the_third_measure(rng):
+    df = on_three_measures(rng)
+    df.loc[rng.choice(len(df), 100, replace=False), "z"] = np.nan
+    return df
+
+
+def with_blank_labels(rng):
+    df = on_the_sum(rng)
+    df.loc[rng.choice(len(df), 100, replace=False), "tier"] = np.nan
+    return df
+
+
+def with_a_stray_label(rng):
+    df = on_the_sum(rng)
+    df.loc[rng.choice(len(df), 5, replace=False), "tier"] = "unknown"
+    return df
+
+
+def rating(values, top):
+    """Normal values as whole-number answers on a scale of 1 to top."""
+    return np.clip(np.round((values + 2.5) / 5 * (top - 1)) + 1, 1, top)
+
+
+def regions(rng, gap, inside=0.0, noise=None, n=2000):
+    """Three real groups this many noise SDs apart, with this correlation inside each."""
+    noise = noise or rng.standard_normal
+    group = rng.integers(0, 3, n)
+    x = noise(n)
+    y = inside * x + np.sqrt(1 - inside ** 2) * noise(n)
+    return pd.DataFrame({"x": gap * group + x, "y": gap * group + y, "tier": [f"g{g}" for g in group]})
+
+
+def test_tiers_on_a_sum_really_do_turn_a_relationship_over():
+    df = on_the_sum(np.random.default_rng(0))
+
+    found = _measure(df["x"].to_numpy(), df["y"].to_numpy(), *pd.factorize(df["tier"]))
+
+    assert found["overall"] > 0.3 and found["within"] < -0.1
+
+
+@pytest.mark.parametrize("seed", range(5))
+@pytest.mark.parametrize("make", [
+    on_the_sum, in_two_tiers, on_a_weighted_sum, on_skewed_money, on_unequal_skewed_money,
+    on_a_total_in_the_file, on_three_measures, on_three_measures_among_others,
+    on_a_product_in_the_file, in_whole_number_bands, with_holes, with_holes_in_the_third_measure,
+    with_blank_labels, with_a_stray_label,
+])
+def test_a_category_calculated_from_the_measures_explains_nothing(make, seed):
+    assert checked(make(np.random.default_rng(seed))) == []
+
+
+@pytest.mark.parametrize("seed", range(3))
+@pytest.mark.parametrize("top, count, k", [(5, 2, 3), (5, 2, 2), (7, 2, 3), (10, 2, 3), (5, 3, 3), (10, 3, 3)])
+def test_tiers_on_a_sum_of_ratings_explain_nothing(top, count, k, seed):
+    # A survey's overall score. Whole numbers leave a gap of one step at every cut.
+    rng = np.random.default_rng(seed)
+    x, y = correlated(rng)
+    columns = {"x": rating(x, top), "y": rating(y, top), "z": rating(rng.standard_normal(len(x)), top)}
+    columns = dict(list(columns.items())[:count])
+
+    assert checked(pd.DataFrame({**columns, "tier": tiers(sum(columns.values()), k)})) == []
+
+
+def test_unrelated_columns_do_not_blur_the_search():
+    # Let in, they would hide the cut on about one file in three of this size.
+    found = [checked(on_three_measures_among_others(np.random.default_rng(seed), 600, 8)) for seed in range(30)]
+
+    assert sum(map(bool, found)) <= 2
+
+
+def test_small_files_stay_mostly_quiet():
+    # They show their edges less clearly, so this is a rate and not a promise.
+    def small(rng):
+        x, y = correlated(rng, 150, 0.7)
+        return pd.DataFrame({"x": x, "y": y, "tier": tiers(x + y)})
+
+    assert sum(bool(checked(small(np.random.default_rng(seed)))) for seed in range(60)) <= 3
+
+
+def test_a_file_too_long_to_read_in_full():
+    x, y = correlated(np.random.default_rng(7), 12000)
+
+    assert checked(pd.DataFrame({"x": x, "y": y, "tier": tiers(x + y)})) == []
+
+
+def test_a_long_file_is_read_from_end_to_end():
+    rows = _edge_rows(np.zeros(12000, dtype=int), np.ones(12000, dtype=bool))
+
+    assert len(rows) == 5000 and rows[0] == 0 and rows[-1] == 11999
+
+
+@pytest.mark.parametrize("gap", (2, 3, 4, 4.5, 6))
+@pytest.mark.parametrize("inside, kind", ((0.0, "vanished"), (-0.5, "reversed")))
+def test_real_groups_stay_checked_however_far_apart(gap, inside, kind):
+    # 4.5 is where the ends of normal groups meet: they taper there, a cut does not.
+    assert checked(regions(np.random.default_rng(4), gap, inside)) == [kind]
+
+
+@pytest.mark.parametrize("gap", (2.5, 3.5, 4.5))
+@pytest.mark.parametrize("inside, kind", ((0.0, "vanished"), (-0.5, "reversed")))
+def test_real_groups_on_a_whole_number_scale_stay_checked(gap, inside, kind):
+    # Rounding must not pass for a cut: a real group still tapers, one step at a time.
+    df = regions(np.random.default_rng(4), gap, inside)
+    df[["x", "y"]] = np.clip(np.round(1.5 * df[["x", "y"]] + 3), 1, 20)
+
+    assert checked(df) == [kind]
+
+
+@pytest.mark.parametrize("seed", range(10))
+def test_groups_with_a_floor_and_a_long_tail_stay_checked(seed):
+    # Each stops dead at the bottom, as spending stops at zero, but tapers at the top.
+    rng = np.random.default_rng(seed)
+
+    assert checked(regions(rng, 4.6, noise=lambda size: rng.exponential(1, size))) == ["vanished"]
+
+
+@pytest.mark.parametrize("gap", (2, 6))
+def test_flat_edged_groups_that_do_not_meet_stay_checked(gap):
+    # Their edges are as sharp as a cut, but one overlaps and the other stands apart.
+    rng = np.random.default_rng(5)
+
+    assert checked(regions(rng, gap, noise=lambda size: rng.uniform(-1.7, 1.7, size))) == ["vanished"]
+
+
+def test_a_numeric_code_for_the_group_is_not_a_cut():
+    # One value per group lines the groups up end to end, and says nothing about them.
+    df = simpson()
+    df["code"] = df["region"].map({"North": 1, "East": 2, "South": 3, "West": 4})
+
+    assert checked(df, "region") == ["reversed"]
+
+
+def test_bands_of_one_whole_number_measure_are_seen():
+    score = np.round(np.random.default_rng(10).normal(50, 4, 2000))
+
+    assert _measures_cut_groups(score[:, None], pd.factorize(tiers(score))[0])
+
+
+def test_holes_in_a_measure_do_not_hide_a_cut():
+    total = np.random.default_rng(9).standard_normal(2000)
+    codes = pd.factorize(tiers(total))[0]
+    total[:50] = np.nan
+
+    assert _measures_cut_groups(total[:, None], codes)
+
+
+def test_measures_that_repeat_each_other_do_not_break_the_search():
+    # They leave nothing inside the groups in one direction, which is a singular matrix.
+    df = regions(np.random.default_rng(7), 3, -0.5)
+    df["total"] = df["x"] + df["y"]
+    df["copy"] = df["x"]
+
+    assert checked(df) == ["reversed"]
+
+
+def test_columns_with_no_usable_spread_do_not_break_the_search():
+    df = simpson()
+    df["z"] = df["x"] + 1.0
+    df["huge"] = np.random.default_rng(8).standard_normal(len(df)) * 1e300
+    df["flat"] = 1.0
+
+    assert "reversed" in checked(df, "region")
+
+
+def test_a_calculated_category_does_not_take_a_real_one_down_with_it():
+    df = regions(np.random.default_rng(6), 3, -0.5)
+    df["band"] = tiers(df["x"])
+
+    found = check_correlations(df, pair(df), ["band", "tier"], ["x", "y"])
+
+    assert [(c["by"], c["kind"]) for c in found] == [("tier", "reversed")]
+
+
+def test_a_cut_on_something_the_file_lacks_cannot_be_seen():
+    # A stated limit of the check, held here so that a change to it gets noticed.
+    df = on_three_measures(np.random.default_rng(0)).drop(columns="z")
+
+    assert checked(df) == ["vanished"]
+
+
+def test_the_rest_of_the_file_reaches_the_check():
+    # z is in no strong pair, so only the measures handed over can give the tiers away.
+    df = on_three_measures(np.random.default_rng(0))
+    assert check_correlations(df, pair(df), ["tier"]) != []
+
+    stats = build_stats_summary(df, SimpleNamespace(warnings=[], errors=[]))
+
+    assert stats.correlationChecks == []
