@@ -205,7 +205,7 @@ export default function AnalysisAssistantCard({
            (message === "start_analysis" && cond === "all_good"));
         if (analysisKickingOff) {
           // Pass back the analysis ID so the dashboard can start polling for it
-          const newAnalysisId = res?.analysisId ?? dataset?.id ?? null;
+          const newAnalysisId = res?.analysisId || dataset?.id || null;
           onAnalysisStarted?.(newAnalysisId);
         }
         setAwaitingResponse(needsResp);

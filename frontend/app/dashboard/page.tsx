@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth }    from "@/app/contexts/AuthContext";
 import { useSettings } from "@/app/contexts/SettingsContext";
 import BackendAPI      from "@/lib/BackendAPI";
+import { followAnalysis, type RunOutcome } from "@/lib/followAnalysis";
 import type { Analysis, AnalysisStatus, UploadedFileMeta } from "@/lib/types";
 import UploadCard      from "@/components/UploadCard";
 import AnalysisAssistantCard from "@/components/AnalysisChatCard";
@@ -33,6 +34,7 @@ const DASH_T = {
     bannerDone:    "Analysis complete — report, charts, and cleaned dataset are ready.",
     bannerRunning: "Analysis running — results will appear when done…",
     bannerFailed:  "Analysis failed. Please try uploading your dataset again.",
+    bannerLost:    "We lost track of this analysis. It may still finish: refresh in a minute and look in your history.",
     viewReport:    "View Report →",
     newSession:    "Start new analysis",
   },
@@ -53,6 +55,7 @@ const DASH_T = {
     bannerDone:    "Analyse terminée — rapport, graphiques et CSV nettoyé disponibles.",
     bannerRunning: "Analyse en cours — les résultats apparaîtront bientôt…",
     bannerFailed:  "Analyse échouée. Veuillez réimporter votre dataset.",
+    bannerLost:    "Nous avons perdu le suivi de cette analyse. Elle peut encore se terminer : actualisez dans une minute et regardez votre historique.",
     viewReport:    "Voir le rapport →",
     newSession:    "Nouvelle analyse",
   },
@@ -73,6 +76,7 @@ const DASH_T = {
     bannerDone:    "تحلیل کامل شد — گزارش، نمودارها و CSV پاکسازی‌شده آماده‌اند.",
     bannerRunning: "تحلیل در حال اجرا — نتایج به زودی نمایش می‌یابند…",
     bannerFailed:  "تحلیل ناموفق بود. لطفاً دیتاست خود را دوباره آپلود کنید.",
+    bannerLost:    "پیگیری این تحلیل قطع شد. ممکن است هنوز کامل شود: یک دقیقه دیگر صفحه را تازه کنید و تاریخچه را ببینید.",
     viewReport:    "← مشاهده گزارش",
     newSession:    "تحلیل جدید",
   },
@@ -125,6 +129,7 @@ export default function DashboardPage() {
   const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus | null>(null);
   const [reportReady,    setReportReady]    = useState(false);
   const [hasPdfReport,   setHasPdfReport]   = useState(false);
+  const [runLost,        setRunLost]        = useState(false);
 
   // Pro report settings. Held here because the assistant card remounts on each
   // upload, and a brief written before the file went in must survive that.
@@ -142,7 +147,12 @@ export default function DashboardPage() {
   const chartsRef   = useRef<HTMLElement | null>(null);
   const downloadRef = useRef<HTMLElement | null>(null);
   const helpRef     = useRef<HTMLElement | null>(null);
-  const pollRef     = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollRef     = useRef<(() => void) | null>(null);
+
+  // Read when used. A callback kept from the first render holds the first
+  // render's token: blank on a page just loaded, expired on one left open.
+  const tokenRef    = useRef(token);
+  useEffect(() => { tokenRef.current = token; }, [token]);
 
   // ── Load history on mount ───────────────────────────────────────────────────
   useEffect(() => {
@@ -170,6 +180,7 @@ export default function DashboardPage() {
   // ── Load a history item into the dashboard ──────────────────────────────────
   const handleLoadHistory = useCallback((item: Analysis) => {
     stopPolling();
+    setRunLost(false);
     setAnalysis(item);
     setAnalysisStatus(item.status);
     setHasPdfReport(item.hasPdfReport ?? false);
@@ -181,6 +192,7 @@ export default function DashboardPage() {
   // ── New upload → reset everything ──────────────────────────────────────────
   const handleUploadSuccess = useCallback((tempMeta: UploadedFileMeta) => {
     stopPolling();
+    setRunLost(false);
     // No server id yet — the analysis row is created when the pipeline starts.
     // Marked isPending so the header renders the neutral subtitle.
     setAnalysis({ ...tempMeta, id: "", status: "pending", isPending: true });
@@ -201,39 +213,58 @@ export default function DashboardPage() {
   }, [analysis]);
 
   // ── Analysis started (chatbot confirmed) ────────────────────────────────────
-  const handleAnalysisStarted = useCallback((analysisId: string) => {
+  const handleAnalysisStarted = useCallback((analysisId: string | null) => {
     setAnalysisStatus("processing");
     startPolling(analysisId);
   }, []);
 
-  // ── Polling ──────────────────────────────────────────────────────────────────
-  const startPolling = useCallback((analysisId: string) => {
-    if (pollRef.current) return;
-    pollRef.current = setInterval(async () => {
-      try {
-        const s = await BackendAPI.getAnalysisStatus(token, analysisId);
-        if (!s) return;
-        setAnalysisStatus(s.status);
-        if (s.status === "done" || s.status === "failed") {
-          stopPolling();
-          const updated = await BackendAPI.getAnalysis(token, analysisId);
-          setAnalysis(updated);
-          if (updated?.hasPdfReport) {
-            setReportReady(true);
-            setHasPdfReport(true);
-          }
-          // Refresh history to include the new completed run
-          const h = await BackendAPI.getHistory(token);
-          setHistory(h ?? []);
-          setAnalysisKey(k => k + 1);
-          setUploadResetKey(k => k + 1);
-        }
-      } catch { /* network blip — keep polling */ }
-    }, 10_000);
-  }, [token]);
+  // ── Following a run ───────────────────────────────────
+  const showRunLost = useCallback(() => {
+    setAnalysis(null);
+    setAnalysisStatus(null);
+    setReportReady(false);
+    setHasPdfReport(false);
+    setRunLost(true);
+    setAnalysisKey(k => k + 1);
+    setUploadResetKey(k => k + 1);
+  }, []);
+
+  const finishRun = useCallback(async (analysisId: string, outcome: RunOutcome) => {
+    // History first: a run this page lost track of may well have finished.
+    const fresh = await BackendAPI.getHistory(tokenRef.current).catch(() => null);
+    if (fresh) setHistory(fresh);
+    if (outcome === "lost") { showRunLost(); return; }
+
+    try {
+      const updated = await BackendAPI.getAnalysis(tokenRef.current, analysisId);
+      setAnalysis(updated);
+      if (updated?.hasPdfReport) {
+        setReportReady(true);
+        setHasPdfReport(true);
+      }
+      setAnalysisKey(k => k + 1);
+      setUploadResetKey(k => k + 1);
+    } catch {
+      showRunLost();
+    }
+  }, [showRunLost]);
+
+  const startPolling = useCallback((analysisId: string | null) => {
+    stopPolling();
+    if (!analysisId) { showRunLost(); return; }
+    pollRef.current = followAnalysis({
+      check:    () => BackendAPI.getAnalysisStatus(tokenRef.current, analysisId),
+      onStatus: status => setAnalysisStatus(status as AnalysisStatus),
+      onEnd:    outcome => {
+        pollRef.current = null;
+        void finishRun(analysisId, outcome);
+      },
+    });
+  }, [finishRun, showRunLost]);
 
   const stopPolling = () => {
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    pollRef.current?.();
+    pollRef.current = null;
   };
   useEffect(() => () => stopPolling(), []);
 
@@ -274,6 +305,7 @@ export default function DashboardPage() {
   // ── Clear / start new session ────────────────────────────────────────────────
   const handleNewSession = useCallback(() => {
     stopPolling();
+    setRunLost(false);
     setAnalysis(null);
     setAnalysisStatus(null);
     setReportReady(false);
@@ -503,6 +535,18 @@ export default function DashboardPage() {
             <span>❌</span>
             <span style={{ fontSize: "0.85rem", color: isLight ? "#b91c1c" : "#fca5a5" }}>
               {t.bannerFailed}
+            </span>
+          </div>
+        )}
+
+        {runLost && (
+          <div style={{ padding: "12px 24px",
+            background: isLight ? "rgba(217,119,6,0.08)" : "rgba(217,119,6,0.1)",
+            borderBottom: "1px solid rgba(245,158,11,0.3)",
+            display: "flex", alignItems: "center", gap: "10px" }}>
+            <span>⚠️</span>
+            <span style={{ fontSize: "0.85rem", color: isLight ? "#b45309" : "#fcd34d" }}>
+              {t.bannerLost}
             </span>
           </div>
         )}

@@ -134,6 +134,7 @@ public class ChatController : ControllerBase
             }
 
             // If all_good — kick off analysis immediately, no yes/no needed
+            Guid? startedId = null;
             if (condition == "all_good")
             {
                 var started = await _analysis.TryStartAsync(userId, req.FileName ?? "data.csv",
@@ -142,6 +143,7 @@ public class ChatController : ControllerBase
                     userWantsCleaning: false, userConfirmedLow: true,
                     customizationJson: customizationJson);
                 if (!started.Allowed) return Ok(Refused(started));
+                startedId = started.AnalysisId;
             }
 
             return Ok(condition switch
@@ -167,6 +169,7 @@ public class ChatController : ControllerBase
                 {
                     Reply = "Your dataset looks great — starting full analysis now. This may take a minute.",
                     Condition = "all_good", RequiresResponse = false, Done = false, Failed = false,
+                    AnalysisId = startedId,
                 },
             });
         }
@@ -212,6 +215,7 @@ public class ChatController : ControllerBase
             return Ok(new ChatMessageResponse
             {
                 Reply = reply, Condition = null, RequiresResponse = false, Done = false, Failed = false,
+                AnalysisId = startedAfterAnswer.AnalysisId,
             });
         }
 
@@ -426,6 +430,10 @@ public class ChatMessageResponse
     [JsonPropertyName("requiresResponse")] public bool    RequiresResponse { get; set; }
     [JsonPropertyName("done")]             public bool    Done             { get; set; }
     [JsonPropertyName("failed")]           public bool    Failed           { get; set; }
+
+    // The run this reply started. Without it the page checked a blank address
+    // for as long as it stayed open and never saw the finished report.
+    [JsonPropertyName("analysisId")]       public Guid?   AnalysisId       { get; set; }
 }
 
 public class ChatBriefRequest

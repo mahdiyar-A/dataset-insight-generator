@@ -265,9 +265,11 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
   }, [token, dataset?.id, dataset?.isPending]); // eslint-disable-line
 
   const fetchCharts = async () => {
-    setLoading(true); setActive(0);
+    setActive(0);
+    if (!dataset?.id) { setCharts([]); setLoading(false); return; }
+    setLoading(true);
     try {
-      const data = await BackendAPI.getVisualizations(token);
+      const data = await BackendAPI.getVisualizations(token, dataset.id);
       setCharts(data?.length ? mergeWithFallbacks(data) : []);
     } catch { setCharts([]); }
     finally { setLoading(false); }

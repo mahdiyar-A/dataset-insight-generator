@@ -47,6 +47,9 @@ public sealed record AnalysisCaller(string Key, CallerKind Kind)
 public sealed record Admission(bool Allowed, string Code, string Message)
 {
     public static readonly Admission Ok = new(true, "OK", "");
+
+    /// <summary>The run this admitted, so the page can follow it.</summary>
+    public Guid? AnalysisId { get; init; }
 }
 
 /// <summary>
