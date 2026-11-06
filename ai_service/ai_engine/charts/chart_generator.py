@@ -1,4 +1,5 @@
 import io
+import re
 import base64
 import numpy as np
 import pandas as pd
@@ -119,6 +120,20 @@ def _infer_top_n(title: str, default: int = 10) -> int:
     return default
 
 
+def _measure(title: str) -> str:
+    """
+    "sum" when a chart's title promises totals, otherwise "mean".
+
+    A model writes the title. One called a chart "Weekly Total Revenue" over
+    weekly averages, so a week of 7,000 read as 160.
+    """
+    return "sum" if re.search(r"\b(totals?|sums?)\b", title or "", re.IGNORECASE) else "mean"
+
+
+def _axis_label(column: str, how: str) -> str:
+    return f"{column} ({'total' if how == 'sum' else 'average'})"
+
+
 def _bar_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
     x = _safe_col(df, instr.xColumn)
     y = _safe_col(df, instr.yColumn)
@@ -129,9 +144,10 @@ def _bar_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
     fig, ax = plt.subplots(figsize=(8, 4.5))
 
     if y and pd.api.types.is_numeric_dtype(df[y]):
-        data = df.groupby(x)[y].mean().sort_values(ascending=False).head(top_n)
+        how = _measure(instr.title)
+        data = df.groupby(x)[y].agg(how).sort_values(ascending=False).head(top_n)
         ax.bar(data.index.astype(str), data.values, color=instr.color, alpha=0.85, edgecolor="#0f172a", linewidth=0.5)
-        ax.set_ylabel(y)
+        ax.set_ylabel(_axis_label(y, how))
     else:
         data = df[x].value_counts().head(top_n)
         ax.bar(data.index.astype(str), data.values, color=instr.color, alpha=0.85, edgecolor="#0f172a", linewidth=0.5)
@@ -153,8 +169,11 @@ def _line_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
         return None
 
     fig, ax = plt.subplots(figsize=(8, 4.5))
+    how = _measure(instr.title)
+    y_label = _axis_label(y, how)
 
     if pd.api.types.is_numeric_dtype(df[x]):
+        y_label = y
         sorted_df = df[[x, y]].dropna().sort_values(x)
         ax.plot(sorted_df[x], sorted_df[y], color=instr.color, linewidth=2, alpha=0.9)
         ax.fill_between(sorted_df[x], sorted_df[y], alpha=0.15, color=instr.color)
@@ -170,16 +189,17 @@ def _line_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
             # drew one rotated tick label per day: 336 of them on a 30,000-row
             # file, unreadable and 3.5 of the 6.3 seconds spent on charts. A
             # real time axis lets matplotlib choose sensible ticks, and long
-            # daily series are averaged per week (or month) so the trend shows.
+            # daily series are grouped per week (or month) so the trend shows.
             frame = pd.DataFrame({"t": dates, "y": pd.to_numeric(series[y], errors="coerce")}).dropna()
-            data = frame.groupby("t")["y"].mean().sort_index()
+            data = frame.groupby("t")["y"].agg(how).sort_index()
             if len(data) > 120:
                 span_days = (data.index.max() - data.index.min()).days
-                data = data.resample("W" if span_days <= 730 else "MS").mean().dropna()
+                periods = data.resample("W" if span_days <= 730 else "MS")
+                data = (periods.sum(min_count=1) if how == "sum" else periods.mean()).dropna()
             ax.plot(data.index, data.values, color=instr.color, linewidth=2, marker="o", markersize=3)
             fig.autofmt_xdate()
         else:
-            data = series.groupby(x)[y].mean()
+            data = series.groupby(x)[y].agg(how)
             ax.plot(data.index.astype(str), data.values, color=instr.color, linewidth=2, marker="o", markersize=4)
             if len(data) > 25:
                 # Many categories: label a readable subset rather than all of them.
@@ -187,7 +207,7 @@ def _line_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
                 ax.xaxis.set_major_locator(MaxNLocator(nbins=20))
 
     ax.set_xlabel(x)
-    ax.set_ylabel(y)
+    ax.set_ylabel(y_label)
     ax.set_title(instr.title, fontsize=12, fontweight="bold", pad=12)
     plt.xticks(rotation=35, ha="right", fontsize=8)
     ax.grid(alpha=0.3)
