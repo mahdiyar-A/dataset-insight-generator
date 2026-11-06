@@ -7,7 +7,10 @@ figures, refuses what is out of scope, and never lets user text act as
 instructions.
 """
 
+import email.message
+import io
 import json
+import urllib.error
 
 import numpy as np
 import pandas as pd
@@ -282,3 +285,89 @@ def test_a_brief_can_ask_for_word_and_powerpoint_but_nothing_else():
         "outputFormat": {"word": True}}
     assert validate_settings({"outputFormat": {"word": "yes", "pptx": False}}) == {}
     assert validate_settings({"outputFormat": "pptx"}) == {}
+
+
+# ── What the real models send back ────────────────────────────────────────────
+
+def test_a_reply_with_two_objects_counts_as_the_first():
+    # Nemotron, word for word: it asks for a query, then answers without seeing it.
+    reply = ('{"action": "query", "queries": [{"op": "aggregate", "measure": "revenue", "agg": "sum", '
+             '"by": ["region"]}], "why": "To confirm"}\n\n{"action": "answer", "answer": "West, about 90,000."}')
+    step = harness._accept_step(reply)
+    assert step["action"] == "query"
+    assert step["queries"][0]["op"] == "aggregate"
+
+
+@pytest.mark.parametrize("reply", [
+    '```json\n{"action": "answer", "answer": "West"}\n```',
+    'Here you go: {"action": "answer", "answer": "West"} Hope that helps.',
+])
+def test_fences_and_prose_around_the_reply_are_ignored(reply):
+    assert harness._accept_step(reply) == {"action": "answer", "answer": "West"}
+
+
+@pytest.mark.parametrize("reply", ['{"action": "answer", "answer": "The We', "no json here", "", None, "[1, 2]"])
+def test_a_reply_cut_off_or_without_an_object_is_no_reply(reply):
+    assert harness.json_object(reply) is None
+
+
+def test_the_failure_seen_on_the_real_server_now_gets_an_answer(monkeypatch):
+    # 5 Nov: the first model was rate limited, the second sent two objects and
+    # the third dressed its reply as a tool call, so nobody got an answer.
+    from ai_engine.llm import report_writer
+
+    report_writer.reset_cooldowns()
+    first, second, third = harness.CHAT_PROVIDERS
+    reply = {"action": "answer", "answer": "The West region leads."}
+
+    def full(body):
+        return urllib.error.HTTPError("https://x", 429, "err", email.message.Message(), io.BytesIO(body))
+
+    def fake_post(provider, api_key, prompt, timeout):
+        if provider.model == first.model:
+            raise full(b"Rate limit reached. Please try again in 8.4s.")
+        if provider.model == second.model:
+            twice = json.dumps(reply) + "\n\n" + json.dumps({"action": "answer", "answer": "Second thoughts."})
+            return {"choices": [{"message": {"content": twice}}]}
+        raise AssertionError("the second model answered, so the third is not needed")
+
+    monkeypatch.setattr(report_writer, "_post", fake_post)
+    out = answer_question(CONTEXT, "Which region leads?", api_keys={"groq": "k", "openrouter": "k"})
+    report_writer.reset_cooldowns()
+
+    assert not out.get("failed")
+    assert out["answer"] == reply["answer"]
+
+
+def test_one_question_stops_before_the_backend_gives_up(monkeypatch, df):
+    now = [0.0]
+    budgets = []
+
+    def uses_all_it_is_given(messages, api_keys, accept, tracker=None, budget_secs=None, **kwargs):
+        budgets.append(budget_secs)
+        now[0] += budget_secs
+        return accept(json.dumps({"action": "query", "queries": [{"op": "count"}]})), PROVIDER
+
+    monkeypatch.setattr(harness, "write_report", uses_all_it_is_given)
+    out = answer_question(CONTEXT, "How many rows?", df=df, clock=lambda: now[0])
+
+    assert sum(budgets) <= harness.CHAT_DEADLINE_SECS
+    assert out.get("failed")
+
+
+def test_a_late_step_gets_only_the_time_that_is_left(monkeypatch, df):
+    now = [0.0]
+    budgets = []
+
+    def takes_a_while(messages, api_keys, accept, tracker=None, budget_secs=None, **kwargs):
+        budgets.append(budget_secs)
+        now[0] += 30
+        reply = {"action": "query", "queries": [{"op": "count"}]} if len(budgets) == 1 \
+            else {"action": "answer", "answer": "There are rows."}
+        return accept(json.dumps(reply)), PROVIDER
+
+    monkeypatch.setattr(harness, "write_report", takes_a_while)
+    out = answer_question(CONTEXT, "How many rows?", df=df, clock=lambda: now[0])
+
+    assert budgets == [harness.CHAT_BUDGET_SECS, harness.CHAT_DEADLINE_SECS - 30]
+    assert out["answer"] == "There are rows."

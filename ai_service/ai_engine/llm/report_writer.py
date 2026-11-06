@@ -35,7 +35,10 @@ Three protections, each from something observed:
     outlast the backend's own timeout on the analysis.
   - A cool-down. A model that just failed is skipped for a while, so that when
     the strongest one is overloaded, every visitor is not made to wait out its
-    timeout before reaching one that works.
+    timeout before reaching one that works. A rate limit says how long it lasts,
+    so it sits out exactly that long: Groq's free tier allows about two chat
+    prompts a minute per model, and benching a model for ten minutes over a
+    nine-second wait once took two of the three chat models out at the same time.
   - Hedging. If the strongest model is slow, the next one starts in parallel
     after 20s instead of after the strongest model's full timeout, and the
     strongest still wins if it finishes shortly after. A strongest model that
@@ -52,6 +55,7 @@ from __future__ import annotations
 
 import json
 import queue
+import re
 import threading
 import time
 import urllib.error
@@ -85,6 +89,12 @@ PREFER_STRONGER_GRACE_SECS = 5
 # queueing behind an overloaded endpoint; short enough that a recovered model
 # is back in use within minutes.
 COOLDOWN_SECS = 600
+
+# The longest a stated rate limit is taken at its word. A daily quota can name
+# hours; a mistaken header should not take a model out for days.
+MAX_RATE_LIMIT_WAIT_SECS = 3600
+
+_UNPARSEABLE = "reply could not be parsed into a report"
 
 
 @dataclass(frozen=True)
@@ -227,6 +237,54 @@ def _content_of(raw: Dict[str, Any]) -> str:
     return content
 
 
+_TRY_AGAIN_IN = re.compile(
+    r"try again in\s+(?:(?P<h>\d+)h)?(?:(?P<m>\d+)m(?!s))?(?:(?P<s>\d+(?:\.\d+)?)s)?(?:(?P<ms>\d+)ms)?",
+    re.IGNORECASE)
+
+
+def _rate_limit_wait(headers: Any, body: str) -> float:
+    """How long a 429 asks us to wait: the header, else the message, else a full cool-down."""
+    wait: Optional[float] = None
+    try:
+        wait = float(headers.get("retry-after"))
+    except (AttributeError, TypeError, ValueError):
+        match = _TRY_AGAIN_IN.search(body)
+        if match and any(match.groups()):
+            wait = (int(match["h"] or 0) * 3600 + int(match["m"] or 0) * 60
+                    + float(match["s"] or 0) + int(match["ms"] or 0) / 1000)
+    if wait is None:
+        return COOLDOWN_SECS
+    return min(max(wait, 1.0), MAX_RATE_LIMIT_WAIT_SECS)
+
+
+def _failed_generation(body: str) -> Optional[str]:
+    """
+    The model's reply inside Groq's tool_use_failed error, or None for any other error.
+
+    gpt-oss is trained to call tools and sometimes dresses a plain reply as a
+    call to one, though it has none: {"name": "assistant", "arguments": {...}}.
+    Groq refuses that with a 400 and returns the text as failed_generation.
+    Measured on the chat prompt it happened about one call in three, and the
+    arguments are usually exactly the JSON that was asked for.
+    """
+    try:
+        error = json.loads(body).get("error")
+    except (AttributeError, ValueError):
+        return None
+    if not isinstance(error, dict) or error.get("code") != "tool_use_failed":
+        return None
+    text = error.get("failed_generation")
+    if not isinstance(text, str):
+        return ""
+    try:
+        call = json.loads(text)
+    except ValueError:
+        return text
+    if isinstance(call, dict) and isinstance(call.get("arguments"), dict):
+        return json.dumps(call["arguments"], ensure_ascii=False)
+    return text
+
+
 # ── The chain ─────────────────────────────────────────────────────────────────
 
 def _attempt(
@@ -245,6 +303,8 @@ def _attempt(
     tin = tout = 0
     error: Optional[str] = None
     result: Optional[T] = None
+    # How long this failure keeps the model out for everyone. None: not at all.
+    bench_secs: Optional[float] = COOLDOWN_SECS
     try:
         raw = _with_deadline(lambda: _post(p, key, prompt, limit), limit)
         usage = raw.get("usage") or {}
@@ -252,7 +312,7 @@ def _attempt(
         tout = int(usage.get("completion_tokens", 0) or 0)
         result = accept(_content_of(raw))
         if result is None:
-            error = "reply could not be parsed into a report"
+            error, bench_secs = _UNPARSEABLE, None
     except urllib.error.HTTPError as e:
         body = ""
         try:
@@ -260,6 +320,18 @@ def _attempt(
         except Exception:
             pass
         error = f"HTTP {e.code}: {body[:160]}"
+        generation = _failed_generation(body)
+        if e.code == 429:
+            bench_secs = _rate_limit_wait(e.headers, body)
+        elif generation is not None:
+            # Like a reply that will not parse, this is about one answer, and
+            # it may well be a good answer in the wrong wrapper.
+            bench_secs = None
+            try:
+                result = accept(generation)
+            except Exception as accept_error:
+                print(f"[Report] could not read {p.display_name}'s reply: {accept_error}", flush=True)
+            error = None if result is not None else _UNPARSEABLE
     except Exception as e:  # deadline, connection errors, malformed bodies
         error = f"{type(e).__name__}: {e}"
 
@@ -281,8 +353,8 @@ def _attempt(
 
     # An unparseable reply is a property of that answer, not of the endpoint,
     # so it does not bench the model for everyone else.
-    if error != "reply could not be parsed into a report":
-        _set_cooldown(p.model, clock() + COOLDOWN_SECS)
+    if bench_secs is not None:
+        _set_cooldown(p.model, clock() + bench_secs)
     print(f"[Report] {p.display_name} failed: {error}", flush=True)
     return None
 
