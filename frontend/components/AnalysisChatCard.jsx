@@ -130,6 +130,9 @@ export default function AnalysisAssistantCard({
   const [sending,          setSending]          = useState(false);
   const [condition,        setCondition]        = useState(null);
   const [sessionId,        setSessionId]        = useState(null);
+  // Once a run starts on the server this page cannot stop it. Cancel used to
+  // stay and only clear the chat, while the run went on and used up the allowance.
+  const [runStarted,       setRunStarted]       = useState(false);
 
   const bottomRef = useRef(null);
   const timerRef  = useRef(null);
@@ -206,6 +209,7 @@ export default function AnalysisAssistantCard({
         if (analysisKickingOff) {
           // Pass back the analysis ID so the dashboard can start polling for it
           const newAnalysisId = res?.analysisId || dataset?.id || null;
+          setRunStarted(true);
           onAnalysisStarted?.(newAnalysisId);
         }
         setAwaitingResponse(needsResp);
@@ -277,6 +281,7 @@ export default function AnalysisAssistantCard({
 
   const handleStart = () => {
     clearTimeout(timerRef.current);
+    setRunStarted(false);
     setStage(1);
     setMessages([]);
     setAwaitingResponse(false);
@@ -289,6 +294,7 @@ export default function AnalysisAssistantCard({
 
   const handleCancel = () => {
     clearTimeout(timerRef.current);
+    setRunStarted(false);
     setStage(0);
     setMessages([]);
     setAwaitingResponse(false);
@@ -404,9 +410,11 @@ export default function AnalysisAssistantCard({
           </div>
 
           <div style={{ display:"flex", gap:"8px", flexWrap:"wrap", alignItems:"center" }}>
-            <button className="chip-btn subtle" onClick={handleCancel} style={{ fontSize:"0.8rem", padding:"6px 14px" }}>
-              {t.cancel}
-            </button>
+            {!runStarted && !sending && (
+              <button className="chip-btn subtle" onClick={handleCancel} style={{ fontSize:"0.8rem", padding:"6px 14px" }}>
+                {t.cancel}
+              </button>
+            )}
 
             {awaitingResponse && !sending && (
               <>
