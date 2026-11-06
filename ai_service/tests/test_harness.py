@@ -176,6 +176,15 @@ def test_a_question_about_a_total_is_answered_from_the_file(model):
     assert len(out["queries"]) == 1 and len(fake.calls) == 3
 
 
+def test_a_question_about_a_total_asks_for_a_query_up_front(model):
+    fake = model({"action": "query", "queries": [{"op": "aggregate", "measure": "revenue", "agg": "sum", "by": ["store"]}]},
+                 {"action": "answer", "answer": "Downtown made the most, 30."})
+    df = pd.DataFrame({"store": ["Downtown", "Downtown", "Midtown"], "revenue": [10, 20, 5]})
+    answer_question({**CONTEXT, "columns": ["store", "revenue"]}, "Which store made the most revenue?", df=df)
+    assert "query the data first" in fake.calls[0][-1]["content"]
+    assert len(fake.calls) == 2
+
+
 def test_a_first_answer_stands_when_the_second_try_gets_no_reply(model):
     model({"action": "answer", "answer": "Downtown."}, None)
     df = pd.DataFrame({"store": ["Downtown"], "revenue": [10]})
