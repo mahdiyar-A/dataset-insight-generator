@@ -256,19 +256,20 @@ def run_pipeline(
 
     if quality.needsCleaning and user_wants_cleaning:
         try:
-            df_work     = clean_dataset(
-                df_original, quality,
-                groq_drop_columns=groq_drops,
-                groq_methods=groq_methods,
-            )
+            # The whole file is cleaned, and the cleaned download keeps every
+            # column. What the model set aside only leaves the analysis.
+            cleaned     = clean_dataset(df_original, quality)
+            set_aside   = [c for c in groq_drops if c in cleaned.columns]
             was_cleaned = True
-            domain.cleaning_methods = groq_methods = what_cleaning_did(df_original, df_work)
-            quality     = check_data_quality(df_work)
+            domain.cleaning_methods = groq_methods = (
+                what_cleaning_did(df_original, cleaned) + [f"drop_column:{c}" for c in set_aside])
+            quality     = check_data_quality(cleaned)
             csv_buf     = io.StringIO()
-            df_work.to_csv(csv_buf, index=False)
+            cleaned.to_csv(csv_buf, index=False)
             cleaned_csv_b64 = base64.b64encode(
                 csv_buf.getvalue().encode("utf-8")
             ).decode("utf-8")
+            df_work     = cleaned.drop(columns=set_aside)
         except Exception as e:
             print(f"[Pipeline] Cleaning failed: {e} — continuing with original")
             df_work = df_original

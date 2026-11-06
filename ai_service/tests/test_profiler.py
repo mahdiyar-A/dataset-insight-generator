@@ -124,11 +124,6 @@ class TestARealGroupIsNotAnOutlier:
         out = clean_dataset(df, check_data_quality(df))
         assert out["price"].max() == 8.9
 
-    def test_a_model_asking_to_cap_it_changes_nothing(self):
-        df = pd.DataFrame({"price": self.PRICES, "units": range(len(self.PRICES))})
-        out = clean_dataset(df, check_data_quality(df), groq_methods=["cap_outliers:price"])
-        assert out["price"].max() == 8.9
-
     def test_the_checker_does_not_ask_for_cleaning_that_will_not_happen(self):
         df = pd.DataFrame({"price": self.PRICES, "units": range(len(self.PRICES))})
         assert not any("price" in w for w in check_data_quality(df).warnings)

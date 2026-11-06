@@ -260,3 +260,73 @@ def test_the_report_describes_the_cleaning_that_happened(stub_writer, monkeypatc
     assert result["status"] == "done", result.get("error")
     assert "impute_median:units" in seen["methods"]
     assert "impute_zero:units" not in seen["methods"]
+
+
+def _with_plan(monkeypatch, *, drop=(), methods=()):
+    real_gate = pipeline._run_domain_gate
+
+    def planned(df, *args, **kwargs):
+        domain = real_gate(df, *args, **kwargs)
+        domain.column_decisions["drop"] = list(drop)
+        domain.cleaning_methods = [*domain.cleaning_methods, *methods]
+        return domain
+
+    monkeypatch.setattr(pipeline, "_run_domain_gate", planned)
+
+
+def _clean(df):
+    return run_pipeline(
+        file_bytes=df.to_csv(index=False).encode(), file_name="sales.csv",
+        user_wants_cleaning=True, user_confirmed_low=True,
+        openrouter_api_key="", groq_api_key="", session_id="test",
+    )
+
+
+def _orders(n=1000):
+    """Separate orders that look alike once the order number is gone."""
+    df = pd.DataFrame({
+        "order_id": range(10000, 10000 + n),
+        "product": [("A", "B", "C", "D")[i % 4] for i in range(n)],
+        "region": [("North", "South")[i % 2] for i in range(n)],
+        "units": [i % 5 + 1 for i in range(n)],
+        "price": [10.0 + i % 3 for i in range(n)],
+    })
+    df.loc[df.index[:5], "price"] = np.nan
+    return df
+
+
+def _cleaned_file(result):
+    return pd.read_csv(io.BytesIO(base64.b64decode(result["cleaned_csv_base64"])))
+
+
+def test_setting_an_id_aside_keeps_every_order(stub_writer, monkeypatch):
+    # The id went first and the duplicate check came after: 1,000 real orders
+    # became 20 rows, and total units fell from 3,000 to 60.
+    _with_plan(monkeypatch, drop=["order_id"], methods=["drop_column:order_id"])
+    df = _orders()
+
+    result = _clean(df)
+
+    assert result["status"] == "done", result.get("error")
+    assert len(_cleaned_file(result)) == len(df)
+    assert _cleaned_file(result)["units"].sum() == df["units"].sum()
+    assert result["chat_context"]["columnsLeftOutOfTheReport"] == ["order_id"]
+    assert "order_id" not in [c["name"] for c in result["chat_context"]["columns"]]
+
+
+def test_the_cleaned_file_keeps_the_id(stub_writer, monkeypatch):
+    _with_plan(monkeypatch, drop=["order_id"])
+    assert "order_id" in _cleaned_file(_clean(_orders())).columns
+
+
+@pytest.mark.parametrize("plan", [
+    dict(methods=["impute_zero:price"]),
+    dict(methods=["cap_outliers:units", "impute_mode:price"]),
+    dict(drop=["order_id"], methods=["drop_column:order_id"]),
+])
+def test_no_plan_changes_the_cleaned_numbers(stub_writer, monkeypatch, plan):
+    # One file came back with different totals on two runs, because the model
+    # chose how to clean and chose differently each time.
+    plain = _cleaned_file(_clean(_orders()))
+    _with_plan(monkeypatch, **plan)
+    pd.testing.assert_frame_equal(plain, _cleaned_file(_clean(_orders())))
