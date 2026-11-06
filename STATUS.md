@@ -9,9 +9,9 @@
 
 | Suite | Count | Command |
 |---|---|---|
-| C# — unit, integration, edge cases, the real Supabase client against a stand-in server | 319 | `dotnet test backend.Tests/backend.Tests.csproj` |
-| Python — stats, ingest, chat harness, reports, full pipeline | 711 | `cd ai_service && pytest tests/` |
-| Frontend — Vitest, including rendered components | 163 | `cd frontend && npm test` |
+| C# — unit, integration, edge cases, the real Supabase client against a stand-in server | 330 | `dotnet test backend.Tests/backend.Tests.csproj` |
+| Python — stats, ingest, chat harness, reports, full pipeline | 825 | `cd ai_service && pytest tests/` |
+| Frontend — Vitest, including rendered components | 187 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
 
 ---
