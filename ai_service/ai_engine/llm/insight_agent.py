@@ -477,7 +477,10 @@ CHART RULES — structural requirements:
   significance flags — an insignificant trend must not be written as a trend.
 - `findings.key_drivers` ranks what moves with the target, alone (rho or
   eta_squared) and together (model share; model.fit says how much the columns
-  explain at all). Write "associated with", never "causes" or "drives". If
+  explain at all). Write "associated with", never "causes" or "drives".
+  Claim only what the columns measure: revenue is not profit, so never call
+  anything high-margin, profitable or costly unless a column records cost,
+  margin or profit. If
   model.fit is "very weak", say the measured columns explain little of it.
 - `findings.segments` lists groups whose average or rate differs from the rest
   (lift = segment / overall). Quote rows or share so the reader knows its size.

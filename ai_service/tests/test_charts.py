@@ -189,3 +189,49 @@ def test_other_charts_are_left_alone():
     assert other_type.groupColumn is None
     assert no_y.groupColumn is None
     assert chosen.groupColumn == "channel"
+
+
+# ── A chart shows what its title says ────────────────────────────────────────
+
+def daily_sales(days=200, rows_per_day=4):
+    dates = pd.date_range("2025-01-01", periods=days).repeat(rows_per_day).strftime("%Y-%m-%d")
+    return pd.DataFrame({"date": dates, "revenue": 10.0, "store": ["A", "B"] * (days * rows_per_day // 2)})
+
+
+def titled(title, x, y, chart_type):
+    return ChartInstruction(index=1, chartType=chart_type, title=title, xColumn=x, yColumn=y, description="",
+                            insightIndex=1, color="#3b82f6")
+
+
+def test_a_weekly_total_is_a_total(drawn):
+    # A model titled weekly averages "Weekly Total Revenue".
+    fig = chart_generator._line_chart(daily_sales(), titled("Weekly Total Revenue", "date", "revenue", "line"))
+    ax = fig.axes[0]
+    assert max(ax.lines[0].get_ydata()) == 10.0 * 4 * 7
+    assert ax.get_ylabel() == "revenue (total)"
+
+
+def test_a_line_with_no_total_in_its_title_says_it_is_an_average(drawn):
+    fig = chart_generator._line_chart(daily_sales(), titled("Revenue over time", "date", "revenue", "line"))
+    ax = fig.axes[0]
+    assert set(ax.lines[0].get_ydata()) == {10.0}
+    assert ax.get_ylabel() == "revenue (average)"
+
+
+@pytest.mark.parametrize("title, height, label", [
+    ("Total Revenue by Store", 4000.0, "revenue (total)"),
+    ("Average Revenue by Store", 10.0, "revenue (average)"),
+    ("Subtotals by Store", 10.0, "revenue (average)"),
+])
+def test_a_bar_shows_what_its_title_says(drawn, title, height, label):
+    fig = chart_generator._bar_chart(daily_sales(), titled(title, "store", "revenue", "bar"))
+    ax = fig.axes[0]
+    assert ax.patches[0].get_height() == height
+    assert ax.get_ylabel() == label
+
+
+def test_a_week_with_no_sales_is_left_out_not_drawn_as_nothing(drawn):
+    df = daily_sales()
+    df = df[~df["date"].between("2025-03-01", "2025-03-20")]
+    fig = chart_generator._line_chart(df, titled("Weekly Total Revenue", "date", "revenue", "line"))
+    assert min(fig.axes[0].lines[0].get_ydata()) > 0
