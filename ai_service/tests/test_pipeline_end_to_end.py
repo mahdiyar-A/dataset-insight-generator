@@ -229,3 +229,34 @@ def test_bad_customization_values_fall_back_to_defaults(stub_writer):
     prompt = stub_writer[0]
     assert "Produce exactly 5 insights." in prompt
     assert "Q1. not json [" in prompt   # a bare string is taken as one question
+
+
+def test_the_report_describes_the_cleaning_that_happened(stub_writer, monkeypatch):
+    # The model planned zeros; the rule fills with the median. The report has to
+    # say the median.
+    real_gate = pipeline._run_domain_gate
+    seen = {}
+
+    def plans_zeros(df, *args, **kwargs):
+        domain = real_gate(df, *args, **kwargs)
+        domain.cleaning_methods = [*domain.cleaning_methods, "impute_zero:units"]
+        return domain
+
+    real_build = pipeline.build_pdf
+
+    def keep(domain, **kwargs):
+        seen["methods"] = list(domain.cleaning_methods)
+        return real_build(domain=domain, **kwargs)
+
+    monkeypatch.setattr(pipeline, "_run_domain_gate", plans_zeros)
+    monkeypatch.setattr(pipeline, "build_pdf", keep)
+    df = _sales_frame()
+    df.loc[df.index[:30], "units"] = np.nan
+    result = run_pipeline(
+        file_bytes=df.to_csv(index=False).encode(), file_name="sales.csv",
+        user_wants_cleaning=True, user_confirmed_low=True,
+        openrouter_api_key="", groq_api_key="", session_id="test",
+    )
+    assert result["status"] == "done", result.get("error")
+    assert "impute_median:units" in seen["methods"]
+    assert "impute_zero:units" not in seen["methods"]

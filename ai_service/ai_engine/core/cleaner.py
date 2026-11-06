@@ -4,18 +4,20 @@ Context-Aware Dataset Cleaner  —  Phase 2
 Cleaning is applied in this order:
   1. Drop columns Groq classified as analytically irrelevant
   2. General always-on cleaning (empty rows, duplicates, infinity values)
-  3. Groq-directed per-column methods (impute_median, cap_outliers, etc.)
-  4. Default fallback for any remaining missing values not explicitly handled
+  3. Fill missing values: the median for numbers, the most common value for text
+  4. Cap extreme outliers at the skew-adjusted fence
 
-Groq cleaning methods format:
-  "remove_empty_rows"          → drop rows where all values are NaN
-  "remove_duplicates"          → drop exact duplicate rows
-  "remove_infinity"            → replace ±inf with NaN, then handle
-  "impute_median:<col>"        → fill NaN in <col> with its median
-  "impute_mode:<col>"          → fill NaN in <col> with its mode
-  "impute_zero:<col>"          → fill NaN in <col> with 0
-  "cap_outliers:<col>"         → winsorize <col> at 1.5 × IQR
-  "drop_column:<col>"          → drop column (fallback for columns Groq missed)
+Only step 1 takes direction from a model. The rest are fixed rules, so the same
+file cleaned twice gives the same numbers.
+
+`what_cleaning_did` reports the result in the vocabulary the report uses:
+  "remove_empty_rows"          → rows where all values were NaN were dropped
+  "remove_duplicates"          → exact duplicate rows were dropped
+  "remove_infinity"            → ±inf became NaN, then was filled
+  "impute_median:<col>"        → NaN in <col> became its median
+  "impute_mode:<col>"          → NaN in <col> became its most common value
+  "cap_outliers:<col>"         → <col> was capped at the fence
+  "drop_column:<col>"          → the column was dropped
 """
 
 import numpy as np
@@ -57,7 +59,7 @@ def clean_dataset(
     groq_methods: Optional[List[str]] = None,
 ) -> pd.DataFrame:
     """
-    Clean the dataset using Groq's directives + general rules.
+    Clean the dataset by fixed rules, dropping the columns Groq named.
     Returns a cleaned copy — never mutates the original.
     """
     df = df.copy()
@@ -106,67 +108,22 @@ def clean_dataset(
     if id_cols:
         print(f"[Cleaner] Key column(s), exempt from imputation and capping: {sorted(id_cols)}")
 
-    # ── Step 4: Apply Groq-directed per-column methods ────────────────────
-    groq_handled_cols = set()
-
+    # ── Step 4: Columns the model said to drop ───────────────────────────────
+    # That is all a model decides here. It used to choose how each column was
+    # filled and capped as well, and its choices changed between runs, so one
+    # file could come back with two sets of totals.
     for method in (groq_methods or []):
-        if method in ("remove_empty_rows", "remove_duplicates", "remove_infinity"):
-            continue  # already handled above
-
-        if ":" not in method:
-            continue
-
-        method_name, col_name = method.split(":", 1)
-
-        if col_name not in df.columns:
-            continue  # column was already dropped or doesn't exist
-
-        s = df[col_name]
-
-        # The model can and does direct imputation on identifiers. Refuse it —
-        # a fabricated key is worse than a missing one, and unlike a missing one
-        # nothing downstream can detect it. Step 5 drops those rows instead.
-        if col_name in id_cols and method_name.startswith("impute_"):
-            print(f"[Cleaner] Refused {method_name} on identifier '{col_name}'")
-            continue
-
-        if col_name in id_cols and method_name == "cap_outliers":
-            continue
-
-        if method_name == "impute_median":
-            if pd.api.types.is_numeric_dtype(s):
-                df[col_name] = s.fillna(s.median())
-                groq_handled_cols.add(col_name)
-
-        elif method_name == "impute_mode":
-            mode_vals = s.mode()
-            if not mode_vals.empty:
-                df[col_name] = s.fillna(mode_vals[0])
-                groq_handled_cols.add(col_name)
-
-        elif method_name == "impute_zero":
-            df[col_name] = s.fillna(0)
-            groq_handled_cols.add(col_name)
-
-        elif method_name == "cap_outliers":
-            if pd.api.types.is_numeric_dtype(s):
-                lower, upper = adjusted_fences(s, k=1.5)
-                if np.isfinite(lower) and np.isfinite(upper):
-                    df[col_name] = s.clip(lower=lower, upper=upper)
-
-        elif method_name == "drop_column":
+        if method.startswith("drop_column:"):
+            col_name = method.split(":", 1)[1]
             if col_name in df.columns:
                 df.drop(columns=[col_name], inplace=True)
-                groq_handled_cols.add(col_name)
 
     # ── Step 5: Default fallback for remaining missing values ─────────────
-    # Handle any columns that still have NaNs but weren't explicitly directed
+    # The same rule for every column, whatever the model planned.
     cols_to_drop_fallback = []
 
     for col in df.columns:
         if df[col].isnull().sum() == 0:
-            continue
-        if col in groq_handled_cols:
             continue
 
         missing_ratio = df[col].isnull().mean()
@@ -204,8 +161,7 @@ def clean_dataset(
 
     # ── Step 6: Cap extreme outliers ──────────────────────────────────────
     # The quality checker flags any numeric column where >1% of values fall
-    # outside 3×IQR. Groq only directs cap_outliers for columns it happens to
-    # notice, so anything it missed would still be flagged on the next check.
+    # outside 3×IQR, so every such column is capped here.
     #
     # Capping has to be iterative. Clipping to exactly q3 + 3*IQR piles the
     # outliers onto the boundary, which changes the quartiles; recomputing the
@@ -259,3 +215,39 @@ def clean_dataset(
     df.reset_index(drop=True, inplace=True)
 
     return df
+
+
+def what_cleaning_did(before: pd.DataFrame, after: pd.DataFrame) -> List[str]:
+    """
+    What cleaning changed, read from the data itself.
+
+    The report used to repeat the model's plan, so it could describe a step
+    that never ran on a column that never needed it.
+    """
+    kept = [c for c in before.columns if c in after.columns]
+    keys = set(protected_columns(before))
+
+    done = []
+    if before.isnull().all(axis=1).any():
+        done.append("remove_empty_rows")
+    if before[kept].duplicated().any():
+        done.append("remove_duplicates")
+    # Read as numbers first: a column of text can hold "inf" as well.
+    as_numbers = {c: pd.to_numeric(before[c], errors="coerce") for c in kept
+                  if pd.api.types.is_numeric_dtype(after[c])}
+    if any(np.isinf(s).any() for s in as_numbers.values()):
+        done.append("remove_infinity")
+
+    for col in kept:
+        if col in keys:
+            continue
+        numeric = col in as_numbers
+        was = as_numbers[col].replace([np.inf, -np.inf], np.nan) if numeric else before[col]
+        gaps = int(was.isnull().sum())
+        if gaps and int(after[col].isnull().sum()) < gaps:
+            done.append(f"{'impute_median' if numeric else 'impute_mode'}:{col}")
+        if numeric and (after[col].max() < was.max() or after[col].min() > was.min()):
+            done.append(f"cap_outliers:{col}")
+
+    done += [f"drop_column:{c}" for c in before.columns if c not in after.columns]
+    return done

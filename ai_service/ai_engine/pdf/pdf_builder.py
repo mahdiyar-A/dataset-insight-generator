@@ -566,7 +566,7 @@ def build_pdf(
             "impute_median":  lambda col: f"Missing values in {col} were imputed using the column median — median imputation is preferred for skewed or outlier-prone distributions as it is robust to extreme values.",
             "impute_mode":    lambda col: f"Missing categorical values in {col} were filled using the most frequent observed value (mode imputation) — this preserves the dominant pattern without introducing artificial variation.",
             "impute_zero":    lambda col: f"Missing values in {col} were filled with zero — appropriate where absence of a value implies a zero quantity in this domain context.",
-            "cap_outliers":   lambda col: f"Extreme outliers in {col} were capped at 1.5x the interquartile range (Winsorisation) — this limits the distorting effect of extreme observations while preserving the full record.",
+            "cap_outliers":   lambda col: f"Extreme outliers in {col} were capped at a skew-adjusted fence of 3x the interquartile range (Winsorisation) — this limits the distorting effect of extreme observations while preserving the full record.",
             "drop_column":    lambda col: f"Attribute '{col}' was excluded from analysis — classified as carrying insufficient analytical signal for the identified domain.",
         }
 

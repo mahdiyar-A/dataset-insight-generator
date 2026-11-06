@@ -249,10 +249,6 @@ Respond ONLY with valid JSON — no markdown, no explanation, no text outside th
     "remove_empty_rows",
     "remove_duplicates",
     "remove_infinity",
-    "impute_median:<column_name>",
-    "impute_mode:<column_name>",
-    "impute_zero:<column_name>",
-    "cap_outliers:<column_name>",
     "drop_column:<column_name>"
   ]
 }}
@@ -262,13 +258,11 @@ COLUMN DECISION RULES:
 - drop: row IDs, auto-increment numbers, names of people/entities (if not grouping variable), free-text comments, columns with >85% missing, columns with all identical values
 - keep: temporal columns (Year, Date), geographic/categorical grouping columns (Region, Category, Industry code), identifier columns used for grouping (not for individual names)
 - key: numeric KPIs and measurements the domain cares about most (revenue, salary, count, ratio, rate, score, price, volume)
-- A column with mixed types (e.g. 73% numeric) should NOT be dropped — specify "impute_median:<col>" in cleaning_methods and put it in key or keep
+- A column with mixed types (e.g. 73% numeric) should NOT be dropped — put it in key or keep
 
 CLEANING METHOD RULES:
 - Always include: remove_empty_rows, remove_duplicates, remove_infinity
-- For each numeric column with missing values: specify impute_median:<col> OR impute_zero:<col>
-- For each categorical column with missing values: specify impute_mode:<col>
-- For each key numeric column with significant outliers (>5%): specify cap_outliers:<col>
+- Missing values and outliers are handled by fixed rules: do not list them
 - Do NOT drop a Year/temporal column even if its distribution is uniform — it is critical context
 
 ATTRIBUTE INTERPRETATION RULES:
