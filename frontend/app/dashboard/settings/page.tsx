@@ -11,7 +11,7 @@ const T = {
     title: "Settings", subtitle: "Customize your DIG experience.", back: "Back to Dashboard", saved: "Saved",
     appearance: "Appearance", theme: "Theme", themeDesc: "Drag to adjust brightness from dark to light.",
     language: "Language & Region", languageLabel: "Interface Language", languageDesc: "Choose the language used across the entire platform.",
-    notifications: "Notifications", emailNotif: "Email Notifications", emailNotifDesc: "Receive updates and summaries about your analyses.",
+    emailNotif: "Email Notifications", emailNotifDesc: "Receive updates and summaries about your analyses.",
     reportReady: "Report Ready Alerts", reportReadyDesc: "Get notified when your PDF or PowerPoint report is complete.",
     privacy: "Privacy", analytics: "Usage Analytics", analyticsDesc: "Help improve DIG by sharing anonymous usage data.",
     tba: "Coming Soon", compact: "Compact Mode", compactDesc: "Reduce spacing and card padding.",
@@ -23,7 +23,7 @@ const T = {
     title: "Paramètres", subtitle: "Personnalisez votre expérience DIG.", back: "Retour au tableau de bord", saved: "Enregistré",
     appearance: "Apparence", theme: "Thème", themeDesc: "Faites glisser pour ajuster la luminosité.",
     language: "Langue et région", languageLabel: "Langue de l'interface", languageDesc: "Choisissez la langue utilisée sur toute la plateforme.",
-    notifications: "Notifications", emailNotif: "Notifications par e-mail", emailNotifDesc: "Recevez des mises à jour sur vos analyses.",
+    emailNotif: "Notifications par e-mail", emailNotifDesc: "Recevez des mises à jour sur vos analyses.",
     reportReady: "Alertes rapport prêt", reportReadyDesc: "Soyez notifié quand votre rapport est prêt.",
     privacy: "Confidentialité", analytics: "Statistiques d'utilisation", analyticsDesc: "Aidez à améliorer DIG en partageant des données anonymes.",
     tba: "Bientôt disponible", compact: "Mode compact", compactDesc: "Réduire l'espacement des cartes.",
@@ -35,7 +35,7 @@ const T = {
     title: "تنظیمات", subtitle: "تجربه DIG خود را سفارشی کنید.", back: "بازگشت به داشبورد", saved: "ذخیره شد",
     appearance: "ظاهر", theme: "تم", themeDesc: "برای تنظیم روشنایی بکشید.",
     language: "زبان و منطقه", languageLabel: "زبان رابط کاربری", languageDesc: "زبان مورد استفاده در کل پلتفرم را انتخاب کنید.",
-    notifications: "اعلان‌ها", emailNotif: "اعلان‌های ایمیل", emailNotifDesc: "به‌روزرسانی‌ها درباره تحلیل‌هایتان را دریافت کنید.",
+    emailNotif: "اعلان‌های ایمیل", emailNotifDesc: "به‌روزرسانی‌ها درباره تحلیل‌هایتان را دریافت کنید.",
     reportReady: "هشدار آماده بودن گزارش", reportReadyDesc: "وقتی گزارش شما آماده شد اطلاع داده می‌شود.",
     privacy: "حریم خصوصی", analytics: "آمار استفاده", analyticsDesc: "با اشتراک‌گذاری داده‌های ناشناس به بهبود DIG کمک کنید.",
     tba: "به زودی", compact: "حالت فشرده", compactDesc: "فاصله‌گذاری کارت‌ها را کاهش دهید.",
@@ -64,16 +64,12 @@ export default function SettingsPage() {
   // and persist for the whole tab session — cleared on logout or tab close.
   const { lang, setLang: ctxSetLang, brightness, setBrightness: ctxSetBrightness } = useSettings();
 
-  const [emailNotif, setEmailNotif] = useState(true);
-  const [reportReady, setReportReady] = useState(true);
   const [savedFlash, setSavedFlash] = useState(false);
 
   // Load non-lang/brightness settings from sessionStorage on mount
   useEffect(() => {
     try {
       const s = JSON.parse(sessionStorage.getItem("dig_settings") || "{}");
-      if (s.emailNotif !== undefined) setEmailNotif(s.emailNotif);
-      if (s.reportReady !== undefined) setReportReady(s.reportReady);
     } catch {}
   }, []);
 
@@ -199,30 +195,12 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* ── NOTIFICATIONS ── */}
-        <div style={cardStyle}>
-          <h2 style={groupHead}>🔔 {t.notifications}</h2>
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <div style={{ flex: 1 }}>
-              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600 }}>{t.emailNotif}</p>
-              <p style={{ margin: "3px 0 0", fontSize: "0.78rem", color: textSoft }}>{t.emailNotifDesc}</p>
-            </div>
-            <Toggle active={emailNotif} onToggle={() => { const n = !emailNotif; setEmailNotif(n); persist({ emailNotif: n }); }} />
-          </div>
-          <div style={divider} />
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <div style={{ flex: 1 }}>
-              <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600 }}>{t.reportReady}</p>
-              <p style={{ margin: "3px 0 0", fontSize: "0.78rem", color: textSoft }}>{t.reportReadyDesc}</p>
-            </div>
-            <Toggle active={reportReady} onToggle={() => { const n = !reportReady; setReportReady(n); persist({ reportReady: n }); }} />
-          </div>
-        </div>
-
         {/* ── COMING SOON ── */}
         <div style={{ ...cardStyle, opacity: 0.55 }}>
           <h2 style={groupHead}>🚧 {t.tba}</h2>
           {[
+            { label: t.emailNotif, desc: t.emailNotifDesc },
+            { label: t.reportReady, desc: t.reportReadyDesc },
             { label: t.compact, desc: t.compactDesc },
             { label: t.animations, desc: t.animationsDesc },
             { label: t.dateFormat, desc: t.dateFormatDesc },
