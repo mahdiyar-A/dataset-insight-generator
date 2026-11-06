@@ -38,7 +38,7 @@ user's plan. This module limits what one request can do.
 from __future__ import annotations
 
 import json
-import re
+import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -53,6 +53,7 @@ from ai_engine.llm.guard import (
 from ai_engine.llm.query_tools import MAX_QUERIES, describe_menu, run_queries
 from ai_engine.llm.report_writer import (
     GROQ_URL,
+    MIN_USEFUL_SECS,
     OPENROUTER_URL,
     ReportProvider,
     write_report,
@@ -81,6 +82,12 @@ BRIEF_PROVIDERS: Tuple[ReportProvider, ...] = (
 
 CHAT_BUDGET_SECS = 50
 BRIEF_BUDGET_SECS = 35
+
+# The whole of one question, however many steps it takes. A question can need
+# four model calls (a query, a second query, the answer, a correction), and the
+# backend stops waiting at 70 seconds. Past that the person gets a timeout even
+# if an answer was seconds away, so steps stop being started well before it.
+CHAT_DEADLINE_SECS = 60
 
 MAX_QUESTION_CHARS = 600
 MAX_BRIEF_CHARS = 1500
@@ -128,24 +135,23 @@ def _say(table: Dict[str, str], lang: str) -> str:
 # JSON from a model reply
 # ─────────────────────────────────────────────────────────────────────────────
 
-_FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.IGNORECASE)
-
-
 def json_object(text: str) -> Optional[Dict[str, Any]]:
-    """The one JSON object in a reply, tolerating code fences and stray prose."""
-    if not text:
+    """
+    The first JSON object in a reply, ignoring code fences, prose and whatever
+    comes after it.
+
+    The first, because Nemotron sometimes asks for a query and then answers it
+    from imagination in the same reply. Taking the query means the answer rests
+    on the real figures. A reply cut off mid-object is still no reply.
+    """
+    start = text.find("{") if text else -1
+    if start < 0:
         return None
-    t = _FENCE.sub("", text.strip())
-    for candidate in (t, t[t.find("{"): t.rfind("}") + 1] if "{" in t else ""):
-        if not candidate:
-            continue
-        try:
-            value = json.loads(candidate)
-        except ValueError:
-            continue
-        if isinstance(value, dict):
-            return value
-    return None
+    try:
+        value, _ = json.JSONDecoder().raw_decode(text, start)
+    except ValueError:
+        return None
+    return value if isinstance(value, dict) else None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -404,6 +410,7 @@ def answer_question(
     tracker=None,
     ui_language: str = "en",
     providers: Tuple[ReportProvider, ...] = CHAT_PROVIDERS,
+    clock: Callable[[], float] = time.monotonic,
 ) -> Dict[str, Any]:
     """
     Answer one question about an analysis. Never raises.
@@ -432,11 +439,16 @@ def answer_question(
     sources = [context_text, q, history_text]
     ran: List[Dict[str, Any]] = []
     model = ""
+    deadline = clock() + CHAT_DEADLINE_SECS
 
     def call(msgs) -> Optional[Dict[str, Any]]:
         nonlocal model
+        left = deadline - clock()
+        if left < MIN_USEFUL_SECS:
+            return None
         result, provider = write_report(msgs, api_keys or {}, _accept_step, tracker=tracker,
-                                        providers=providers, budget_secs=CHAT_BUDGET_SECS, phase="chat")
+                                        providers=providers, budget_secs=min(CHAT_BUDGET_SECS, left),
+                                        phase="chat")
         if provider is not None:
             model = provider.display_name
         return result

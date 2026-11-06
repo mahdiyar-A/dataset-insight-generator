@@ -13,6 +13,7 @@ companies see users' statistics) stays as intended.
 No network: report_writer._post is replaced with a fake per test.
 """
 
+import email.message
 import io
 import json
 import time
@@ -56,8 +57,18 @@ def ok(content: str, tin: int = 100, tout: int = 50) -> dict:
             "usage": {"prompt_tokens": tin, "completion_tokens": tout}}
 
 
-def http_error(code: int, body: bytes = b"quota exceeded") -> urllib.error.HTTPError:
-    return urllib.error.HTTPError("https://x", code, "err", {}, io.BytesIO(body))
+def http_error(code: int, body: bytes = b"quota exceeded", retry_after: str = "") -> urllib.error.HTTPError:
+    headers = email.message.Message()
+    if retry_after:
+        headers["Retry-After"] = retry_after
+    return urllib.error.HTTPError("https://x", code, "err", headers, io.BytesIO(body))
+
+
+def tool_use_failed(generation: str) -> urllib.error.HTTPError:
+    body = {"error": {"message": "Tool choice is none, but model called a tool",
+                      "type": "invalid_request_error", "code": "tool_use_failed",
+                      "failed_generation": generation}}
+    return http_error(400, json.dumps(body).encode())
 
 
 def install(monkeypatch, behaviour: dict) -> list:
@@ -264,6 +275,99 @@ class TestCooldown:
         calls = install(monkeypatch, {ULTRA: ok('{"m": 4}')})
         write_report("p", KEYS, accept_json)
         assert calls == [ULTRA]
+
+
+class TestRateLimits:
+    # Groq's free tier allows about 8K tokens a minute per model, so on a busy
+    # minute a model is briefly full, not down. On the real server one question
+    # after a report was refused with "try again in 8s", and that benched the
+    # model for ten minutes for everyone.
+
+    @staticmethod
+    def _benched_for(monkeypatch, error) -> float:
+        now = [100.0]
+        install(monkeypatch, {ULTRA: error, GPT_OSS_120: ok('{"a": 1}')})
+        write_report("p", KEYS, accept_json, clock=lambda: now[0])
+        return report_writer._cooldown_until[ULTRA] - 100.0
+
+    def test_the_wait_comes_from_the_retry_after_header(self, monkeypatch):
+        assert self._benched_for(monkeypatch, http_error(429, b"slow down", retry_after="9")) == 9
+
+    @pytest.mark.parametrize("message, wait", [
+        (b"Please try again in 8.445s. Need more tokens?", 8.445),
+        (b"Please try again in 1m12.5s.", 72.5),
+        (b"Please try again in 2h3m4.5s.", report_writer.MAX_RATE_LIMIT_WAIT_SECS),
+        (b"Please try again in 350ms.", 1.0),
+    ])
+    def test_the_wait_comes_from_the_message_when_there_is_no_header(self, monkeypatch, message, wait):
+        assert self._benched_for(monkeypatch, http_error(429, message)) == pytest.approx(wait)
+
+    def test_a_rate_limit_that_names_no_wait_is_a_full_cool_down(self, monkeypatch):
+        assert self._benched_for(monkeypatch, http_error(429, b"too many")) == report_writer.COOLDOWN_SECS
+
+    def test_a_model_is_back_as_soon_as_its_wait_is_over(self, monkeypatch):
+        now = [0.0]
+        install(monkeypatch, {ULTRA: http_error(429, retry_after="9"), GPT_OSS_120: ok('{"a": 1}')})
+        write_report("p", KEYS, accept_json, clock=lambda: now[0])
+
+        now[0] = 5
+        calls = install(monkeypatch, {GPT_OSS_120: ok('{"b": 2}')})
+        write_report("p", KEYS, accept_json, clock=lambda: now[0])
+        assert calls == [GPT_OSS_120]
+
+        now[0] = 10
+        calls = install(monkeypatch, {ULTRA: ok('{"c": 3}')})
+        write_report("p", KEYS, accept_json, clock=lambda: now[0])
+        assert calls == [ULTRA]
+
+
+class TestToolCallReplies:
+    # gpt-oss sometimes dresses a reply as a call to a tool it does not have,
+    # and Groq refuses that with a 400 carrying the text it tried to send.
+
+    def test_a_reply_dressed_as_a_tool_call_is_read_as_the_reply(self, monkeypatch):
+        wrapped = '{"name": "assistant", "arguments": {"action": "answer", "answer": "West"}}'
+        calls = install(monkeypatch, {ULTRA: tool_use_failed(wrapped), GPT_OSS_120: ok('{"z": 9}')})
+        result, provider = write_report("p", KEYS, accept_json)
+        assert result == {"action": "answer", "answer": "West"}
+        assert provider.model == ULTRA
+        assert calls == [ULTRA]
+
+    def test_a_plain_reply_in_the_error_is_read_too(self, monkeypatch):
+        install(monkeypatch, {ULTRA: tool_use_failed('{"a": 1}')})
+        assert write_report("p", KEYS, accept_json)[0] == {"a": 1}
+
+    def test_a_real_tool_call_moves_on_without_benching_the_model(self, monkeypatch):
+        # The model tried to run code. Nothing to read, but the model is up.
+        def accept(text):
+            value = accept_json(text)
+            return value if value and "action" in value else None
+
+        generation = '{"name": "container.exec", "arguments": {"cmd": ["bash"]}}'
+        install(monkeypatch, {ULTRA: tool_use_failed(generation), GPT_OSS_120: ok('{"action": "answer"}')})
+        _, provider = write_report("p", KEYS, accept)
+        assert provider.model == GPT_OSS_120
+
+        calls = install(monkeypatch, {ULTRA: ok('{"action": "answer"}')})
+        write_report("p", KEYS, accept)
+        assert calls == [ULTRA]
+
+    def test_a_reader_that_breaks_on_the_text_does_not_stop_the_chain(self, monkeypatch):
+        def accept(text):
+            if text == "bad":
+                raise ValueError("cannot read")
+            return accept_json(text)
+
+        install(monkeypatch, {ULTRA: tool_use_failed("bad"), GPT_OSS_120: ok('{"a": 1}')})
+        assert write_report("p", KEYS, accept)[1].model == GPT_OSS_120
+
+    def test_any_other_400_still_benches_the_model(self, monkeypatch):
+        install(monkeypatch, {ULTRA: http_error(400, b'{"error": {"code": "invalid_request"}}'),
+                              GPT_OSS_120: ok('{"a": 1}')})
+        write_report("p", KEYS, accept_json)
+        calls = install(monkeypatch, {GPT_OSS_120: ok('{"b": 2}')})
+        write_report("p", KEYS, accept_json)
+        assert calls == [GPT_OSS_120]
 
 
 # ── Accounting ────────────────────────────────────────────────────────────────
