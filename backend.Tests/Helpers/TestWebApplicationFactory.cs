@@ -190,6 +190,6 @@ public class NoOpStripeService : IStripeService
 
     public Task CancelSubscriptionAsync(string subscriptionId) => Task.CompletedTask;
 
-    public Task<StripeWebhookResult> HandleWebhookAsync(string payload, string signature) =>
+    public virtual Task<StripeWebhookResult> HandleWebhookAsync(string payload, string signature) =>
         Task.FromResult(new StripeWebhookResult("fake_event", null, null, "active", null));
 }

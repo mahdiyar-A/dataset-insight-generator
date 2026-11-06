@@ -231,7 +231,7 @@ public class FakeUserRepository : IUserRepository
         Task.FromResult<User?>(DefaultUser);
 
     public Task<User?> GetByStripeCustomerIdAsync(string stripeCustomerId) =>
-        Task.FromResult<User?>(null);
+        Task.FromResult(DefaultUser?.StripeCustomerId == stripeCustomerId ? DefaultUser : null);
 
     public Task<List<User>> GetAllAsync() =>
         Task.FromResult(DefaultUser != null ? new List<User> { DefaultUser } : new List<User>());
@@ -240,8 +240,13 @@ public class FakeUserRepository : IUserRepository
     public Task UpdateAsync(User user) { DefaultUser = user; return Task.CompletedTask; }
     public Task DeleteAsync(Guid id) { DefaultUser = null; return Task.CompletedTask; }
 
-    public Task SetPlanAsync(Guid userId, string plan, DateTime? planExpiresAt, string? stripeSubscriptionId) =>
-        Task.CompletedTask;
+    public List<(string Plan, DateTime? ExpiresAt, string? SubscriptionId)> PlanChanges { get; } = new();
+
+    public Task SetPlanAsync(Guid userId, string plan, DateTime? planExpiresAt, string? stripeSubscriptionId)
+    {
+        PlanChanges.Add((plan, planExpiresAt, stripeSubscriptionId));
+        return Task.CompletedTask;
+    }
     public Task SetStripeCustomerIdAsync(Guid userId, string customerId) => Task.CompletedTask;
     // Recorded rather than ignored. A no-op here is how the free plan's quota
     // went unenforced unnoticed: nothing ever called the real one either.

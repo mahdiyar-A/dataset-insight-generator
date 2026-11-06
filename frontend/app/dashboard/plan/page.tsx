@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
@@ -43,6 +43,24 @@ function PlanManagementContent() {
       if (params.get("upgraded") === "1") refreshUser();
     }
   }, [token, isLoading]);
+
+  // Stripe tells the server about a payment separately, and that can land a few
+  // seconds after the person is sent back here.
+  const checksLeft = useRef(5);
+  useEffect(() => {
+    if (!token || params.get("upgraded") !== "1") return;
+    if (planData?.plan === "pro" || checksLeft.current <= 0) return;
+    checksLeft.current -= 1;
+    const again = setTimeout(() => {
+      BackendAPI.getPlans(token)
+        .then(d => {
+          setPlanData(d.userPlan);
+          if (d.userPlan?.plan === "pro") refreshUser();
+        })
+        .catch(() => {});
+    }, 3000);
+    return () => clearTimeout(again);
+  }, [token, planData]);
 
   const handleManage = async () => {
     if (!token) return;

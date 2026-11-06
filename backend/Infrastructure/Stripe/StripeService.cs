@@ -1,3 +1,4 @@
+using System.Text.Json;
 using backend.Application.Interfaces;
 using Stripe;
 using Stripe.Checkout;
@@ -33,7 +34,7 @@ public class StripeService : IStripeService
     {
         // Look up an existing customer by email so we don't create duplicates
         var existing = await new global::Stripe.CustomerService().SearchAsync(
-            new global::Stripe.CustomerSearchOptions { Query = $"email:'{email}'" });
+            new global::Stripe.CustomerSearchOptions { Query = EmailQuery(email) });
 
         if (existing.Data.Count > 0)
             return existing.Data[0].Id;
@@ -48,6 +49,10 @@ public class StripeService : IStripeService
         return customer.Id;
     }
 
+    /// <summary>A quote or backslash in an address would otherwise break the search.</summary>
+    public static string EmailQuery(string email) =>
+        $"email:'{email.Replace("\\", "\\\\").Replace("'", "\\'")}'";
+
     public async Task<string> CreateCheckoutSessionAsync(
         string stripeCustomerId, string successUrl, string cancelUrl)
     {
@@ -60,7 +65,7 @@ public class StripeService : IStripeService
             {
                 new() { Price = _proPriceId, Quantity = 1 }
             },
-            SuccessUrl    = successUrl + "?session_id={CHECKOUT_SESSION_ID}",
+            SuccessUrl    = successUrl,
             CancelUrl     = cancelUrl,
             // Stripe handles the payment UI — we never see card numbers
             CustomerUpdate = new SessionCustomerUpdateOptions
@@ -102,10 +107,12 @@ public class StripeService : IStripeService
 
     public Task<StripeWebhookResult> HandleWebhookAsync(string payload, string signature)
     {
-        Event stripeEvent;
+        // Only the signature is left to the library. Its own event parser refuses
+        // anything newer than the API version it was built for, and a webhook
+        // created today is newer: the customer would be charged and never upgraded.
         try
         {
-            stripeEvent = EventUtility.ConstructEvent(payload, signature, _webhookSecret);
+            EventUtility.ValidateSignature(payload, signature, _webhookSecret);
         }
         catch (StripeException ex)
         {
@@ -113,45 +120,77 @@ public class StripeService : IStripeService
             throw;
         }
 
-        _logger.LogInformation("[Stripe] Webhook received: {Type}", stripeEvent.Type);
+        var result = ReadEvent(payload);
+        _logger.LogInformation("[Stripe] Webhook received: {Type}", result.EventType);
+        return Task.FromResult(result);
+    }
 
-        string? customerId    = null;
-        string? subscriptionId = null;
-        string? status         = null;
-        DateTime? periodEnd    = null;
+    /// <summary>
+    /// The few fields DIG needs, wherever this event's API version keeps them.
+    /// </summary>
+    public static StripeWebhookResult ReadEvent(string payload)
+    {
+        using var doc = JsonDocument.Parse(payload);
+        var type = doc.RootElement.GetProperty("type").GetString() ?? "";
+        var item = doc.RootElement.GetProperty("data").GetProperty("object");
 
-        switch (stripeEvent.Type)
+        switch (type)
         {
             case Events.CustomerSubscriptionCreated:
             case Events.CustomerSubscriptionUpdated:
             case Events.CustomerSubscriptionDeleted:
-            {
-                var sub = stripeEvent.Data.Object as Subscription;
-                customerId     = sub?.CustomerId;
-                subscriptionId = sub?.Id;
-                status         = sub?.Status;           // "active", "canceled", "past_due"
-                periodEnd      = sub?.CurrentPeriodEnd;
-                break;
-            }
-            case Events.InvoicePaymentSucceeded:
-            {
-                var inv = stripeEvent.Data.Object as Invoice;
-                customerId     = inv?.CustomerId;
-                subscriptionId = inv?.SubscriptionId;
-                status         = "active";
-                break;
-            }
-            case Events.InvoicePaymentFailed:
-            {
-                var inv = stripeEvent.Data.Object as Invoice;
-                customerId     = inv?.CustomerId;
-                subscriptionId = inv?.SubscriptionId;
-                status         = "past_due";
-                break;
-            }
-        }
+                return new StripeWebhookResult(
+                    type, Text(item, "customer"), Text(item, "id"), Text(item, "status"), PeriodEnd(item));
 
-        return Task.FromResult(new StripeWebhookResult(
-            stripeEvent.Type, customerId, subscriptionId, status, periodEnd));
+            case Events.InvoicePaymentSucceeded:
+                return new StripeWebhookResult(
+                    type, Text(item, "customer"), InvoiceSubscription(item), "active", null);
+
+            case Events.InvoicePaymentFailed:
+                return new StripeWebhookResult(
+                    type, Text(item, "customer"), InvoiceSubscription(item), "past_due", null);
+
+            default:
+                return new StripeWebhookResult(type, null, null, null, null);
+        }
+    }
+
+    private static string? Text(JsonElement item, string name) =>
+        item.ValueKind == JsonValueKind.Object
+        && item.TryGetProperty(name, out var value)
+        && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+
+    private static DateTime? Time(JsonElement item) =>
+        item.ValueKind == JsonValueKind.Object
+        && item.TryGetProperty("current_period_end", out var value)
+        && value.ValueKind == JsonValueKind.Number
+            ? DateTimeOffset.FromUnixTimeSeconds(value.GetInt64()).UtcDateTime
+            : null;
+
+    /// <summary>On the subscription until the 2025-03-31 API, on its items since.</summary>
+    private static DateTime? PeriodEnd(JsonElement subscription)
+    {
+        if (Time(subscription) is { } onTheSubscription) return onTheSubscription;
+
+        return subscription.TryGetProperty("items", out var items)
+            && items.TryGetProperty("data", out var data)
+            && data.ValueKind == JsonValueKind.Array
+            && data.GetArrayLength() > 0
+                ? Time(data[0])
+                : null;
+    }
+
+    /// <summary>On the invoice until the 2025-03-31 API, under its parent since.</summary>
+    private static string? InvoiceSubscription(JsonElement invoice)
+    {
+        if (Text(invoice, "subscription") is { } onTheInvoice) return onTheInvoice;
+
+        return invoice.TryGetProperty("parent", out var parent)
+            && parent.ValueKind == JsonValueKind.Object
+            && parent.TryGetProperty("subscription_details", out var details)
+                ? Text(details, "subscription")
+                : null;
     }
 }

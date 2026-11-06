@@ -222,8 +222,12 @@ public class PlansController : ControllerBase
         switch (result.EventType)
         {
             case "customer.subscription.created":
+            case "customer.subscription.updated":
             case "invoice.payment_succeeded":
-                // Payment went through — upgrade to pro
+                // A subscription exists before its first payment clears, for
+                // example while a bank check is unfinished. Pro waits for the money.
+                if (result.Status is not ("active" or "trialing")) break;
+
                 await _users.SetPlanAsync(user.Id, "pro",
                     planExpiresAt:      result.CurrentPeriodEnd,
                     stripeSubscriptionId: result.SubscriptionId);
