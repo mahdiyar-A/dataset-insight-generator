@@ -12,7 +12,7 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import JSONResponse
 from ai_engine.core.pipeline import run_pipeline, parse_questions
 from ai_engine.ingest import load_table, UnsupportedFile
-from ai_engine.quality.quality_checker import check_data_quality
+from ai_engine.quality.quality_checker import check_data_quality, impossible_values
 from ai_engine.quality.confidence_engine import evaluate_confidence
 from ai_engine.training.training_logger import get_training_stats
 from ai_engine.llm.harness import answer_question, build_brief
@@ -163,6 +163,7 @@ async def inspect(
         return JSONResponse({"ok": False, "error": "The file could not be read."})
     summary = table.summary(preview_rows=5)
     summary["columnKinds"] = _column_kinds(table.df)
+    summary["notes"] = [*summary["notes"], *impossible_values(table.df)]
     print(f"[Inspect] ✓ {summary['format']} {summary['rows']:,}×{summary['columns']}", flush=True)
     return JSONResponse({"ok": True, **summary})
 

@@ -1,8 +1,65 @@
+import re
+
 import numpy as np
 import pandas as pd
 from ai_engine.core.profiler import adjusted_fences, fence_tolerance, is_identifier, is_reference_key
 from ai_engine.core.stat_tests import text_columns
 from ai_engine.models.models import DataQualityResult
+
+
+# Words in a column name that say a value cannot go below zero.
+_NEVER_NEGATIVE = {
+    "units", "qty", "quantity", "quantities", "count", "counts", "headcount", "age", "price", "prices",
+    "salary", "salaries", "wage", "wages", "weight", "height", "distance", "duration", "visits",
+    "clicks", "orders", "employees", "students",
+}
+_PERCENT = {"percent", "percentage", "pct"}
+# Words that mean the column measures a change, where any sign is fine.
+_CAN_GO_EITHER_WAY = {
+    "change", "delta", "diff", "difference", "growth", "net", "adjustment", "adj", "variance",
+    "return", "returns", "refund", "refunds", "balance", "loss", "profit", "margin", "yoy", "mom",
+}
+_AGE_IN_SMALLER_UNITS = {"days", "weeks", "months", "hours", "minutes"}
+
+# Past this share the name does not mean what it seems to, or it is a convention
+# in this file. A few odd rows are a data problem; a fifth of them is not.
+_MAX_ODD_SHARE = 0.2
+
+
+def _name_words(name) -> set:
+    spaced = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", str(name))
+    return set(re.findall(r"[a-z]+", spaced.lower()))
+
+
+def impossible_values(df: pd.DataFrame) -> list:
+    """
+    Numbers a column's own name rules out, such as -1 units or an age of 300.
+
+    Reported, never changed. Minus one unit is often a return, and only the
+    person who knows the file can tell a return from a typing mistake.
+    """
+    found = []
+    for col in df.select_dtypes(include=[np.number]).columns:
+        series = df[col].dropna()
+        words = _name_words(col)
+        if series.empty or words & _CAN_GO_EITHER_WAY:
+            continue
+        if is_identifier(df[col], str(col)) or is_reference_key(df[col], str(col)):
+            continue
+
+        if words & _PERCENT or "%" in str(col):
+            odd, what = (series < 0) | (series > 100), "outside 0 to 100 for a percentage"
+        elif "age" in words and not words & _AGE_IN_SMALLER_UNITS:
+            odd, what = (series < 0) | (series > 120), "outside 0 to 120 for an age"
+        elif words & _NEVER_NEGATIVE:
+            odd, what = series < 0, "below zero. Check whether they are returns or entry errors"
+        else:
+            continue
+
+        count = int(odd.sum())
+        if 0 < count <= _MAX_ODD_SHARE * len(series):
+            found.append(f"Column '{col}' has {count:,} value{'s' if count != 1 else ''} {what}.")
+    return found
 
 
 def check_data_quality(df: pd.DataFrame) -> DataQualityResult:
@@ -128,6 +185,11 @@ def check_data_quality(df: pd.DataFrame) -> DataQualityResult:
         elif outlier_ratio > 0.01:
             warnings.append(f"Column '{col}' has some extreme outliers ({round(outlier_ratio*100)}%).")
             outlier_columns.append(col)
+
+    # First in the list: the report's writer is only given the first few, and
+    # a value that cannot be true matters more than a column with a few gaps.
+    # Not part of needsCleaning, because the cleaner leaves these alone.
+    warnings = impossible_values(df) + warnings
 
     # ── Decide if it needs cleaning ───────────────────────────────────────
     # Only signals the cleaner can actually act on. Anything listed here must
