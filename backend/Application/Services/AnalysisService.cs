@@ -92,10 +92,13 @@ public class AnalysisService
             return admission;
         }
 
+        // Chosen here because the row is only written once a slot is free, and
+        // the reply needs it now. Without it the page has nothing to follow.
+        var analysisId = Guid.NewGuid();
         _ = Task.Run(() => _gate.RunAsync(caller, () =>
             RunAsync(userId, fileName, fileSizeBytes, rowCount, columnCount,
-                     userWantsCleaning, userConfirmedLow, customizationJson)));
-        return admission;
+                     userWantsCleaning, userConfirmedLow, customizationJson, analysisId)));
+        return admission with { AnalysisId = analysisId };
     }
 
     /// <summary>
@@ -133,7 +136,8 @@ public class AnalysisService
         int    columnCount,
         bool   userWantsCleaning   = false,
         bool   userConfirmedLow    = false,
-        string? customizationJson  = null)
+        string? customizationJson  = null,
+        Guid?  newAnalysisId       = null)
     {
         _logger.LogInformation("[Analysis] Starting for user {UserId}", userId);
 
@@ -167,7 +171,7 @@ public class AnalysisService
                 customizationJson = null;
 
             // ── Step 2: Create a DB placeholder so the frontend can poll status ─
-            var analysis = new Analysis(userId, fileName, fileSizeBytes);
+            var analysis = new Analysis(userId, fileName, fileSizeBytes, id: newAnalysisId);
             analysis.SetShape(rowCount, columnCount);
             analysis.SetStatus("processing");
 

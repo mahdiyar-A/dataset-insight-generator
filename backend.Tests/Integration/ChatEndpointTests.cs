@@ -220,6 +220,19 @@ public class ChatEndpointTests
         reply.Should().NotBeNullOrEmpty();
     }
 
+    [TestCase("yes")]
+    [TestCase("no")]
+    public async Task AnAnswerThatStartsARun_SaysWhichRun(string answer)
+    {
+        // Risk: without this the page checked /api/analyses//status for as long
+        // as it stayed open, and a report finished in 6 seconds never appeared.
+        WriteTempCsv(TestAuthHandler.CurrentUserId);
+
+        var doc = await PostMessage(_client, answer, pendingCondition: "not_clean");
+
+        doc.RootElement.GetProperty("analysisId").GetGuid().Should().NotBeEmpty();
+    }
+
     [Test]
     public async Task Yes_WithNoTempFile_ReturnsFailed()
     {

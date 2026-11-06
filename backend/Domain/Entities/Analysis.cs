@@ -53,9 +53,9 @@ public class Analysis
 
     protected Analysis() { }
 
-    public Analysis(Guid userId, string fileName, long fileSizeBytes, Guid? sessionId = null)
+    public Analysis(Guid userId, string fileName, long fileSizeBytes, Guid? sessionId = null, Guid? id = null)
     {
-        Id            = Guid.NewGuid();
+        Id            = id ?? Guid.NewGuid();
         UserId        = userId;
         FileName      = fileName;
         FileSizeBytes = fileSizeBytes;
