@@ -18,10 +18,13 @@ The chain (all free):
      this exact prompt (a full report in ~4s) and the most dependable endpoint.
   3. NVIDIA Nemotron 3.5 Super, via OpenRouter.
   4. Qwen 3.8 27B, via Groq — a separate per-model quota pool on the same key.
-  5. OpenAI gpt-oss-20b, via Groq — the weakest, and the last line before the
-     stats-only fallback.
+     The last line before the stats-only fallback.
 
-Ruled out after testing: Thinking Machines Inkling (free tier is restricted
+Ruled out after testing: OpenAI gpt-oss-20b, whose report used real figures for
+the wrong things (the average of all products as one product's lead, per-sale
+revenue as daily, a correlation with the wrong column), which the check on
+figures cannot see; a plain report that says what it is beats that. Thinking
+Machines Inkling (free tier is restricted
 to "agentic harnesses" and returns 403 to applications), and Google Gemma 4
 (served from Google AI Studio's free tier, which may use inputs for training,
 and was failing upstream anyway).
@@ -121,8 +124,6 @@ REPORT_PROVIDERS: Tuple[ReportProvider, ...] = (
                    "nvidia/nemotron-3.5-super-vl:free", 16384, 60),
     ReportProvider("groq", "Qwen 3.8 27B", GROQ_URL,
                    "qwen/qwen3.8-27b", 4000, 45),
-    ReportProvider("groq", "OpenAI gpt-oss-20b", GROQ_URL,
-                   "openai/gpt-oss-20b", 4000, 40, {"reasoning_effort": "low"}),
 )
 
 
