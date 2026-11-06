@@ -29,7 +29,7 @@ from ai_engine.models.models import LLMReport
 from ai_engine.telemetry.usage import UsageTracker
 
 KEYS = {"openrouter": "or-key", "groq": "groq-key"}
-ULTRA, GPT_OSS_120, SUPER, QWEN, GPT_OSS_20 = (p.model for p in REPORT_PROVIDERS)
+ULTRA, GPT_OSS_120, SUPER, QWEN = (p.model for p in REPORT_PROVIDERS)
 
 GOOD_REPORT = {
     "report_title": "Sales Review",
@@ -105,8 +105,11 @@ class TestChainShape:
         # is available, and weaker ones only cover for it.
         assert REPORT_PROVIDERS[0].model == "nvidia/nemotron-3-ultra-550b-a55b:free"
 
-    def test_weakest_reliable_model_is_the_last_line(self):
-        assert REPORT_PROVIDERS[-1].model == "openai/gpt-oss-20b"
+    def test_the_weakest_model_never_writes_a_report(self):
+        # Its real figures landed on the wrong things, which no check on figures
+        # can see. The plain report says what it is instead.
+        assert REPORT_PROVIDERS[-1].model == "qwen/qwen3.8-27b"
+        assert "openai/gpt-oss-20b" not in [p.model for p in REPORT_PROVIDERS]
 
     def test_only_free_openrouter_endpoints_are_used(self):
         # Risk: dropping the ":free" suffix silently switches to the paid
@@ -169,14 +172,13 @@ class TestFallthrough:
         calls = install(monkeypatch, {ULTRA: TimeoutError("slow"),
                                       GPT_OSS_120: urllib.error.URLError("refused"),
                                       SUPER: http_error(429),
-                                      QWEN: ValueError("bad body"),
-                                      GPT_OSS_20: ok('{"f": 6}')})
+                                      QWEN: ok('{"f": 6}')})
         _, provider = write_report("p", KEYS, accept_json)
-        assert provider.model == GPT_OSS_20
-        assert calls == [ULTRA, GPT_OSS_120, SUPER, QWEN, GPT_OSS_20]
+        assert provider.model == QWEN
+        assert calls == [ULTRA, GPT_OSS_120, SUPER, QWEN]
 
     def test_everything_failing_returns_none_and_never_raises(self, monkeypatch):
-        install(monkeypatch, {m: http_error(503) for m in (ULTRA, GPT_OSS_120, SUPER, QWEN, GPT_OSS_20)})
+        install(monkeypatch, {m: http_error(503) for m in (ULTRA, GPT_OSS_120, SUPER, QWEN)})
         assert write_report("p", KEYS, accept_json) == (None, None)
 
     def test_providers_without_a_key_are_skipped(self, monkeypatch):
@@ -435,7 +437,7 @@ class TestGenerateReport:
         self._stub_prompt(monkeypatch)
         sentinel = LLMReport("t", "", "", [], [], "", 5, "", "", "[fallback]")
         monkeypatch.setattr(insight_agent, "_build_fallback_report", lambda s, d: sentinel)
-        install(monkeypatch, {m: http_error(503) for m in (ULTRA, GPT_OSS_120, SUPER, QWEN, GPT_OSS_20)})
+        install(monkeypatch, {m: http_error(503) for m in (ULTRA, GPT_OSS_120, SUPER, QWEN)})
         r = insight_agent.generate_report(None, None, False, [], api_keys=KEYS)
         assert r is sentinel
         assert r.writerModel == ""
