@@ -98,7 +98,7 @@ def leaks_prompt(reply: str) -> bool:
 
 _NUMBER = re.compile(
     r"(?<![\w.])([-+]?\d[\d,]*(?:\.\d+)?)(%)?"
-    r"(?:(k|K|M|B|mn|bn)|\s?(thousand|million|billion|trillion))?"
+    r"(?:(k|K|M|B|mn|bn)\b|\s?(thousand|million|billion|trillion)\b)?"
 )
 _SCALES = {"k": 1e3, "K": 1e3, "thousand": 1e3, "M": 1e6, "mn": 1e6, "million": 1e6,
            "B": 1e9, "bn": 1e9, "billion": 1e9, "trillion": 1e12}
