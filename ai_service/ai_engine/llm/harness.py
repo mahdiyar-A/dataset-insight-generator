@@ -400,6 +400,10 @@ def _accept_step(text: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+# Words that ask for an amount across many rows.
+_ASKS_FOR_AN_AMOUNT = re.compile(r"\b(total|sum|how much|most|least|altogether)\b", re.IGNORECASE)
+
+
 def _named_columns(question: str, context: Dict[str, Any]) -> List[str]:
     """Columns a question mentions, on whole words: "discounts" finds discount_pct."""
     words = {w.rstrip("s") for w in re.findall(r"\w+", question.lower())}
@@ -482,6 +486,19 @@ def answer_question(
                 f"The question mentions {', '.join(named[:5])}, which this dataset has, so it is on topic. "
                 "Query the data, answer from the ANALYSIS, or say what the data cannot tell. "
                 "Refuse only if it asks for something other than this data."},
+        ]
+        step = call(messages) or step
+
+    # "Which store made the most revenue?" got the store with the best average,
+    # because that is what the ANALYSIS holds. When a total is what was asked and
+    # the file is here, the answer has to come from the file.
+    if (step is not None and step["action"] == "answer" and data_available and named
+            and _ASKS_FOR_AN_AMOUNT.search(q)):
+        messages = messages + [
+            {"role": "assistant", "content": json.dumps(step, ensure_ascii=False)},
+            {"role": "user", "content":
+                "This asks for an amount across rows, and the ANALYSIS mostly holds averages. "
+                "Reply with action \"query\" using the right aggregate (a sum for a total), then answer from the result."},
         ]
         step = call(messages) or step
 

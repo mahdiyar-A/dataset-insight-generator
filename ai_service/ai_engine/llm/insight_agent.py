@@ -30,7 +30,7 @@ from ai_engine.core.confounding import misleading_pairs
 from ai_engine.models.models import StatsSummary, LLMReport, ChartInstruction, DomainResult
 from ai_engine.llm.report_writer import write_report
 from ai_engine.llm.stats_digest import digest_json
-from ai_engine.llm.guard import clean_user_text
+from ai_engine.llm.guard import clean_user_text, without_unbacked_margins
 
 
 CHART_COLORS = ["#3b82f6", "#a855f7", "#10b981", "#f97316", "#ec4899"]
@@ -733,6 +733,7 @@ def _parse_report(text: str, stats: StatsSummary, domain: DomainResult) -> Optio
     """
     # Strip markdown fences
     text = re.sub(r"```(?:json)?", "", text).strip().strip("`").strip()
+    text = without_unbacked_margins(text, stats.columnTypes if stats else [])
 
     parsed = None
     try:
