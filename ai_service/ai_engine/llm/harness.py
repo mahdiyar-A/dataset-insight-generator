@@ -61,7 +61,8 @@ from ai_engine.llm.report_writer import (
 )
 
 # Answering a question should take seconds, so the chain starts with a fast
-# model; the report's slowest, strongest model is not in it.
+# model; the report's slowest, strongest model is not in it. Each free model has
+# its own daily allowance, so every extra one is another chance of an answer.
 CHAT_PROVIDERS: Tuple[ReportProvider, ...] = (
     ReportProvider("groq", "OpenAI gpt-oss-120b", GROQ_URL,
                    "openai/gpt-oss-120b", 1500, 30, {"reasoning_effort": "low"}),
@@ -69,6 +70,8 @@ CHAT_PROVIDERS: Tuple[ReportProvider, ...] = (
                    "nvidia/nemotron-3.5-super-vl:free", 4000, 40),
     ReportProvider("groq", "OpenAI gpt-oss-20b", GROQ_URL,
                    "openai/gpt-oss-20b", 1500, 25, {"reasoning_effort": "low"}),
+    ReportProvider("groq", "Qwen 3.8 27B", GROQ_URL,
+                   "qwen/qwen3.8-27b", 1500, 25),
 )
 
 # Turning a paragraph into settings is a small task: the small model first.

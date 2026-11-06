@@ -185,6 +185,11 @@ def test_a_question_about_a_total_asks_for_a_query_up_front(model):
     assert len(fake.calls) == 2
 
 
+def test_every_free_model_gets_its_turn_at_a_question():
+    # One model's daily allowance running out must not stop answers.
+    assert len({p.model for p in harness.CHAT_PROVIDERS}) >= 4
+
+
 def test_a_first_answer_stands_when_the_second_try_gets_no_reply(model):
     model({"action": "answer", "answer": "Downtown."}, None)
     df = pd.DataFrame({"store": ["Downtown"], "revenue": [10]})
@@ -427,7 +432,7 @@ def test_the_failure_seen_on_the_real_server_now_gets_an_answer(monkeypatch):
     from ai_engine.llm import report_writer
 
     report_writer.reset_cooldowns()
-    first, second, third = harness.CHAT_PROVIDERS
+    first, second = harness.CHAT_PROVIDERS[:2]
     reply = {"action": "answer", "answer": "The West region leads."}
 
     def full(body):
