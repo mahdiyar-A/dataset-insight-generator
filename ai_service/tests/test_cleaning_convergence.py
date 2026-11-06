@@ -270,26 +270,6 @@ def _messy(n=400):
     return df
 
 
-@pytest.mark.parametrize("plan", [
-    ["impute_zero:units"],
-    ["impute_median:units", "cap_outliers:revenue", "cap_outliers:units"],
-    ["impute_mode:region", "impute_mode:units"],
-])
-def test_a_models_plan_does_not_change_the_numbers(plan):
-    # One file came back with different totals on two runs, because the model
-    # chose how to fill and cap and chose differently each time.
-    df = _messy()
-    fixed = clean_dataset(df, check_data_quality(df))
-    planned = clean_dataset(df, check_data_quality(df), groq_methods=plan)
-    pd.testing.assert_frame_equal(fixed, planned)
-
-
-def test_a_models_drop_still_happens():
-    df = _messy()
-    out = clean_dataset(df, check_data_quality(df), groq_methods=["drop_column:region"])
-    assert "region" not in out.columns
-
-
 def test_the_record_lists_what_cleaning_did():
     df = _messy()
     done = what_cleaning_did(df, clean_dataset(df, check_data_quality(df)))
@@ -315,7 +295,6 @@ def test_the_record_lists_the_row_level_steps_that_ran():
     assert {"remove_empty_rows", "remove_duplicates", "remove_infinity"} <= set(done)
 
 
-def test_the_record_lists_a_dropped_column():
-    df = _messy()
-    out = clean_dataset(df, check_data_quality(df), groq_methods=["drop_column:region"])
-    assert "drop_column:region" in what_cleaning_did(df, out)
+def test_the_record_lists_a_column_cleaning_dropped():
+    df = _messy().assign(source="crm")
+    assert "drop_column:source" in what_cleaning_did(df, clean_dataset(df, check_data_quality(df)))

@@ -2,13 +2,14 @@
 Context-Aware Dataset Cleaner  —  Phase 2
 
 Cleaning is applied in this order:
-  1. Drop columns Groq classified as analytically irrelevant
-  2. General always-on cleaning (empty rows, duplicates, infinity values)
-  3. Fill missing values: the median for numbers, the most common value for text
-  4. Cap extreme outliers at the skew-adjusted fence
+  1. General always-on cleaning (empty rows, duplicates, infinity values)
+  2. Fill missing values: the median for numbers, the most common value for text
+  3. Cap extreme outliers at the skew-adjusted fence
 
-Only step 1 takes direction from a model. The rest are fixed rules, so the same
-file cleaned twice gives the same numbers.
+All of it is fixed rules, and no model has a say, so the same file gives the
+same numbers. Columns a model wants left out of the analysis are taken out
+afterwards: rows are told apart by every column they arrived with. With an
+order id dropped first, 1,000 separate orders looked like copies of 20.
 
 `what_cleaning_did` reports the result in the vocabulary the report uses:
   "remove_empty_rows"          → rows where all values were NaN were dropped
@@ -22,7 +23,7 @@ file cleaned twice gives the same numbers.
 
 import numpy as np
 import pandas as pd
-from typing import List, Optional
+from typing import List
 
 from ai_engine.core.profiler import adjusted_fences, protected_columns
 from ai_engine.core.stat_tests import text_columns
@@ -55,23 +56,14 @@ def droppable_columns(df: pd.DataFrame, columns: List[str]) -> List[str]:
 def clean_dataset(
     df: pd.DataFrame,
     quality: DataQualityResult,
-    groq_drop_columns: Optional[List[str]] = None,
-    groq_methods: Optional[List[str]] = None,
 ) -> pd.DataFrame:
     """
-    Clean the dataset by fixed rules, dropping the columns Groq named.
+    Clean the dataset by fixed rules.
     Returns a cleaned copy — never mutates the original.
     """
     df = df.copy()
 
-    # ── Step 1: Drop columns Groq classified as irrelevant ─────────────────
-    if groq_drop_columns:
-        to_drop = [c for c in groq_drop_columns if c in df.columns]
-        if to_drop:
-            df.drop(columns=to_drop, inplace=True)
-            print(f"[Cleaner] Dropped {len(to_drop)} irrelevant column(s): {to_drop}")
-
-    # ── Step 2: Coerce mixed-type numeric columns ─────────────────────────
+    # ── Step 1: Coerce mixed-type numeric columns ─────────────────────────
     # Object columns that are >50% numeric (e.g. "C" suppressed entries mixed
     # with real numbers) get converted to float. Non-parseable values → NaN,
     # which the fallback step below will then impute.
@@ -90,12 +82,12 @@ def clean_dataset(
             df[col] = coerced
             print(f"[Cleaner] Coerced '{col}' to numeric ({n_converted} non-numeric → NaN)")
 
-    # ── Step 3: General always-on cleaning ────────────────────────────────
+    # ── Step 2: General always-on cleaning ────────────────────────────────
     df.dropna(how="all", inplace=True)
     df.drop_duplicates(inplace=True)
     df.replace([float("inf"), float("-inf")], float("nan"), inplace=True)
 
-    # ── Step 3b: Identify the columns that identify rows ──────────────────
+    # ── Step 3: Identify the columns that identify rows ──────────────────
     # Computed once, before anything is imputed or capped, and honoured by every
     # step below. An identifier names a thing; it does not measure one, so no
     # statistic of the column is a legitimate substitute for a missing value and
@@ -108,17 +100,7 @@ def clean_dataset(
     if id_cols:
         print(f"[Cleaner] Key column(s), exempt from imputation and capping: {sorted(id_cols)}")
 
-    # ── Step 4: Columns the model said to drop ───────────────────────────────
-    # That is all a model decides here. It used to choose how each column was
-    # filled and capped as well, and its choices changed between runs, so one
-    # file could come back with two sets of totals.
-    for method in (groq_methods or []):
-        if method.startswith("drop_column:"):
-            col_name = method.split(":", 1)[1]
-            if col_name in df.columns:
-                df.drop(columns=[col_name], inplace=True)
-
-    # ── Step 5: Default fallback for remaining missing values ─────────────
+    # ── Step 4: Fill missing values ─────────────
     # The same rule for every column, whatever the model planned.
     cols_to_drop_fallback = []
 
@@ -159,7 +141,7 @@ def clean_dataset(
         df.drop(columns=cols_to_drop_fallback, inplace=True)
         print(f"[Cleaner] Dropped {len(cols_to_drop_fallback)} column(s) with >80% missing: {cols_to_drop_fallback}")
 
-    # ── Step 6: Cap extreme outliers ──────────────────────────────────────
+    # ── Step 5: Cap extreme outliers ──────────────────────────────────────
     # The quality checker flags any numeric column where >1% of values fall
     # outside 3×IQR, so every such column is capped here.
     #
@@ -197,7 +179,7 @@ def clean_dataset(
         if total_capped:
             print(f"[Cleaner] Capped {total_capped} extreme outlier(s) in '{col}'")
 
-    # ── Step 7: Drop constant columns ─────────────────────────────────────
+    # ── Step 6: Drop constant columns ─────────────────────────────────────
     # Zero-variance columns carry no analytical signal and are flagged by the
     # checker. Dropping them last means columns that only became constant as a
     # result of imputation or outlier capping are caught too.
@@ -207,7 +189,7 @@ def clean_dataset(
         df.drop(columns=constant_cols, inplace=True)
         print(f"[Cleaner] Dropped {len(constant_cols)} constant column(s): {constant_cols}")
 
-    # ── Step 8: Final sweep ───────────────────────────────────────────────
+    # ── Step 7: Final sweep ───────────────────────────────────────────────
     # Capping and dropping can re-expose duplicates that were distinct only
     # because of an outlier value. Re-run the cheap row-level rules so the
     # result satisfies check_data_quality().needsCleaning == False.
