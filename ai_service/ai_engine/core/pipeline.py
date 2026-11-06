@@ -22,7 +22,7 @@ from typing import Optional, List, Dict, Any
 
 from ai_engine.ingest                    import load_table, UnsupportedFile
 from ai_engine.quality.quality_checker   import check_data_quality
-from ai_engine.core.cleaner              import clean_dataset, droppable_columns
+from ai_engine.core.cleaner              import clean_dataset, droppable_columns, what_cleaning_did
 from ai_engine.core.stats_analyzer       import build_stats_summary
 from ai_engine.llm.groq_client           import detect_domain
 from ai_engine.core.confidence          import assess_confidence, split_misleading_scatters, validate_chart_instructions
@@ -262,6 +262,7 @@ def run_pipeline(
                 groq_methods=groq_methods,
             )
             was_cleaned = True
+            domain.cleaning_methods = groq_methods = what_cleaning_did(df_original, df_work)
             quality     = check_data_quality(df_work)
             csv_buf     = io.StringIO()
             df_work.to_csv(csv_buf, index=False)

@@ -28,7 +28,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ai_engine.core.cleaner import clean_dataset
+from ai_engine.core.cleaner import clean_dataset, what_cleaning_did
 from ai_engine.quality.quality_checker import check_data_quality
 
 
@@ -253,3 +253,69 @@ def test_cleaning_does_not_mutate_the_original():
     snapshot = df.copy()
     clean_dataset(df, check_data_quality(df))
     pd.testing.assert_frame_equal(df, snapshot)
+
+
+# ── The same file, the same numbers ───────────────────────────────────────────
+
+def _messy(n=400):
+    rng = np.random.default_rng(11)
+    df = pd.DataFrame({
+        "revenue": rng.lognormal(4, 1, n).round(2),
+        "units": rng.integers(1, 40, n).astype(float),
+        "region": rng.choice(["North", "South", "East"], n),
+    })
+    df.loc[df.index[:25], "units"] = np.nan
+    df.loc[df.index[25:40], "region"] = None
+    df.loc[df.index[40:48], "revenue"] = 1_000_000.0
+    return df
+
+
+@pytest.mark.parametrize("plan", [
+    ["impute_zero:units"],
+    ["impute_median:units", "cap_outliers:revenue", "cap_outliers:units"],
+    ["impute_mode:region", "impute_mode:units"],
+])
+def test_a_models_plan_does_not_change_the_numbers(plan):
+    # One file came back with different totals on two runs, because the model
+    # chose how to fill and cap and chose differently each time.
+    df = _messy()
+    fixed = clean_dataset(df, check_data_quality(df))
+    planned = clean_dataset(df, check_data_quality(df), groq_methods=plan)
+    pd.testing.assert_frame_equal(fixed, planned)
+
+
+def test_a_models_drop_still_happens():
+    df = _messy()
+    out = clean_dataset(df, check_data_quality(df), groq_methods=["drop_column:region"])
+    assert "region" not in out.columns
+
+
+def test_the_record_lists_what_cleaning_did():
+    df = _messy()
+    done = what_cleaning_did(df, clean_dataset(df, check_data_quality(df)))
+    assert "impute_median:units" in done
+    assert "impute_mode:region" in done
+    assert "cap_outliers:revenue" in done
+
+
+def test_the_record_lists_nothing_for_a_step_that_did_not_run():
+    df = _messy()
+    done = what_cleaning_did(df, clean_dataset(df, check_data_quality(df)))
+    assert "remove_empty_rows" not in done
+    assert "remove_duplicates" not in done
+    assert "remove_infinity" not in done
+    assert "cap_outliers:region" not in done
+
+
+def test_the_record_lists_the_row_level_steps_that_ran():
+    df = _messy()
+    df = pd.concat([df, df.iloc[[100]], pd.DataFrame([{c: None for c in df.columns}])], ignore_index=True)
+    df.loc[df.index[200], "revenue"] = np.inf
+    done = what_cleaning_did(df, clean_dataset(df, check_data_quality(df)))
+    assert {"remove_empty_rows", "remove_duplicates", "remove_infinity"} <= set(done)
+
+
+def test_the_record_lists_a_dropped_column():
+    df = _messy()
+    out = clean_dataset(df, check_data_quality(df), groq_methods=["drop_column:region"])
+    assert "drop_column:region" in what_cleaning_did(df, out)
