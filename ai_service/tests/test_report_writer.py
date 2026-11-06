@@ -552,3 +552,59 @@ def test_marginal_is_a_different_word():
     text = "Discounts play a marginal role, with a margin of error."
     assert without_unbacked_margins(text, ["revenue"]) == text
 
+
+# ── Figures in a report ───────────────────────────────────────────────────────
+
+def _report_from(text):
+    reply = json.loads(text)
+    return LLMReport(reply["report_title"], "", reply["executive_summary"], reply["insights"],
+                     [], "", 5, "", "", text)
+
+
+class TestFigureCheck:
+    GOOD = {"report_title": "Sales", "executive_summary": "Toronto posted 412 roles.",
+            "insights": [{"title": "Lead", "body": "Toronto leads."}]}
+    INVENTED = {**GOOD, "executive_summary": "Toronto posted 98,765 roles."}
+    SWAPPED = {**GOOD, "executive_summary": "Calgary posted 412 roles."}
+
+    @pytest.fixture
+    def run(self, monkeypatch):
+        """generate_report with a scripted model, returning the report and every prompt."""
+        def go(*replies):
+            prompts, left = [], list(replies)
+
+            def fake(prompt, keys, accept, tracker=None, **kwargs):
+                prompts.append(prompt)
+                return (accept(json.dumps(left.pop(0))), REPORT_PROVIDERS[0]) if left else (None, None)
+
+            monkeypatch.setattr(insight_agent, "write_report", fake)
+            monkeypatch.setattr(insight_agent, "_build_prompt", lambda *a, **k: "Toronto 412 Calgary 188")
+            monkeypatch.setattr(insight_agent, "build_digest", lambda *a: {
+                "categories": {"city": {"top": {"Toronto": 412, "Calgary": 188}}}})
+            monkeypatch.setattr(insight_agent, "_parse_report", lambda text, *a: _report_from(text))
+            return insight_agent.generate_report(None, None, False, [], api_keys={"groq": "k"}), prompts
+        return go
+
+    def test_a_clean_report_costs_one_call(self, run):
+        report, prompts = run(self.GOOD)
+        assert len(prompts) == 1 and "could not be matched" not in report.dataQualitySection
+
+    def test_an_invented_figure_gets_one_correction(self, run):
+        report, prompts = run(self.INVENTED, self.GOOD)
+        assert len(prompts) == 2 and "98,765" in prompts[1]
+        assert report.executiveSummary == self.GOOD["executive_summary"]
+
+    def test_a_figure_on_the_wrong_group_gets_one_correction(self, run):
+        report, prompts = run(self.SWAPPED, self.GOOD)
+        assert len(prompts) == 2 and "412 (Calgary)" in prompts[1]
+        assert "could not be matched" not in report.dataQualitySection
+
+    def test_a_figure_that_stays_wrong_is_named_in_the_report(self, run):
+        report, prompts = run(self.INVENTED, self.INVENTED)
+        assert len(prompts) == 2
+        assert "could not be matched to the data: 98,765" in report.dataQualitySection
+
+    def test_no_second_model_keeps_the_first_report_and_says_so(self, run):
+        report, _ = run(self.INVENTED)
+        assert report.executiveSummary == self.INVENTED["executive_summary"]
+        assert "98,765" in report.dataQualitySection

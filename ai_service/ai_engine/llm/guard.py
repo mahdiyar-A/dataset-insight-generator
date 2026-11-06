@@ -16,13 +16,15 @@ instructions. Four checks implement that, each small and testable:
   * `ungrounded_numbers` lists figures in a reply that appear nowhere in the
     material it was given, so an invented statistic can be flagged instead of
     stated as fact.
+  * `misattributed_figures` catches a real figure given to the wrong group,
+    which the check above passes because the number does exist.
 """
 
 from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Iterable, List, Set, Tuple
+from typing import Any, Dict, Iterable, List, Set, Tuple
 
 # Fence markers the prompts use around user text and data. Stripped from user
 # input so it cannot fake the end of a fenced block.
@@ -155,6 +157,96 @@ def ungrounded_numbers(reply: str, sources: Iterable[str], tolerance: float = 0.
         if any(_close(v * scale, p, tolerance) for p in (exact if scale != 1 else pool)):
             continue
         found.append(v * scale)
+    return found
+
+
+# Values a category can hold that are also everyday words in a sentence.
+_NOT_A_NAME = {"other", "others", "unknown", "none", "all", "total", "yes", "true", "false", "null"}
+
+
+def _record_group(record: Dict[str, Any]) -> str:
+    """The one group a digest record is about, or "" if it is not about just one."""
+    group = record.get("group")
+    segment = record.get("segment")
+    if isinstance(segment, dict) and len(segment) == 1:
+        group = next(iter(segment.values()))
+    return group if isinstance(group, str) else ""
+
+
+def _group_labels(node: Any, found: Set[str]) -> Set[str]:
+    """Every group name in a digest: `top` and `shares` keys, and the groups of records."""
+    if isinstance(node, dict):
+        if _record_group(node):
+            found.add(_record_group(node))
+        for key, value in node.items():
+            if key in ("top", "shares") and isinstance(value, dict):
+                found.update(str(k) for k in value)
+            _group_labels(value, found)
+    elif isinstance(node, list):
+        for item in node:
+            _group_labels(item, found)
+    return found
+
+
+def _sort_figures(node: Any, labels: Set[str], owner: str, owned: Dict[str, List[float]], free: List[float]) -> None:
+    """Files each number in a digest under its group, or under no group."""
+    if isinstance(node, list):
+        for item in node:
+            _sort_figures(item, labels, owner, owned, free)
+    elif isinstance(node, dict):
+        group = _record_group(node)
+        here = group if group in labels else owner
+        for key, value in node.items():
+            if isinstance(value, bool):
+                continue
+            if isinstance(value, (int, float)):
+                name = str(key) if str(key) in labels else here
+                # Only a fraction can be a share written as a percentage. Scaling
+                # every number let an unrelated 6.01 hide a real 601.
+                forms = (float(value), float(value) * 100) if abs(value) <= 1 else (float(value),)
+                (owned.setdefault(name, []) if name else free).extend(forms)
+            else:
+                _sort_figures(value, labels, here, owned, free)
+
+
+def misattributed_figures(text: str, digest: Any, tolerance: float = 0.005) -> List[Dict[str, Any]]:
+    """
+    Figures a sentence gives to one group when the data ties them to another.
+
+    "Calgary posted 412 roles" passes `ungrounded_numbers` when 412 is Toronto's
+    count, because the number exists. So this reads sentence by sentence: a
+    figure that belongs only to groups the sentence does not name, in a sentence
+    that names another group, is reported.
+
+    It holds back whenever it cannot be sure. A figure that also stands alone
+    somewhere in the digest may be an overall one, and small whole numbers are
+    ordinary prose. A swap between two groups named in one sentence is missed.
+    """
+    labels = {name for name in _group_labels(digest, set())
+              if re.search(r"[^\W\d_]{3}", name) and name.lower() not in _NOT_A_NAME}
+    if not labels:
+        return []
+    owned: Dict[str, List[float]] = {}
+    free: List[float] = []
+    _sort_figures(digest, labels, "", owned, free)
+
+    found = []
+    for sentence in re.split(r"(?<=[.!?])\s+|\n+|•", text or ""):
+        named = {n for n in labels if re.search(rf"(?<!\w){re.escape(n)}(?!\w)", sentence)}
+        if not named:
+            continue
+        lowered = sentence.lower()
+        for value, scale in _figures(sentence):
+            figure = value * scale
+            if scale == 1 and abs(figure) <= 12 and float(figure).is_integer():
+                continue
+            owners = {n for n, figures in owned.items() if any(_close(figure, f, tolerance) for f in figures)}
+            if not owners or any(_close(figure, f, tolerance) for f in free):
+                continue
+            # Read loosely: a sentence about "sandwiches" names Sandwich.
+            if any(owner.lower().rstrip("s") in lowered for owner in owners):
+                continue
+            found.append({"figure": figure, "named": sorted(named)[0], "owner": sorted(owners)[0]})
     return found
 
 

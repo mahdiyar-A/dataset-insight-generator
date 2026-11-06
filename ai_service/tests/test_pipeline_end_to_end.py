@@ -330,3 +330,17 @@ def test_no_plan_changes_the_cleaned_numbers(stub_writer, monkeypatch, plan):
     plain = _cleaned_file(_clean(_orders()))
     _with_plan(monkeypatch, **plan)
     pd.testing.assert_frame_equal(plain, _cleaned_file(_clean(_orders())))
+
+
+def test_a_file_of_text_still_gets_charts_with_no_model(monkeypatch):
+    rng = np.random.default_rng(3)
+    df = pd.DataFrame({"sector": rng.choice(["Tech", "Finance", "Health"], 300),
+                       "city": rng.choice(["Toronto", "Calgary"], 300),
+                       "term": rng.choice(["Summer", "Fall"], 300)})
+    result = run_pipeline(
+        file_bytes=df.to_csv(index=False).encode(), file_name="jobs.csv",
+        user_wants_cleaning=False, user_confirmed_low=True,
+        openrouter_api_key="", groq_api_key="", session_id="test",
+    )
+    assert result["status"] == "done", result.get("error")
+    assert len(result["charts"]) == 3

@@ -29,8 +29,14 @@ from typing import List, Dict, Any, Optional
 from ai_engine.core.confounding import misleading_pairs
 from ai_engine.models.models import StatsSummary, LLMReport, ChartInstruction, DomainResult
 from ai_engine.llm.report_writer import write_report
-from ai_engine.llm.stats_digest import digest_json
-from ai_engine.llm.guard import clean_user_text, without_unbacked_margins
+from ai_engine.llm.stats_digest import build_digest, digest_json
+from ai_engine.report_labels import labels_for
+from ai_engine.llm.guard import (
+    clean_user_text,
+    misattributed_figures,
+    ungrounded_numbers,
+    without_unbacked_margins,
+)
 
 
 CHART_COLORS = ["#3b82f6", "#a855f7", "#10b981", "#f97316", "#ec4899"]
@@ -681,6 +687,24 @@ def _build_fallback_report(stats: StatsSummary, domain: DomainResult) -> LLMRepo
         ))
         chart_idx += 1
 
+    # A file of text has no numbers to plot, so show how its categories split.
+    if not numeric_cols:
+        for column in cat_cols[:3]:
+            chart_instructions.append(ChartInstruction(
+                index=chart_idx,
+                chartType="bar",
+                title=f"Rows by {column}",
+                xColumn=column,
+                yColumn=None,
+                description=f"How many rows fall under each {column}.",
+                insightIndex=1,
+                color=CHART_COLORS[(chart_idx - 1) % len(CHART_COLORS)],
+                chartSubtype="",
+                groupColumn=None,
+                yColumns=[],
+            ))
+            chart_idx += 1
+
     missing_count = len([k for k, v in stats.missingPercentages.items() if v > 0])
     quality_note = (
         f"The dataset contains {stats.rowCount:,} rows and {stats.columnCount} columns. "
@@ -723,6 +747,44 @@ def _build_fallback_report(stats: StatsSummary, domain: DomainResult) -> LLMRepo
 # ─────────────────────────────────────────────────────────────────────────────
 # Reply parsing
 # ─────────────────────────────────────────────────────────────────────────────
+
+def _report_words(report: LLMReport) -> str:
+    """Everything the writer wrote that a reader will take as fact."""
+    parts = [report.reportTitle, report.introduction, report.executiveSummary, report.conclusion,
+             report.dataQualitySection]
+    for insight in report.insights:
+        parts += [str(insight.get("title") or ""), str(insight.get("body") or "")]
+    return "\n".join(p for p in parts if p)
+
+
+def _figure_problems(report: LLMReport, prompt: str, digest: Dict[str, Any]) -> List[str]:
+    """Figures the data does not support, written the way a reader would see them."""
+    words = _report_words(report)
+    found = [f"{v:,.10g}" for v in ungrounded_numbers(words, [prompt])]
+    found += [f"{w['figure']:,.10g} ({w['named']})" for w in misattributed_figures(words, digest)]
+    return list(dict.fromkeys(found))
+
+
+def _with_checked_figures(report, provider, write, prompt: str, digest: Dict[str, Any], language: str):
+    """
+    One correction, as the chat gets. A report nobody can fix goes out with the
+    doubtful figures named, because a warning beats a confident wrong number.
+    """
+    problems = _figure_problems(report, prompt, digest)
+    if problems:
+        print(f"[Insights] figures not matched to the data: {problems[:8]}", flush=True)
+        second, by = write(f"{prompt}\n\nA draft of this report used these figures, which the data above "
+                           f"does not support: {', '.join(problems[:12])}. Write the report again, using only "
+                           f"figures that appear above, each with the group it belongs to.")
+        if second is not None:
+            left = _figure_problems(second, prompt, digest)
+            if len(left) < len(problems):
+                report, provider, problems = second, by, left
+    if problems:
+        line = labels_for(language)["unmatched"].format(figures=", ".join(problems[:8]))
+        report.dataQualitySection = f"{report.dataQualitySection}\n\n{line}".strip()
+    return report, provider
+
 
 def _parse_report(text: str, stats: StatsSummary, domain: DomainResult) -> Optional[LLMReport]:
     """
@@ -902,16 +964,22 @@ def generate_report(
     )
     print(f"[Insights] prompt is ~{len(prompt) // 4:,} tokens", flush=True)
 
-    report, provider = write_report(
-        prompt, api_keys,
-        accept=lambda text: _parse_report(text, stats, domain),
-        tracker=tracker,
-    )
+    def write(asking):
+        return write_report(asking, api_keys, accept=lambda text: _parse_report(text, stats, domain),
+                            tracker=tracker)
+
+    report, provider = write(prompt)
     if report is None:
         print("[Insights] no model produced a report — using fallback report", flush=True)
         report = _build_fallback_report(stats, domain)
         report.assumptions = clean_user_text(assumptions, 600)
         return report
+
+    try:
+        report, provider = _with_checked_figures(report, provider, write, prompt,
+                                                 build_digest(stats, domain), language)
+    except Exception as e:   # a check must never cost anyone their report
+        print(f"[Insights] figure check skipped: {type(e).__name__}: {e}", flush=True)
 
     report.writerModel = provider.display_name
     report.assumptions = clean_user_text(assumptions, 600)

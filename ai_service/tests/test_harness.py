@@ -24,6 +24,7 @@ from ai_engine.llm.guard import (
     mostly_injection,
     ungrounded_numbers,
 )
+from ai_engine.llm.guard import misattributed_figures
 from ai_engine.llm.harness import answer_question, build_brief, validate_settings
 from ai_engine.llm.report_writer import ReportProvider
 
@@ -550,3 +551,151 @@ def test_a_late_step_gets_only_the_time_that_is_left(monkeypatch, df):
 
     assert budgets == [harness.CHAT_BUDGET_SECS, harness.CHAT_DEADLINE_SECS - 30]
     assert out["answer"] == "There are rows."
+
+
+# ── A real figure on the wrong group ──────────────────────────────────────────
+
+GROUPS = {
+    "categories": {"city": {"distinct": 3, "top": {"Toronto": 412, "Calgary": 188, "Vancouver": 95}}},
+    "group_differences": [{"by": "city", "measure": "salary",
+                           "highest": {"group": "Toronto", "mean": 71.5},
+                           "lowest": {"group": "Vancouver", "mean": 52.25}}],
+    "findings": {"concentration": {"shares": {"Toronto": 0.5928, "Calgary": 0.2705}},
+                 "segments": {"low": [{"segment": {"city": "Calgary"}, "rows": 188, "value": 41.25},
+                                      {"segment": {"city": "Vancouver", "term": "Fall"}, "rows": 37}]}},
+    "measures": {"salary": {"mean": 64.4, "max": 188.0}},
+}
+
+
+@pytest.mark.parametrize("text, figure, named, owner", [
+    ("Calgary posted 412 roles.", 412, "Calgary", "Toronto"),
+    ("Vancouver leads with an average of 71.5.", 71.5, "Vancouver", "Toronto"),
+    ("Calgary holds 59.28% of postings.", 59.28, "Calgary", "Toronto"),
+    ("Toronto averages 41.25.", 41.25, "Toronto", "Calgary"),      # from a segment record
+])
+def test_a_figure_on_the_wrong_group_is_caught(text, figure, named, owner):
+    found = misattributed_figures(text, GROUPS)
+    assert len(found) == 1
+    assert found[0]["figure"] == pytest.approx(figure)
+    assert found[0]["named"] == named and found[0]["owner"] == owner
+
+
+@pytest.mark.parametrize("text", [
+    "Toronto posted 412 roles.",                              # the right group
+    "Toronto holds 59% of postings.",                         # rounded, as a share
+    "Toronto averages 71.5 and Vancouver 52.25.",             # each with its own
+    "Calgary is well behind Toronto, which posted 412.",      # both named
+    "The file holds 412 roles.",                              # no group named
+    "Calgary has the top 3 sectors.",                         # small numbers are prose
+    "Vancouver pays up to 188.",                              # also a figure of no group
+    "Calgary saw 9,999 applicants.",                          # not a group's figure
+    "Calgary has 37 of them.",                                # a two-part segment owns nothing
+])
+def test_a_figure_that_may_be_right_is_left_alone(text):
+    assert misattributed_figures(text, GROUPS) == []
+
+
+def test_a_plural_or_lower_case_group_still_counts_as_named():
+    # From a real report: "Sandwich" in the data, "Sandwiches" in the sentence.
+    digest = {"group_differences": [{"highest": {"group": "Sandwich", "mean": 265.88},
+                                     "lowest": {"group": "Drip coffee", "mean": 92.79}}]}
+    for text in ("Sandwiches command the highest average at 265.88, nearly triple Drip coffee (92.79).",
+                 "Drip coffee (92.79) trails sandwiches at 265.88."):
+        assert misattributed_figures(text, digest) == []
+
+
+def test_a_large_number_is_not_mistaken_for_a_share():
+    # An unrelated 6.01 used to hide a real 601, by reading as 6.01%.
+    digest = {"categories": {"store": {"top": {"Midtown": 601, "Downtown": 566}}}, "measures": {"m": {"mean": 6.01}}}
+    assert misattributed_figures("Downtown recorded 601 rows.", digest)[0]["owner"] == "Midtown"
+
+
+def test_everyday_words_are_not_group_names():
+    digest = {"categories": {"source": {"top": {"Other": 412, "Referral": 90}}}}
+    assert misattributed_figures("Other sources gave 90 leads.", digest) == []
+
+
+@pytest.mark.parametrize("digest", [None, {}, {"categories": {}}, "text"])
+def test_a_digest_with_no_groups_finds_nothing(digest):
+    assert misattributed_figures("Calgary posted 412 roles.", digest) == []
+
+
+GROUPED = {**CONTEXT, "digest": GROUPS}
+
+
+def test_the_chat_corrects_a_figure_on_the_wrong_group(model):
+    fake = model({"action": "answer", "answer": "Calgary posted 412 roles."},
+                 {"action": "answer", "answer": "Toronto posted 412 roles."})
+    out = answer_question(GROUPED, "Which city has the most postings?")
+    assert out["answer"] == "Toronto posted 412 roles." and out["unverifiedNumbers"] == []
+    assert "412 belongs to Toronto, not Calgary" in fake.calls[1][-1]["content"]
+
+
+def test_a_wrong_group_that_stays_wrong_is_flagged(model):
+    model({"action": "answer", "answer": "Calgary posted 412 roles."},
+          {"action": "answer", "answer": "Calgary posted 412 roles."})
+    out = answer_question(GROUPED, "Which city has the most postings?")
+    assert out["unverifiedNumbers"] == [412]
+
+
+def test_a_figure_from_a_lookup_is_not_held_to_the_summary(model, df):
+    model({"action": "query", "queries": [{"op": "count"}]},
+          {"action": "answer", "answer": "Calgary posted 412 roles, and the file has 300 rows."})
+    out = answer_question(GROUPED, "How many rows are there?", df=df)
+    assert out["grounding"] == "data" and out["unverifiedNumbers"] == []
+
+
+# ── Questions the file can answer ─────────────────────────────────────────────
+
+@pytest.mark.parametrize("question, columns", [
+    ("How many roles are in South?", ["region"]),
+    ("what about the south", ["region"]),
+    ("Is revenue higher in the East?", ["region"]),
+    ("Tell me about Mars", []),
+    ("Did sales go southward?", []),         # part of a word
+])
+def test_a_value_in_the_question_finds_its_column(df, question, columns):
+    assert harness._columns_holding(question, df) == columns
+
+
+def test_no_file_means_no_values_to_find():
+    assert harness._columns_holding("How many in South?", None) == []
+
+
+def test_free_text_columns_are_skipped():
+    notes = pd.DataFrame({"note": [f"comment number {i}" for i in range(harness._MAX_VALUES_TO_MATCH + 1)]})
+    assert harness._columns_holding("comment number 5", notes) == []
+
+
+def test_a_count_of_a_value_goes_to_the_file_first(model, df):
+    south = int((df.region == "South").sum())
+    fake = model({"action": "query", "queries": [{"op": "count", "where": [
+                     {"column": "region", "op": "==", "value": "South"}]}]},
+                 {"action": "answer", "answer": f"South has {south} rows."})
+    out = answer_question(CONTEXT, "How many orders came from South?", df=df)
+    assert "query the data first" in fake.calls[0][1]["content"]
+    assert out["grounding"] == "data"
+
+
+def test_a_refused_question_about_a_value_gets_another_try(model, df):
+    fake = model({"action": "refuse", "answer": "That is off topic."},
+                 {"action": "answer", "answer": "South is one of the regions."})
+    out = answer_question(CONTEXT, "Tell me about South", df=df)
+    assert not out["refused"] and len(fake.calls) == 2
+
+
+def test_a_refused_question_about_the_data_gets_another_try(model):
+    fake = model({"action": "refuse", "answer": "That is off topic."},
+                 {"action": "answer", "answer": "It covers one region."})
+    out = answer_question(CONTEXT, "What does this dataset cover?")
+    assert not out["refused"] and "about this dataset" in fake.calls[1][-1]["content"]
+
+
+def test_a_question_about_something_else_stays_refused(model):
+    fake = model({"action": "refuse", "answer": "I can only talk about your data."})
+    out = answer_question(CONTEXT, "What is the capital of France?")
+    assert out["refused"] and len(fake.calls) == 1
+
+
+def test_the_weakest_model_answers_last():
+    assert harness.CHAT_PROVIDERS[-1].model == "openai/gpt-oss-20b"
