@@ -51,7 +51,7 @@ const T = {
     developers: {
       heading: 'Developer',
       name: 'Mahdiyar Ashrafioun',
-      body: 'DIG began as a group project by undergraduate Computer Science students at the University of Calgary. It is now built and maintained by Mahdiyar Ashrafioun, working solo in Toronto — the whole stack, from the data cleaning pipeline and statistical engine to the interface you are reading.',
+      body: 'DIG began as a group project by undergraduate Computer Science students at the University of Calgary. It is now built and maintained by Mahdiyar Ashrafioun, working solo.',
       role: 'Founder · Developer',
     },
     contact: { heading: 'Get in Touch', body: "Have questions or feedback? We'd love to hear from you.", btn: 'Contact us' },
@@ -100,7 +100,7 @@ const T = {
     developers: {
       heading: 'Développeur',
       name: 'Mahdiyar Ashrafioun',
-      body: "DIG a commencé comme un projet de groupe mené par des étudiants en informatique à l'Université de Calgary. Il est aujourd'hui développé et maintenu par Mahdiyar Ashrafioun, seul, à Toronto — toute la pile, du pipeline de nettoyage des données et du moteur statistique jusqu'à l'interface que vous lisez.",
+      body: "DIG a commencé comme un projet de groupe mené par des étudiants en informatique à l'Université de Calgary. Il est aujourd'hui développé et maintenu par Mahdiyar Ashrafioun, seul.",
       role: 'Fondateur · Développeur',
     },
     contact: { heading: 'Nous contacter', body: 'Des questions ou des retours ? Nous serions ravis de vous entendre.', btn: 'Nous contacter' },
@@ -149,7 +149,7 @@ const T = {
     developers: {
       heading: 'توسعه‌دهنده',
       name: 'مهدیار اشرفیون',
-      body: 'DIG به‌عنوان یک پروژهٔ گروهی توسط دانشجویان کارشناسی علوم کامپیوتر در دانشگاه کالگاری آغاز شد. امروز به‌تنهایی توسط مهدیار اشرفیون در تورنتو ساخته و نگهداری می‌شود — تمام لایه‌ها، از خط پاک‌سازی داده و موتور آماری تا رابطی که می‌بینید.',
+      body: 'DIG به‌عنوان یک پروژهٔ گروهی توسط دانشجویان کارشناسی علوم کامپیوتر در دانشگاه کالگاری آغاز شد. امروز به‌تنهایی توسط مهدیار اشرفیون ساخته و نگهداری می‌شود.',
       role: 'بنیان‌گذار · توسعه‌دهنده',
     },
     contact: { heading: 'تماس با ما', body: 'سؤال یا بازخورد دارید؟ خوشحال می‌شویم بشنویم.', btn: 'تماس با ما' },
