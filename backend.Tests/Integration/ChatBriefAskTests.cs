@@ -175,6 +175,33 @@ public class ChatBriefAskTests
     }
 
     [Test]
+    public async Task Ask_ReadsTheCleanedData_WhenTheReportDid()
+    {
+        // Risk: the report counted a total after duplicates went, and the
+        // questions box counted them again from the original file.
+        var a = await Finished(file: Encoding.UTF8.GetBytes("region,revenue\nSouth,10\nSouth,10\n"));
+        var cleaned = Encoding.UTF8.GetBytes("region,revenue\nSouth,10\n");
+        a.SetCleanedCsvPath(await _factory.StorageSvc.SaveCleanedCsvAsync(_userId, a.Id, cleaned));
+
+        await Ask(a.Id);
+
+        var call = _factory.PythonAi.AskCalls.Single();
+        call.FileBytes.Should().Equal(cleaned);
+        call.FileName.Should().Be("cleaned_sales.csv");
+    }
+
+    [Test]
+    public async Task Ask_ACleanedFileTooBigToSend_AnswersFromTheAnalysisAlone()
+    {
+        var a = await Finished(file: new byte[] { 1, 2, 3 });
+        a.SetCleanedCsvPath(await _factory.StorageSvc.SaveCleanedCsvAsync(_userId, a.Id, new byte[20 * 1024 * 1024 + 1]));
+
+        await Ask(a.Id);
+
+        _factory.PythonAi.AskCalls.Single().FileBytes.Should().BeNull();
+    }
+
+    [Test]
     public async Task Ask_ALargeFile_AnswersFromTheAnalysisAlone()
     {
         // Risk: reading a big upload again for every question would cost the
