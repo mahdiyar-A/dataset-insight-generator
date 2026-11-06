@@ -18,14 +18,16 @@
 
 ## Built 2026-11, not live yet
 
-The server code below is on `main` but not on the server yet, and the frontend
-commit is held back locally. **Order matters:** deploy the server first
-(`bash deploy/deploy.sh`), check it, then `git push origin main` so Vercel
-builds the frontend. The old frontend works with the new server. The new
+None of this is live yet. The whole round is on the branch
+`release/november-round`, with CI green. **Order matters:** deploy the server
+from that branch (`bash deploy/deploy.sh`), check it with `deploy/live_check.py`,
+then merge the branch so Vercel builds the frontend. The old frontend works with
+the new server. The new
 frontend on the old server would offer formats it refuses and chat calls that
 fail, and its privacy page would describe things that are not live.
 
-Tested with a faked server in a real browser, not yet against the real one.
+Tested with a faked server in a real browser, and with the real service and real
+models on a local machine, not yet on the real server.
 Analyses made before the deploy have no chat context, so their questions box
 says to run them again.
 
