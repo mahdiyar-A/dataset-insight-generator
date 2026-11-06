@@ -10,7 +10,7 @@
 | Suite | Count | Command |
 |---|---|---|
 | C# — unit, integration, edge cases | 274 | `dotnet test backend.Tests/backend.Tests.csproj` |
-| Python — stats, ingest, chat harness, reports, full pipeline | 493 | `cd ai_service && pytest tests/` |
+| Python — stats, ingest, chat harness, reports, full pipeline | 629 | `cd ai_service && pytest tests/` |
 | Frontend — Vitest, including rendered components | 163 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
 
@@ -49,16 +49,15 @@ says to run them again.
   are recognised (`ai_engine/core/identities.py`), so a formula is not reported
   as a finding or fed to the driver model. Trends now say when a series jumped
   or turned (`ai_engine/core/changepoint.py`), in reports and chat answers.
-- **Known defect, fix before deploying.** If a category was calculated from the
-  two measures being checked, such as a tier set on `a + b`, `confounding.py`
-  falsely reports "reversed" or "vanished": up to 95% and 98.5% of the time on
-  simulated files. Planned fix: spot a category that a straight score of the
-  numeric columns cuts into touching bands, and skip the pairs it was cut from.
-- **Change-point tests are not finished.** The run breaking each guard was
-  stopped at 31 of 44: 23 caught, 8 not caught by any test. Those 8 are the
-  minimum periods, the leftover-pattern refusal, the percentage of a negative
-  base, the reversal direction check, both halves of the takes-back rule, and
-  two steps in the simulation.
+- **Calculated categories.** A category set from the measures, such as a tier on
+  `a + b`, forces a relationship between them, which read as a false "reversed"
+  or "vanished" on up to 95% and 98.5% of simulated files. `confounding.py` now
+  recognises one and skips it. False claims: none at 2,000 rows, at most 3.3% at
+  300, 6.7% at 150 and 15% at 100, except tiers on three measures at 12%, 22% and
+  28%. Real groups stay checked 88 to 100% of the time at 300 rows and always at
+  2,000. A tier cut from a column the file does not hold cannot be seen.
+- **How far these are tested.** Every rule in `changepoint.py` and the calculated
+  category check was broken on purpose, 78 in all, and a test noticed each one.
 
 ---
 
