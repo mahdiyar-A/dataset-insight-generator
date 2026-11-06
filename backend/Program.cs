@@ -79,6 +79,7 @@ builder.Services.AddSingleton(_ =>
 builder.Services.AddScoped<IUserRepository,      UserRepository>();
 builder.Services.AddScoped<IDatasetRepository,   DatasetRepository>();   // kept for backward compat
 builder.Services.AddScoped<IAnalysisRepository,  AnalysisRepository>();  // new history-based
+builder.Services.AddHostedService<UnfinishedRunSweep>();
 builder.Services.AddScoped<ITeamRepository,      TeamRepository>();
 builder.Services.AddScoped<IWorkspaceRepository, WorkspaceRepository>();
 builder.Services.AddScoped<IStorageService,      SupabaseStorageService>();

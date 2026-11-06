@@ -23,6 +23,9 @@ public interface IAnalysisRepository
         string? wordPath        = null,
         string? pptxPath        = null);
 
+    // Mark runs still "processing" from before this time as failed. Returns how many.
+    Task<int> FailUnfinishedAsync(DateTime startedBefore);
+
     Task UpdateChartUrlsAsync(Guid analysisId, string chartUrlsJson);
     Task UpdateOriginalCsvPathAsync(Guid analysisId, string path);
 
