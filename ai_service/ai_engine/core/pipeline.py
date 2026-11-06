@@ -30,6 +30,7 @@ from ai_engine.llm.insight_agent         import generate_report, MAX_INSIGHTS, M
 from ai_engine.llm.stats_digest          import build_digest
 from ai_engine.charts.chart_generator    import generate_charts
 from ai_engine.pdf.pdf_builder           import build_pdf
+from ai_engine.report_labels             import left_out_line
 from ai_engine.models.models             import (
     PipelineResult, DomainResult, ChartInstruction, LLMReport
 )
@@ -319,6 +320,12 @@ def run_pipeline(
         print(f"[Pipeline] Unexpected report-writer exception: {e} — building fallback report")
         from ai_engine.llm.insight_agent import _build_fallback_report
         llm_report = _build_fallback_report(stats, domain)
+
+    # Said here, not left to the writer: the report must not pass for the whole
+    # file when part of it was never read.
+    left_out = left_out_line(table.detail, language)
+    if left_out:
+        llm_report.dataQualitySection = f"{llm_report.dataQualitySection}\n\n{left_out}".strip()
 
     print(f"[Pipeline] Phase 5 done. Insights: {len(llm_report.insights)}, Charts: {len(llm_report.chartInstructions)}", flush=True)
 

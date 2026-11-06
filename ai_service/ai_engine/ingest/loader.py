@@ -429,6 +429,22 @@ def _frame_from_grid(raw: pd.DataFrame) -> pd.DataFrame:
     return body.reset_index(drop=True).infer_objects()
 
 
+def _left_out_note(detail: Dict[str, Any]) -> Optional[str]:
+    """
+    Names the sheets or tables that were not read.
+
+    One sheet of five was analysed and nothing told the person, so a report on
+    "Company Bank" read as a report on the whole workbook.
+    """
+    others = detail.get("otherSheets") or detail.get("otherTables") or []
+    if not others:
+        return None
+    kind, read = ("sheet", detail["sheet"]) if detail.get("sheet") else ("table", detail.get("table"))
+    names = ", ".join(others[:5]) + ("…" if len(others) > 5 else "")
+    return (f'Read only the {kind} "{read}", which holds the most data. Not read: {names}. '
+            f"To analyse one of those, upload it as its own file.")
+
+
 def _read_excel(data: bytes, fmt: str, detail: Dict[str, Any]) -> pd.DataFrame:
     engine = {"xlsx": "openpyxl", "xls": "xlrd", "ods": "odf"}[fmt]
     try:
@@ -966,6 +982,9 @@ def load_table(data: bytes, file_name: str = "", _depth: int = 0) -> LoadedTable
     df, notes = normalise(df)
     if df.empty:
         raise UnsupportedFile("The file was read, but every row was empty.")
+    left_out = _left_out_note(detail)
+    if left_out:
+        notes.insert(0, left_out)
     df, conversions = coerce_types(df)
     parsed = [c for c in conversions if c.get("kind") != "plain"]
     if parsed:
