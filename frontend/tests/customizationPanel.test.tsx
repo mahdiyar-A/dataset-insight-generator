@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -21,7 +21,7 @@ let latest: Settings | null = null;
 
 function Harness({ initial = null, isPro = true }: { initial?: Settings | null, isPro?: boolean }) {
   const [value, setValue] = useState<Settings | null>(initial);
-  latest = value;
+  useEffect(() => { latest = value; }, [value]);
   return <ChatCustomizationPanel value={value} onChange={setValue} isPro={isPro} />;
 }
 
