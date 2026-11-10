@@ -28,6 +28,7 @@ from ai_engine.llm.groq_client           import detect_domain
 from ai_engine.core.confidence          import assess_confidence, split_misleading_scatters, validate_chart_instructions
 from ai_engine.llm.insight_agent         import generate_report, MAX_INSIGHTS, MIN_INSIGHTS, MAX_QUESTIONS
 from ai_engine.llm.stats_digest          import build_digest
+from ai_engine.llm.user_requests         import cover, for_chat, for_prompt, work_out_requests
 from ai_engine.charts.chart_generator    import generate_charts
 from ai_engine.pdf.pdf_builder           import build_pdf
 from ai_engine.report_labels             import left_out_line
@@ -99,7 +100,8 @@ def parse_questions(raw: Any) -> List[Dict[str, str]]:
 
 
 def _chat_context(stats, domain, report, columns: List[str], source: Dict[str, Any],
-                  set_aside: Optional[List[str]] = None) -> Dict[str, Any]:
+                  set_aside: Optional[List[str]] = None,
+                  requested: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     """
     What the chat needs to answer questions after the analysis: the digest the
     report was written from, the report's own words, and the column list.
@@ -123,6 +125,9 @@ def _chat_context(stats, domain, report, columns: List[str], source: Dict[str, A
             "assumptions": report.assumptions,
             "writer": report.writerModel,
         },
+        # The figures computed for what the user asked for in the brief, so a
+        # follow-up question about them is answered from the same numbers.
+        **({"requested": for_chat(requested)} if requested else {}),
     }
 
 
@@ -225,7 +230,7 @@ def run_pipeline(
 
     # ── Phase 1: Groq — domain, column decisions, cleaning directives ─────
     print(f"[Pipeline] Phase 1 — Groq domain classification...", flush=True)
-    domain = _run_domain_gate(df_original, groq_api_key, tracker)
+    domain = _run_domain_gate(df_original, {"groq": groq_api_key, "openrouter": openrouter_api_key}, tracker)
     print(f"[Pipeline] Domain: {domain.domain} | analyzable: {domain.is_analyzable}", flush=True)
 
     if not domain.is_analyzable:
@@ -288,6 +293,22 @@ def run_pipeline(
                                 type_conversions=table.conversions, source_file=source_file)
     print(f"[Pipeline] Stats done. Numeric cols: {len(stats.numericStats)}, Correlations: {len(stats.topCorrelations)}", flush=True)
 
+    # ── Phase 4b: what the user asked for, computed ─────────────────────
+    # The brief's focus, comparisons, must-mention items and questions used to
+    # reach only the writer's prompt, with no figures computed for them. See
+    # ai_engine/llm/user_requests.py.
+    requested: List[Dict[str, Any]] = []
+    if focus_on or comparisons or must_mention or questions:
+        print(f"[Pipeline] Phase 4b — computing the user's requests...", flush=True)
+        try:
+            requested = work_out_requests(
+                df_work, focus_on=focus_on, comparisons=comparisons, must_mention=must_mention,
+                questions=questions, preferred_measures=domain.column_decisions.get("key", []),
+                api_keys={"openrouter": openrouter_api_key, "groq": groq_api_key}, tracker=tracker)
+        except Exception as e:   # the requests are an extra; they must never cost the report
+            print(f"[Pipeline] Requests skipped: {type(e).__name__}: {e}", flush=True)
+            requested = []
+
     # ── Phase 5: report writer — insights + report + chart instructions ──
     print(f"[Pipeline] Phase 5 — report writer...", flush=True)
     # generate_report never raises — if every model fails it returns a stats-only fallback report.
@@ -316,12 +337,21 @@ def run_pipeline(
             questions=questions,
             writing_format=writing_format,
             avoid=avoid,
+            requested=for_prompt(requested),
         )
     except Exception as e:
         # This should not happen, but if it does — build fallback inline
         print(f"[Pipeline] Unexpected report-writer exception: {e} — building fallback report")
         from ai_engine.llm.insight_agent import _build_fallback_report
         llm_report = _build_fallback_report(stats, domain)
+
+    # Every request answered: what the writer left out gets the computed
+    # figures under "Your questions", even in the stats-only fallback report.
+    if requested:
+        try:
+            cover(llm_report, requested, language)
+        except Exception as e:
+            print(f"[Pipeline] Request check skipped: {type(e).__name__}: {e}", flush=True)
 
     # Said here, not left to the writer: the report must not pass for the whole
     # file when part of it was never read.
@@ -444,7 +474,7 @@ def run_pipeline(
     chat_context = None
     try:
         chat_context = _chat_context(stats, domain, llm_report, list(df_work.columns), source_file,
-                                     dropped_columns)
+                                     dropped_columns, requested)
     except Exception as e:  # the chat is an extra; it must never fail the report
         print(f"[Pipeline] Chat context failed (ignored): {e}", flush=True)
 
@@ -477,9 +507,10 @@ def _fail(condition: str, error: str) -> dict:
     ).to_response()
 
 
-def _run_domain_gate(df: pd.DataFrame, groq_api_key: str, tracker=None) -> DomainResult:
-    if not groq_api_key:
-        print("[Pipeline] GROQ_API_KEY not set — using general domain fallback")
+def _run_domain_gate(df: pd.DataFrame, api_keys, tracker=None) -> DomainResult:
+    keys = {"groq": api_keys} if isinstance(api_keys, str) else dict(api_keys or {})
+    if not any(keys.values()):
+        print("[Pipeline] no model key set — using general domain fallback")
         numeric_cols = df.select_dtypes(include="number").columns.tolist()[:5]
         return DomainResult(
             domain="general",
@@ -504,10 +535,10 @@ def _run_domain_gate(df: pd.DataFrame, groq_api_key: str, tracker=None) -> Domai
             cleaning_methods=["remove_empty_rows", "remove_duplicates", "remove_infinity"],
         )
     try:
-        return detect_domain(df, groq_api_key, tracker)
+        return detect_domain(df, keys, tracker)
     except Exception as e:
         print(f"[Pipeline] Domain gate error: {e} — using fallback")
-        return _run_domain_gate(df, "", tracker)   # recurse with empty key → fallback
+        return _run_domain_gate(df, {}, tracker)   # recurse with no keys → fallback
 
 
 def _log(stats, domain, judge, was_cleaned, user_wanted_clean,

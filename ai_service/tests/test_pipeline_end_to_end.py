@@ -344,3 +344,50 @@ def test_a_file_of_text_still_gets_charts_with_no_model(monkeypatch):
     )
     assert result["status"] == "done", result.get("error")
     assert len(result["charts"]) == 3
+
+
+# ── What the user asks for in the brief is computed, not only mentioned ───────
+
+def _with_brief(customization):
+    df = _sales_frame()
+    result = run_pipeline(
+        file_bytes=df.to_csv(index=False).encode(), file_name="sales.csv",
+        user_wants_cleaning=False, user_confirmed_low=True,
+        openrouter_api_key="", groq_api_key="", session_id="test",
+        customization=customization,
+    )
+    assert result["status"] == "done", result.get("error")
+    return df, result
+
+
+def test_a_comparison_in_the_brief_reaches_the_writer_as_figures(stub_writer):
+    from ai_engine.llm.query_tools import _clean
+    df, result = _with_brief({"comparisons": "North vs South revenue", "mustMention": ["unit price"]})
+
+    prompt = stub_writer[0]
+    assert "RESULTS FOR THE USER'S REQUESTS" in prompt
+    north = df[df.region == "North"].revenue.mean()
+    assert json.dumps(_clean(north)) in prompt            # the exact figure, from the whole table
+    assert '"test":"Welch t-test"' in prompt
+
+    ctx = result["chat_context"]
+    assert ctx["requested"][0]["asked"] == "North vs South revenue"
+    # The stub's report names North and South but never the unit price, so that
+    # one is answered from the computed figures under "Your questions".
+    added = [qa for qa in ctx["report"]["questionAnswers"] if qa["question"] == "unit price"]
+    assert added and added[0]["answer"].startswith("Computed from your data:")
+    assert not [qa for qa in ctx["report"]["questionAnswers"] if qa["question"] == "North vs South revenue"]
+
+
+def test_with_no_model_the_requests_still_reach_the_report(monkeypatch):
+    monkeypatch.setattr(insight_agent, "write_report", lambda *a, **k: (None, None))
+    df, result = _with_brief({"comparisons": "North vs South revenue"})
+    answers = result["chat_context"]["report"]["questionAnswers"]
+    [entry] = [qa for qa in answers if qa["question"] == "North vs South revenue"]
+    assert "a real difference" in entry["answer"] or "no reliable difference" in entry["answer"]
+
+
+def test_a_free_run_with_no_brief_skips_the_requests_step(stub_writer):
+    _, result = _with_brief(None)
+    assert "RESULTS FOR THE USER'S REQUESTS" not in stub_writer[0]
+    assert "requested" not in result["chat_context"]
