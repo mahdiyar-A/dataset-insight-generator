@@ -28,7 +28,8 @@ from typing import Any, Dict, Iterable, List, Set, Tuple
 
 # Fence markers the prompts use around user text and data. Stripped from user
 # input so it cannot fake the end of a fenced block.
-_FENCES = ("<<<", ">>>", "```", "═══", "<user_text>", "</user_text>", "<data>", "</data>")
+_FENCES = ("<<<", ">>>", "```", "═══", "<user_text>", "</user_text>", "<data>", "</data>",
+           "<earlier_reply>", "</earlier_reply>")
 
 _INJECTION = re.compile(
     r"(ignore|disregard|forget|override)\s+(all\s+|any\s+|the\s+|your\s+|previous\s+|prior\s+|above\s+)*"

@@ -1,7 +1,6 @@
 """
-Groq LLM Client  —  Phase 1 (Domain Gate)
+Phase 1 (Domain Gate)  →  detect_domain(df, api_keys)
 
-Phase 1  →  detect_domain(df, api_key)
   Receives a rich dataset fingerprint (column names, types, sample values,
   basic stats). Returns:
     - Domain classification
@@ -16,112 +15,42 @@ statistics instead: see that module for why.
 
 import json
 import re
-import time
-import urllib.request
-import urllib.error
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple, Union
 
 import pandas as pd
 
+from ai_engine.llm.report_writer import GROQ_URL, OPENROUTER_URL, ReportProvider, write_report
 from ai_engine.models.models import DomainResult
 
 
-GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-# Groq retired the entire Llama-3.x chat line; llama-3.3-70b-versatile now
-# returns 404 model_not_found on every call. That silently disabled two of the
-# pipeline's three model stages — domain classification (Phase 1) and the judge
-# (Phase 6) — because both fall back rather than fail, so every report was
-# produced with domain "general" and a hardcoded confidence of 6/10.
+# Domain detection goes through the same harness as the report and the chat: a
+# chain of models with a deadline, cool-downs and a fallback. It used to call
+# one Groq model directly with its own retry loop, which slept up to 35s on a
+# rate limit and then gave up. A busy minute on Groq quietly made every file
+# domain "general", and the report lost its domain-specific analysis.
 #
-# gpt-oss-20b is the smallest current model that reliably returns strict JSON
-# for the domain task.
-GROQ_MODEL   = "openai/gpt-oss-20b"
+# gpt-oss-20b stays first: the prompt below was tuned and checked on it, and it
+# reliably returns strict JSON for this task. The others draw on separate quota
+# pools, so one busy model no longer means no domain. 4000 tokens, not 1500: the
+# reply carries a per-column decision map, and gpt-oss charges its reasoning to
+# the same budget. At 1500 the JSON was cut off mid-object.
+DOMAIN_PROVIDERS: Tuple[ReportProvider, ...] = (
+    ReportProvider("groq", "OpenAI gpt-oss-20b", GROQ_URL,
+                   "openai/gpt-oss-20b", 4000, 40, {"temperature": 0.1}),
+    ReportProvider("groq", "Qwen 3.8 27B", GROQ_URL,
+                   "qwen/qwen3.8-27b", 4000, 40, {"temperature": 0.1}),
+    ReportProvider("openrouter", "NVIDIA Nemotron 3.5 Super", OPENROUTER_URL,
+                   "nvidia/nemotron-3.5-super-vl:free", 8000, 60, {"temperature": 0.1}),
+)
+
+# The old direct call could take 3 x 45s plus 35s of sleeping. This is the most
+# the domain gate may now take before the analysis carries on without it.
+DOMAIN_BUDGET_SECS = 75
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Shared helpers
 # ─────────────────────────────────────────────────────────────────────────────
-
-def _groq_call(messages: List[Dict], api_key: str,
-               max_tokens: int = 1200, temperature: float = 0.1,
-               tracker=None, phase: str = "groq") -> str:
-    """
-    Call Groq and return the message content.
-
-    `tracker` is an optional UsageTracker. Groq returns token counts in every
-    response and they were previously discarded, which is why nobody could say
-    what an analysis costs. Recording is best-effort: a telemetry failure must
-    never break an analysis.
-    """
-    import time as _time
-    _started = _time.monotonic()
-    payload = json.dumps({
-        "model":       GROQ_MODEL,
-        "messages":    messages,
-        "temperature": temperature,
-        "max_tokens":  max_tokens,
-    }).encode("utf-8")
-
-    req = urllib.request.Request(
-        GROQ_API_URL, data=payload,
-        headers={
-            "Content-Type":  "application/json",
-            "Authorization": f"Bearer {api_key}",
-            "User-Agent":    "Mozilla/5.0 (compatible; DIG-AI/1.0)",
-            "Accept":        "application/json",
-        },
-        method="POST",
-    )
-    # Retry on 429 (rate limit) with exponential backoff — Groq free tier is tight
-    max_retries = 3
-    last_err    = None
-    for attempt in range(max_retries):
-        try:
-            with urllib.request.urlopen(req, timeout=45) as resp:
-                raw = json.loads(resp.read().decode("utf-8"))
-            break   # success
-        except urllib.error.HTTPError as e:
-            body = e.read().decode()
-            if e.code == 429:
-                wait = 2 ** attempt * 5   # 5s, 10s, 20s
-                print(f"[Groq] Rate limited (429) — waiting {wait}s before retry {attempt+1}/{max_retries}")
-                time.sleep(wait)
-                last_err = RuntimeError(f"Groq rate limit after {max_retries} retries")
-                # Re-build request (consumed after first urlopen attempt)
-                req = urllib.request.Request(
-                    GROQ_API_URL, data=payload,
-                    headers={
-                        "Content-Type":  "application/json",
-                        "Authorization": f"Bearer {api_key}",
-                        "User-Agent":    "Mozilla/5.0 (compatible; DIG-AI/1.0)",
-                        "Accept":        "application/json",
-                    },
-                    method="POST",
-                )
-                continue
-            raise RuntimeError(f"Groq API {e.code}: {body}")
-        except urllib.error.URLError as e:
-            raise RuntimeError(f"Groq connection failed: {e.reason}")
-    else:
-        raise last_err
-
-    if tracker is not None:
-        try:
-            from ai_engine.telemetry.usage import tokens_from_groq
-            tin, tout = tokens_from_groq(raw)
-            tracker.record(
-                provider="groq", model=raw.get("model", GROQ_MODEL), phase=phase,
-                input_tokens=tin, output_tokens=tout,
-                duration_ms=int((_time.monotonic() - _started) * 1000),
-            )
-        except Exception as e:
-            print(f"[Usage] Groq accounting failed (ignored): {e}", flush=True)
-
-    try:
-        return raw["choices"][0]["message"]["content"]
-    except (KeyError, IndexError):
-        raise RuntimeError(f"Unexpected Groq response: {raw}")
-
 
 def _parse_json(text: str) -> Dict:
     text = re.sub(r"```(?:json)?", "", text).strip().strip("`").strip()
@@ -276,8 +205,28 @@ No markdown. No text outside the JSON.
 """
 
 
-def detect_domain(df: pd.DataFrame, api_key: str, tracker=None) -> DomainResult:
-    """Phase 1: Rich dataset intake — domain, column decisions, cleaning directives."""
+def _domain_reply(text: str) -> Optional[Dict[str, Any]]:
+    """The model's classification, or None so the next model in the chain is tried."""
+    try:
+        parsed = _parse_json(text)
+    except (RuntimeError, ValueError):
+        return None
+    if not isinstance(parsed, dict) or not parsed.get("domain"):
+        return None
+    return parsed
+
+
+def detect_domain(df: pd.DataFrame, api_keys: Union[Dict[str, str], str], tracker=None,
+                  providers: Tuple[ReportProvider, ...] = DOMAIN_PROVIDERS) -> DomainResult:
+    """
+    Phase 1: Rich dataset intake — domain, column decisions, cleaning directives.
+
+    api_keys maps a provider ("groq", "openrouter") to its key; a bare string is
+    taken as the Groq key. Never raises: every model failing gives the general
+    fallback, as before.
+    """
+    if isinstance(api_keys, str):
+        api_keys = {"groq": api_keys}
     fingerprint = _build_fingerprint(df)
     prompt = _build_domain_prompt(fingerprint)
 
@@ -313,17 +262,12 @@ def detect_domain(df: pd.DataFrame, api_key: str, tracker=None) -> DomainResult:
         cleaning_methods=["remove_empty_rows", "remove_duplicates", "remove_infinity"],
     )
 
-    try:
-        # 4000, not 1500: the domain response carries a per-column decision map,
-        # and gpt-oss charges its reasoning to the same budget. At 1500 the JSON
-        # was truncated mid-object, which surfaced as a delimiter error and a
-        # silent fall back to domain "general".
-        text   = _groq_call(messages, api_key, max_tokens=4000, temperature=0.1,
-                            tracker=tracker, phase="domain")
-        parsed = _parse_json(text)
-    except Exception as e:
-        print(f"[Groq] Domain detection failed: {e} — using general fallback")
+    parsed, provider = write_report(messages, api_keys or {}, _domain_reply, tracker=tracker,
+                                    providers=providers, budget_secs=DOMAIN_BUDGET_SECS, phase="domain")
+    if parsed is None:
+        print("[Domain] no model classified the file — using the general fallback", flush=True)
         return _FALLBACK
+    print(f"[Domain] classified by {provider.display_name if provider else 'a model'}", flush=True)
 
     # Validate column names — only accept columns that actually exist
     existing = set(df.columns)
