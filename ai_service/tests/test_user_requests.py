@@ -271,6 +271,22 @@ def test_word_forms_count_as_mentioned():
     assert not ur._mentioned("region", "revenue grew")
 
 
+def test_a_long_brief_reads_the_text_columns_once(monkeypatch):
+    # Reading them per request took most of 17 s on a 500,000-row file.
+    reads = []
+    real = ur.text_columns
+    monkeypatch.setattr(ur, "text_columns", lambda df: reads.append(1) or real(df))
+    reqs = work_out_requests(_orders(), comparisons="North vs South revenue; compare revenue by region",
+                             focus_on="churn by region", must_mention=["discounts", "channel", "Web"])
+    assert len(reads) == 1 and all(r["results"] for r in reqs)
+
+
+def test_identical_values_are_no_difference_not_a_crash():
+    df = pd.DataFrame({"g": ["a", "b", "c"] * 10, "v": [1.0] * 30})
+    result = group_test(df, "g", "v")
+    assert result["significant"] is False and "error" not in result
+
+
 def test_group_test_needs_two_real_groups():
     df = pd.DataFrame({"g": ["a"] * 10 + ["b"] * 2, "v": range(12)})
     assert "error" in group_test(df, "g", "v")

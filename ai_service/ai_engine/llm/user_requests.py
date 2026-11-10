@@ -97,18 +97,36 @@ def _columns_named(text: str, columns: Sequence[Any]) -> List[Any]:
     return named
 
 
-def _values_named(text: str, df: pd.DataFrame, keys) -> Dict[Any, List[str]]:
+class _Table:
+    """
+    What the planners look up for every request, worked out once per run.
+
+    Reading a text column's values costs a pass over every row, and a brief can
+    hold a dozen requests: on a 500,000-row file, doing it per request took
+    most of 17 seconds.
+    """
+
+    def __init__(self, df: pd.DataFrame, keys):
+        self.df, self.keys = df, keys
+        self.values: Dict[Any, List[str]] = {}   # text column -> its values, as the table spells them
+        self.groupings: List[Any] = []
+        for col in text_columns(df):
+            if str(col) in keys:
+                continue
+            distinct = pd.unique(df[col].dropna())
+            if 2 <= len(distinct) <= 50:
+                self.groupings.append(col)
+            if 0 < len(distinct) <= MAX_VALUES_TO_MATCH:
+                self.values[col] = list(dict.fromkeys(str(v).strip() for v in distinct))
+
+
+def _values_named(text: str, table: _Table) -> Dict[Any, List[str]]:
     """Text columns holding values the request mentions, with those values in the table's spelling."""
     low = text.lower()
     found: Dict[Any, List[str]] = {}
-    for col in text_columns(df):
-        if str(col) in keys:
-            continue
-        values = df[col].dropna()
-        if values.empty or values.nunique() > MAX_VALUES_TO_MATCH:
-            continue
+    for col, values in table.values.items():
         hits = []
-        for value in values.astype(str).str.strip().unique():
+        for value in values:
             v = value.lower()
             # Two letters only when typed exactly as in the table ("UK"), so
             # "show us" does not find the value "US".
@@ -123,10 +141,6 @@ def _values_named(text: str, df: pd.DataFrame, keys) -> Dict[Any, List[str]]:
 
 def _measures(df: pd.DataFrame, keys) -> List[Any]:
     return [c for c in numeric_columns(df) if str(c) not in keys and df[c].dropna().nunique() > 1]
-
-
-def _groupings(df: pd.DataFrame, keys) -> List[Any]:
-    return [c for c in text_columns(df) if str(c) not in keys and 2 <= df[c].dropna().nunique() <= 50]
 
 
 def _has_date(df: pd.DataFrame) -> bool:
@@ -194,14 +208,15 @@ def group_test(df: pd.DataFrame, by: Any, measure: Any, values: Optional[List[st
 # Planning by rule
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _comparison_plan(text: str, df: pd.DataFrame, keys, measures: List[Any]) -> Optional[Dict[str, Any]]:
+def _comparison_plan(text: str, table: _Table, measures: List[Any]) -> Optional[Dict[str, Any]]:
     """Queries for "North vs South", "2023 vs 2024" or "by region", or None if the rules cannot tell."""
+    df = table.df
     named = _columns_named(text, df.columns)
     chosen = [c for c in named if c in measures][:MAX_MEASURES] or measures[:MAX_MEASURES]
     if not chosen:
         return None
 
-    values = {c: v for c, v in _values_named(text, df, keys).items() if len(v) >= 2}
+    values = {c: v for c, v in _values_named(text, table).items() if len(v) >= 2}
     if values:
         by, groups = max(values.items(), key=lambda kv: len(kv[1]))
         where = [{"column": str(by), "op": "in", "value": groups[:30]}]
@@ -217,7 +232,7 @@ def _comparison_plan(text: str, df: pd.DataFrame, keys, measures: List[Any]) -> 
                    for m in chosen for agg in ("sum", "mean")]
         return {"queries": queries, "tests": [], "terms": years}
 
-    by = next((c for c in named if c in _groupings(df, keys)), None)
+    by = next((c for c in named if c in table.groupings), None)
     if by is not None:
         queries = [{"op": "aggregate", "measure": str(m), "agg": "mean", "by": [str(by)],
                     "limit": MAX_GROUPS_SHOWN} for m in chosen]
@@ -225,12 +240,13 @@ def _comparison_plan(text: str, df: pd.DataFrame, keys, measures: List[Any]) -> 
     return None
 
 
-def _subject_plan(text: str, df: pd.DataFrame, keys, measures: List[Any]) -> Optional[Dict[str, Any]]:
+def _subject_plan(text: str, table: _Table, measures: List[Any]) -> Optional[Dict[str, Any]]:
     """Queries for a focus or a must-mention item that names columns or values."""
+    df = table.df
     named = _columns_named(text, df.columns)
     named_measures = [c for c in named if c in measures][:MAX_MEASURES]
-    named_groups = [c for c in named if c in _groupings(df, keys)][:2]
-    values = _values_named(text, df, keys)
+    named_groups = [c for c in named if c in table.groupings][:2]
+    values = _values_named(text, table)
 
     if named_measures and named_groups:
         by = named_groups[0]
@@ -442,15 +458,16 @@ def work_out_requests(
     measures = _measures(df, keys)
     preferred = [c for c in (preferred_measures or []) if c in measures]
     measures = preferred + [c for c in measures if c not in preferred]
+    table = _Table(df, keys)
 
     pending = []
     for r in requests:
         r.update({"queries": [], "tests": [], "results": [], "terms": [], "by": ""})
         plan = None
         if r["kind"] == "compare":
-            plan = _comparison_plan(r["request"], df, keys, measures)
+            plan = _comparison_plan(r["request"], table, measures)
         elif r["kind"] in ("focus", "mention"):
-            plan = _subject_plan(r["request"], df, keys, measures)
+            plan = _subject_plan(r["request"], table, measures)
         if plan:
             r.update({**plan, "by": "rule"})
         else:
