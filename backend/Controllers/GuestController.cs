@@ -162,6 +162,16 @@ public class GuestController : ControllerBase
         }
 
         // ── yes/no: user responded to not_clean or low_accuracy ──────────
+        // "Proceed anyway?" answered No means do not run, and spend nothing.
+        if (message == "no" && req.PendingCondition == "low_accuracy")
+        {
+            var declined = ChatController.DeclinedLowAccuracy();
+            return Ok(new GuestChatResponse
+            {
+                Reply = declined.Reply, Condition = null, RequiresResponse = false, Done = false, Failed = true,
+            });
+        }
+
         if (message == "yes" || message == "no")
         {
             bool userWantsCleaning = message == "yes" && req.PendingCondition == "not_clean";

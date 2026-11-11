@@ -234,6 +234,21 @@ public class ChatEndpointTests
     }
 
     [Test]
+    public async Task No_ToProceedAnyway_RunsNothing()
+    {
+        // Risk: "proceed anyway?" answered No used to start the run regardless,
+        // and a free user lost one of their two analyses to a run they declined.
+        WriteTempCsv(TestAuthHandler.CurrentUserId);
+
+        var doc = await PostMessage(_client, "no", pendingCondition: "low_accuracy");
+
+        doc.RootElement.GetProperty("failed").GetBoolean().Should().BeTrue();
+        doc.RootElement.TryGetProperty("analysisId", out var id).Should().BeTrue();
+        id.ValueKind.Should().Be(JsonValueKind.Null);
+        doc.RootElement.GetProperty("reply").GetString().Should().Contain("nothing was run");
+    }
+
+    [Test]
     public async Task Yes_WithNoTempFile_ReturnsFailed()
     {
         // Risk: "yes" without a file could crash TryStartAsync or silently
