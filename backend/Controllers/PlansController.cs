@@ -243,9 +243,12 @@ public class PlansController : ControllerBase
 
         switch (result.EventType)
         {
+            case "invoice.payment_succeeded":
+                await GrantForPaidInvoice(user, result);
+                break;
+
             case "customer.subscription.created":
             case "customer.subscription.updated":
-            case "invoice.payment_succeeded":
                 // A subscription exists before its first payment clears, for
                 // example while a bank check is unfinished. Pro waits for the money.
                 if (result.Status is "active" or "trialing")
@@ -275,6 +278,40 @@ public class PlansController : ControllerBase
         }
 
         return Ok();
+    }
+
+    /// <summary>
+    /// A paid invoice turns Pro on only while its subscription is live. A bill
+    /// left open when Stripe cancelled the subscription can still be paid weeks
+    /// later, and Pro used to come back with nothing behind it and never end.
+    /// The invoice itself does not say, so Stripe is asked.
+    /// </summary>
+    private async Task GrantForPaidInvoice(backend.Domain.Entities.User user, StripeWebhookResult result)
+    {
+        if (result.SubscriptionId is not { Length: > 0 } subscriptionId) return;   // not a subscription bill
+
+        StripeSubscriptionState? live;
+        try
+        {
+            live = await _stripe.GetSubscriptionAsync(subscriptionId);
+        }
+        catch (Exception ex)
+        {
+            // Not fatal: the subscription's own created/updated events turn Pro
+            // on as well, and this event is the backup to them.
+            _logger.LogError(ex, "[Plans] Could not check the subscription behind a paid invoice for user {Id}", user.Id);
+            return;
+        }
+
+        if (live?.Status is not ("active" or "trialing"))
+        {
+            _logger.LogInformation("[Plans] Paid invoice for an ended subscription ({Status}); plan unchanged for user {Id}",
+                live?.Status ?? "missing", user.Id);
+            return;
+        }
+
+        await _users.SetPlanAsync(user.Id, "pro", planExpiresAt: live.CurrentPeriodEnd, stripeSubscriptionId: subscriptionId);
+        _logger.LogInformation("[Plans] Upgraded user {Id} to pro", user.Id);
     }
 
     /// <summary>
