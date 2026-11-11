@@ -21,7 +21,8 @@ public sealed class ChatLimits
 }
 
 /// <summary>
-/// Counts chat use per key per UTC day.
+/// Counts chat use per key per UTC day. Team invitations use it too, keyed
+/// "invite:{user}", since each one is an email sent from DIG's address.
 ///
 /// In memory, like AnalysisGate's daily counters: a restart refills the day's
 /// allowance, which is acceptable for fair use of free model quotas. It is not
