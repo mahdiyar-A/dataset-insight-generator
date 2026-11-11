@@ -1,7 +1,7 @@
 # DIG — Project Status
 
 **Branch:** `main`
-**Last updated:** 2026-11-05
+**Last updated:** 2026-11-11
 
 ---
 
@@ -9,10 +9,39 @@
 
 | Suite | Count | Command |
 |---|---|---|
-| C# — unit, integration, edge cases, the real Supabase client against a stand-in server | 376 | `dotnet test backend.Tests/backend.Tests.csproj` |
+| C# — unit, integration, edge cases, the real Supabase client against a stand-in server | 409 | `dotnet test backend.Tests/backend.Tests.csproj` |
 | Python — stats, ingest, chat harness, reports, full pipeline | 860 | `cd ai_service && pytest tests/` |
-| Frontend — Vitest, including rendered components | 191 | `cd frontend && npm test` |
+| Frontend — Vitest, including rendered components | 211 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
+
+---
+
+## Teams, 2026-11-11
+
+Teams were built on the server and only partly reachable from the site. Tested
+with fakes and rendered components; not yet tried by two real people in one
+workspace, which is the true test.
+
+- **A team holds five people**, the owner included. An invitation not yet
+  answered holds a seat. Nothing limited a team before.
+- **Invitations.** The same address is not invited twice, nor someone already in
+  the team. The reply says what the person still needs: an account, Pro, or
+  nothing. If the email cannot be sent the invitation is withdrawn and the page
+  says so, where it used to say "Invitation sent".
+- **Roles.** The owner changes a member between Viewer and Editor on the team
+  page. The server could always do it; the page had no control.
+- **Sharing.** "Share with a team" in the dashboard's report section, and a
+  Shared tab on the team page that opens each workspace. Neither existed, so no
+  shared workspace could be reached.
+- **Who can open which file.** The person who shared an analysis and the team's
+  owner set it per person, per file, in the workspace. "Can open" or "No access";
+  editing a file in place does not exist yet, so it is not offered.
+- **Comments.** Anyone in the team can resolve a thread (only the author's click
+  used to count, with the button shown to all). A saved edit shows at once.
+- **Removal.** A removed member's live connection is cut. The live channel
+  remembered membership until the server restarted (`Hubs/LiveAccess.cs`).
+
+Still true: every member needs their own Pro plan to join.
 
 ---
 
@@ -118,7 +147,7 @@ Language, tone, insight count, occasion, audience, depth, focus areas, compariso
 Free (2 analyses / 48h, 5 history slots, PDF only) and Pro ($9.99/mo, up to 20 analyses a day, Word + PPTX, chatbot customization, teams, 15 history slots). Stripe checkout, billing portal and webhook handling are wired end to end. No card data is stored server-side.
 
 ### Teams and collaboration
-Team creation, email invites, role management. Shared workspaces with per-file permissions, threaded annotations, and real-time presence and cursors over SignalR.
+Teams of up to five, email invites, Viewer and Editor roles. Shared workspaces with per-file access, threaded annotations, and real-time presence and cursors over SignalR. Reports are downloaded, not edited in place.
 
 ### Auth
 Supabase JWT, email verification, password reset, email change verification, phone OTP.
