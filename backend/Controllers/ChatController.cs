@@ -174,6 +174,11 @@ public class ChatController : ControllerBase
             });
         }
 
+        // "Proceed anyway?" answered No means do not run. It used to start the
+        // analysis regardless, and a free user lost one of their two analyses.
+        if (message == "no" && req.PendingCondition == "low_accuracy")
+            return Ok(DeclinedLowAccuracy());
+
         if (message == "yes" || message == "no")
         {
             var reply = message == "yes"
@@ -225,6 +230,13 @@ public class ChatController : ControllerBase
             Condition = null, RequiresResponse = false, Done = false, Failed = false,
         });
     }
+
+    /// <summary>The user chose not to run a file that may give low-accuracy results.</summary>
+    internal static ChatMessageResponse DeclinedLowAccuracy() => new()
+    {
+        Reply = "Okay, nothing was run and your allowance is untouched. A file with more rows will give firmer results.",
+        Condition = null, RequiresResponse = false, Done = false, Failed = true,
+    };
 
     /// <summary>A refused analysis, shown in the chat in the user's own words.</summary>
     private static ChatMessageResponse Refused(Admission admission) => new()
