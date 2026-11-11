@@ -123,13 +123,28 @@ public class StripeWebhookTests
     private sealed class Scripted : NoOpStripeService
     {
         private readonly StripeWebhookResult _result;
-        public Scripted(StripeWebhookResult result) => _result = result;
+        private readonly Func<string, StripeSubscriptionState?> _live;
+        public List<string> Asked { get; } = new();
+
+        public Scripted(StripeWebhookResult result, Func<string, StripeSubscriptionState?>? live = null)
+        {
+            _result = result;
+            _live   = live ?? (_ => new StripeSubscriptionState("active", null));
+        }
+
         public override Task<StripeWebhookResult> HandleWebhookAsync(string payload, string signature) =>
             Task.FromResult(_result);
+
+        public override Task<StripeSubscriptionState?> GetSubscriptionAsync(string subscriptionId)
+        {
+            Asked.Add(subscriptionId);
+            return Task.FromResult(_live(subscriptionId));
+        }
     }
 
     private static async Task<FakeUserRepository> Received(
-        string type, string status, string plan = "free", string? paying = null, string eventFor = "sub_1")
+        string type, string status, string plan = "free", string? paying = null, string? eventFor = "sub_1",
+        Func<string, StripeSubscriptionState?>? live = null)
     {
         var user = User.CreateWithId(Guid.NewGuid(), "Ada", "ada@example.com", "supabase-auth");
         user.SetStripeCustomerId("cus_1");
@@ -137,7 +152,7 @@ public class StripeWebhookTests
         var users = new FakeUserRepository { DefaultUser = user };
 
         var controller = new PlansController(
-            new Scripted(new StripeWebhookResult(type, "cus_1", eventFor, status, null)),
+            new Scripted(new StripeWebhookResult(type, "cus_1", eventFor, status, null), live),
             users, new ConfigurationBuilder().Build(), NullLogger<PlansController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
@@ -203,6 +218,59 @@ public class StripeWebhookTests
         // Stripe does not promise order: the end of sub_1 can arrive after sub_2 is paid.
         var users = await Received("customer.subscription.deleted", "canceled",
             plan: "pro", paying: "sub_2", eventFor: "sub_1");
+
+        users.PlanChanges.Should().BeEmpty();
+    }
+
+    // ── A paid invoice asks Stripe first ─────────────────────────────────────
+
+    [TestCase("canceled")]
+    [TestCase("unpaid")]
+    [TestCase("incomplete_expired")]
+    public async Task ALateBillForAnEndedSubscriptionDoesNotBringProBack(string ended)
+    {
+        // Risk: a bill left open when Stripe cancelled the subscription can be
+        // paid weeks later. Pro came back with nothing behind it, and no later
+        // event would ever turn it off.
+        var users = await Received("invoice.payment_succeeded", "active",
+            live: _ => new StripeSubscriptionState(ended, null));
+
+        users.PlanChanges.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task ABillForASubscriptionStripeNoLongerHasChangesNothing()
+    {
+        var users = await Received("invoice.payment_succeeded", "active", live: _ => null);
+
+        users.PlanChanges.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task APaidBillForALiveSubscriptionTurnsOnProUntilItsPeriodEnds()
+    {
+        var end = new DateTime(2026, 12, 11, 0, 0, 0, DateTimeKind.Utc);
+        var users = await Received("invoice.payment_succeeded", "active",
+            live: _ => new StripeSubscriptionState("active", end));
+
+        users.PlanChanges.Should().ContainSingle().Which.Should().Be(("pro", (DateTime?)end, (string?)"sub_1"));
+    }
+
+    [Test]
+    public async Task ABillThatIsNotForASubscriptionChangesNothing()
+    {
+        var users = await Received("invoice.payment_succeeded", "active", eventFor: null);
+
+        users.PlanChanges.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task WhenStripeCannotBeAskedTheBillWaitsForTheSubscriptionsOwnEvent()
+    {
+        // Still a 200: Stripe must not keep retrying, and the subscription's
+        // created/updated events turn Pro on without this one.
+        var users = await Received("invoice.payment_succeeded", "active",
+            live: _ => throw new StripeException("connection reset"));
 
         users.PlanChanges.Should().BeEmpty();
     }

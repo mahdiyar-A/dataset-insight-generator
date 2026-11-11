@@ -37,6 +37,7 @@ public class AccountDeletionTests
         public Task<string> CreateCheckoutSessionAsync(string c, string s, string x) => _inner.CreateCheckoutSessionAsync(c, s, x);
         public Task<string> CreateBillingPortalSessionAsync(string c, string r) => _inner.CreateBillingPortalSessionAsync(c, r);
         public Task<StripeWebhookResult> HandleWebhookAsync(string p, string s) => _inner.HandleWebhookAsync(p, s);
+        public Task<StripeSubscriptionState?> GetSubscriptionAsync(string id) => _inner.GetSubscriptionAsync(id);
         public abstract Task CancelSubscriptionAsync(string subscriptionId);
     }
 

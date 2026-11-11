@@ -20,7 +20,12 @@ public interface IStripeService
 
     // Verifies a Stripe webhook payload and returns the event type + relevant data
     Task<StripeWebhookResult> HandleWebhookAsync(string payload, string signature);
+
+    /// <summary>The subscription as Stripe has it right now, or null when Stripe has no such subscription.</summary>
+    Task<StripeSubscriptionState?> GetSubscriptionAsync(string subscriptionId);
 }
+
+public record StripeSubscriptionState(string Status, DateTime? CurrentPeriodEnd);
 
 public record StripeWebhookResult(
     string EventType,

@@ -105,6 +105,19 @@ public class StripeService : IStripeService
         }
     }
 
+    public async Task<StripeSubscriptionState?> GetSubscriptionAsync(string subscriptionId)
+    {
+        try
+        {
+            var subscription = await new SubscriptionService().GetAsync(subscriptionId);
+            return new StripeSubscriptionState(subscription.Status, subscription.CurrentPeriodEnd);
+        }
+        catch (StripeException e) when (e.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
     public Task<StripeWebhookResult> HandleWebhookAsync(string payload, string signature)
     {
         // Only the signature is left to the library. Its own event parser refuses
