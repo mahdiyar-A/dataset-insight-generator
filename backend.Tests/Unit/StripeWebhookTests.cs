@@ -128,14 +128,16 @@ public class StripeWebhookTests
             Task.FromResult(_result);
     }
 
-    private static async Task<FakeUserRepository> Received(string type, string status)
+    private static async Task<FakeUserRepository> Received(
+        string type, string status, string plan = "free", string? paying = null, string eventFor = "sub_1")
     {
         var user = User.CreateWithId(Guid.NewGuid(), "Ada", "ada@example.com", "supabase-auth");
         user.SetStripeCustomerId("cus_1");
+        if (plan != "free") user.SetPlan(plan, null, paying);
         var users = new FakeUserRepository { DefaultUser = user };
 
         var controller = new PlansController(
-            new Scripted(new StripeWebhookResult(type, "cus_1", "sub_1", status, null)),
+            new Scripted(new StripeWebhookResult(type, "cus_1", eventFor, status, null)),
             users, new ConfigurationBuilder().Build(), NullLogger<PlansController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
@@ -173,5 +175,44 @@ public class StripeWebhookTests
         var users = await Received("customer.subscription.deleted", "canceled");
 
         users.PlanChanges.Should().ContainSingle().Which.Plan.Should().Be("free");
+    }
+
+    [TestCase("unpaid")]
+    [TestCase("canceled")]
+    [TestCase("incomplete_expired")]
+    public async Task ProEndsWhenPaymentsStopWithoutADeletion(string status)
+    {
+        // Risk: Stripe's "mark the subscription unpaid" setting never sends a
+        // deletion, and Pro used to stay on for free, for good.
+        var users = await Received("customer.subscription.updated", status, plan: "pro", paying: "sub_1");
+
+        users.PlanChanges.Should().ContainSingle().Which.Plan.Should().Be("free");
+    }
+
+    [Test]
+    public async Task ProStaysWhileStripeIsStillRetryingTheCard()
+    {
+        var users = await Received("customer.subscription.updated", "past_due", plan: "pro", paying: "sub_1");
+
+        users.PlanChanges.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task TheLateEndOfAnOlderSubscriptionLeavesTheCurrentOneAlone()
+    {
+        // Stripe does not promise order: the end of sub_1 can arrive after sub_2 is paid.
+        var users = await Received("customer.subscription.deleted", "canceled",
+            plan: "pro", paying: "sub_2", eventFor: "sub_1");
+
+        users.PlanChanges.Should().BeEmpty();
+    }
+
+    [TestCase("customer.subscription.deleted", "canceled")]
+    [TestCase("customer.subscription.updated", "active")]
+    public async Task BillingNeverChangesAnAdmin(string type, string status)
+    {
+        var users = await Received(type, status, plan: "admin");
+
+        users.PlanChanges.Should().BeEmpty();
     }
 }

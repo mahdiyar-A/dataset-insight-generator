@@ -103,6 +103,32 @@ public class SupabaseWireTests
         row["last_name"]!.Value<string>().Should().Be("King");
     }
 
+    // ── Plans ─────────────────────────────────────────────────────────────────
+
+    [Test]
+    public async Task Going_back_to_free_clears_the_renewal_date_and_subscription()
+    {
+        // Risk: empty values were skipped, so a cancelled customer kept their
+        // old renewal date and the plan page said "Free" over "Renews <date>".
+        await new UserRepository(_supabase.Client).SetPlanAsync(Guid.NewGuid(), "free", null, null);
+
+        var row = Row(Write("users"));
+        row["plan"]!.Value<string>().Should().Be("free");
+        row["plan_expires_at"]!.Type.Should().Be(JTokenType.Null);
+        row["stripe_subscription_id"]!.Type.Should().Be(JTokenType.Null);
+    }
+
+    [Test]
+    public async Task A_payment_without_a_date_keeps_the_known_renewal_date()
+    {
+        // A paid invoice carries no period end; the subscription event has it.
+        await new UserRepository(_supabase.Client).SetPlanAsync(Guid.NewGuid(), "pro", null, "sub_1");
+
+        var row = Row(Write("users"));
+        row.ContainsKey("plan_expires_at").Should().BeFalse();
+        row["stripe_subscription_id"]!.Value<string>().Should().Be("sub_1");
+    }
+
     // ── Analyses ──────────────────────────────────────────────────────────────
 
     [Test]

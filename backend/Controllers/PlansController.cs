@@ -219,6 +219,9 @@ public class PlansController : ControllerBase
             return Ok();
         }
 
+        // Admin is granted by hand; billing events never change it.
+        if (user.Plan == "admin") return Ok();
+
         switch (result.EventType)
         {
             case "customer.subscription.created":
@@ -226,19 +229,24 @@ public class PlansController : ControllerBase
             case "invoice.payment_succeeded":
                 // A subscription exists before its first payment clears, for
                 // example while a bank check is unfinished. Pro waits for the money.
-                if (result.Status is not ("active" or "trialing")) break;
-
-                await _users.SetPlanAsync(user.Id, "pro",
-                    planExpiresAt:      result.CurrentPeriodEnd,
-                    stripeSubscriptionId: result.SubscriptionId);
-                _logger.LogInformation("[Plans] Upgraded user {Id} to pro", user.Id);
+                if (result.Status is "active" or "trialing")
+                {
+                    await _users.SetPlanAsync(user.Id, "pro",
+                        planExpiresAt:      result.CurrentPeriodEnd,
+                        stripeSubscriptionId: result.SubscriptionId);
+                    _logger.LogInformation("[Plans] Upgraded user {Id} to pro", user.Id);
+                }
+                // Payments stopped for good without the subscription being deleted:
+                // Stripe's "mark as unpaid" setting does this. Pro used to stay on.
+                // past_due is left alone: Stripe is still retrying the card.
+                else if (user.Plan == "pro" && result.Status is ("canceled" or "unpaid" or "incomplete_expired"))
+                {
+                    await Downgrade(user, result);
+                }
                 break;
 
             case "customer.subscription.deleted":
-                // Subscription cancelled — downgrade to free
-                await _users.SetPlanAsync(user.Id, "free",
-                    planExpiresAt: null, stripeSubscriptionId: null);
-                _logger.LogInformation("[Plans] Downgraded user {Id} to free", user.Id);
+                await Downgrade(user, result);
                 break;
 
             case "invoice.payment_failed":
@@ -248,5 +256,24 @@ public class PlansController : ControllerBase
         }
 
         return Ok();
+    }
+
+    /// <summary>
+    /// Back to free, unless the event is about an older subscription than the
+    /// one the user now pays for: Stripe does not promise to deliver events in
+    /// order, and a late one must not take away a plan that is being paid for.
+    /// </summary>
+    private async Task Downgrade(backend.Domain.Entities.User user, StripeWebhookResult result)
+    {
+        if (user.StripeSubscriptionId is { Length: > 0 } current
+            && result.SubscriptionId is { Length: > 0 } ended
+            && current != ended)
+        {
+            _logger.LogInformation("[Plans] Ignored the end of an older subscription for user {Id}", user.Id);
+            return;
+        }
+
+        await _users.SetPlanAsync(user.Id, "free", planExpiresAt: null, stripeSubscriptionId: null);
+        _logger.LogInformation("[Plans] Downgraded user {Id} to free ({Status})", user.Id, result.Status);
     }
 }
