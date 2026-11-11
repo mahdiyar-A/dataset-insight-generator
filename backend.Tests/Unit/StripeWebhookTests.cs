@@ -207,6 +207,42 @@ public class StripeWebhookTests
         users.PlanChanges.Should().BeEmpty();
     }
 
+    // ── Manage subscription ──────────────────────────────────────────────────
+
+    private sealed class PortalNotSetUp : NoOpStripeService
+    {
+        public override Task<string> CreateBillingPortalSessionAsync(string customerId, string returnUrl) =>
+            throw new StripeException("No configuration provided and your live mode default configuration has not been created.");
+    }
+
+    [Test]
+    public async Task APortalStripeRefusesStillTellsTheCustomerHowToCancel()
+    {
+        // Risk: until the portal is set up in Stripe, a paying customer pressing
+        // "Manage subscription" got a bare server error and no way to cancel.
+        var user = User.CreateWithId(Guid.NewGuid(), "Ada", "ada@example.com", "supabase-auth");
+        user.SetStripeCustomerId("cus_1");
+        var controller = new PlansController(
+            new PortalNotSetUp(), new FakeUserRepository { DefaultUser = user },
+            new ConfigurationBuilder().Build(), NullLogger<PlansController>.Instance)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(
+                        new[] { new System.Security.Claims.Claim("sub", user.Id.ToString()) }, "test")),
+                },
+            },
+        };
+
+        var result = await controller.Portal();
+
+        var refused = result.Should().BeOfType<ObjectResult>().Subject;
+        refused.StatusCode.Should().Be(503);
+        System.Text.Json.JsonSerializer.Serialize(refused.Value).Should().Contain(PlansController.SupportEmail);
+    }
+
     [TestCase("customer.subscription.deleted", "canceled")]
     [TestCase("customer.subscription.updated", "active")]
     public async Task BillingNeverChangesAnAdmin(string type, string status)

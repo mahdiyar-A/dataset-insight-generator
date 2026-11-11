@@ -181,13 +181,32 @@ public class PlansController : ControllerBase
         if (user?.StripeCustomerId == null)
             return BadRequest(new { error = "NO_SUBSCRIPTION", message = "No active subscription found." });
 
-        var appUrl    = _config["AppUrl"]?.TrimEnd('/') ?? "https://datainsightgen.com";
-        var portalUrl = await _stripe.CreateBillingPortalSessionAsync(
-            user.StripeCustomerId,
-            returnUrl: $"{appUrl}/dashboard/plan");
+        var appUrl = _config["AppUrl"]?.TrimEnd('/') ?? "https://datainsightgen.com";
+        try
+        {
+            var portalUrl = await _stripe.CreateBillingPortalSessionAsync(
+                user.StripeCustomerId,
+                returnUrl: $"{appUrl}/dashboard/plan");
 
-        return Ok(new { url = portalUrl });
+            return Ok(new { url = portalUrl });
+        }
+        catch (Exception ex)
+        {
+            // Stripe refuses until its customer portal is set up in the
+            // dashboard, and the page showed a bare server error. A paying
+            // customer must always have a way to cancel.
+            _logger.LogError(ex, "[Plans] Billing portal failed for user {Id}", userId);
+            return StatusCode(503, new
+            {
+                error   = "PORTAL_UNAVAILABLE",
+                message = "Managing your plan online isn't available right now. " +
+                          $"Email {SupportEmail} and we'll change or cancel it for you.",
+            });
+        }
     }
+
+    /// <summary>The address the privacy policy gives for every request.</summary>
+    public const string SupportEmail = "dataset_insight_generator.ai@proton.me";
 
     // ── POST /api/plans/webhook ───────────────────────────────────────────────
     // Stripe sends signed events here. We update the user's plan based on them.
