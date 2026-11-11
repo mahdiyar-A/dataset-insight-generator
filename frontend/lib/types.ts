@@ -152,7 +152,16 @@ export interface Workspace {
   createdAt?: string;
   analysis?: WorkspaceAnalysis;
   myPermissions?: Record<string, FilePermission>;
+  /** True for the person who shared the analysis and for the team's owner. */
+  canManagePermissions?: boolean;
   annotations?: Annotation[];
+}
+
+/** One access rule in a workspace, as GET /api/workspaces/{id}/permissions returns it. */
+export interface WorkspacePermission {
+  userId: string;
+  fileType: string;
+  permission: FilePermission;
 }
 
 /**

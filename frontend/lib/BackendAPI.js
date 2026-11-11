@@ -317,6 +317,12 @@ export default class BackendAPI {
     return true;
   }
 
+  /** Every access rule set in a workspace: one per person per file, where one was set. */
+  static async getWorkspacePermissions(token, workspaceId) {
+    return req(`${API_BASE}/api/workspaces/${workspaceId}/permissions`,
+      { headers: authHeaders(token) }, "Failed to fetch permissions");
+  }
+
   static async setPermission(token, workspaceId, targetUserId, fileType, permission) {
     return req(`${API_BASE}/api/workspaces/${workspaceId}/permissions`,
       { method: "PUT", headers: authHeaders(token),

@@ -6,9 +6,14 @@ import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
 import { errorMessage } from "@/lib/types";
 
-type Team   = { id: string; name: string; ownerId: string; inviteCode: string; isOwner: boolean };
+type Team   = { id: string; name: string; ownerId: string; inviteCode: string; isOwner: boolean;
+                myRole?: string; memberCount?: number; maxMembers?: number };
 type Member = { userId: string; role: string; userName?: string; email?: string; plan?: string };
 type Invite = { id: string; email: string; role: string; createdAt: string; isPending: boolean };
+type Shared = { id: string; teamId: string; fileName?: string | null; sharedAt: string; canUnshare: boolean };
+
+// The server enforces the same number; this is only what to show before it answers.
+const DEFAULT_MAX_MEMBERS = 5;
 
 export default function TeamPage() {
   const router                    = useRouter();
@@ -23,12 +28,19 @@ export default function TeamPage() {
   const [newTeamName, setNewTeamName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole,  setInviteRole]  = useState("viewer");
-  const [tab,        setTab]        = useState<"members" | "invites">("members");
+  const [tab,        setTab]        = useState<"members" | "invites" | "shared">("members");
+  const [shared,     setShared]     = useState<Shared[]>([]);
+  const [notice,     setNotice]     = useState("");
 
   const isPro = user?.plan === "pro" || user?.plan === "admin";
   // Editors invite too; viewers read and comment. The server checks the same rule.
   const myRole = members.find(m => m.userId === user?.id)?.role;
   const canInvite = !!activeTeam && (activeTeam.isOwner || myRole === "editor");
+
+  // An invitation not yet answered holds a seat, so the two are counted together.
+  const maxMembers = activeTeam?.maxMembers ?? DEFAULT_MAX_MEMBERS;
+  const seatsUsed  = members.length + invites.length;
+  const teamFull   = seatsUsed >= maxMembers;
 
   const loadTeams = useCallback(async () => {
     if (!token) return;
@@ -42,12 +54,16 @@ export default function TeamPage() {
   const loadTeamDetail = useCallback(async (team: Team) => {
     if (!token) return;
     try {
-      const [m, i] = await Promise.all([
+      const [m, i, w] = await Promise.all([
         BackendAPI.getTeamMembers(token, team.id),
         BackendAPI.getPendingInvites(token, team.id),
+        // The list of what is shared is an extra here: if it can't be read,
+        // members and invitations still show.
+        BackendAPI.getMyWorkspaces(token).catch(() => []),
       ]);
       setMembers(m);
       setInvites(i);
+      setShared((w as Shared[]).filter(s => s.teamId === team.id));
     } catch (e) { setError(errorMessage(e)); }
   }, [token]);
 
@@ -74,13 +90,34 @@ export default function TeamPage() {
 
   const handleInvite = async () => {
     if (!inviteEmail.trim() || !activeTeam || !token) return;
-    setBusy(true); setError("");
+    setBusy(true); setError(""); setNotice("");
     try {
-      await BackendAPI.inviteMember(token, activeTeam.id, inviteEmail.trim(), inviteRole);
+      // The reply says what the person still needs: an account, Pro, or nothing.
+      const res = await BackendAPI.inviteMember(token, activeTeam.id, inviteEmail.trim(), inviteRole);
+      setNotice(res?.message ?? "Invitation sent.");
       setInviteEmail("");
       await loadTeamDetail(activeTeam);
     } catch (e) { setError(errorMessage(e)); }
     finally { setBusy(false); }
+  };
+
+  // The server could always change a role. Nothing on this page asked it to.
+  const handleRoleChange = async (memberId: string, role: string) => {
+    if (!activeTeam || !token) return;
+    setError(""); setNotice("");
+    try {
+      await BackendAPI.updateMemberRole(token, activeTeam.id, memberId, role);
+      await loadTeamDetail(activeTeam);
+    } catch (e) { setError(errorMessage(e)); }
+  };
+
+  const handleUnshare = async (workspaceId: string) => {
+    if (!activeTeam || !token) return;
+    if (!confirm("Stop sharing this analysis with the team? Its comments will be removed.")) return;
+    try {
+      await BackendAPI.unshareWorkspace(token, workspaceId);
+      await loadTeamDetail(activeTeam);
+    } catch (e) { setError(errorMessage(e)); }
   };
 
   const handleRemoveMember = async (memberId: string) => {
@@ -148,6 +185,14 @@ export default function TeamPage() {
           border: "1px solid rgba(239,68,68,0.2)", borderRadius: "8px",
           padding: "10px 14px", fontSize: "0.85rem", marginBottom: "16px" }}>
           {error}
+        </p>
+      )}
+
+      {notice && (
+        <p role="status" style={{ color: "#86efac", background: "rgba(22,163,74,0.08)",
+          border: "1px solid rgba(34,197,94,0.25)", borderRadius: "8px",
+          padding: "10px 14px", fontSize: "0.85rem", marginBottom: "16px" }}>
+          {notice}
         </p>
       )}
 
@@ -228,9 +273,14 @@ export default function TeamPage() {
               )}
             </div>
 
+            <p style={{ margin: "0 0 16px", color: teamFull ? "#fde68a" : "#64748b", fontSize: "0.8rem" }}>
+              {seatsUsed} of {maxMembers} seats used
+              {invites.length > 0 && ` (${invites.length} waiting on an invitation)`}
+            </p>
+
             {/* Tabs */}
             <div style={{ display: "flex", gap: "4px", marginBottom: "20px" }}>
-              {(["members", "invites"] as const).map(t => (
+              {(["members", "invites", "shared"] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)}
                   style={{ padding: "7px 16px", borderRadius: "8px", border: "none",
                     fontWeight: 600, fontSize: "0.83rem", cursor: "pointer",
@@ -258,6 +308,19 @@ export default function TeamPage() {
                       </p>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      {activeTeam.isOwner && m.role !== "owner" ? (
+                        <select
+                          value={m.role}
+                          aria-label={`Role for ${m.userName || m.email || "this member"}`}
+                          onChange={e => handleRoleChange(m.userId, e.target.value)}
+                          style={{ padding: "4px 8px", borderRadius: "8px",
+                            border: "1px solid rgba(30,41,59,0.8)",
+                            background: "rgba(2,6,23,0.6)", color: "#94a3b8",
+                            fontSize: "0.75rem", cursor: "pointer" }}>
+                          <option value="viewer">Viewer</option>
+                          <option value="editor">Editor</option>
+                        </select>
+                      ) : (
                       <span style={{ padding: "3px 10px", borderRadius: "999px",
                         background: m.role === "owner"
                           ? "rgba(124,58,237,0.15)" : "rgba(30,41,59,0.6)",
@@ -267,6 +330,7 @@ export default function TeamPage() {
                         fontSize: "0.72rem", fontWeight: 600 }}>
                         {m.role}
                       </span>
+                      )}
                       {activeTeam.isOwner && m.role !== "owner" && (
                         <button onClick={() => handleRemoveMember(m.userId)}
                           style={{ background: "none", border: "none",
@@ -279,7 +343,13 @@ export default function TeamPage() {
                 ))}
 
                 {/* Invite form */}
-                {isPro && canInvite && (
+                {isPro && canInvite && teamFull && (
+                  <p style={{ margin: "16px 0 0", color: "#fde68a", fontSize: "0.8rem" }}>
+                    This team is full. A team holds up to {maxMembers} people, counting invitations
+                    not yet answered. Remove a member or revoke an invitation to invite someone else.
+                  </p>
+                )}
+                {isPro && canInvite && !teamFull && (
                   <>
                   <div style={{ display: "flex", gap: "8px", marginTop: "16px",
                     flexWrap: "wrap" }}>
@@ -340,6 +410,49 @@ export default function TeamPage() {
                         Revoke
                       </button>
                     )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Analyses shared with this team. There was no list of them and
+                no link to one, so a shared workspace could not be opened. */}
+            {tab === "shared" && (
+              <div>
+                {shared.length === 0 ? (
+                  <p style={{ color: "#475569", fontSize: "0.85rem" }}>
+                    Nothing is shared with this team yet. Open an analysis on the dashboard
+                    and choose &ldquo;Share with a team&rdquo; in the report section.
+                  </p>
+                ) : shared.map(s => (
+                  <div key={s.id} style={{ display: "flex", justifyContent: "space-between",
+                    alignItems: "center", padding: "10px 14px", borderRadius: "10px",
+                    background: "rgba(2,6,23,0.4)", marginBottom: "8px",
+                    border: "1px solid rgba(30,41,59,0.5)" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ margin: "0 0 2px", fontWeight: 600, fontSize: "0.88rem",
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {s.fileName || "Analysis"}
+                      </p>
+                      <p style={{ margin: 0, color: "#475569", fontSize: "0.75rem" }}>
+                        Shared {new Date(s.sharedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
+                      <button onClick={() => router.push(`/workspace/${s.id}`)}
+                        style={{ padding: "6px 14px", borderRadius: "8px", border: "none",
+                          background: "rgba(37,99,235,0.3)", color: "#93c5fd",
+                          fontWeight: 600, fontSize: "0.78rem", cursor: "pointer" }}>
+                        Open
+                      </button>
+                      {s.canUnshare && (
+                        <button onClick={() => handleUnshare(s.id)}
+                          style={{ background: "none", border: "none",
+                            color: "#f87171", cursor: "pointer", fontSize: "0.78rem" }}>
+                          Stop sharing
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
