@@ -21,17 +21,26 @@ public class TeamsController : ControllerBase
     private readonly IEmailService       _email;
     private readonly IConfiguration      _config;
     private readonly ILogger<TeamsController> _logger;
+    private readonly ChatQuota           _quota;
+
+    /// <summary>
+    /// Invitation emails one person can send a day. Every invite is an email
+    /// from DIG's own address, on a sending allowance shared with sign-up and
+    /// password-reset emails, and there was no limit at all.
+    /// </summary>
+    public const int InvitesPerDay = 20;
 
     public TeamsController(
         ITeamRepository teams, IUserRepository users,
         IEmailService email, IConfiguration config,
-        ILogger<TeamsController> logger)
+        ILogger<TeamsController> logger, ChatQuota quota)
     {
         _teams  = teams;
         _users  = users;
         _email  = email;
         _config = config;
         _logger = logger;
+        _quota  = quota;
     }
 
     private Guid UserId()
@@ -123,8 +132,16 @@ public class TeamsController : ControllerBase
             return StatusCode(403, new { error = "EDITOR_REQUIRED", message = TeamRoles.ViewerCannot });
 
         var email = req.Email?.Trim().ToLowerInvariant();
-        if (string.IsNullOrWhiteSpace(email))
-            return BadRequest(new { error = "INVALID_EMAIL" });
+        if (string.IsNullOrWhiteSpace(email) || email.Length > 254
+            || !System.Net.Mail.MailAddress.TryCreate(email, out var parsed) || parsed.Address != email)
+            return BadRequest(new { error = "INVALID_EMAIL", message = "That doesn't look like an email address." });
+
+        if (!_quota.TryTake($"invite:{userId}", InvitesPerDay, out _))
+            return StatusCode(429, new
+            {
+                error   = "INVITE_LIMIT",
+                message = $"You've sent today's {InvitesPerDay} invitations. You can send more after midnight UTC.",
+            });
 
         var role   = req.Role is "editor" or "viewer" ? req.Role : "viewer";
         var invite = new TeamInvite(id, email, role, userId);
