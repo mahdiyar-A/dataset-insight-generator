@@ -82,6 +82,7 @@ builder.Services.AddScoped<IAnalysisRepository,  AnalysisRepository>();  // new 
 builder.Services.AddHostedService<UnfinishedRunSweep>();
 builder.Services.AddScoped<ITeamRepository,      TeamRepository>();
 builder.Services.AddScoped<IWorkspaceRepository, WorkspaceRepository>();
+builder.Services.AddScoped<ILiveAccess,          LiveAccess>();
 builder.Services.AddScoped<IStorageService,      SupabaseStorageService>();
 builder.Services.AddScoped<IEmailService,        SmtpEmailService>();
 builder.Services.AddScoped<IUserProfileService,  UserProfileService>();

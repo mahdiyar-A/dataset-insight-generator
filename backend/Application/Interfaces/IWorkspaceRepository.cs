@@ -19,8 +19,18 @@ public interface IWorkspaceRepository
     // ── Annotations ───────────────────────────────────────────────────────────
     Task<List<Annotation>> GetAnnotationsAsync(Guid workspaceId, string? fileType = null);
     Task<Annotation>       AddAnnotationAsync(Annotation annotation);
-    Task                   EditAnnotationAsync(Guid annotationId, Guid userId, string content);
-    Task                   ResolveAnnotationAsync(Guid annotationId, Guid userId);
+
+    /// <summary>
+    /// Change the words of the user's own comment in this workspace. Returns
+    /// the comment as saved, or null when there is no such comment of theirs.
+    /// </summary>
+    Task<Annotation?>      EditAnnotationAsync(Guid workspaceId, Guid annotationId, Guid userId, string content);
+
+    /// <summary>
+    /// Mark a comment in this workspace resolved, whoever wrote it. Who may do
+    /// that is the caller's to decide. False when the comment isn't in the workspace.
+    /// </summary>
+    Task<bool>             ResolveAnnotationAsync(Guid workspaceId, Guid annotationId);
     Task                   DeleteAnnotationAsync(Guid annotationId, Guid userId);
 
     /// <summary>

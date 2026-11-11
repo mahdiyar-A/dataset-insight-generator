@@ -49,9 +49,36 @@ public class WorkspaceController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetMyWorkspaces()
     {
-        var workspaces = await _workspaces.GetUserSharedWorkspacesAsync(UserId());
-        return Ok(workspaces.Select(WorkspaceToDto));
+        var userId     = UserId();
+        var workspaces = await _workspaces.GetUserSharedWorkspacesAsync(userId);
+
+        // A list of ids is no use to a person choosing what to open, so each
+        // entry carries the file's name and the team it was shared with.
+        var teamNames = new Dictionary<Guid, (string? Name, Guid? Owner)>();
+        var result    = new List<object>();
+        foreach (var ws in workspaces)
+        {
+            if (!teamNames.TryGetValue(ws.TeamId, out var team))
+            {
+                var t = await _teams.GetTeamAsync(ws.TeamId);
+                teamNames[ws.TeamId] = team = (t?.Name, t?.OwnerId);
+            }
+            var analysis = await _analyses.GetByIdAsync(ws.AnalysisId, ws.SharedBy);
+            result.Add(new
+            {
+                ws.Id, ws.TeamId, ws.AnalysisId, ws.SharedBy, ws.SharedAt,
+                teamName   = team.Name,
+                fileName   = analysis?.FileName,
+                completedAt = analysis?.CompletedAt,
+                canUnshare = ws.SharedBy == userId || team.Owner == userId,
+            });
+        }
+        return Ok(result);
     }
+
+    /// <summary>The person who shared the analysis, and the owner of the team it was shared with.</summary>
+    private async Task<bool> CanManageAsync(SharedWorkspace workspace, Guid userId) =>
+        workspace.SharedBy == userId || (await _teams.GetTeamAsync(workspace.TeamId))?.OwnerId == userId;
 
     // ── GET /api/workspaces/{id} ──────────────────────────────────────────────
     // Full workspace detail with analysis metadata, permissions, and annotations
@@ -84,7 +111,7 @@ public class WorkspaceController : ControllerBase
             ann.AuthorEmail = author?.Email;
         }
 
-        return Ok(WorkspaceToDetailDto(workspace, userId));
+        return Ok(WorkspaceToDetailDto(workspace, userId, await CanManageAsync(workspace, userId)));
     }
 
     // ── POST /api/workspaces ──────────────────────────────────────────────────
@@ -159,11 +186,23 @@ public class WorkspaceController : ControllerBase
         var workspace = await _workspaces.GetWorkspaceAsync(id);
         if (workspace == null) return NotFound();
 
-        // Only the person who shared the workspace can manage permissions
-        if (workspace.SharedBy != userId) return Forbid();
+        // The person who shared it, or the owner of the team: the same two who
+        // may stop sharing it.
+        if (!await CanManageAsync(workspace, userId)) return Forbid();
 
         if (!Guid.TryParse(req.TargetUserId, out var targetId))
             return BadRequest(new { error = "INVALID_USER_ID" });
+
+        // A rule for someone outside the team would sit unseen until they
+        // joined. And the two people who manage access always have it.
+        if (!await _teams.IsMemberAsync(workspace.TeamId, targetId))
+            return BadRequest(new { error = "NOT_A_MEMBER", message = "That person isn't in this team." });
+        if (await CanManageAsync(workspace, targetId))
+            return BadRequest(new
+            {
+                error   = "ALWAYS_HAS_ACCESS",
+                message = "The team owner and the person who shared this always have access.",
+            });
 
         var validFileTypes  = new[] { "original_csv", "cleaned_csv", "pdf", "word", "pptx", "charts", "all" };
         var validPermissions = new[] { "view", "edit", "none" };
@@ -225,8 +264,27 @@ public class WorkspaceController : ControllerBase
     public async Task<IActionResult> EditAnnotation(
         Guid wid, Guid aid, [FromBody] EditAnnotationRequest req)
     {
-        await _workspaces.EditAnnotationAsync(aid, UserId(), req.Content);
-        return Ok(new { message = "Annotation updated" });
+        var userId    = UserId();
+        var workspace = await _workspaces.GetWorkspaceAsync(wid);
+        if (workspace == null) return NotFound();
+        if (!await _teams.IsMemberAsync(workspace.TeamId, userId)) return Forbid();
+
+        var content = req.Content?.Trim();
+        if (string.IsNullOrEmpty(content))
+            return BadRequest(new { error = "EMPTY_COMMENT", message = "A comment can't be empty." });
+
+        var saved = await _workspaces.EditAnnotationAsync(wid, aid, userId, content);
+        if (saved == null)
+            return NotFound(new { error = "NOT_YOUR_COMMENT", message = "Only the person who wrote a comment can edit it." });
+
+        var author = await _users.GetByIdAsync(saved.UserId);
+        saved.AuthorName  = author?.UserName;
+        saved.AuthorEmail = author?.Email;
+
+        // The comment itself, as AddAnnotation returns it. This returned only
+        // "Annotation updated", which the page took for the comment: nothing on
+        // screen changed, for the editor or for anyone watching, until a reload.
+        return Ok(AnnToDto(saved));
     }
 
     // ── GET /api/workspaces/{id}/download/{fileKey} ───────────────────────
@@ -268,7 +326,15 @@ public class WorkspaceController : ControllerBase
     [HttpPost("{wid:guid}/annotations/{aid:guid}/resolve")]
     public async Task<IActionResult> Resolve(Guid wid, Guid aid)
     {
-        await _workspaces.ResolveAnnotationAsync(aid, UserId());
+        // Anyone in the team may close a thread, as anyone in it may comment.
+        // Only the author's own click used to count, with the button offered
+        // to everyone.
+        var workspace = await _workspaces.GetWorkspaceAsync(wid);
+        if (workspace == null) return NotFound();
+        if (!await _teams.IsMemberAsync(workspace.TeamId, UserId())) return Forbid();
+
+        if (!await _workspaces.ResolveAnnotationAsync(wid, aid))
+            return NotFound(new { error = "NO_SUCH_COMMENT", message = "That comment is no longer there." });
         return Ok(new { message = "Annotation resolved" });
     }
 
@@ -287,7 +353,7 @@ public class WorkspaceController : ControllerBase
         ws.Id, ws.TeamId, ws.AnalysisId, ws.SharedBy, ws.SharedAt, ws.TeamName
     };
 
-    private static object WorkspaceToDetailDto(SharedWorkspace ws, Guid viewingUserId)
+    private static object WorkspaceToDetailDto(SharedWorkspace ws, Guid viewingUserId, bool canManagePermissions)
     {
         // Determine the viewer's effective permission for each file type
         var perms = ws.Permissions
@@ -311,6 +377,7 @@ public class WorkspaceController : ControllerBase
                 ws.Analysis.ChartUrls,
             },
             myPermissions = perms,
+            canManagePermissions,
             annotations   = ws.Annotations.Select(AnnToDto),
         };
     }

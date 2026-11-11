@@ -133,6 +133,48 @@ public class CollaborationHub : Hub
         }
     }
 
+    // ── Access changes ───────────────────────────────────────────────────────
+    //
+    // The cache above never expires, so it has to be told when membership
+    // changes. It was not: a member removed from a team kept receiving every
+    // comment and cursor until the server restarted, and someone who opened a
+    // workspace link before accepting their invitation stayed locked out of the
+    // live channel after accepting it. See LiveAccess, which calls these.
+
+    /// <summary>Forget what is remembered about this user, so their next call is checked afresh.</summary>
+    public static void ForgetUser(Guid userId)
+    {
+        var id = userId.ToString();
+        foreach (var key in _membershipCache.Keys)
+            if (string.Equals(key.UserId, id, StringComparison.OrdinalIgnoreCase))
+                _membershipCache.TryRemove(key, out _);
+    }
+
+    /// <summary>
+    /// Cut this user's live connections to these workspaces. Forgetting the
+    /// cache alone is not enough: a connection already in a workspace's group
+    /// goes on receiving what is broadcast there.
+    /// </summary>
+    public static async Task EvictAsync(IHubContext<CollaborationHub> hub, Guid userId, IEnumerable<Guid> workspaceIds)
+    {
+        ForgetUser(userId);
+
+        var id    = userId.ToString();
+        var rooms = workspaceIds.Select(w => w.ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var theirs = _connections
+            .Where(c => string.Equals(c.Value.UserId, id, StringComparison.OrdinalIgnoreCase)
+                     && rooms.Contains(c.Value.WorkspaceId))
+            .ToList();
+
+        foreach (var (connectionId, info) in theirs)
+        {
+            if (!_connections.TryRemove(connectionId, out _)) continue;
+            await hub.Groups.RemoveFromGroupAsync(connectionId, info.WorkspaceId);
+            await hub.Clients.Client(connectionId).SendAsync("AccessRemoved", new { workspaceId = info.WorkspaceId });
+            await hub.Clients.Group(info.WorkspaceId).SendAsync("UserLeft", new { userId = info.UserId });
+        }
+    }
+
     // ── Presence ─────────────────────────────────────────────────────────────
 
     public async Task JoinWorkspace(string workspaceId)

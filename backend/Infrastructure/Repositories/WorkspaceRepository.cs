@@ -204,20 +204,43 @@ public class WorkspaceRepository : IWorkspaceRepository
         return ann;
     }
 
-    public async Task EditAnnotationAsync(Guid annotationId, Guid userId, string content) =>
+    public async Task<Annotation?> EditAnnotationAsync(Guid workspaceId, Guid annotationId, Guid userId, string content)
+    {
         await _db.From<AnnotationRow>()
-            .Filter("id",      Operator.Equals, annotationId.ToString())
-            .Filter("user_id", Operator.Equals, userId.ToString())
+            .Filter("id",                  Operator.Equals, annotationId.ToString())
+            .Filter("shared_workspace_id", Operator.Equals, workspaceId.ToString())
+            .Filter("user_id",             Operator.Equals, userId.ToString())
             .Set(r => r.Content,    content)
             .Set(r => r.UpdatedAt,  DateTime.UtcNow)
             .Update();
 
-    public async Task ResolveAnnotationAsync(Guid annotationId, Guid userId) =>
+        // Read it back with the same three conditions. A row found here is the
+        // one just changed; none means the comment isn't theirs or isn't here.
+        var saved = await _db.From<AnnotationRow>()
+            .Filter("id",                  Operator.Equals, annotationId.ToString())
+            .Filter("shared_workspace_id", Operator.Equals, workspaceId.ToString())
+            .Filter("user_id",             Operator.Equals, userId.ToString())
+            .Get();
+        return saved.Models.FirstOrDefault() is { } row ? AnnToDomain(row) : null;
+    }
+
+    public async Task<bool> ResolveAnnotationAsync(Guid workspaceId, Guid annotationId)
+    {
+        // Not filtered by author. It was, so resolving someone else's thread
+        // changed nothing, and the page showed it resolved until a reload.
+        var found = await _db.From<AnnotationRow>()
+            .Filter("id",                  Operator.Equals, annotationId.ToString())
+            .Filter("shared_workspace_id", Operator.Equals, workspaceId.ToString())
+            .Get();
+        if (found.Models.Count == 0) return false;
+
         await _db.From<AnnotationRow>()
-            .Filter("id",      Operator.Equals, annotationId.ToString())
-            .Filter("user_id", Operator.Equals, userId.ToString())
+            .Filter("id",                  Operator.Equals, annotationId.ToString())
+            .Filter("shared_workspace_id", Operator.Equals, workspaceId.ToString())
             .Set(r => r.ResolvedAt!, DateTime.UtcNow)
             .Update();
+        return true;
+    }
 
     public async Task DeleteAnnotationAsync(Guid annotationId, Guid userId)
     {

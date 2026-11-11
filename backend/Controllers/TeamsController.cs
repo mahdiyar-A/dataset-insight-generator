@@ -1,6 +1,7 @@
 using backend.Application.Interfaces;
 using backend.Application.Services;
 using backend.Domain.Entities;
+using backend.Hubs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -22,6 +23,7 @@ public class TeamsController : ControllerBase
     private readonly IConfiguration      _config;
     private readonly ILogger<TeamsController> _logger;
     private readonly ChatQuota           _quota;
+    private readonly ILiveAccess         _live;
 
     /// <summary>
     /// Invitation emails one person can send a day. Every invite is an email
@@ -30,10 +32,17 @@ public class TeamsController : ControllerBase
     /// </summary>
     public const int InvitesPerDay = 20;
 
+    /// <summary>
+    /// People in one team, the owner included. Invitations not yet answered
+    /// hold a seat too: otherwise ten could be sent and the sixth person to
+    /// accept would find the team full. Nothing enforced a size before.
+    /// </summary>
+    public const int MaxMembers = 5;
+
     public TeamsController(
         ITeamRepository teams, IUserRepository users,
         IEmailService email, IConfiguration config,
-        ILogger<TeamsController> logger, ChatQuota quota)
+        ILogger<TeamsController> logger, ChatQuota quota, ILiveAccess live)
     {
         _teams  = teams;
         _users  = users;
@@ -41,6 +50,7 @@ public class TeamsController : ControllerBase
         _config = config;
         _logger = logger;
         _quota  = quota;
+        _live   = live;
     }
 
     private Guid UserId()
@@ -62,12 +72,26 @@ public class TeamsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetMyTeams()
     {
-        var teams = await _teams.GetUserTeamsAsync(UserId());
-        return Ok(teams.Select(t => new
+        var userId = UserId();
+        var teams  = await _teams.GetUserTeamsAsync(userId);
+
+        var result = new List<object>();
+        foreach (var t in teams)
         {
-            t.Id, t.Name, t.OwnerId, t.InviteCode, t.CreatedAt,
-            isOwner = t.OwnerId == UserId()
-        }));
+            // The role decides what the pages offer: only editors and the owner
+            // share analyses and invite people.
+            var members = await _teams.GetMembersAsync(t.Id);
+            var isOwner = t.OwnerId == userId;
+            result.Add(new
+            {
+                t.Id, t.Name, t.OwnerId, t.InviteCode, t.CreatedAt,
+                isOwner,
+                myRole      = isOwner ? "owner" : members.FirstOrDefault(m => m.UserId == userId)?.Role ?? "viewer",
+                memberCount = members.Count,
+                maxMembers  = MaxMembers,
+            });
+        }
+        return Ok(result);
     }
 
     // ── POST /api/teams ────────────────────────────────────────────────────────
@@ -136,6 +160,30 @@ public class TeamsController : ControllerBase
             || !System.Net.Mail.MailAddress.TryCreate(email, out var parsed) || parsed.Address != email)
             return BadRequest(new { error = "INVALID_EMAIL", message = "That doesn't look like an email address." });
 
+        // Who this address belongs to, if anyone. The invitation is the same
+        // either way; the reply tells the inviter what the person still needs.
+        var invitee = await _users.GetByEmailAsync(email);
+        var members = await _teams.GetMembersAsync(id);
+        var pending = await _teams.GetPendingInvitesAsync(id);
+
+        if (invitee != null && members.Any(m => m.UserId == invitee.Id))
+            return Conflict(new { error = "ALREADY_MEMBER", message = $"{email} is already in this team." });
+
+        if (pending.Any(i => i.Email == email))
+            return Conflict(new
+            {
+                error   = "ALREADY_INVITED",
+                message = $"{email} already has an invitation waiting. The team owner can revoke it to send a new one.",
+            });
+
+        if (members.Count + pending.Count >= MaxMembers)
+            return Conflict(new
+            {
+                error   = "TEAM_FULL",
+                message = $"A team holds up to {MaxMembers} people, counting invitations not yet answered. "
+                        + "Remove a member or revoke an invitation to make room.",
+            });
+
         if (!_quota.TryTake($"invite:{userId}", InvitesPerDay, out _))
             return StatusCode(429, new
             {
@@ -159,10 +207,31 @@ public class TeamsController : ControllerBase
         }
         catch (Exception ex)
         {
+            // This used to be logged and then reported as "Invitation sent".
+            // An invitation nobody received is not one: take it back, and give
+            // back the day's allowance it used.
             _logger.LogError(ex, "[Teams] Failed to send invite email to {Email}", email);
+            try { await _teams.RevokeInviteAsync(invite.Id, id); }
+            catch (Exception revokeEx) { _logger.LogError(revokeEx, "[Teams] Could not withdraw unsent invite {Id}", invite.Id); }
+            _quota.Refund($"invite:{userId}");
+            return StatusCode(502, new
+            {
+                error   = "EMAIL_FAILED",
+                message = "The invitation email couldn't be sent, so nothing was saved. Please try again in a few minutes.",
+            });
         }
 
-        return Ok(new { message = $"Invitation sent to {email}", invite.Id });
+        var status = invitee == null ? "no_account"
+                   : invitee.Plan is "pro" or "admin" ? "ready"
+                   : "needs_pro";
+        var next = status switch
+        {
+            "ready"     => "They can accept it from the email.",
+            "needs_pro" => "They have a DIG account on the Free plan, and will need Pro to join.",
+            _           => "They don't have a DIG account yet. They'll need to sign up with this address and be on Pro to join.",
+        };
+
+        return Ok(new { message = $"Invitation sent to {email}. {next}", invite.Id, inviteeStatus = status });
     }
 
     // ── POST /api/teams/accept/{token} ─────────────────────────────────────────
@@ -192,8 +261,19 @@ public class TeamsController : ControllerBase
         // A second invite to someone already in the team must not fail on the
         // one-membership-per-team rule in the database.
         if (!await _teams.IsMemberAsync(invite.TeamId, userId))
+        {
+            // An invitation holds a seat, so this only stops one that was sent
+            // before the limit existed.
+            if ((await _teams.GetMembersAsync(invite.TeamId)).Count >= MaxMembers)
+                return Conflict(new
+                {
+                    error   = "TEAM_FULL",
+                    message = $"This team already has {MaxMembers} people. Ask the team owner to make room.",
+                });
             await _teams.AddMemberAsync(new TeamMember(invite.TeamId, userId, invite.Role));
+        }
         await _teams.AcceptInviteAsync(token);
+        _live.Granted(userId);
 
         return Ok(new { message = "Joined team successfully", teamId = invite.TeamId });
     }
@@ -206,9 +286,15 @@ public class TeamsController : ControllerBase
         var team   = await _teams.GetTeamAsync(id);
         if (team == null || team.OwnerId != userId) return Forbid();
 
-        var role = req.Role is "editor" or "viewer" ? req.Role : "viewer";
-        await _teams.UpdateMemberRoleAsync(id, memberId, role);
-        return Ok(new { message = "Role updated" });
+        if (req.Role is not ("editor" or "viewer"))
+            return BadRequest(new { error = "INVALID_ROLE", message = "A role is either editor or viewer." });
+        if (memberId == team.OwnerId)
+            return BadRequest(new { error = "OWNER_ROLE_FIXED", message = "The owner's role can't be changed." });
+        if (!await _teams.IsMemberAsync(id, memberId))
+            return NotFound(new { error = "NOT_A_MEMBER", message = "That person isn't in this team." });
+
+        await _teams.UpdateMemberRoleAsync(id, memberId, req.Role);
+        return Ok(new { message = "Role updated", role = req.Role });
     }
 
     // ── DELETE /api/teams/{id}/members/{memberId} ──────────────────────────────
@@ -223,6 +309,7 @@ public class TeamsController : ControllerBase
         if (team.OwnerId != userId && memberId != userId) return Forbid();
 
         await _teams.RemoveMemberAsync(id, memberId);
+        await _live.RevokedAsync(id, memberId);
         return NoContent();
     }
 
