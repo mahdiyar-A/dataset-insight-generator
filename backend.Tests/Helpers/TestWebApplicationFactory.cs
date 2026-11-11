@@ -162,7 +162,21 @@ public class NoOpEmailService : IEmailService
     public Task SendPasswordResetAsync(string toEmail, string userName, string token) => Task.CompletedTask;
     public Task SendEmailChangeVerificationAsync(string toNewEmail, string userName, string token) => Task.CompletedTask;
     public Task SendPhoneOtpAsync(string toEmail, string userName, string otp) => Task.CompletedTask;
-    public Task SendTeamInviteAsync(string toEmail, string inviterName, string teamName, string inviteUrl, string role) => Task.CompletedTask;
+    /// <summary>Every invitation send, in order.</summary>
+    public List<string> SentInvites { get; } = new();
+
+    /// <summary>When true, SendTeamInviteAsync throws, as a refused SMTP send does.</summary>
+    public bool ThrowOnInvite { get; set; } = false;
+
+    public Task SendTeamInviteAsync(string toEmail, string inviterName, string teamName, string inviteUrl, string role)
+    {
+        if (ThrowOnInvite)
+            throw new InvalidOperationException(
+                "SMTP connect failed: smtp.internal.example.com:587 auth user=dig-mailer");
+
+        SentInvites.Add(toEmail);
+        return Task.CompletedTask;
+    }
 
     public Task SendReportAsync(string toEmail, string userName, byte[] pdfBytes, string reportFileName)
     {

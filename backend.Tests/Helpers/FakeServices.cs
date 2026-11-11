@@ -227,8 +227,14 @@ public class FakeUserRepository : IUserRepository
     public Task<User?> GetByIdAsync(Guid id) =>
         Task.FromResult<User?>(DefaultUser ?? MakeDefault(id));
 
+    /// <summary>
+    /// Who an address belongs to, for tests where that matters. Unset, every
+    /// address belongs to DefaultUser, as before.
+    /// </summary>
+    public Func<string, User?>? ByEmail { get; set; }
+
     public Task<User?> GetByEmailAsync(string email) =>
-        Task.FromResult<User?>(DefaultUser);
+        Task.FromResult(ByEmail != null ? ByEmail(email) : DefaultUser);
 
     public Task<User?> GetByStripeCustomerIdAsync(string stripeCustomerId) =>
         Task.FromResult(DefaultUser?.StripeCustomerId == stripeCustomerId ? DefaultUser : null);

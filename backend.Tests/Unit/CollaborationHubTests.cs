@@ -268,6 +268,66 @@ public class CollaborationHubTests
             "membership should be resolved once, not per event");
     }
 
+    // ── Membership changes ───────────────────────────────────────────────────
+    //
+    // The cache never expires, so it kept whatever it first learned. A member
+    // removed from a team went on receiving every comment and cursor until the
+    // server restarted.
+
+    [Test]
+    public async Task ARemovedMemberLosesTheLiveChannel()
+    {
+        SignInAs(_memberId);
+        await _hub.JoinWorkspace(_workspaceId.ToString());
+        var connectionId = _hub.Context.ConnectionId;
+
+        _teams.MemberIds.Remove(_memberId);
+        var context = new StubHubContext();
+        await CollaborationHub.EvictAsync(context, _memberId, new[] { _workspaceId });
+
+        var act = async () => await _hub.MoveCursor(_workspaceId.ToString(), "pdf", 1, 2);
+        await act.Should().ThrowAsync<HubException>("their membership has to be checked again, not remembered");
+
+        // Risk: forgetting the cache alone leaves the open connection in the
+        // group, still receiving everything broadcast to it.
+        context.GroupList.Removed.Should().ContainSingle()
+            .Which.Should().Be(new GroupAdd(connectionId, _workspaceId.ToString()));
+        context.Everyone.AllClients.Sent.Select(m => m.Method)
+            .Should().Contain(new[] { "AccessRemoved", "UserLeft" });
+    }
+
+    [Test]
+    public async Task RemovalFromOneTeamLeavesOtherWorkspacesAlone()
+    {
+        // Risk: cutting every connection the person has, when they were removed
+        // from one team and are still in another.
+        SignInAs(_memberId);
+        await _hub.JoinWorkspace(_workspaceId.ToString());
+
+        var context = new StubHubContext();
+        await CollaborationHub.EvictAsync(context, _memberId, new[] { Guid.NewGuid() });
+
+        context.GroupList.Removed.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task SomeoneTurnedAwayBeforeJoiningTheTeamGetsInAfterwards()
+    {
+        // Opening a workspace link before accepting the invitation is an easy
+        // thing to do. The "no" was remembered for good.
+        SignInAs(_outsiderId);
+        var early = async () => await _hub.JoinWorkspace(_workspaceId.ToString());
+        await early.Should().ThrowAsync<HubException>();
+
+        _teams.MemberIds.Add(_outsiderId);
+        CollaborationHub.ForgetUser(_outsiderId);
+
+        var groups = (StubGroupManager)_hub.Groups;
+        await _hub.JoinWorkspace(_workspaceId.ToString());
+
+        groups.Added.Should().ContainSingle();
+    }
+
     // ── Presence ─────────────────────────────────────────────────────────────
 
     [Test]
@@ -314,8 +374,8 @@ internal class StubWorkspaceRepository : IWorkspaceRepository
     public Task RemovePermissionAsync(Guid workspaceId, Guid userId, string fileType) => Task.CompletedTask;
     public Task<List<Annotation>> GetAnnotationsAsync(Guid workspaceId, string? fileType = null) => Task.FromResult(new List<Annotation>());
     public Task<Annotation> AddAnnotationAsync(Annotation annotation) => Task.FromResult(annotation);
-    public Task EditAnnotationAsync(Guid annotationId, Guid userId, string content) => Task.CompletedTask;
-    public Task ResolveAnnotationAsync(Guid annotationId, Guid userId) => Task.CompletedTask;
+    public Task<Annotation?> EditAnnotationAsync(Guid workspaceId, Guid annotationId, Guid userId, string content) => Task.FromResult<Annotation?>(null);
+    public Task<bool> ResolveAnnotationAsync(Guid workspaceId, Guid annotationId) => Task.FromResult(false);
     public Task DeleteAnnotationAsync(Guid annotationId, Guid userId) => Task.CompletedTask;
 }
 
@@ -356,7 +416,17 @@ internal class StubClientProxy : IClientProxy
     }
 }
 
-internal class StubHubCallerClients : IHubCallerClients
+/// <summary>What a controller holds to reach the hub's clients from outside a hub call.</summary>
+internal class StubHubContext : IHubContext<CollaborationHub>
+{
+    public StubHubCallerClients Everyone  { get; } = new();
+    public StubGroupManager     GroupList { get; } = new();
+
+    public IHubClients   Clients => Everyone;
+    public IGroupManager Groups  => GroupList;
+}
+
+internal class StubHubCallerClients : IHubCallerClients, IHubClients
 {
     public StubClientProxy Caller { get; } = new();
     public StubClientProxy Others { get; } = new();
