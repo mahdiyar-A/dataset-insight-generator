@@ -185,7 +185,7 @@ public class NoOpStripeService : IStripeService
     public Task<string> CreateCheckoutSessionAsync(string customerId, string successUrl, string cancelUrl) =>
         Task.FromResult("https://checkout.stripe.com/fake");
 
-    public Task<string> CreateBillingPortalSessionAsync(string customerId, string returnUrl) =>
+    public virtual Task<string> CreateBillingPortalSessionAsync(string customerId, string returnUrl) =>
         Task.FromResult("https://billing.stripe.com/fake");
 
     public Task CancelSubscriptionAsync(string subscriptionId) => Task.CompletedTask;
