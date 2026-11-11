@@ -1,4 +1,5 @@
 using backend.Application.Interfaces;
+using backend.Application.Services;
 using backend.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -117,6 +118,9 @@ public class TeamsController : ControllerBase
 
         if (!await IsProAsync(userId))
             return StatusCode(402, new { error = "PRO_REQUIRED" });
+
+        if (!await _teams.CanContributeAsync(id, userId))
+            return StatusCode(403, new { error = "EDITOR_REQUIRED", message = TeamRoles.ViewerCannot });
 
         var email = req.Email?.Trim().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(email))

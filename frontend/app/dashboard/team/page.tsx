@@ -26,6 +26,9 @@ export default function TeamPage() {
   const [tab,        setTab]        = useState<"members" | "invites">("members");
 
   const isPro = user?.plan === "pro" || user?.plan === "admin";
+  // Editors invite too; viewers read and comment. The server checks the same rule.
+  const myRole = members.find(m => m.userId === user?.id)?.role;
+  const canInvite = !!activeTeam && (activeTeam.isOwner || myRole === "editor");
 
   const loadTeams = useCallback(async () => {
     if (!token) return;
@@ -276,7 +279,8 @@ export default function TeamPage() {
                 ))}
 
                 {/* Invite form */}
-                {isPro && activeTeam.isOwner && (
+                {isPro && canInvite && (
+                  <>
                   <div style={{ display: "flex", gap: "8px", marginTop: "16px",
                     flexWrap: "wrap" }}>
                     <input
@@ -305,6 +309,10 @@ export default function TeamPage() {
                       Send invite
                     </button>
                   </div>
+                  <p style={{ margin: "8px 0 0", color: "#64748b", fontSize: "0.78rem" }}>
+                    Viewers can read and comment. Editors can also share analyses and invite people.
+                  </p>
+                  </>
                 )}
               </div>
             )}

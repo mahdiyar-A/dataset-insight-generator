@@ -103,6 +103,10 @@ public class WorkspaceController : ControllerBase
         if (!await _teams.IsMemberAsync(req.TeamId, userId))
             return Forbid();
 
+        // Viewers read and comment; sharing into the team is for editors and the owner.
+        if (!await _teams.CanContributeAsync(req.TeamId, userId))
+            return StatusCode(403, new { error = "EDITOR_REQUIRED", message = TeamRoles.ViewerCannot });
+
         var workspace = await _workspaces.ShareAnalysisAsync(
             new SharedWorkspace(req.TeamId, req.AnalysisId, userId));
 

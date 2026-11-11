@@ -17,12 +17,19 @@ public class FakeTeamRepository : ITeamRepository
         return Task.CompletedTask;
     }
 
-    public Task<Team?> GetTeamAsync(Guid teamId) => throw new NotSupportedException();
+    // Set a team to answer team, member and invite calls; without one they fail loudly.
+    public Team? Team { get; set; }
+    public List<TeamMember> MemberRows { get; } = new();
+    public List<TeamInvite> CreatedInvites { get; } = new();
+
+    public Task<Team?> GetTeamAsync(Guid teamId) =>
+        Team != null ? Task.FromResult<Team?>(Team.Id == teamId ? Team : null) : throw new NotSupportedException();
     public Task<List<Team>> GetUserTeamsAsync(Guid userId) => Task.FromResult(new List<Team>());
     public Task<Team> CreateTeamAsync(Team team) => throw new NotSupportedException();
     public Task UpdateTeamAsync(Team team) => throw new NotSupportedException();
     public Task DeleteTeamAsync(Guid teamId, Guid ownerId) => throw new NotSupportedException();
-    public Task<List<TeamMember>> GetMembersAsync(Guid teamId) => throw new NotSupportedException();
+    public Task<List<TeamMember>> GetMembersAsync(Guid teamId) =>
+        Team != null ? Task.FromResult(MemberRows.ToList()) : throw new NotSupportedException();
     public Task AddMemberAsync(TeamMember member) => throw new NotSupportedException();
     public Task UpdateMemberRoleAsync(Guid teamId, Guid userId, string role) => throw new NotSupportedException();
     public Task RemoveMemberAsync(Guid teamId, Guid userId) => throw new NotSupportedException();
@@ -30,7 +37,12 @@ public class FakeTeamRepository : ITeamRepository
     public Task<bool> IsMemberAsync(Guid teamId, Guid userId) => Task.FromResult(Members.Contains(userId));
     public Task<TeamInvite?> GetInviteByTokenAsync(string token) => throw new NotSupportedException();
     public Task<List<TeamInvite>> GetPendingInvitesAsync(Guid teamId) => throw new NotSupportedException();
-    public Task<TeamInvite> CreateInviteAsync(TeamInvite invite) => throw new NotSupportedException();
+    public Task<TeamInvite> CreateInviteAsync(TeamInvite invite)
+    {
+        if (Team == null) throw new NotSupportedException();
+        CreatedInvites.Add(invite);
+        return Task.FromResult(invite);
+    }
     public Task AcceptInviteAsync(string token) => throw new NotSupportedException();
     public Task RevokeInviteAsync(Guid inviteId, Guid teamId) => throw new NotSupportedException();
 }
