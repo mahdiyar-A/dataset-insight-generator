@@ -100,6 +100,16 @@ public class UserRepository : IUserRepository
             .Filter("id", Operator.Equals, userId.ToString())
             .Set(r => r.Plan, plan);
 
+        // Back on the free plan nothing renews. Skipping the empty values kept the
+        // old renewal date, and the plan page said "Free" over "Renews <date>".
+        if (plan == "free")
+        {
+            await q.Set(r => r.PlanExpiresAt!, null)
+                   .Set(r => r.StripeSubscriptionId!, null)
+                   .Update();
+            return;
+        }
+
         if (planExpiresAt.HasValue)
             q = q.Set(r => r.PlanExpiresAt!, planExpiresAt.Value);
 

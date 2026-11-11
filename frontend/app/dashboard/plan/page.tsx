@@ -132,9 +132,11 @@ function PlanManagementContent() {
               color: isPro ? "#60a5fa" : isAdmin ? "#a78bfa" : "#e2e8f0" }}>
               {isAdmin ? "Admin" : isPro ? "Pro" : "Free"}
             </h2>
-            {expiresAt && (
+            {/* "Paid through", not "Renews": a Pro who cancels keeps Pro to this
+                date and is not renewed, and a free plan has nothing to renew. */}
+            {isPro && expiresAt && (
               <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: "0.82rem" }}>
-                Renews {expiresAt}
+                Paid through {expiresAt}
               </p>
             )}
           </div>
