@@ -6,6 +6,7 @@ import { useAuth } from "@/app/contexts/AuthContext";
 import { useSettings } from "@/app/contexts/SettingsContext";
 import BackendAPI from "@/lib/BackendAPI";
 import { cleanedFileName } from "@/lib/uploadFormats";
+import ShareWithTeam from "@/components/ShareWithTeam";
 
 const T = {
   en: {
@@ -286,6 +287,7 @@ export default function DownloadCard({ dataset }) {
             onClick={() => reportReady && handleEmail()}>
             {emailSending ? t.emailSending : emailSent ? t.emailSent : t.emailBtn}
           </button>
+          {reportReady && <ShareWithTeam analysisId={dataset?.id} />}
         </div>
 
         <p className="muted-small" style={{ fontStyle:"italic" }}>

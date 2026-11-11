@@ -9,10 +9,12 @@ import {
   mergeAnnotation, replaceAnnotation, markResolved, removeAnnotation, colorFor,
 } from "@/lib/annotations";
 import { errorMessage } from "@/lib/types";
-import type { Workspace, Annotation } from "@/lib/types";
+import type { Workspace, Annotation, WorkspacePermission } from "@/lib/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Presence = { userId: string; userName: string; color: string; fileType?: string };
+
+type Teammate = { userId: string; role: string; userName?: string; email?: string };
 
 type Cursor = {
   userId: string; userName: string; color: string;
@@ -68,6 +70,9 @@ export default function WorkspacePage() {
   const [editDraft,    setEditDraft]    = useState("");
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState("");
+  const [teammates,    setTeammates]    = useState<Teammate[]>([]);
+  const [permissions,  setPermissions]  = useState<WorkspacePermission[]>([]);
+  const [accessError,  setAccessError]  = useState("");
 
   const hubRef        = useRef<signalR.HubConnection | null>(null);
   const previewRef    = useRef<HTMLDivElement | null>(null);
@@ -105,6 +110,52 @@ export default function WorkspacePage() {
     // current one when the user navigates between workspaces quickly.
     return () => { cancelled = true; };
   }, [token, isLoading, wsId, router]);
+
+  // ── Who can open which file ───────────────────────────────────────────────
+  // Only for the two people who may change it: the one who shared the analysis
+  // and the team's owner. The server could always store these rules, and no
+  // page offered a way to set one.
+  const canManage = Boolean(workspace?.canManagePermissions);
+  const teamId    = workspace?.teamId;
+
+  useEffect(() => {
+    if (!token || !canManage || !teamId) return;
+    let cancelled = false;
+    Promise.all([
+      BackendAPI.getTeamMembers(token, teamId),
+      BackendAPI.getWorkspacePermissions(token, wsId),
+    ])
+      .then(([members, rules]) => {
+        if (cancelled) return;
+        setTeammates(members);
+        setPermissions(rules);
+      })
+      .catch(e => { if (!cancelled) setAccessError(errorMessage(e)); });
+    return () => { cancelled = true; };
+  }, [token, canManage, teamId, wsId]);
+
+  // The owner and the person who shared always have access, so they are not listed.
+  const restrictable = teammates.filter(
+    m => m.role !== "owner" && m.userId !== workspace?.sharedBy);
+
+  /** "none" only when a rule says so: for this file, or failing that for every file. */
+  const accessFor = (userId: string, fileKey: string): "view" | "none" => {
+    const rule = permissions.find(p => p.userId === userId && p.fileType === fileKey)
+              ?? permissions.find(p => p.userId === userId && p.fileType === "all");
+    return rule?.permission === "none" ? "none" : "view";
+  };
+
+  const handleSetAccess = async (userId: string, fileKey: string, permission: "view" | "none") => {
+    if (!token) return;
+    setAccessError("");
+    try {
+      await BackendAPI.setPermission(token, wsId, userId, fileKey, permission);
+      setPermissions(prev => [
+        ...prev.filter(p => !(p.userId === userId && p.fileType === fileKey)),
+        { userId, fileType: fileKey, permission },
+      ]);
+    } catch (e) { setAccessError(errorMessage(e)); }
+  };
 
   // ── SignalR connection ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -155,6 +206,13 @@ export default function WorkspacePage() {
 
     hub.on("AnnotationDeleted", (id: string) => {
       setAnnotations(prev => removeAnnotation(prev, id));
+    });
+
+    // Sent to someone removed from the team while they have the workspace open.
+    // The server has already stopped sending them anything; this says why.
+    hub.on("AccessRemoved", () => {
+      setError("You no longer have access to this workspace.");
+      hub.stop();
     });
 
     // Re-join after an automatic reconnect, otherwise the connection is live but
@@ -421,6 +479,49 @@ export default function WorkspacePage() {
                 ? new Date(workspace.analysis.completedAt).toLocaleDateString("en-CA")
                 : "In progress"}
             </p>
+          </div>
+        )}
+
+        {/* Who can open the selected file */}
+        {canManage && activeFile && (
+          <div style={{ marginTop: "16px", padding: "14px", borderRadius: "10px",
+            background: "rgba(15,23,42,0.6)", border: "1px solid rgba(30,41,59,0.6)" }}>
+            <p style={{ margin: "0 0 8px", color: "#475569", fontSize: "0.72rem",
+              textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Who can open {activeFile.label}
+            </p>
+            {restrictable.length === 0 ? (
+              <p style={{ margin: 0, fontSize: "0.76rem", color: "#475569" }}>
+                Nobody else is in the team yet.
+              </p>
+            ) : restrictable.map(m => {
+              const name = m.userName || m.email || "Member";
+              return (
+                <div key={m.userId} style={{ display: "flex", alignItems: "center",
+                  justifyContent: "space-between", gap: "8px", marginBottom: "6px" }}>
+                  <span title={m.email} style={{ fontSize: "0.78rem", color: "#94a3b8", minWidth: 0,
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {name}
+                  </span>
+                  <select
+                    aria-label={`Access to ${activeFile.label} for ${name}`}
+                    value={accessFor(m.userId, activeFile.key)}
+                    onChange={e => handleSetAccess(m.userId, activeFile.key,
+                      e.target.value === "none" ? "none" : "view")}
+                    style={{ padding: "3px 6px", borderRadius: "6px", flexShrink: 0,
+                      border: "1px solid rgba(30,41,59,0.8)", background: "rgba(2,6,23,0.6)",
+                      color: "#94a3b8", fontSize: "0.72rem", cursor: "pointer" }}>
+                    <option value="view">Can open</option>
+                    <option value="none">No access</option>
+                  </select>
+                </div>
+              );
+            })}
+            {accessError && (
+              <p role="alert" style={{ margin: "6px 0 0", fontSize: "0.72rem", color: "#f87171" }}>
+                {accessError}
+              </p>
+            )}
           </div>
         )}
       </div>
