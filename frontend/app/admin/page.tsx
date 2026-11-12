@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
+import AdminModels from "@/components/AdminModels";
 import { errorMessage } from "@/lib/types";
 
 type UserRow = {
@@ -115,7 +116,7 @@ export default function AdminPage() {
   const [planFilter, setPlanFilter] = useState("");
   const [busy,    setBusy]    = useState(false);
   const [error,   setError]   = useState("");
-  const [tab,     setTab]     = useState<"overview" | "analytics" | "users">("overview");
+  const [tab,     setTab]     = useState<"overview" | "analytics" | "models" | "users">("overview");
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
 
   const isAdmin = user?.plan === "admin";
@@ -232,7 +233,7 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div style={{ display: "flex", gap: "4px", marginBottom: "28px" }}>
-        {(["overview", "analytics", "users"] as const).map(t => (
+        {(["overview", "analytics", "models", "users"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
             style={{ padding: "8px 20px", borderRadius: "8px", border: "none",
               fontWeight: 600, fontSize: "0.85rem", cursor: "pointer",
@@ -381,6 +382,9 @@ export default function AdminPage() {
           </div>
         )
       )}
+
+      {/* The AI models, and the alarm that watches them */}
+      {tab === "models" && token && <AdminModels token={token} />}
 
       {/* Users */}
       {tab === "users" && (
