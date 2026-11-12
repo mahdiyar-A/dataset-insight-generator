@@ -162,6 +162,21 @@ public class NoOpEmailService : IEmailService
     public Task SendPasswordResetAsync(string toEmail, string userName, string token) => Task.CompletedTask;
     public Task SendEmailChangeVerificationAsync(string toNewEmail, string userName, string token) => Task.CompletedTask;
     public Task SendPhoneOtpAsync(string toEmail, string userName, string otp) => Task.CompletedTask;
+    public record OwnerAlert(string ToEmail, string Subject, IReadOnlyList<string> Lines);
+
+    /// <summary>Every notice to the owner, in order.</summary>
+    public List<OwnerAlert> OwnerAlerts { get; } = new();
+
+    /// <summary>When true, SendOwnerAlertAsync throws, as a refused SMTP send does.</summary>
+    public bool ThrowOnAlert { get; set; } = false;
+
+    public Task SendOwnerAlertAsync(string toEmail, string subject, IReadOnlyList<string> lines)
+    {
+        if (ThrowOnAlert) throw new InvalidOperationException("SMTP connect failed");
+        OwnerAlerts.Add(new OwnerAlert(toEmail, subject, lines));
+        return Task.CompletedTask;
+    }
+
     /// <summary>Every invitation send, in order.</summary>
     public List<string> SentInvites { get; } = new();
 

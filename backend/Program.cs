@@ -99,6 +99,20 @@ builder.Services.AddScoped<UploadIntake>();
 builder.Services.AddSingleton(builder.Configuration.GetSection("ChatLimits").Get<ChatLimits>() ?? new ChatLimits());
 builder.Services.AddSingleton(_ => new ChatQuota());
 
+// ── Telling the owner ─────────────────────────────────────────────────────────
+// Emails to whoever runs DIG when a model is withdrawn or reports are being
+// written without AI (OwnerAlerts), and the daily check that finds out
+// (ModelWatch). Off on a developer's machine unless asked for: it would report
+// that laptop's problems to the live inbox, through the live mail account.
+var alertsOn = builder.Configuration.GetValue<bool?>("Alerts:Enabled") ?? !builder.Environment.IsDevelopment();
+var alertsTo = builder.Configuration["Alerts:Email"] is { Length: > 0 } configured
+    ? configured
+    : backend.Controllers.PlansController.SupportEmail;
+builder.Services.AddSingleton(sp => new OwnerAlerts(
+    sp.GetRequiredService<IServiceScopeFactory>(), sp.GetRequiredService<ILogger<OwnerAlerts>>(), alertsTo, alertsOn));
+if (alertsOn)
+    builder.Services.AddHostedService<ModelWatch>();
+
 // ── Analysis admission ────────────────────────────────────────────────────────
 // One gate for authenticated and guest analyses alike: they compete for the
 // same 2 GB of RAM and the same free AI quotas. Limits live in config so tests

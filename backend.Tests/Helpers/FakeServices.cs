@@ -532,9 +532,31 @@ public class FakePythonAiClient : IPythonAiClient
           "confidence_score": 8,
           "usage": {{UsageJson ?? "null"}},
           "chat_context": {{ChatContextJson ?? "null"}},
+          "report_writer": {{(ReportWriter is null ? "null" : System.Text.Json.JsonSerializer.Serialize(ReportWriter))}},
           "error": null
         }
         """);
     }
 
+    /// <summary>
+    /// The response's "report_writer": a model's name, "" when no model wrote
+    /// the report (the stats-only fallback), or null for an AI service that
+    /// predates the field.
+    /// </summary>
+    public string? ReportWriter { get; set; }
+
+    /// <summary>What /models/status answers. The default is a day with nothing wrong.</summary>
+    public string ModelStatusJson { get; set; } = """
+    {"checkedAt": "2026-11-11T09:00:00Z", "models": [], "chains": [], "problems": [], "notes": [],
+     "allowance": {"openrouter": {"used": 12, "limit": 50, "remaining": 38}}}
+    """;
+
+    public int ModelStatusCalls { get; private set; }
+
+    public Task<string> ModelStatusAsync()
+    {
+        ModelStatusCalls++;
+        if (SimulateDown) throw new HttpRequestException("Simulated: AI service unreachable");
+        return Task.FromResult(ModelStatusJson);
+    }
 }

@@ -47,6 +47,12 @@ public class AnalyzeResponseDto
     // report and sent back to /ask unchanged; this side never reads inside it.
     [JsonPropertyName("chat_context")]
     public JsonElement? ChatContext { get; set; }
+
+    // The model that wrote the report. Empty when no model answered and the
+    // report is the stats-only fallback; null from an AI service that predates
+    // the field, which says nothing either way.
+    [JsonPropertyName("report_writer")]
+    public string? ReportWriter { get; set; }
 }
 
 public class UsageDto

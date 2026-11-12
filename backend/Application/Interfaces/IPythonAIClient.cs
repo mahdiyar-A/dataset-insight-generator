@@ -24,4 +24,11 @@ public interface IPythonAiClient
     /// </summary>
     Task<string> AskAsync(string question, string contextJson, string historyJson, string uiLanguage,
                           byte[]? fileBytes, string? fileName);
+
+    /// <summary>
+    /// Whether the models DIG uses are still offered, what is left of today's
+    /// free allowance and how the last day went, with a "problems" list of
+    /// plain sentences. No model calls. See ai_engine/llm/model_watch.py.
+    /// </summary>
+    Task<string> ModelStatusAsync();
 }

@@ -32,6 +32,7 @@ public class AnalysisService
     private readonly IUserRepository          _users;
     private readonly AnalysisGate             _gate;
     private readonly ILogger<AnalysisService> _logger;
+    private readonly OwnerAlerts?             _alerts;
 
     // Where uploads wait until their analysis runs. See UploadStore.
     private static UploadStore Uploads => UploadStore.Users;
@@ -42,7 +43,8 @@ public class AnalysisService
         IPythonAiClient          pythonAi,
         IUserRepository          users,
         AnalysisGate             gate,
-        ILogger<AnalysisService> logger)
+        ILogger<AnalysisService> logger,
+        OwnerAlerts?             alerts = null)
     {
         _analyses = analyses;
         _storage  = storage;
@@ -50,6 +52,7 @@ public class AnalysisService
         _users    = users;
         _gate     = gate;
         _logger   = logger;
+        _alerts   = alerts;
     }
 
     // ── Public entry point ─────────────────────────────────────────────────────
@@ -365,6 +368,22 @@ public class AnalysisService
                 {
                     _logger.LogError(ex, "[Analysis] Failed to save chat context for {Id} — continuing", analysisId);
                 }
+            }
+
+            // ── Step 5i: A report nobody's model wrote ────────────────────────
+            // The person still gets a report: the stats-only one. It is the one
+            // failure that arrives looking like a result, so the owner hears
+            // about it now, not from the daily check. Once a day at most.
+            if (result.ReportWriter is { Length: 0 } && _alerts != null)
+            {
+                _ = _alerts.RaiseAsync("report-without-ai",
+                    "DIG: a report was just written without AI",
+                    new[]
+                    {
+                        "No model answered, so an analysis has just been given the plain report built from the statistics alone.",
+                        "The usual causes are a free allowance used up for the day, or a provider that is down.",
+                        "Further reports like it today will not send another email.",
+                    });
             }
 
             // ── Step 6: Mark analysis done in DB ─────────────────────────────
