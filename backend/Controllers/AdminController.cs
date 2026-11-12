@@ -37,6 +37,58 @@ public class AdminController : ControllerBase
         return user?.Plan == "admin";
     }
 
+    // ── GET /api/admin/models ─────────────────────────────────────────────────
+    // What the daily model check sees, on demand: each model DIG uses and
+    // whether its provider still offers it, today's free allowance, and how the
+    // last day went. Passed through as the AI service wrote it.
+    [HttpGet("models")]
+    public async Task<IActionResult> GetModels([FromServices] IPythonAiClient ai)
+    {
+        if (!await IsAdminAsync())
+            return Forbid();
+
+        try
+        {
+            return Content(await ai.ModelStatusAsync(), "application/json");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("[Admin] Model status unavailable ({Type}: {Msg})", ex.GetType().Name, ex.Message);
+            return StatusCode(503, new { error = "AI_SERVICE_UNAVAILABLE", message = "The AI service did not answer." });
+        }
+    }
+
+    // ── POST /api/admin/alerts/test ───────────────────────────────────────────
+    // An alarm nobody has heard ring is a guess. This sends one, through the
+    // same path and limits as a real one, so the owner can see it arrive.
+    [HttpPost("alerts/test")]
+    public async Task<IActionResult> TestAlert([FromServices] OwnerAlerts alerts)
+    {
+        if (!await IsAdminAsync())
+            return Forbid();
+
+        if (!alerts.Enabled)
+            return Ok(new { sent = false, to = alerts.Recipient, message = "Alerts are switched off on this server." });
+
+        var sent = await alerts.RaiseAsync($"test:{Guid.NewGuid():N}",
+            "DIG: this is a test of the alarm",
+            new[]
+            {
+                "Nothing is wrong. Someone pressed “Send a test alert” on the admin page.",
+                "A real alert comes to this inbox when a model DIG uses is withdrawn, when a free allowance runs out, "
+                + "or when a report has to be written without AI.",
+            });
+
+        return Ok(new
+        {
+            sent,
+            to      = alerts.Recipient,
+            message = sent
+                ? $"Sent to {alerts.Recipient}. It can take a minute to arrive; check spam the first time."
+                : "It was not sent: either the mail server refused it or today's limit of alerts is used up.",
+        });
+    }
+
     // ── GET /api/admin/stats ──────────────────────────────────────────────────
     // Platform-wide health snapshot for the admin dashboard
     [HttpGet("stats")]

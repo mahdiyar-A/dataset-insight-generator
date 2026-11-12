@@ -139,6 +139,24 @@ public class PythonAiClient : IPythonAiClient
         return await PostAsync("ask", content, "AIService:AskTimeoutSeconds", 70);
     }
 
+    public async Task<string> ModelStatusAsync()
+    {
+        // The AI service reads two providers' model lists, 20 seconds each at worst.
+        using var cts = new CancellationTokenSource(
+            TimeSpan.FromSeconds(_config.GetValue("AIService:ModelStatusTimeoutSeconds", 60)));
+        try
+        {
+            var response = await _http.GetAsync($"{BaseUrl}/models/status", cts.Token);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadAsStringAsync(cts.Token);
+        }
+        catch (TaskCanceledException)
+        {
+            _logger.LogWarning("[PythonAI] /models/status timed out");
+            throw new TimeoutException("Python /models/status timed out.");
+        }
+    }
+
     private async Task<string> PostAsync(string endpoint, HttpContent content, string timeoutKey, int defaultSeconds)
     {
         var url = $"{BaseUrl}/{endpoint}";

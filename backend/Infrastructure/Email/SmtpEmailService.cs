@@ -272,4 +272,18 @@ public class SmtpEmailService : IEmailService
         );
         await SendAsync(toEmail, $"{inviterName} invited you to collaborate on DIG", body);
     }
+
+    // ── Owner alert ───────────────────────────────────────────────────────────
+    public async Task SendOwnerAlertAsync(string toEmail, string subject, IReadOnlyList<string> lines)
+    {
+        // The lines carry model names and figures from the AI service, never
+        // anything a user typed. Encoded all the same: this is HTML.
+        var body = Wrap(
+            Heading(WebUtility.HtmlEncode(subject)) +
+            Sub("A notice for the person who runs DIG. No user was sent this.") +
+            string.Concat(lines.Select(line => Para(WebUtility.HtmlEncode(line)))) +
+            InfoBox($"Sent by the server at {DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC. At most a few of these go out in a day.")
+        );
+        await SendAsync(toEmail, subject, body);
+    }
 }
