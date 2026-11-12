@@ -496,6 +496,25 @@ export default class BackendAPI {
   }
 
   /**
+   * The daily model check, on demand: each model DIG uses and whether its
+   * provider still offers it, today's free allowance, how the last day went,
+   * and "problems" as plain sentences.
+   */
+  static async adminGetModels(token) {
+    return req(`${API_BASE}/api/admin/models`,
+      { headers: authHeaders(token) }, "The AI service did not answer.");
+  }
+
+  /**
+   * Send the owner a test alert, through the same path as a real one.
+   * @returns {Promise<{ sent: boolean, to: string, message: string }>}
+   */
+  static async adminTestAlert(token) {
+    return req(`${API_BASE}/api/admin/alerts/test`,
+      { method: "POST", headers: authHeaders(token) }, "The test alert could not be sent.");
+  }
+
+  /**
    * Without these JSDoc annotations TypeScript infers `plan` and `search` as
    * type `null` from their defaults, so any caller passing a real filter string
    * fails the production type check (`next build`) while the dev server happily
