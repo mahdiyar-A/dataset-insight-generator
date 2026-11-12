@@ -35,6 +35,18 @@ ssh -i ~/.ssh/dig-key.pem ubuntu@3.96.77.210 "docker exec -i dig-ai python -" < 
 
 The last line says `ALL PASSED` or names what failed.
 
+## The owner's alarm
+
+The server emails whoever runs DIG when a model it uses is withdrawn, when the
+free allowance runs out, or when a report has to be written without AI. It
+checks every six hours, starting three minutes after a deploy, emails about the
+same trouble once a day, and stays silent when nothing is wrong. See
+`backend/Application/Services/ModelWatch.cs`.
+
+- It goes to the support inbox unless `backend/.env` has `Alerts__Email=you@example.com`.
+- `Alerts__Enabled=false` switches it off.
+- To hear it ring: Admin page, Models tab, "Send a test alert".
+
 ## Rebuild the server from nothing
 
 The server is deliberately stateless — every piece of user data lives in Supabase.

@@ -9,10 +9,46 @@
 
 | Suite | Count | Command |
 |---|---|---|
-| C# — unit, integration, edge cases, the real Supabase client against a stand-in server | 411 | `dotnet test backend.Tests/backend.Tests.csproj` |
-| Python — stats, ingest, chat harness, reports, full pipeline | 860 | `cd ai_service && pytest tests/` |
-| Frontend — Vitest, including rendered components | 211 | `cd frontend && npm test` |
+| C# — unit, integration, edge cases, the real Supabase client against a stand-in server | 443 | `dotnet test backend.Tests/backend.Tests.csproj` |
+| Python — stats, ingest, chat harness, reports, full pipeline, model watch | 886 | `cd ai_service && pytest tests/` |
+| Frontend — Vitest, including rendered components | 218 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
+
+---
+
+## Model watch, 2026-11-11
+
+Every model DIG uses is a free endpoint another company runs and can withdraw
+without telling us. The chain copes by moving to the next model, which is why
+nobody would know: it only gets shorter. Now someone is told.
+
+- **The check** (`ai_service/ai_engine/llm/model_watch.py`, `GET /models/status`).
+  Reads each provider's own list of models, which is not a model call and costs
+  nothing. Says which models are gone, which carry a withdrawal date within two
+  weeks, which chain is down to its last model, whether today's free OpenRouter
+  requests are used up, and how the last day went: reports written without AI,
+  files whose subject no model could name, questions left unanswered. A list
+  that cannot be read claims nothing.
+- **The alarm** (`backend/Application/Services/ModelWatch.cs`, `OwnerAlerts.cs`).
+  The server asks every six hours and emails the owner anything wrong, in plain
+  sentences. A report written without AI is emailed the moment it happens. The
+  same trouble is emailed about once a day while it lasts, and no more than six
+  alerts go out in a day. Silent when all is well. Off on a developer's machine.
+- **Where it goes.** `Alerts__Email` in `backend/.env`; without it, the support
+  inbox (`PlansController.SupportEmail`).
+- **Seeing it.** Admin page, Models tab: each model and whether it is still
+  offered, the day's allowance and counts, and a button that sends a test alert.
+- **Backups looked at the same day.** Nemotron 3.5 Lightning (free, same key)
+  was tried on the real prompts and left out: good on questions, but it did not
+  finish a report, a domain check or a plan in time. Cerebras has no lasting
+  free tier; NVIDIA's own free endpoints are for prototyping. Two things would
+  add real room and both are the owner's to decide: a one-time $10 of OpenRouter
+  credit lifts its free models from 50 to 1,000 requests a day, and SambaNova
+  hosts gpt-oss-120b free (20 requests a day, no card) as a third provider,
+  which needs a line in the privacy policy first. Details in
+  `report_writer.py`'s header.
+
+Not yet seen: a real alert arriving. Press "Send a test alert" once after deploy.
 
 ---
 
