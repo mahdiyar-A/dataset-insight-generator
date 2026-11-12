@@ -179,6 +179,11 @@ class PipelineResult:
     # Stored by the backend next to the report. See llm.harness.
     chatContext: Optional[Dict[str, Any]] = None
 
+    # The model that wrote the report, or "" when none answered and the report
+    # is the stats-only fallback. None on a run that never reached the writer.
+    # The backend tells the owner about a fallback the moment it happens.
+    reportWriter: Optional[str] = None
+
     def to_response(self) -> dict:
         return {
             "status":                  self.status,
@@ -193,4 +198,5 @@ class PipelineResult:
             "confidence_score":        self.confidenceScore,
             "usage":                   self.usage,
             "chat_context":            self.chatContext,
+            "report_writer":           self.reportWriter,
         }

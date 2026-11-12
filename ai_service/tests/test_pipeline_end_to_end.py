@@ -138,6 +138,11 @@ def test_xlsx_upload_with_a_brief_produces_every_output(stub_writer):
     assert ctx["digest"]["dataset"]["rows"] == 600
     assert len(json.dumps(ctx)) < 60_000
 
+    # The backend is told which model wrote it, so it can tell a real report
+    # from the fallback.
+    from ai_engine.llm.report_writer import REPORT_PROVIDERS
+    assert result["report_writer"] == REPORT_PROVIDERS[0].display_name
+
 
 def test_the_report_says_which_sheets_were_not_read(stub_writer, monkeypatch):
     seen = {}
@@ -344,6 +349,20 @@ def test_a_file_of_text_still_gets_charts_with_no_model(monkeypatch):
     )
     assert result["status"] == "done", result.get("error")
     assert len(result["charts"]) == 3
+    # Empty, not missing: the backend emails the owner when a report was
+    # written without a model, and "missing" would say nothing either way.
+    assert result["report_writer"] == ""
+
+
+def test_a_file_that_cannot_be_read_names_no_writer():
+    result = run_pipeline(
+        file_bytes=b"\x00\x01\x02 not a table", file_name="notes.bin",
+        user_wants_cleaning=False, user_confirmed_low=True,
+        openrouter_api_key="", groq_api_key="", session_id="test",
+    )
+    # A run that never reached the writer is not a report written without AI.
+    assert result["status"] == "failed"
+    assert result["report_writer"] is None
 
 
 # ── What the user asks for in the brief is computed, not only mentioned ───────

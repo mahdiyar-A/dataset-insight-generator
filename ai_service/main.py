@@ -16,6 +16,7 @@ from ai_engine.quality.quality_checker import check_data_quality, impossible_val
 from ai_engine.quality.confidence_engine import evaluate_confidence
 from ai_engine.training.training_logger import get_training_stats
 from ai_engine.llm.harness import answer_question, build_brief
+from ai_engine.llm import model_watch
 
 # ── Startup banner ────────────────────────────────────────────────────────────
 print("╔══════════════════════════════════════════════╗", flush=True)
@@ -130,6 +131,18 @@ def health():
         "groq_key_set":    bool(GROQ_API_KEY),
         "pipeline":        "7-phase (Groq gate → free report-writer chain → statistical confidence)",
     }
+
+
+@app.get("/models/status")
+def models_status():
+    """
+    Whether the models DIG uses are still offered, what is left of today's free
+    allowance, and how the last day went. No model calls. The backend reads it
+    once a day and emails the owner what is in "problems". See llm.model_watch.
+    """
+    status = model_watch.cached_check(API_KEYS)
+    print(f"[ModelWatch] {len(status['models'])} models checked, {len(status['problems'])} problem(s)", flush=True)
+    return JSONResponse(status)
 
 
 @app.get("/training-stats")

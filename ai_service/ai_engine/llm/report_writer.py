@@ -29,6 +29,23 @@ to "agentic harnesses" and returns 403 to applications), and Google Gemma 4
 (served from Google AI Studio's free tier, which may use inputs for training,
 and was failing upstream anyway).
 
+Tried as an extra fallback on 2026-11-11 and left out: NVIDIA Nemotron 3.5
+Lightning (OpenRouter `:free`). On a 600-row orders file it answered three
+chat questions well in 6-15s with reasoning effort "low", but it did not
+finish the report prompt in 75s, the domain prompt in 60s (twice, and once
+spent 4,000 tokens thinking and returned nothing), or the planning prompt in
+35s, and it read a report description once in 30s and once not at all. It
+shares the OpenRouter key's daily allowance with the two Nemotron models
+above, so it would add nothing on the day that allowance runs out. A model
+that passes costs nothing to add: llm/model_watch.py picks it up from the
+chains by itself.
+
+Other free hosts, checked the same day: Cerebras has no lasting free tier (a
+30-day trial, and a card). NVIDIA's own free endpoints are for prototyping
+only. SambaNova serves gpt-oss-120b free at 20 requests a day per model with
+no card, and would be a third, independent host for the model already proven
+here; adding it means naming a new provider in the privacy policy first.
+
 Three protections, each from something observed:
 
   - A hard wall-clock deadline per call. OpenRouter keeps a slow connection
@@ -63,6 +80,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, Union
 
@@ -158,6 +176,78 @@ def reset_cooldowns() -> None:
     """Forget every cool-down. For tests, and for operators after an outage."""
     with _cooldown_lock:
         _cooldown_until.clear()
+
+
+# ── What happened lately ──────────────────────────────────────────────────────
+# The cool-downs say which models are sitting out this minute. They do not say
+# how the day went: that every report since noon was the stats-only fallback,
+# or that one model has failed every call. Nothing recorded that, so the only
+# way to find out was a visitor saying so. One entry per model call, and one per
+# piece of work a person was waiting on (a report, a question), kept for a day,
+# for llm/model_watch.py to read.
+HEALTH_WINDOW_SECS = 24 * 3600
+_MAX_HEALTH_EVENTS = 4000
+
+# (when, "model" | "outcome", model id or kind of work, ok, error)
+_health_events: "deque[Tuple[float, str, str, bool, Optional[str]]]" = deque(maxlen=_MAX_HEALTH_EVENTS)
+_health_lock = threading.Lock()
+
+
+def _note(kind: str, name: str, ok: bool, error: Optional[str] = None) -> None:
+    try:
+        with _health_lock:
+            _health_events.append((time.time(), kind, name, ok, (error or "")[:200] or None))
+    except Exception:  # a record of the work must never break the work
+        pass
+
+
+def note_outcome(work: str, ok: bool) -> None:
+    """
+    Record how one piece of work ended: "report", "question", "domain" or
+    "brief". ok means a model did it. Not ok means the person got what DIG does
+    without one: the stats-only report, "try again in a minute", the general
+    domain, their own words as the focus.
+
+    Counted where the work ends, not per call to write_report: one question can
+    take four calls, and a report whose second pass failed was still written.
+    """
+    _note("outcome", work, ok)
+
+
+def reset_health() -> None:
+    """Forget what was recorded. For tests."""
+    with _health_lock:
+        _health_events.clear()
+
+
+def health_snapshot(now: Optional[float] = None, window_secs: float = HEALTH_WINDOW_SECS) -> Dict[str, Any]:
+    """
+    How the work and the models did over the last day.
+
+    {"windowHours", "outcomes": {work: {"total", "failed"}},
+     "models": {model id: {"calls", "failed", "lastOkAt", "lastError", "lastErrorAt"}}}
+    Times are Unix seconds.
+    """
+    now = time.time() if now is None else now
+    with _health_lock:
+        events = [e for e in _health_events if now - e[0] <= window_secs]
+    outcomes: Dict[str, Dict[str, Any]] = {}
+    models: Dict[str, Dict[str, Any]] = {}
+    for when, kind, name, ok, error in events:
+        if kind == "outcome":
+            entry = outcomes.setdefault(name, {"total": 0, "failed": 0})
+            entry["total"] += 1
+            entry["failed"] += 0 if ok else 1
+        else:
+            entry = models.setdefault(name, {"calls": 0, "failed": 0, "lastOkAt": None,
+                                             "lastError": None, "lastErrorAt": None})
+            entry["calls"] += 1
+            if ok:
+                entry["lastOkAt"] = when
+            else:
+                entry["failed"] += 1
+                entry["lastError"], entry["lastErrorAt"] = error, when
+    return {"windowHours": round(window_secs / 3600, 1), "outcomes": outcomes, "models": models}
 
 
 # ── One call ──────────────────────────────────────────────────────────────────
@@ -353,6 +443,8 @@ def _attempt(
             )
         except Exception as e:  # accounting must never break an analysis
             print(f"[Usage] report accounting failed (ignored): {e}", flush=True)
+
+    _note("model", p.model, result is not None, error)
 
     if result is not None:
         _set_cooldown(p.model, None)
