@@ -58,6 +58,7 @@ from ai_engine.llm.report_writer import (
     MIN_USEFUL_SECS,
     OPENROUTER_URL,
     ReportProvider,
+    note_outcome,
     seconds_until_free,
     write_report,
 )
@@ -298,6 +299,7 @@ def build_brief(
     ]
     result, provider = write_report(messages, api_keys or {}, _accept_brief(), tracker=tracker,
                                     providers=providers, budget_secs=BRIEF_BUDGET_SECS, phase="brief")
+    note_outcome("brief", result is not None)
     if result is None:
         return {"settings": {"focusOn": clean_user_text(cleaned, TEXT_SETTINGS["focusOn"])},
                 "summary": "", "notPossible": [], "source": "fallback"}
@@ -605,6 +607,8 @@ def answer_question(
         ]
         step = call(messages)
 
+    # For the model watch: whether a model answered at all. A refusal is an answer.
+    note_outcome("question", step is not None)
     if step is None:
         return {**base, "answer": _say(_UNAVAILABLE, ui_language), "failed": True, "queries": ran,
                 "model": model}

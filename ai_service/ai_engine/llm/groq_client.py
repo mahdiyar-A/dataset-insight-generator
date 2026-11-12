@@ -19,7 +19,7 @@ from typing import Dict, Any, List, Optional, Tuple, Union
 
 import pandas as pd
 
-from ai_engine.llm.report_writer import GROQ_URL, OPENROUTER_URL, ReportProvider, write_report
+from ai_engine.llm.report_writer import GROQ_URL, OPENROUTER_URL, ReportProvider, note_outcome, write_report
 from ai_engine.models.models import DomainResult
 
 
@@ -264,6 +264,7 @@ def detect_domain(df: pd.DataFrame, api_keys: Union[Dict[str, str], str], tracke
 
     parsed, provider = write_report(messages, api_keys or {}, _domain_reply, tracker=tracker,
                                     providers=providers, budget_secs=DOMAIN_BUDGET_SECS, phase="domain")
+    note_outcome("domain", parsed is not None)
     if parsed is None:
         print("[Domain] no model classified the file — using the general fallback", flush=True)
         return _FALLBACK

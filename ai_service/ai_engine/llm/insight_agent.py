@@ -28,7 +28,7 @@ from typing import List, Dict, Any, Optional
 
 from ai_engine.core.confounding import misleading_pairs
 from ai_engine.models.models import StatsSummary, LLMReport, ChartInstruction, DomainResult
-from ai_engine.llm.report_writer import write_report
+from ai_engine.llm.report_writer import note_outcome, write_report
 from ai_engine.llm.stats_digest import build_digest, digest_json
 from ai_engine.report_labels import labels_for
 from ai_engine.llm.guard import (
@@ -984,6 +984,9 @@ def generate_report(
                             tracker=tracker)
 
     report, provider = write(prompt)
+    # For the model watch: a report written without a model is the one failure
+    # that reaches a paying user looking like a result.
+    note_outcome("report", report is not None)
     if report is None:
         print("[Insights] no model produced a report — using fallback report", flush=True)
         report = _build_fallback_report(stats, domain)

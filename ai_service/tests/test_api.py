@@ -41,6 +41,28 @@ def test_health():
     assert body["status"] == "ok" and body["version"]
 
 
+def test_models_status_gives_the_backend_sentences_it_can_email(monkeypatch):
+    # The backend emails "problems" as they are, so they have to be there and be text.
+    from ai_engine.llm import model_watch
+
+    def nothing_listed(url, api_key=""):
+        return {"data": []}
+
+    # Both providers answer with an empty list, as if every model had been withdrawn.
+    real_check = model_watch.check
+    model_watch.forget_cache()
+    monkeypatch.setattr(model_watch, "check",
+                        lambda keys: real_check({"openrouter": "k", "groq": "k"}, fetch=nothing_listed))
+    try:
+        body = client.get("/models/status").json()
+    finally:
+        model_watch.forget_cache()
+
+    assert {"checkedAt", "models", "chains", "allowance", "health", "problems", "notes"} <= set(body)
+    assert body["problems"] and all(isinstance(p, str) for p in body["problems"])
+    assert any("no longer offered" in p for p in body["problems"])
+
+
 def test_inspect_reads_formats_the_browser_cannot(frame):
     buf = io.BytesIO()
     frame.to_parquet(buf)

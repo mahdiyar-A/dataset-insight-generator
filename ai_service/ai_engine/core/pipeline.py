@@ -493,6 +493,7 @@ def run_pipeline(
         confidenceScore=final_score,
         usage=tracker.to_dict(),
         chatContext=chat_context,
+        reportWriter=llm_report.writerModel or "",
     ).to_response()
 
 
