@@ -47,9 +47,10 @@ public class ChatEndpointTests
     [TearDown]
     public void TearDown()
     {
-        // Clean up any temp file left by the test
-        var tempFile = Path.Combine(TempDir, $"{TestAuthHandler.CurrentUserId}.csv");
-        if (File.Exists(tempFile)) File.Delete(tempFile);
+        // Clean up the upload and what was recorded beside it. Through the
+        // store, which never throws: a run started by the test may still be
+        // reading the file, and a clean-up that fails on that fails the test.
+        backend.Application.Services.UploadStore.Users.Delete(TestAuthHandler.CurrentUserId);
 
         _client.Dispose();
         _factory.Dispose();

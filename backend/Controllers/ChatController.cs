@@ -34,6 +34,9 @@ public class ChatController : ControllerBase
     private const int MaxBriefChars    = 3000;
     private const int MaxHistoryTurns  = 6;
     private const int MaxHistoryChars  = 2000;
+    // What a person may say their data is. The AI service cleans it and holds
+    // it to the same length before any model sees it.
+    private const int MaxDescriptionChars = 300;
 
     private static readonly JsonElement EmptyObject = JsonDocument.Parse("{}").RootElement.Clone();
     private static readonly JsonElement EmptyArray  = JsonDocument.Parse("[]").RootElement.Clone();
@@ -79,8 +82,8 @@ public class ChatController : ControllerBase
         var tempPath = UploadStore.Users.Find(userId);
         var message  = req.Message.Trim().ToLowerInvariant();
 
-        // Check temp file exists for start_analysis / yes / no
-        if ((message == "start_analysis" || message == "yes" || message == "no") && tempPath == null)
+        // Check temp file exists for start_analysis / domain_answer / yes / no
+        if (message is "start_analysis" or "domain_answer" or "yes" or "no" && tempPath == null)
         {
             return Ok(new ChatMessageResponse
             {
@@ -113,19 +116,21 @@ public class ChatController : ControllerBase
                 catch { /* ignore malformed customization — pipeline uses defaults */ }
             }
 
-            // ── Call Python /check to get real condition ──────────────────
+            // ── Call Python /check: can it be analysed, and what is it? ───
             string condition;
             string? reason = null;
+            DataReading? reading = null;
+            var fileName = UploadStore.Users.ReadMeta(userId)?.FileName ?? req.FileName ?? Path.GetFileName(tempPath!);
             try
             {
                 var fileBytes = await System.IO.File.ReadAllBytesAsync(tempPath!);
-                var fileName  = UploadStore.Users.ReadMeta(userId)?.FileName ?? req.FileName ?? Path.GetFileName(tempPath!);
-                var checkJson = await _pythonAi.CheckQualityAsync(fileBytes, fileName, userId);
+                var checkJson = await _pythonAi.CheckQualityAsync(fileBytes, fileName, userId, withDomain: true);
                 var checkResult = JsonSerializer.Deserialize<JsonElement>(checkJson);
                 condition = checkResult.GetProperty("condition").GetString() ?? "not_clean";
                 // Written for users by the AI service: what is wrong with the file and what to do.
                 if (checkResult.TryGetProperty("error", out var err) && err.ValueKind == JsonValueKind.String)
                     reason = err.GetString();
+                reading = DataReading.From(checkResult);
             }
             catch (Exception ex)
             {
@@ -133,45 +138,66 @@ public class ChatController : ControllerBase
                 condition = "not_clean";
             }
 
-            // If all_good — kick off analysis immediately, no yes/no needed
-            Guid? startedId = null;
-            if (condition == "all_good")
-            {
-                var started = await _analysis.TryStartAsync(userId, req.FileName ?? "data.csv",
-                    req.FileSizeBytes ?? fileInfo.Length,
-                    req.RowCount ?? 0, req.ColumnCount ?? 0,
-                    userWantsCleaning: false, userConfirmedLow: true,
-                    customizationJson: customizationJson);
-                if (!started.Allowed) return Ok(Refused(started));
-                startedId = started.AnalysisId;
-            }
-
-            return Ok(condition switch
-            {
-                "not_workable" => new ChatMessageResponse
+            if (condition == "not_workable")
+                return Ok(new ChatMessageResponse
                 {
                     Reply = string.IsNullOrWhiteSpace(reason)
                         ? "Your dataset cannot be processed — too sparse or missing headers. Please upload a different file."
                         : $"Your dataset cannot be processed: {reason}",
                     Condition = "not_workable", RequiresResponse = false, Done = false, Failed = true,
-                },
-                "not_clean" => new ChatMessageResponse
-                {
-                    Reply = "Your dataset has quality issues — missing values or duplicates detected. Would you like me to clean it automatically?",
-                    Condition = "not_clean", RequiresResponse = true, Done = false, Failed = false,
-                },
-                "low_accuracy" => new ChatMessageResponse
-                {
-                    Reply = "Your dataset may produce lower-accuracy insights due to limited rows. Would you like to proceed anyway?",
-                    Condition = "low_accuracy", RequiresResponse = true, Done = false, Failed = false,
-                },
-                _ => new ChatMessageResponse
-                {
-                    Reply = "Your dataset looks great — starting full analysis now. This may take a minute.",
-                    Condition = "all_good", RequiresResponse = false, Done = false, Failed = false,
-                    AnalysisId = startedId,
-                },
+                });
+
+            // Kept beside the upload: the answer to a question comes back as a
+            // separate request, and the analysis reads the reading from here.
+            // An earlier answer is dropped, since this is a fresh start.
+            var meta = UploadStore.Users.ReadMeta(userId)
+                       ?? new UploadMeta(fileName, null, null, 0, 0, Array.Empty<string>());
+            UploadStore.Users.SaveMeta(userId, meta with
+            {
+                CheckCondition  = condition,
+                DomainJson      = reading?.ClassificationJson,
+                DataDescription = null,
             });
+
+            // Not sure what the data is: ask before anything runs. The reading
+            // steers what the report leads with and sets out to answer, so a
+            // wrong one costs the person the whole analysis. An AI service that
+            // sent no reading at all (an older one) is not a reason to ask.
+            if (reading is { Sure: false })
+                return Ok(AskWhatTheDataIs(reading, condition));
+
+            return Ok(await AfterTheReadingAsync(userId, req, condition, customizationJson, fileInfo.Length,
+                                                 reading?.UnderstoodAs));
+        }
+
+        // The answer to "what is this data about?": DIG's own reading confirmed,
+        // another reading chosen, the person's own words, or nothing (skipped).
+        if (message == "domain_answer")
+        {
+            var meta = UploadStore.Users.ReadMeta(userId);
+            if (meta?.CheckCondition is not { } condition)
+                return Ok(new ChatMessageResponse
+                {
+                    Reply = "I've lost track of that file's check. Please press Start again.",
+                    Condition = null, RequiresResponse = false, Done = false, Failed = true,
+                });
+
+            var answer = (req.DomainAnswer ?? "").Trim();
+            if (answer.Length > MaxDescriptionChars) answer = answer[..MaxDescriptionChars];
+            // Confirming DIG's own reading adds nothing to say; the reading
+            // itself is already stored. Only different words are a description.
+            var described = req.DomainConfirmed == true || answer.Length == 0 ? null : answer;
+            UploadStore.Users.SaveMeta(userId, meta with { DataDescription = described });
+
+            string? customizationJson = null;
+            if (req.Customization.HasValue && req.Customization.Value.ValueKind != JsonValueKind.Null)
+            {
+                try { customizationJson = req.Customization.Value.GetRawText(); }
+                catch { /* ignore */ }
+            }
+
+            return Ok(await AfterTheReadingAsync(userId, req, condition, customizationJson,
+                                                 new System.IO.FileInfo(tempPath!).Length, understoodAs: null));
         }
 
         // "Proceed anyway?" answered No means do not run. It used to start the
@@ -229,6 +255,77 @@ public class ChatController : ControllerBase
             Reply = "I didn't understand that. Use Start Analysis or reply Yes/No.",
             Condition = null, RequiresResponse = false, Done = false, Failed = false,
         });
+    }
+
+    /// <summary>
+    /// What happens once it is settled what the data is: a clean file starts at
+    /// once, and the other two conditions get their yes-or-no question.
+    /// </summary>
+    private async Task<ChatMessageResponse> AfterTheReadingAsync(
+        Guid userId, ChatMessageRequest req, string condition, string? customizationJson,
+        long fileSize, string? understoodAs)
+    {
+        // Said when DIG was sure and did not ask, so the person can see what the
+        // report will rest on. Never empty text: nothing is better than "".
+        var saidAs = string.IsNullOrWhiteSpace(understoodAs) ? null : understoodAs;
+
+        switch (condition)
+        {
+            case "not_clean":
+                return new ChatMessageResponse
+                {
+                    Reply = "Your dataset has quality issues — missing values or duplicates detected. Would you like me to clean it automatically?",
+                    Condition = "not_clean", RequiresResponse = true, Done = false, Failed = false,
+                    UnderstoodAs = saidAs,
+                };
+            case "low_accuracy":
+                return new ChatMessageResponse
+                {
+                    Reply = "Your dataset may produce lower-accuracy insights due to limited rows. Would you like to proceed anyway?",
+                    Condition = "low_accuracy", RequiresResponse = true, Done = false, Failed = false,
+                    UnderstoodAs = saidAs,
+                };
+        }
+
+        // all_good — kick off analysis immediately, no yes/no needed
+        var started = await _analysis.TryStartAsync(userId, req.FileName ?? "data.csv",
+            req.FileSizeBytes ?? fileSize,
+            req.RowCount ?? 0, req.ColumnCount ?? 0,
+            userWantsCleaning: false, userConfirmedLow: true,
+            customizationJson: customizationJson);
+        if (!started.Allowed) return Refused(started);
+
+        return new ChatMessageResponse
+        {
+            Reply = "Your dataset looks great — starting full analysis now. This may take a minute.",
+            Condition = "all_good", RequiresResponse = false, Done = false, Failed = false,
+            AnalysisId = started.AnalysisId,
+            UnderstoodAs = saidAs,
+        };
+    }
+
+    /// <summary>
+    /// The question asked when DIG is not sure what the data is. The choices
+    /// are DIG's own reading first, then any other reading the model thought
+    /// fitted; the page adds a box for the person's own words and a way to skip.
+    /// </summary>
+    internal static ChatMessageResponse AskWhatTheDataIs(DataReading reading, string condition)
+    {
+        var options = new[] { reading.UnderstoodAs }.Concat(reading.Alternatives)
+            .Where(o => !string.IsNullOrWhiteSpace(o))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(3)
+            .ToList();
+
+        return new ChatMessageResponse
+        {
+            Reply = options.Count == 0
+                ? "Before I start: what is this data about? One line is enough, for example “online orders, one row per order”."
+                : "Before I start, I want to be sure what this data is about. Which of these is closest? You can also put it in your own words.",
+            // The quality condition waits its turn: it is asked about after this.
+            Condition = condition, RequiresResponse = true, Done = false, Failed = false,
+            Ask = "domain", Options = options,
+        };
     }
 
     /// <summary>The user chose not to run a file that may give low-accuracy results.</summary>
@@ -433,6 +530,47 @@ public class ChatMessageRequest
     // Pro customization settings from ChatCustomizationPanel
     // Stored as raw JSON so we can pass it straight to the pipeline and the Analysis entity
     [JsonPropertyName("customization")]    public JsonElement? Customization { get; set; }
+    // With message "domain_answer": what the person said the data is. The text
+    // of the choice they picked or their own words; empty when they skipped.
+    [JsonPropertyName("domainAnswer")]     public string? DomainAnswer     { get; set; }
+    // True when they picked DIG's own reading, so there is nothing new to tell the analysis.
+    [JsonPropertyName("domainConfirmed")]  public bool?   DomainConfirmed  { get; set; }
+}
+
+/// <summary>
+/// What the AI service took the data to be when the file was checked: the
+/// "domain" part of its answer to /check.
+/// </summary>
+public sealed record DataReading(
+    string UnderstoodAs, IReadOnlyList<string> Alternatives, bool Sure, string? ClassificationJson)
+{
+    private const int MaxPhraseChars = 160;
+
+    /// <summary>Null when the answer carries no reading, as from an AI service that predates it.</summary>
+    public static DataReading? From(JsonElement check)
+    {
+        if (check.ValueKind != JsonValueKind.Object
+            || !check.TryGetProperty("domain", out var d) || d.ValueKind != JsonValueKind.Object)
+            return null;
+
+        static string Phrase(JsonElement e)
+        {
+            if (e.ValueKind != JsonValueKind.String) return "";
+            var text = (e.GetString() ?? "").Trim();
+            return text.Length > MaxPhraseChars ? text[..MaxPhraseChars] : text;
+        }
+
+        var understoodAs = d.TryGetProperty("understoodAs", out var u) ? Phrase(u) : "";
+        var alternatives = d.TryGetProperty("alternatives", out var a) && a.ValueKind == JsonValueKind.Array
+            ? a.EnumerateArray().Select(Phrase).Where(p => p.Length > 0).Take(2).ToList()
+            : new List<string>();
+        // Anything but a plain "true" is doubt: asking costs a click, a wrong reading costs a report.
+        var sure = d.TryGetProperty("sure", out var s2) && s2.ValueKind == JsonValueKind.True;
+        var classification = d.TryGetProperty("classification", out var c) && c.ValueKind == JsonValueKind.Object
+            ? c.GetRawText() : null;
+
+        return new DataReading(understoodAs, alternatives, sure, classification);
+    }
 }
 
 public class ChatMessageResponse
@@ -446,6 +584,16 @@ public class ChatMessageResponse
     // The run this reply started. Without it the page checked a blank address
     // for as long as it stayed open and never saw the finished report.
     [JsonPropertyName("analysisId")]       public Guid?   AnalysisId       { get; set; }
+
+    // "domain" when this reply is the question "what is this data about?".
+    // The page then offers Options, a box for the person's own words and a
+    // skip, and answers with message "domain_answer". Null otherwise.
+    [JsonPropertyName("ask")]              public string? Ask              { get; set; }
+    [JsonPropertyName("options")]          public IReadOnlyList<string>? Options { get; set; }
+
+    // What DIG took the data to be, when it was sure and did not ask, for the
+    // page to say before the reply. Null when there is nothing to say.
+    [JsonPropertyName("understoodAs")]     public string? UnderstoodAs     { get; set; }
 }
 
 public class ChatBriefRequest

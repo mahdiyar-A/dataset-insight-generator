@@ -86,6 +86,9 @@ public class PythonAiClient : IPythonAiClient
             // Output formats
             content.Add(new StringContent(request.WantWord.ToString().ToLower()),         "want_word");
             content.Add(new StringContent(request.WantPptx.ToString().ToLower()),         "want_pptx");
+            // What the data is
+            content.Add(new StringContent(request.DomainJson),                            "domain_json");
+            content.Add(new StringContent(request.DataDescription),                       "data_description");
 
             var response = await _http.PostAsync($"{baseUrl}/analyze", content);
             response.EnsureSuccessStatusCode();
@@ -97,14 +100,20 @@ public class PythonAiClient : IPythonAiClient
         }
     }
 
-    public async Task<string> CheckQualityAsync(byte[] csvBytes, string fileName, Guid sessionId)
+    public async Task<string> CheckQualityAsync(byte[] csvBytes, string fileName, Guid sessionId, bool withDomain = false)
     {
         using var content = new MultipartFormDataContent();
         content.Add(FilePart(csvBytes), "file", fileName);
         content.Add(new StringContent(sessionId.ToString()), "session_id");
 
-        // /check is fast (no LLM) — use its own short timeout independent of HttpClient.Timeout.
-        return await PostAsync("check", content, "AIService:CheckTimeoutSeconds", 30);
+        if (!withDomain)
+            // /check is fast (no LLM) — use its own short timeout independent of HttpClient.Timeout.
+            return await PostAsync("check", content, "AIService:CheckTimeoutSeconds", 30);
+
+        // With the reading of the data, the check asks a model, and gives it up
+        // to 25 seconds before answering without one.
+        content.Add(new StringContent("true"), "with_domain");
+        return await PostAsync("check", content, "AIService:CheckWithDomainTimeoutSeconds", 60);
     }
 
     public async Task<string> InspectAsync(byte[] fileBytes, string fileName)

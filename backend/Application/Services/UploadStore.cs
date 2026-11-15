@@ -9,7 +9,21 @@ public sealed record UploadMeta(
     string? FormatLabel,
     int Rows,
     int Columns,
-    IReadOnlyList<string> Headers);
+    IReadOnlyList<string> Headers)
+{
+    // Filled in when the user presses Start and the file is checked. They wait
+    // here because the chat is one request per message and remembers nothing
+    // in between: the question is asked in one request and answered in another.
+
+    /// <summary>What the quality check concluded: all_good, not_clean or low_accuracy.</summary>
+    public string? CheckCondition { get; init; }
+
+    /// <summary>The AI service's classification of the data, as it sent it. Handed back for the analysis.</summary>
+    public string? DomainJson { get; init; }
+
+    /// <summary>What the user said the data is, when DIG was not sure and asked.</summary>
+    public string? DataDescription { get; init; }
+}
 
 /// <summary>
 /// The file a user uploaded, waiting on the server's disk until its analysis
