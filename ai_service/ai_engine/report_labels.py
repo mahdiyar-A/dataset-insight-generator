@@ -13,6 +13,10 @@ from typing import Any, Dict
 
 RTL_LANGUAGES = {"ar", "fa"}
 
+# The model describes a file in English, so this line only ever appears in an
+# English report and is kept out of the table that every language must fill.
+READ_AS = 'This file was read as: {description}.'
+
 LABELS: Dict[str, Dict[str, str]] = {
     "en": {
         "report": "Dataset Insight Report",
@@ -37,6 +41,7 @@ LABELS: Dict[str, Dict[str, str]] = {
         "confidence": "Data confidence",
         "not_read": 'This report covers only "{read}" from the file. Not read: {names}.',
         "unmatched": 'Check these figures before relying on them. They could not be matched to the data: {figures}.',
+        "described_by_you": 'You described this data as: "{description}". The analysis was built around that.',
         "analyst_assessment": "Analyst Assessment",
         "continued": "continued",
         "page": "Page",
@@ -78,6 +83,7 @@ LABELS: Dict[str, Dict[str, str]] = {
         "confidence": "Confiance dans les données",
         "not_read": 'Ce rapport couvre uniquement "{read}" du fichier. Non lu : {names}.',
         "unmatched": 'Vérifiez ces chiffres avant de vous y fier. Ils n\'ont pas pu être rapprochés des données : {figures}.',
+        "described_by_you": "Vous avez décrit ces données ainsi : « {description} ». L'analyse a été construite autour de cette description.",
         "analyst_assessment": "Évaluation de l'analyste",
         "continued": "suite",
         "page": "Page",
@@ -119,6 +125,7 @@ LABELS: Dict[str, Dict[str, str]] = {
         "confidence": "Confianza en los datos",
         "not_read": 'Este informe cubre solo "{read}" del archivo. No leído: {names}.',
         "unmatched": 'Compruebe estas cifras antes de confiar en ellas. No se pudieron cotejar con los datos: {figures}.',
+        "described_by_you": 'Usted describió estos datos así: «{description}». El análisis se construyó en torno a esa descripción.',
         "analyst_assessment": "Evaluación del analista",
         "continued": "continuación",
         "page": "Página",
@@ -160,6 +167,7 @@ LABELS: Dict[str, Dict[str, str]] = {
         "confidence": "Vertrauen in die Daten",
         "not_read": 'Dieser Bericht umfasst nur "{read}" aus der Datei. Nicht gelesen: {names}.',
         "unmatched": 'Prüfen Sie diese Zahlen, bevor Sie sich darauf verlassen. Sie ließen sich den Daten nicht zuordnen: {figures}.',
+        "described_by_you": 'Sie haben diese Daten so beschrieben: „{description}“. Die Analyse wurde darauf aufgebaut.',
         "analyst_assessment": "Einschätzung",
         "continued": "Fortsetzung",
         "page": "Seite",
@@ -201,6 +209,7 @@ LABELS: Dict[str, Dict[str, str]] = {
         "confidence": "Confiança nos dados",
         "not_read": 'Este relatório abrange apenas "{read}" do arquivo. Não lido: {names}.',
         "unmatched": 'Verifique estes números antes de confiar neles. Não foi possível associá-los aos dados: {figures}.',
+        "described_by_you": 'Você descreveu estes dados assim: "{description}". A análise foi construída em torno dessa descrição.',
         "analyst_assessment": "Avaliação do analista",
         "continued": "continuação",
         "page": "Página",
@@ -242,6 +251,7 @@ LABELS: Dict[str, Dict[str, str]] = {
         "confidence": "数据置信度",
         "not_read": '本报告仅涵盖文件中的“{read}”。未读取:{names}。',
         "unmatched": '请在使用前核实这些数字。它们无法与数据对应:{figures}。',
+        "described_by_you": '您对这份数据的描述是:“{description}”。本次分析以此为依据。',
         "analyst_assessment": "分析师评估",
         "continued": "续",
         "page": "第",
@@ -283,6 +293,7 @@ LABELS: Dict[str, Dict[str, str]] = {
         "confidence": "مستوى الثقة في البيانات",
         "not_read": 'يغطي هذا التقرير «{read}» فقط من الملف. لم تتم قراءة: {names}.',
         "unmatched": 'تحقق من هذه الأرقام قبل الاعتماد عليها. تعذرت مطابقتها مع البيانات: {figures}.',
+        "described_by_you": 'وصفتَ هذه البيانات بأنها: "{description}". وقد بُني التحليل على هذا الوصف.',
         "analyst_assessment": "تقييم المحلل",
         "continued": "تابع",
         "page": "صفحة",
@@ -324,6 +335,7 @@ LABELS: Dict[str, Dict[str, str]] = {
         "confidence": "میزان اطمینان به داده‌ها",
         "not_read": 'این گزارش فقط «{read}» از فایل را پوشش می‌دهد. خوانده نشد: {names}.',
         "unmatched": 'پیش از تکیه بر این اعداد آن‌ها را بررسی کنید. با داده‌ها مطابقت داده نشدند: {figures}.',
+        "described_by_you": 'شما این داده\u200cها را چنین توصیف کردید: «{description}». تحلیل بر همین اساس انجام شد.',
         "analyst_assessment": "ارزیابی تحلیلگر",
         "continued": "ادامه",
         "page": "صفحه",
@@ -360,6 +372,26 @@ def left_out_line(detail: Dict[str, Any], language: str = "en") -> str:
         return ""
     names = ", ".join(others[:5]) + (", ..." if len(others) > 5 else "")
     return labels_for(language)["not_read"].format(read=read, names=names)
+
+
+def described_line(description: str, by_user: bool, language: str = "en") -> str:
+    """
+    One sentence saying what the data was taken to be, or "" when there is
+    nothing to say. A reader should be able to see what reading the report
+    rests on, most of all when it was the reader's own.
+    """
+    description = (description or "").strip().rstrip(".")
+    if not description:
+        return ""
+    labels = labels_for(language)
+    if by_user:
+        return labels["described_by_you"].format(description=description)
+    # The model's own sentence is in English. In a report written in another
+    # language it would be one stray English line, and the domain is on the
+    # cover either way.
+    if (language or "en").lower()[:2] != "en":
+        return ""
+    return READ_AS.format(description=description)
 
 
 def is_rtl(language: str) -> bool:

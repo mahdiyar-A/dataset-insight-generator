@@ -77,6 +77,15 @@ def clean_user_text(text, max_len: int = 500) -> str:
     return text
 
 
+def one_line(text, max_len: int = 300) -> str:
+    """
+    clean_user_text for something that is one line by nature: a label, a short
+    description. Line breaks become spaces, so it can sit inside a sentence, a
+    button or a single fenced line of a prompt without breaking out of it.
+    """
+    return " ".join(clean_user_text(text, max_len).split())
+
+
 def looks_like_injection(text: str) -> bool:
     return bool(text and _INJECTION.search(_without_joiners(text)))
 

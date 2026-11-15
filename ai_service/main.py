@@ -16,6 +16,7 @@ from ai_engine.quality.quality_checker import check_data_quality, impossible_val
 from ai_engine.quality.confidence_engine import evaluate_confidence
 from ai_engine.training.training_logger import get_training_stats
 from ai_engine.llm.harness import answer_question, build_brief
+from ai_engine.llm.groq_client import detect_domain, domain_to_dict, doubt
 from ai_engine.llm import model_watch
 
 # ── Startup banner ────────────────────────────────────────────────────────────
@@ -183,12 +184,18 @@ async def inspect(
 
 @app.post("/check")
 async def check(
-    file:       UploadFile = File(...),
-    session_id: str        = Form(...),
+    file:        UploadFile = File(...),
+    session_id:  str        = Form(...),
+    with_domain: bool       = Form(False),
 ):
     """
-    Quick quality check — no LLM calls.
-    Returns condition so C# chatbot can ask the right question.
+    Quick quality check. Returns condition so C# chatbot can ask the right question.
+
+    No LLM calls unless with_domain is set. With it, a usable file is also
+    classified (one model call, CHECK_DOMAIN_BUDGET_SECS at most) and the reply
+    carries "domain": what DIG takes the data to be, whether it is sure, and the
+    classification itself for the backend to hand back to /analyze. Asked here,
+    before the analysis, so that a person can be asked when DIG is not sure.
     """
     print(f"\n{'='*52}", flush=True)
     print(f"[Check] ▶ Received file: {file.filename}  session={session_id}", flush=True)
@@ -236,7 +243,42 @@ async def check(
         condition = "all_good"
 
     print(f"[Check] ✓ Condition: {condition}", flush=True)
-    return JSONResponse({"condition": condition, "error": None, "file": file_info})
+    reply = {"condition": condition, "error": None, "file": file_info}
+    if with_domain:
+        reply["domain"] = _read_the_data(df)
+    return JSONResponse(reply)
+
+
+# How long the check may spend asking a model what the data is. The person is
+# looking at a typing indicator, so far less than the analysis allows itself:
+# if no model answers in this time DIG asks them instead, and the analysis
+# classifies the file again with whatever they said.
+CHECK_DOMAIN_BUDGET_SECS = 25
+
+
+def _read_the_data(df) -> dict:
+    """
+    What DIG takes this data to be, for the chat to say or to ask about.
+
+    {"understoodAs", "alternatives", "sure", "why", "classification"}. Never
+    raises: with no model there is no reading, and "sure" is false.
+    """
+    from ai_engine.telemetry.usage import UsageTracker
+    try:
+        result = detect_domain(df, API_KEYS, UsageTracker(), budget_secs=CHECK_DOMAIN_BUDGET_SECS)
+        why = doubt(result, df.columns)
+    except Exception as e:  # the check must answer whatever happens here
+        print(f"[Check] reading the data failed: {type(e).__name__}: {e}", flush=True)
+        return {"understoodAs": "", "alternatives": [], "sure": False, "why": "no_model", "classification": None}
+    print(f"[Check] reads as: {result.description or result.domain!r} "
+          f"(confidence {result.confidence:.2f}, {'sure' if not why else 'asking: ' + why})", flush=True)
+    return {
+        "understoodAs": result.description if result.source == "model" else "",
+        "alternatives": result.alternatives if result.source == "model" else [],
+        "sure": not why,
+        "why": why,
+        "classification": domain_to_dict(result),
+    }
 
 
 @app.post("/analyze")
@@ -266,6 +308,10 @@ async def analyze(
     avoid:               str  = Form(""),
     questions_json:      str  = Form(""),    # JSON list of {"question", "note"} or strings
     writing_format:      str  = Form("narrative"),
+    # What the data is: the classification /check made, and the user's own
+    # words when DIG was not sure and asked. See pipeline._settle_domain.
+    domain_json:         str  = Form(""),
+    data_description:    str  = Form(""),
 ):
     """
     Full 8-phase analysis pipeline.
@@ -316,6 +362,8 @@ async def analyze(
         openrouter_api_key=OPENROUTER_API_KEY,
         groq_api_key=GROQ_API_KEY,
         session_id=session_id,
+        domain_hint=_json_form(domain_json, None),
+        data_description=data_description,
         customization={
             "language":           language,
             "tone":               tone,

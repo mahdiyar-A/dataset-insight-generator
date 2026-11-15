@@ -24,14 +24,15 @@ from ai_engine.ingest                    import load_table, UnsupportedFile
 from ai_engine.quality.quality_checker   import check_data_quality
 from ai_engine.core.cleaner              import clean_dataset, droppable_columns, what_cleaning_did
 from ai_engine.core.stats_analyzer       import build_stats_summary
-from ai_engine.llm.groq_client           import detect_domain
+from ai_engine.llm.groq_client           import MAX_DESCRIPTION_CHARS, detect_domain, domain_from_dict
+from ai_engine.llm.guard                 import one_line
 from ai_engine.core.confidence          import assess_confidence, split_misleading_scatters, validate_chart_instructions
 from ai_engine.llm.insight_agent         import generate_report, MAX_INSIGHTS, MIN_INSIGHTS, MAX_QUESTIONS
 from ai_engine.llm.stats_digest          import build_digest
 from ai_engine.llm.user_requests         import cover, for_chat, for_prompt, work_out_requests
 from ai_engine.charts.chart_generator    import generate_charts
 from ai_engine.pdf.pdf_builder           import build_pdf
-from ai_engine.report_labels             import left_out_line
+from ai_engine.report_labels             import described_line, left_out_line
 from ai_engine.models.models             import (
     PipelineResult, DomainResult, ChartInstruction, LLMReport
 )
@@ -115,6 +116,10 @@ def _chat_context(stats, domain, report, columns: List[str], source: Dict[str, A
         "columns": [{"name": str(c), "type": stats.columnTypes.get(str(c), "")} for c in columns][:200],
         "columnsLeftOutOfTheReport": [str(c) for c in (set_aside or [])][:50],
         "file": {k: source.get(k) for k in ("format", "formatLabel", "notes") if source.get(k)},
+        # What the data was taken to be, and whose words those are, so the chat
+        # answers from the same reading as the report.
+        **({"dataDescribedAs": {"text": domain.description, "byUser": domain.described_by_user}}
+           if getattr(domain, "description", "") else {}),
         "report": {
             "title": report.reportTitle,
             "summary": report.executiveSummary,
@@ -149,9 +154,18 @@ def run_pipeline(
     groq_api_key:        str = "",
     session_id:          str = "",
     customization:       Optional[Dict[str, Any]] = None,
+    domain_hint:         Optional[Dict[str, Any]] = None,
+    data_description:    str = "",
 ) -> dict:
     """
     Full 8-phase analysis pipeline. Returns dict matching C# AnalyzeResponseDto.
+
+    domain_hint is the classification made when the file was checked, before
+    the user pressed Start (groq_client.domain_to_dict). When a model made it,
+    it is used as it stands and Phase 1 costs no second call.
+
+    data_description is what the user said the data is, when DIG was not sure
+    and asked. With it the file is classified again, around their words.
 
     customization (Pro users only, all optional):
       language       — "en" | "fr" | "es" | "de" | "zh" | "ar" | "pt"
@@ -230,8 +244,10 @@ def run_pipeline(
 
     # ── Phase 1: Groq — domain, column decisions, cleaning directives ─────
     print(f"[Pipeline] Phase 1 — Groq domain classification...", flush=True)
-    domain = _run_domain_gate(df_original, {"groq": groq_api_key, "openrouter": openrouter_api_key}, tracker)
-    print(f"[Pipeline] Domain: {domain.domain} | analyzable: {domain.is_analyzable}", flush=True)
+    domain = _settle_domain(df_original, {"groq": groq_api_key, "openrouter": openrouter_api_key}, tracker,
+                            domain_hint, data_description)
+    print(f"[Pipeline] Domain: {domain.domain} | analyzable: {domain.is_analyzable} | "
+          f"source: {domain.source}{' | described by the user' if domain.described_by_user else ''}", flush=True)
 
     if not domain.is_analyzable:
         return _fail("not_workable", f"Dataset rejected: {domain.rejection_reason}")
@@ -358,6 +374,12 @@ def run_pipeline(
     left_out = left_out_line(table.detail, language)
     if left_out:
         llm_report.dataQualitySection = f"{llm_report.dataQualitySection}\n\n{left_out}".strip()
+
+    # And what the data was taken to be, so the reading the report rests on is
+    # in the report. In the user's own words when they were asked.
+    taken_as = described_line(domain.description, domain.described_by_user, language)
+    if taken_as:
+        llm_report.dataQualitySection = f"{llm_report.dataQualitySection}\n\n{taken_as}".strip()
 
     print(f"[Pipeline] Phase 5 done. Insights: {len(llm_report.insights)}, Charts: {len(llm_report.chartInstructions)}", flush=True)
 
@@ -508,12 +530,44 @@ def _fail(condition: str, error: str) -> dict:
     ).to_response()
 
 
-def _run_domain_gate(df: pd.DataFrame, api_keys, tracker=None) -> DomainResult:
+def _settle_domain(df: pd.DataFrame, api_keys, tracker, hint: Optional[Dict[str, Any]],
+                   description: str) -> DomainResult:
+    """
+    What this data is, from the best source there is.
+
+      1. The user's own words, when DIG asked and they answered. The file is
+         classified again around them. If no model answers this time, the
+         earlier reading is kept if there was one, and their words still reach
+         the writer: a person's description beats no reading at all.
+      2. The reading made when the file was checked, when a model made it.
+         Used as it stands, so this phase costs nothing twice.
+      3. Otherwise the file is classified now, as it always was.
+    """
+    description = one_line(description, MAX_DESCRIPTION_CHARS)
+    earlier = domain_from_dict(hint, df) if hint else None
+    if earlier is not None and earlier.source != "model":
+        earlier = None   # the stand-in for "no model answered" is not a reading
+
+    if description:
+        domain = _run_domain_gate(df, api_keys, tracker, description=description)
+        if domain.source != "model" and earlier is not None:
+            domain = earlier
+        domain.description, domain.described_by_user = description, True
+        return domain
+
+    if earlier is not None:
+        print("[Pipeline] Domain: using the reading made when the file was checked", flush=True)
+        return earlier
+    return _run_domain_gate(df, api_keys, tracker)
+
+
+def _run_domain_gate(df: pd.DataFrame, api_keys, tracker=None, description: str = "") -> DomainResult:
     keys = {"groq": api_keys} if isinstance(api_keys, str) else dict(api_keys or {})
     if not any(keys.values()):
         print("[Pipeline] no model key set — using general domain fallback")
         numeric_cols = df.select_dtypes(include="number").columns.tolist()[:5]
         return DomainResult(
+            source="fallback",
             domain="general",
             confidence=0.5,
             is_analyzable=True,
@@ -536,6 +590,8 @@ def _run_domain_gate(df: pd.DataFrame, api_keys, tracker=None) -> DomainResult:
             cleaning_methods=["remove_empty_rows", "remove_duplicates", "remove_infinity"],
         )
     try:
+        if description:
+            return detect_domain(df, keys, tracker, description=description)
         return detect_domain(df, keys, tracker)
     except Exception as e:
         print(f"[Pipeline] Domain gate error: {e} — using fallback")
