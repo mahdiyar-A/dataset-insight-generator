@@ -25,7 +25,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from ai_engine.report_labels import confidence_word, is_rtl, labels_for
+from ai_engine.report_labels import basis_line, confidence_word, is_rtl, labels_for
 
 try:
     from docx import Document
@@ -253,6 +253,9 @@ def build_word_doc(
         rank = insight.get("rank", "")
         w.heading(f"{rank}.  {insight.get('title', '')}".strip(), 2)
         w.body(insight.get("body", ""))
+        basis = basis_line(insight, labels, w.rtl)
+        if basis:
+            w.paragraph(basis, italic=True, size=9, color=COLOR_MUTED)
         index = int(insight.get("insight_index") or rank or 0)
         for chart in by_insight.get(index, []):
             w.chart(chart)

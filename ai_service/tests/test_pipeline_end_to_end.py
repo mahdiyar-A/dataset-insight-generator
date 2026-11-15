@@ -115,7 +115,7 @@ def test_xlsx_upload_with_a_brief_produces_every_output(stub_writer):
     assert "Q1. Which region churns most?" in prompt and "for the board" in prompt
     assert "Q2. What will revenue be next year?" in prompt
     assert '"question_answers"' in prompt
-    assert "Produce exactly 4 insights." in prompt
+    assert "Produce 4 insights when the" in prompt
     assert "bullet points" in prompt
     # The workbook's data sheet was read, and the prompt says so.
     assert '"file_format":"Excel"' in prompt and '"read_from":"Orders"' in prompt
@@ -232,7 +232,7 @@ def test_bad_customization_values_fall_back_to_defaults(stub_writer):
     )
     assert result["status"] == "done", result.get("error")
     prompt = stub_writer[0]
-    assert "Produce exactly 5 insights." in prompt
+    assert "Produce 5 insights when the" in prompt
     assert "Q1. not json [" in prompt   # a bare string is taken as one question
 
 

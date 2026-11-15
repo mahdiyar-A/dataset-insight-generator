@@ -18,7 +18,7 @@ from typing import List, Dict, Any, Optional
 from fpdf import FPDF
 from ai_engine.models.models import LLMReport, DomainResult
 from ai_engine.fonts import cjk_font_file, dejavu_dir, has_rtl, starts_rtl
-from ai_engine.report_labels import confidence_word, is_rtl, labels_for
+from ai_engine.report_labels import basis_line, confidence_word, is_rtl, labels_for
 
 
 # ── Brand palette ─────────────────────────────────────────────────────────────
@@ -84,6 +84,17 @@ def _s(text: str) -> str:
     if not text:
         return ""
     return _latin(str(text)).encode("latin-1", errors="replace").decode("latin-1")
+
+
+# The Greek in a "Based on" line, spelled out where Helvetica draws the page:
+# one η would otherwise move a whole English report to another font.
+_GREEK = (("η²", "eta²"), ("η", "eta"), ("ρ", "rho"))
+
+
+def _spelled(text: str) -> str:
+    for char, rep in _GREEK:
+        text = text.replace(char, rep)
+    return text
 
 
 def needs_unicode(*texts) -> bool:
@@ -267,14 +278,16 @@ class DigReport(FPDF):
         return lines * line_h
 
     # ── Insight block ─────────────────────────────────────────────────────
-    def insight_block(self, rank: int, title: str, body: str, color_rgb: tuple):
+    def insight_block(self, rank: int, title: str, body: str, color_rgb: tuple, basis: str = ""):
         # Use accurate per-font estimates:
         # title  = 11pt bold  → char_w≈2.0, line_h=6.0
         # body   = 10pt reg   → char_w≈1.85, line_h=5.5
+        # basis  = 8.5pt ital → char_w≈1.6, line_h=4.5
         title_h = self._estimate_text_height(title, 152, line_h=6.0, char_w=2.0) + 6
         body_h  = self._estimate_text_height(body,  162, line_h=5.5, char_w=1.85)
+        basis_h = self._estimate_text_height(basis, 162, line_h=4.5, char_w=1.6) + 2 if basis else 0
         padding = 10
-        total_h = title_h + body_h + padding
+        total_h = title_h + body_h + basis_h + padding
 
         if self.get_y() + total_h > PAGE_BOTTOM:
             self.add_page()
@@ -310,6 +323,14 @@ class DigReport(FPDF):
         self.set_font("Helvetica", "", 10)
         self.set_text_color(180, 190, 205)
         self.multi_cell(162, 5.5, self.t(body))
+
+        # What the insight rests on, written by DIG from the numbers.
+        if basis:
+            self.ln(2)
+            self.set_x(22 if self.rtl else 25)
+            self.set_font("Helvetica", "I", 8.5)
+            self.set_text_color(*BRAND_MUTED)
+            self.multi_cell(162, 4.5, self.t(basis))
 
         # Always advance cursor to BELOW the drawn rectangle, not wherever text ended.
         # This prevents charts from rendering inside (overlapping) the insight box.
@@ -372,7 +393,7 @@ def build_pdf(
     texts = [report.reportTitle, report.introduction, report.executiveSummary, report.confidenceNote,
              report.conclusion, report.dataQualitySection, getattr(report, "assumptions", ""), file_name]
     for ins in report.insights or []:
-        texts += [ins.get("title"), ins.get("body")]
+        texts += [ins.get("title"), ins.get("body")] + [_spelled(str(x)) for x in ins.get("basedOn") or []]
     for qa in getattr(report, "questionAnswers", None) or []:
         texts += [qa.get("question"), qa.get("answer")]
     for ch in charts or []:
@@ -464,7 +485,8 @@ def build_pdf(
         ins_idx = ins.get("insight_index", rank)
         color_rgb = INSIGHT_COLORS[(rank - 1) % len(INSIGHT_COLORS)]
 
-        pdf.insight_block(rank, title, body, color_rgb)
+        basis = basis_line(ins, L, pdf.rtl)
+        pdf.insight_block(rank, title, body, color_rgb, basis if pdf.unicode else _spelled(basis))
 
         for ch in charts_by_insight.get(ins_idx, []):
             img = ch.get("image_base64")

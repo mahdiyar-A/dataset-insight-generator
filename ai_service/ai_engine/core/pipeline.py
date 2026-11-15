@@ -123,7 +123,10 @@ def _chat_context(stats, domain, report, columns: List[str], source: Dict[str, A
         "report": {
             "title": report.reportTitle,
             "summary": report.executiveSummary,
-            "insights": [{"rank": i.get("rank"), "title": i.get("title"), "body": i.get("body")}
+            # With what each insight rests on, so "where does that come from?"
+            # is answered from the same result the report named.
+            "insights": [{"rank": i.get("rank"), "title": i.get("title"), "body": i.get("body"),
+                          **({"basedOn": i["basedOn"]} if i.get("basedOn") else {})}
                          for i in report.insights],
             "conclusion": report.conclusion,
             "questionAnswers": report.questionAnswers,

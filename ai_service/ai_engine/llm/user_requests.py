@@ -539,8 +539,10 @@ def compact(result: Dict[str, Any]) -> Dict[str, Any]:
 
 def for_prompt(requests: List[Dict[str, Any]], limit: int = MAX_PROMPT_CHARS) -> str:
     """The computed requests as compact JSON for the writer, within `limit` characters."""
-    entries = [{"asked": r["request"], "kind": r["kind"], "found": [compact(x) for x in r["results"]]}
-               for r in requests if r.get("results")]
+    # Each with an id a report insight can cite (evidence.py), fixed before
+    # anything is shed so the ids that remain still match their requests.
+    entries = [{"id": f"R{i}", "asked": r["request"], "kind": r["kind"], "found": [compact(x) for x in r["results"]]}
+               for i, r in enumerate((r for r in requests if r.get("results")), 1)]
     def dump() -> str:
         return json.dumps(entries, separators=(",", ":"), ensure_ascii=False, default=str)
 
