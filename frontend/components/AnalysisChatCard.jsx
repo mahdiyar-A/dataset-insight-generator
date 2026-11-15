@@ -56,6 +56,11 @@ const T = {
     no: "No",
     goReport: "Go to Report",
     received: (name) => `We've received "${name}" — starting analysis now. Please wait…`,
+    readAs: (what) => `This looks like: ${what}.`,
+    ownWords: "Or say what it is, in your own words",
+    send: "Send",
+    skip: "Skip",
+    skipped: "Skip this",
   },
   fr: {
     title: "Assistant d'analyse",
@@ -73,6 +78,11 @@ const T = {
     no: "Non",
     goReport: "Voir le rapport",
     received: (name) => `Nous avons reçu « ${name} » — analyse en cours. Veuillez patienter…`,
+    readAs: (what) => `Cela ressemble à : ${what}.`,
+    ownWords: "Ou dites ce que c'est, avec vos propres mots",
+    send: "Envoyer",
+    skip: "Passer",
+    skipped: "Passer cette question",
   },
   fa: {
     title: "دستیار تحلیل",
@@ -90,6 +100,11 @@ const T = {
     no: "خیر",
     goReport: "مشاهده گزارش",
     received: (name) => `فایل "${name}" دریافت شد — تحلیل در حال شروع است. لطفاً صبر کنید…`,
+    readAs: (what) => `به نظر می‌رسد این داده‌ها چنین باشد: ${what}.`,
+    ownWords: "یا با کلمات خودتان بگویید چیست",
+    send: "ارسال",
+    skip: "رد شدن",
+    skipped: "از این پرسش می‌گذرم",
   },
 };
 
@@ -133,6 +148,10 @@ export default function AnalysisAssistantCard({
   // Once a run starts on the server this page cannot stop it. Cancel used to
   // stay and only clear the chat, while the run went on and used up the allowance.
   const [runStarted,       setRunStarted]       = useState(false);
+  // "What is this data about?", asked when the server is not sure. Holds the
+  // readings to choose from while the question is open; null otherwise.
+  const [domainAsk,        setDomainAsk]        = useState(null);
+  const [domainDraft,      setDomainDraft]      = useState("");
 
   const bottomRef = useRef(null);
   const timerRef  = useRef(null);
@@ -156,7 +175,7 @@ export default function AnalysisAssistantCard({
     setMessages(prev => [...prev, { role, text }]);
 
   // ── Send a message to the backend chatbot ──
-  const sendMessage = async (message, pendingCondition = null) => {
+  const sendMessage = async (message, pendingCondition = null, extra = {}) => {
     if (sending) return;
     setSending(true);
     try {
@@ -169,6 +188,7 @@ export default function AnalysisAssistantCard({
         analysisId:       dataset?.id ?? null,
         // Pro users: attach their report customization options
         customization:    isPro ? settings : null,
+        ...extra,
       };
 
       let res;
@@ -188,9 +208,20 @@ export default function AnalysisAssistantCard({
       const done      = res?.done      ?? false;
       const failed    = res?.failed    ?? false;
       const needsResp = res?.requiresResponse ?? false;
+      // The server is not sure what the data is and asks, before anything runs.
+      const askingDomain = res?.ask === "domain" && !failed;
 
+      // When the server was sure, it says what it read, so the person can see
+      // what the report will rest on.
+      if (res?.understoodAs) addMsg("assistant", t.readAs(res.understoodAs));
       addMsg("assistant", reply);
       setCondition(cond);
+      setDomainAsk(askingDomain ? { options: Array.isArray(res.options) ? res.options : [] } : null);
+      if (askingDomain) {
+        setDomainDraft("");
+        setAwaitingResponse(false);   // this question has its own answers, not Yes and No
+        return;
+      }
 
       if (failed) {
         // Stay at stage 1 so the error message stays visible in the chat log.
@@ -203,9 +234,10 @@ export default function AnalysisAssistantCard({
         // Only trigger polling when analysis actually kicks off:
         // - message was "yes"/"no" (user confirmed)
         // - OR message was "start_analysis" and condition is "all_good" (no confirmation needed)
+        // - OR the same once "what is this data about?" has been answered
         const analysisKickingOff = !needsResp && !done && !failed &&
           (message === "yes" || message === "no" ||
-           (message === "start_analysis" && cond === "all_good"));
+           ((message === "start_analysis" || message === "domain_answer") && cond === "all_good"));
         if (analysisKickingOff) {
           // Pass back the analysis ID so the dashboard can start polling for it
           const newAnalysisId = res?.analysisId || dataset?.id || null;
@@ -279,6 +311,18 @@ export default function AnalysisAssistantCard({
     }
   };
 
+  // The answer to "what is this data about?". `confirmed` is true for the
+  // server's own reading, which tells the analysis nothing new; an empty
+  // answer is a skip, and the analysis goes ahead on what the server had.
+  const answerDomain = (text, confirmed = false) => {
+    if (!domainAsk || sending) return;
+    const answer = (text ?? "").trim();
+    addMsg("user", answer || t.skipped);
+    setDomainAsk(null);
+    setDomainDraft("");
+    sendMessage("domain_answer", condition, { domainAnswer: answer, domainConfirmed: confirmed });
+  };
+
   const handleStart = () => {
     clearTimeout(timerRef.current);
     setRunStarted(false);
@@ -286,6 +330,7 @@ export default function AnalysisAssistantCard({
     setMessages([]);
     setAwaitingResponse(false);
     setCondition(null);
+    setDomainAsk(null);
     setStubStep(0);
     const name = dataset?.fileName ?? "your dataset";
     addMsg("assistant", t.received(name));
@@ -299,6 +344,7 @@ export default function AnalysisAssistantCard({
     setMessages([]);
     setAwaitingResponse(false);
     setCondition(null);
+    setDomainAsk(null);
     setStubStep(0);
   };
 
@@ -409,7 +455,52 @@ export default function AnalysisAssistantCard({
             <div ref={bottomRef}/>
           </div>
 
+          {/* "What is this data about?" — the server's readings to pick from,
+              a box for the person's own words, and a way past the question. */}
+          {domainAsk && !sending && (
+            <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
+              {domainAsk.options.length > 0 && (
+                <div style={{ display:"flex", gap:"6px", flexWrap:"wrap" }}>
+                  {domainAsk.options.map((option, i) => (
+                    <button key={option} type="button" className="chip-btn subtle"
+                      onClick={() => answerDomain(option, i === 0)}
+                      style={{ fontSize:"0.78rem", padding:"6px 12px", textAlign:"start",
+                        borderColor:"rgba(37,99,235,0.45)", color:"#bfdbfe", background:"rgba(37,99,235,0.12)" }}>
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <form onSubmit={(e) => { e.preventDefault(); if (domainDraft.trim()) answerDomain(domainDraft); }}
+                style={{ display:"flex", gap:"8px" }}>
+                <input
+                  type="text"
+                  dir={domainDraft ? "auto" : undefined}
+                  aria-label={t.ownWords}
+                  placeholder={t.ownWords}
+                  value={domainDraft}
+                  maxLength={300}
+                  onChange={(e) => setDomainDraft(e.target.value)}
+                  style={{ flex:1, minWidth:0, padding:"8px 12px", borderRadius:"8px", outline:"none",
+                    border:"1px solid rgba(55,65,81,0.8)", background:"rgba(15,23,42,0.9)",
+                    color:"#e2e8f0", fontSize:"0.82rem" }}
+                />
+                <button type="submit" className="primary-btn" disabled={!domainDraft.trim()}
+                  style={{ padding:"8px 16px", fontSize:"0.8rem", opacity: domainDraft.trim() ? 1 : 0.5,
+                    cursor: domainDraft.trim() ? "pointer" : "not-allowed" }}>
+                  {t.send}
+                </button>
+              </form>
+            </div>
+          )}
+
           <div style={{ display:"flex", gap:"8px", flexWrap:"wrap", alignItems:"center" }}>
+            {domainAsk && !sending && (
+              <button type="button" className="chip-btn subtle" onClick={() => answerDomain("")}
+                style={{ fontSize:"0.8rem", padding:"6px 14px" }}>
+                {t.skip}
+              </button>
+            )}
             {!runStarted && !sending && (
               <button className="chip-btn subtle" onClick={handleCancel} style={{ fontSize:"0.8rem", padding:"6px 14px" }}>
                 {t.cancel}
