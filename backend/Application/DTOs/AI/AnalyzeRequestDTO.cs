@@ -41,4 +41,13 @@ public class AnalyzeRequestDto
     // ── Output format ─────────────────────────────────────────────────────────
     public bool   WantWord      { get; set; } = false;
     public bool   WantPptx      { get; set; } = false;
+
+    // ── What the data is ──────────────────────────────────────────────────────
+    // The classification the AI service made when the file was checked, handed
+    // back as it came so the analysis need not ask a model again. Empty when
+    // there was none.
+    public string DomainJson      { get; set; } = "";
+    // The user's own description, when DIG was not sure and asked. Empty when
+    // they were not asked, confirmed DIG's reading, or skipped.
+    public string DataDescription { get; set; } = "";
 }

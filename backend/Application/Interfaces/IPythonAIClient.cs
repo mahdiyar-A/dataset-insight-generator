@@ -5,7 +5,13 @@ namespace backend.Application.Interfaces;
 public interface IPythonAiClient
 {
     Task<string> CallPythonAiAsync(AnalyzeRequestDto request);
-    Task<string> CheckQualityAsync(byte[] csvBytes, string fileName, Guid sessionId);
+    /// <summary>
+    /// Whether the file can be analysed as it is. With <paramref name="withDomain"/>
+    /// the answer also carries "domain": what the AI service takes the data to
+    /// be, whether it is sure, and the classification to hand back to the
+    /// analysis. That part asks a model; the rest does not.
+    /// </summary>
+    Task<string> CheckQualityAsync(byte[] csvBytes, string fileName, Guid sessionId, bool withDomain = false);
 
     /// <summary>
     /// How the AI service reads a file: format, rows, columns, headers and a

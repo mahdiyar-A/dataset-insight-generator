@@ -500,11 +500,22 @@ public class FakePythonAiClient : IPythonAiClient
         return Task.FromResult(AskJson);
     }
 
-    public Task<string> CheckQualityAsync(byte[] csvBytes, string fileName, Guid sessionId)
+    /// <summary>
+    /// The "domain" part of /check's answer: what the AI service takes the data
+    /// to be. Null leaves it out, as an AI service that predates it does.
+    /// </summary>
+    public string? DomainBlockJson { get; set; }
+
+    /// <summary>Whether each /check was asked to read the data as well, in order.</summary>
+    public List<bool> ChecksWithDomain { get; } = new();
+
+    public Task<string> CheckQualityAsync(byte[] csvBytes, string fileName, Guid sessionId, bool withDomain = false)
     {
         CheckedFileNames.Add(fileName);
-        var error = CheckError is null ? "null" : System.Text.Json.JsonSerializer.Serialize(CheckError);
-        var json  = $"{{\"condition\":\"{CheckCondition}\",\"error\":{error}}}";
+        ChecksWithDomain.Add(withDomain);
+        var error  = CheckError is null ? "null" : System.Text.Json.JsonSerializer.Serialize(CheckError);
+        var domain = withDomain && DomainBlockJson != null ? $",\"domain\":{DomainBlockJson}" : "";
+        var json   = $"{{\"condition\":\"{CheckCondition}\",\"error\":{error}{domain}}}";
         return Task.FromResult(json);
     }
 

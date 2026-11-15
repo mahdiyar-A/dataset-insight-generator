@@ -194,6 +194,13 @@ public class AnalysisService
                 userId, saved, customizationJson,
                 userWantsCleaning, userConfirmedLow);
 
+            // What the data is: the reading made when the file was checked, and
+            // the user's own words if DIG was unsure and asked. Not part of the
+            // customization, so it reaches the analysis on every plan: being
+            // asked what your file is about is not a paid extra.
+            request.DomainJson      = uploaded?.DomainJson ?? "";
+            request.DataDescription = uploaded?.DataDescription ?? "";
+
             // ── Step 4: Call the Python AI pipeline ───────────────────────────
             var csvBytes = await File.ReadAllBytesAsync(tempPath);
             request.CsvFileBytes = csvBytes;
