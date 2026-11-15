@@ -1,7 +1,7 @@
 # DIG — Project Status
 
 **Branch:** `main`
-**Last updated:** 2026-11-11
+**Last updated:** 2026-11-15
 
 ---
 
@@ -9,10 +9,43 @@
 
 | Suite | Count | Command |
 |---|---|---|
-| C# — unit, integration, edge cases, the real Supabase client against a stand-in server | 443 | `dotnet test backend.Tests/backend.Tests.csproj` |
-| Python — stats, ingest, chat harness, reports, full pipeline, model watch | 886 | `cd ai_service && pytest tests/` |
-| Frontend — Vitest, including rendered components | 218 | `cd frontend && npm test` |
+| C# — unit, integration, edge cases, the real Supabase client against a stand-in server | 455 | `dotnet test backend.Tests/backend.Tests.csproj` |
+| Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is | 936 | `cd ai_service && pytest tests/` |
+| Frontend — Vitest, including rendered components | 228 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
+
+---
+
+## Asking what the data is, 2026-11-14
+
+What DIG takes a file to be steers the whole report: what leads it, which
+questions it sets out to answer, what each column is called. That reading was
+made after the user pressed Start, the model's confidence in it was never
+read, and when no model answered the file was quietly called "general".
+
+- **Read at the check, before anything runs.** `/check` with `with_domain`
+  classifies the file (25 seconds at most) and says in one plain sentence what
+  it takes the data to be. The analysis reuses that reading, so it costs no
+  second call.
+- **Sure: say it and carry on.** The chat shows "This looks like: online shop
+  orders, one row per order." and starts.
+- **Not sure: ask.** The chat offers DIG's reading and any other that fits, a
+  box for the person's own words, and Skip. Nothing runs while the question is
+  open. The rule is `groq_client.doubt`: no model answered, no subject could be
+  named, confidence under 0.9, or most headers say nothing (V1, col2).
+- **The bar is measured, not guessed.** On ten files with the live models,
+  five that are plainly one thing scored 0.95 to 0.97 and four that could be
+  several scored 0.70 to 0.80, each with a confident-sounding subject. The
+  first bar, 0.75, let a file of call-centre shifts through as "a manufacturing
+  process log".
+- **The answer is used.** The file is classified again around the person's
+  words, the writer is told what they said (fenced as their text), the report's
+  quality section states it in all eight languages, and the chat knows it.
+- **On every plan.** It is not part of report customization.
+
+Not asked: guests, and files the check says cannot be analysed. Tested with
+fakes, rendered components and a live trial of the prompt; not yet tried as a
+signed-in person on the live site.
 
 ---
 
