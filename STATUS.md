@@ -10,9 +10,37 @@
 | Suite | Count | Command |
 |---|---|---|
 | C# — unit, integration, edge cases, the real Supabase client against a stand-in server | 455 | `dotnet test backend.Tests/backend.Tests.csproj` |
-| Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is | 936 | `cd ai_service && pytest tests/` |
+| Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is, insights' evidence | 972 | `cd ai_service && pytest tests/` |
 | Frontend — Vitest, including rendered components | 228 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
+
+---
+
+## Insights name what they rest on, 2026-11-15
+
+The writer received every computed result and wrote freely. Nothing tied a
+paragraph to the figure behind it, so a fluent insight with nothing under it
+read exactly like a real one.
+
+- **Every result has an id.** `stats_digest.build_digest` tags each result the
+  writer sees (trend, concentration, drivers, segments, correlations, group
+  differences, associations, missing-value patterns, unusual rows, averages,
+  common values) F1, F2, ... in a fixed order; the user's requests are R1, R2,
+  ... (`user_requests.for_prompt`). `ai_engine/llm/evidence.py`.
+- **Each insight cites them** in `rests_on`. One that cites nothing real is
+  sent back once, in the same rewrite as unmatched figures. If it still cites
+  nothing it is left out and the quality section says how many went; its chart
+  moves to the charts at the end. If no insight cites anything, all stay with a
+  warning, because an empty report says less.
+- **"Based on" is written by DIG, not the model**, from the numbers, in all
+  eight report languages, under each insight in the PDF, Word and PowerPoint,
+  and in the chat context. The chat is told the ids are internal, and any it
+  writes in brackets are taken out.
+- **Live trial, two files, gpt-oss-120b:** every insight cited real ids on the
+  first try; nothing was left out.
+
+Not covered: the stats-only report written when no model answers has no
+"Based on" lines (its insights are written by DIG from the statistics).
 
 ---
 
