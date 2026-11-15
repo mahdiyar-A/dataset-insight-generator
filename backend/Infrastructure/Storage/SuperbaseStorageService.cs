@@ -74,9 +74,18 @@ public class SupabaseStorageService : IStorageService
     public async Task<string> SavePptxReportAsync(Guid userId, Guid analysisId, byte[] pptxBytes)
         => await UploadBytesAsync(pptxBytes, $"{AnalysisDir(userId, analysisId)}/report.pptx", AnyFile);
 
+    private static string ChartPath(Guid userId, Guid analysisId, int index) =>
+        $"{AnalysisDir(userId, analysisId)}/chart_{index}.png";
+
     public async Task<string> SaveChartAsync(Guid userId, Guid analysisId, int index, byte[] pngBytes)
-        => await UploadBytesAsync(pngBytes,
-            $"{AnalysisDir(userId, analysisId)}/chart_{index}.png", "image/png");
+        => await UploadBytesAsync(pngBytes, ChartPath(userId, analysisId, index), "image/png");
+
+    public async Task<byte[]?> ReadChartAsync(Guid userId, Guid analysisId, int index)
+    {
+        if (index < 0 || index >= MaxCharts) return null;
+        var bytes = await DownloadAsync(ChartPath(userId, analysisId, index));
+        return bytes is { Length: > 0 } ? bytes : null;
+    }
 
     private static string ChatContextPath(Guid userId, Guid analysisId) =>
         $"{AnalysisDir(userId, analysisId)}/chat_context.json";

@@ -166,6 +166,41 @@ public class PythonAiClient : IPythonAiClient
         }
     }
 
+    public async Task<string> RebuildReportAsync(ReportRebuildRequest request)
+    {
+        using var content = new MultipartFormDataContent();
+        content.Add(new StringContent(request.OriginalJson), "original_json");
+        if (request.EditedJson != null)      content.Add(new StringContent(request.EditedJson),      "edited_json");
+        if (request.CurrentJson != null)     content.Add(new StringContent(request.CurrentJson),     "current_json");
+        if (request.ChatContextJson != null) content.Add(new StringContent(request.ChatContextJson), "chat_context_json");
+        content.Add(new StringContent(request.WantWord.ToString().ToLower()), "want_word");
+        content.Add(new StringContent(request.WantPptx.ToString().ToLower()), "want_pptx");
+        foreach (var (number, png) in request.Charts)
+        {
+            var part = new ByteArrayContent(png);
+            part.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+            content.Add(part, "charts", $"chart_{number}.png");
+        }
+
+        // Building three files with charts takes a few seconds; a slow
+        // server is given more, a stuck one is not waited on for a minute.
+        using var cts = new CancellationTokenSource(
+            TimeSpan.FromSeconds(_config.GetValue("AIService:RebuildTimeoutSeconds", 60)));
+        try
+        {
+            var response = await _http.PostAsync($"{BaseUrl}/report/rebuild", content, cts.Token);
+            // 422 is an edit the AI service refused, with a reason to show.
+            if ((int)response.StatusCode != 422)
+                response.EnsureSuccessStatusCode();
+            return await response.Content.ReadAsStringAsync(cts.Token);
+        }
+        catch (TaskCanceledException)
+        {
+            _logger.LogWarning("[PythonAI] /report/rebuild timed out");
+            throw new TimeoutException("Python /report/rebuild timed out.");
+        }
+    }
+
     private async Task<string> PostAsync(string endpoint, HttpContent content, string timeoutKey, int defaultSeconds)
     {
         var url = $"{BaseUrl}/{endpoint}";

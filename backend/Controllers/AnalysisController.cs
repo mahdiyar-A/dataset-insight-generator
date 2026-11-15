@@ -212,13 +212,15 @@ public class AnalysisController : ControllerBase
     // to arbitrary inboxes. Rate limited for the same reason.
     [HttpPost("{id:guid}/email")]
     [EnableRateLimiting("email-report")]
-    public async Task<IActionResult> EmailReport(Guid id)
+    public async Task<IActionResult> EmailReport(Guid id, [FromServices] ReportService reports)
     {
         var userId   = UserId();
         var analysis = await _repo.GetByIdAsync(id, userId);
         if (analysis == null) return NotFound(new { error = "NOT_FOUND" });
         if (analysis.PdfReportPath == null)
             return BadRequest(new { error = "NOT_READY", message = "This report isn't ready yet." });
+        // The newest edit, even when its files did not finish uploading at save.
+        await reports.EnsureFilesCurrentAsync(analysis);
 
         var user = await _users.GetByIdAsync(userId);
         if (user == null || string.IsNullOrWhiteSpace(user.Email))
@@ -252,13 +254,15 @@ public class AnalysisController : ControllerBase
     // ── GET /api/analyses/{id}/download/{type} ───────────────────────────────
     // Returns a signed Supabase URL for downloading a specific file
     [HttpGet("{id:guid}/download/{type}")]
-    public async Task<IActionResult> Download(Guid id, string type)
+    public async Task<IActionResult> Download(Guid id, string type, [FromServices] ReportService reports)
     {
         var analysis = await _repo.GetByIdAsync(id, UserId());
         if (analysis == null) return NotFound(new { error = "NOT_FOUND" });
 
         var (path, fileName) = AnalysisFiles.Find(analysis, type);
         if (path == null) return NotFound(new { error = "FILE_NOT_READY" });
+        if (type is "report" or "word" or "pptx")
+            await reports.EnsureFilesCurrentAsync(analysis);
 
         var url = await _storage.GetSignedUrlAsync(path, 3600);
         return Ok(new { url, fileName });

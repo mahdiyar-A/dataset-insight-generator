@@ -79,6 +79,7 @@ builder.Services.AddSingleton(_ =>
 builder.Services.AddScoped<IUserRepository,      UserRepository>();
 builder.Services.AddScoped<IDatasetRepository,   DatasetRepository>();   // kept for backward compat
 builder.Services.AddScoped<IAnalysisRepository,  AnalysisRepository>();  // new history-based
+builder.Services.AddScoped<IReportVersionRepository, ReportVersionRepository>();
 builder.Services.AddHostedService<UnfinishedRunSweep>();
 builder.Services.AddScoped<ITeamRepository,      TeamRepository>();
 builder.Services.AddScoped<IWorkspaceRepository, WorkspaceRepository>();
@@ -89,6 +90,7 @@ builder.Services.AddScoped<IUserProfileService,  UserProfileService>();
 builder.Services.AddScoped<IStripeService,       StripeService>();
 builder.Services.AddHttpClient<IPythonAiClient,  PythonAiClient>();
 builder.Services.AddScoped<AnalysisService>();
+builder.Services.AddScoped<ReportService>();
 builder.Services.AddScoped<AccountDeletion>();
 builder.Services.AddHttpClient<IAuthAdmin, SupabaseAuthAdmin>();
 builder.Services.AddScoped<UploadIntake>();
@@ -287,6 +289,19 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 5,
+                Window      = TimeSpan.FromHours(1),
+                QueueLimit  = 0,
+            }));
+
+    // Each save of an edited report rebuilds its files on the AI service: a
+    // few seconds of the server's time, no model. One a minute is more than a
+    // person editing by hand needs.
+    options.AddPolicy("report-save", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ClientKey(ctx),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
                 Window      = TimeSpan.FromHours(1),
                 QueueLimit  = 0,
             }));

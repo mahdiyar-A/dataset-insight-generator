@@ -37,4 +37,13 @@ public interface IPythonAiClient
     /// plain sentences. No model calls. See ai_engine/llm/model_watch.py.
     /// </summary>
     Task<string> ModelStatusAsync();
+
+    /// <summary>
+    /// The files for a report rebuilt from its document, with the document an
+    /// edit makes, figures worth a second look and the chat context carrying
+    /// the edited words. No model calls. An edit that cannot become a report
+    /// comes back as {"error": code}, not as an exception. See
+    /// ai_engine/report_document.py.
+    /// </summary>
+    Task<string> RebuildReportAsync(ReportRebuildRequest request);
 }

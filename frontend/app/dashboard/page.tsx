@@ -12,6 +12,7 @@ import AnalysisAssistantCard from "@/components/AnalysisChatCard";
 import HistoryTape     from "@/components/HistoryTape";
 import ChartsCard      from "@/components/chartsCard";
 import DownloadsCard   from "@/components/downloadCard";
+import ReportEditor    from "@/components/ReportEditor";
 import InfoCards       from "@/components/infoCards";
 import PlanBadge       from "@/components/PlanBadge";
 
@@ -572,8 +573,9 @@ export default function DashboardPage() {
           <ChartsCard dataset={analysis} />
         </section>
 
-        {/* 4. Report / Downloads */}
+        {/* 4. Report: edit it, then download it */}
         <section id="section-download" ref={downloadRef}>
+          <ReportEditor key={`edit-${analysisKey}`} analysis={analysis} ready={reportReady && hasPdfReport} />
           <DownloadsCard dataset={analysis
             ? { ...analysis, hasPdfReport: hasPdfReport }
             : null}
