@@ -196,6 +196,11 @@ class PipelineResult:
     # The backend tells the owner about a fallback the moment it happens.
     reportWriter: Optional[str] = None
 
+    # The report as a document the person can edit, and the files can be
+    # rebuilt from. The backend saves it as the report's first version.
+    # See report_document.
+    reportDocument: Optional[Dict[str, Any]] = None
+
     def to_response(self) -> dict:
         return {
             "status":                  self.status,
@@ -211,4 +216,5 @@ class PipelineResult:
             "usage":                   self.usage,
             "chat_context":            self.chatContext,
             "report_writer":           self.reportWriter,
+            "report_document":         self.reportDocument,
         }

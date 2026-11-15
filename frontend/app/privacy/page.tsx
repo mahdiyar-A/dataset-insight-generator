@@ -98,6 +98,7 @@ const SECTIONS = [
     heading: 'How long we keep it',
     body: [
       'Your analysis history is capped by plan: 5 analyses on the free plan, 15 on Pro. When you exceed the cap, the oldest analysis is deleted automatically along with its uploaded file and generated reports. This happens as part of running a new analysis — it is not something we do on request, and there is no hidden archive behind it.',
+      'If you edit a report, the version DIG first wrote and your 20 most recent saved versions are kept with the analysis so you can go back to them. Older versions are deleted as you save new ones, and all of them are deleted with the analysis.',
       'Deleting your account deletes your account record, your analyses, and every file stored for you.',
       'Operational logs and error records are kept for at most 30 days and are then deleted. Payment records held by Stripe are kept as long as tax and accounting law requires.',
     ],

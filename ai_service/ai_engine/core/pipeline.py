@@ -33,6 +33,8 @@ from ai_engine.llm.user_requests         import cover, for_chat, for_prompt, wor
 from ai_engine.charts.chart_generator    import generate_charts
 from ai_engine.pdf.pdf_builder           import build_pdf
 from ai_engine.report_labels             import described_line, left_out_line
+from ai_engine                           import report_document
+from ai_engine.report_document           import report_for_chat
 from ai_engine.models.models             import (
     PipelineResult, DomainResult, ChartInstruction, LLMReport
 )
@@ -120,19 +122,8 @@ def _chat_context(stats, domain, report, columns: List[str], source: Dict[str, A
         # answers from the same reading as the report.
         **({"dataDescribedAs": {"text": domain.description, "byUser": domain.described_by_user}}
            if getattr(domain, "description", "") else {}),
-        "report": {
-            "title": report.reportTitle,
-            "summary": report.executiveSummary,
-            # With what each insight rests on, so "where does that come from?"
-            # is answered from the same result the report named.
-            "insights": [{"rank": i.get("rank"), "title": i.get("title"), "body": i.get("body"),
-                          **({"basedOn": i["basedOn"]} if i.get("basedOn") else {})}
-                         for i in report.insights],
-            "conclusion": report.conclusion,
-            "questionAnswers": report.questionAnswers,
-            "assumptions": report.assumptions,
-            "writer": report.writerModel,
-        },
+        # The same shape an edited report replaces it with. See report_document.
+        "report": report_for_chat(report),
         # The figures computed for what the user asked for in the brief, so a
         # follow-up question about them is answered from the same numbers.
         **({"requested": for_chat(requested)} if requested else {}),
@@ -503,6 +494,17 @@ def run_pipeline(
     except Exception as e:  # the chat is an extra; it must never fail the report
         print(f"[Pipeline] Chat context failed (ignored): {e}", flush=True)
 
+    # The report as a document the person can edit later. Without it the
+    # report is still complete; it only cannot be edited.
+    document = None
+    try:
+        document = report_document.build(
+            llm_report, charts, stats=stats, domain=domain, was_cleaned=was_cleaned,
+            dropped_columns=dropped_columns, file_name=file_name, language=language,
+            confidence_score=judge.confidence_score, confidence_level=judge.confidence_level)
+    except Exception as e:
+        print(f"[Pipeline] Report document failed (ignored): {e}", flush=True)
+
     print(f"[Pipeline] Done. Status=done, condition={condition}, low_conf={low_conf_warning}", flush=True)
     print(tracker.summary_line(), flush=True)
     return PipelineResult(
@@ -519,6 +521,7 @@ def run_pipeline(
         usage=tracker.to_dict(),
         chatContext=chat_context,
         reportWriter=llm_report.writerModel or "",
+        reportDocument=document,
     ).to_response()
 
 

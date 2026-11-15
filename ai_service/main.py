@@ -1,10 +1,12 @@
 import os
+import re
 import json
 import time
 import hashlib
 import threading
 from collections import OrderedDict
 from datetime import datetime
+from typing import List
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -18,6 +20,7 @@ from ai_engine.training.training_logger import get_training_stats
 from ai_engine.llm.harness import answer_question, build_brief
 from ai_engine.llm.groq_client import detect_domain, domain_to_dict, doubt
 from ai_engine.llm import model_watch
+from ai_engine import report_document
 
 # ── Startup banner ────────────────────────────────────────────────────────────
 print("╔══════════════════════════════════════════════╗", flush=True)
@@ -469,6 +472,56 @@ async def ask(
           f"{time.perf_counter() - started:.1f}s by {result.get('model') or '—'}; "
           f"queries={len(result.get('queries') or [])} unverified={result.get('unverifiedNumbers')}", flush=True)
     return JSONResponse(result)
+
+
+@app.post("/report/rebuild")
+async def rebuild_report(
+    original_json:     str = Form(...),   # version 1: what DIG wrote
+    edited_json:       str = Form(""),    # what the person sent, or an older version; empty = rebuild as is
+    current_json:      str = Form(""),    # the version the edit started from, to warn only about new figures
+    chat_context_json: str = Form(""),    # what the chat answers from; returned with the edited words
+    want_word:         bool = Form(False),
+    want_pptx:         bool = Form(False),
+    charts:            List[UploadFile] = File(None),   # chart_{n}.png, as the backend stores them
+):
+    """
+    The files for an edited report, built from its document. No model calls.
+
+    Returns {"document", "pdf_report_base64", "word_report_base64",
+    "pptx_report_base64", "warnings", "chat_context"}. See report_document.
+    """
+    original = _json_form(original_json, None)
+    if not isinstance(original, dict) or original.get("schema") != report_document.SCHEMA:
+        raise HTTPException(status_code=400, detail="original_json must be a report document.")
+    edited = _json_form(edited_json, None) if edited_json else original
+    current = _json_form(current_json, None)
+    context = _json_form(chat_context_json, None)
+
+    try:
+        document = report_document.apply_edits(original, edited)
+    except report_document.EditRejected as e:
+        return JSONResponse({"error": e.code}, status_code=422)
+
+    pictures = {}
+    for upload in charts or []:
+        match = re.fullmatch(r"chart_(\d+)\.png", upload.filename or "")
+        if match:
+            pictures[int(match.group(1))] = await upload.read()
+
+    started = time.perf_counter()
+    files = report_document.build_files(document, pictures, want_word=want_word, want_pptx=want_pptx)
+    warnings = report_document.number_warnings(document, current, context, original)
+    print(f"[Rebuild] files in {time.perf_counter() - started:.1f}s: pdf"
+          f"{' word' if files['word'] else ''}{' pptx' if files['pptx'] else ''}, "
+          f"{len(pictures)} chart(s), {len(warnings)} warning(s)", flush=True)
+    return JSONResponse({
+        "document": document,
+        "pdf_report_base64": files["pdf"],
+        "word_report_base64": files["word"],
+        "pptx_report_base64": files["pptx"],
+        "warnings": warnings,
+        "chat_context": report_document.with_chat(context, document),
+    })
 
 
 if __name__ == "__main__":

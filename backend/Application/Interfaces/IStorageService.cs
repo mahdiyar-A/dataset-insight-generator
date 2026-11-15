@@ -44,6 +44,12 @@ public interface IStorageService
     Task<string> SaveChartAsync(Guid userId, Guid analysisId, int index, byte[] pngBytes);
 
     /// <summary>
+    /// A chart picture SaveChartAsync stored, read back so an edited report's
+    /// files can be rebuilt with it. Null when that chart was never saved.
+    /// </summary>
+    Task<byte[]?> ReadChartAsync(Guid userId, Guid analysisId, int index);
+
+    /// <summary>
     /// The context the chat answers this analysis's questions from. There is
     /// no column for it on the analysis row, so it lives at a fixed path, and
     /// these two methods are the only code that knows it.

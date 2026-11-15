@@ -293,7 +293,7 @@ public class WorkspaceController : ControllerBase
     // hold for anyone calling the API directly.
     [HttpGet("{id:guid}/download/{fileKey}")]
     public async Task<IActionResult> Download(
-        Guid id, string fileKey, [FromServices] IStorageService storage)
+        Guid id, string fileKey, [FromServices] IStorageService storage, [FromServices] ReportService reports)
     {
         var userId    = UserId();
         var workspace = await _workspaces.GetWorkspaceAsync(id);
@@ -317,6 +317,8 @@ public class WorkspaceController : ControllerBase
         };
         var (path, fileName) = AnalysisFiles.Find(analysis, type);
         if (path == null) return NotFound(new { error = "FILE_NOT_READY" });
+        if (type is "report" or "word" or "pptx")
+            await reports.EnsureFilesCurrentAsync(analysis);
 
         var url = await storage.GetSignedUrlAsync(path, 3600);
         return Ok(new { url, fileName });

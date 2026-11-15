@@ -53,6 +53,12 @@ public class AnalyzeResponseDto
     // the field, which says nothing either way.
     [JsonPropertyName("report_writer")]
     public string? ReportWriter { get; set; }
+
+    // The report as a document that can be edited, saved as its first
+    // version. Like chat_context, this side stores it without reading inside.
+    // Null from an AI service that predates editing: that report cannot be edited.
+    [JsonPropertyName("report_document")]
+    public JsonElement? ReportDocument { get; set; }
 }
 
 public class UsageDto

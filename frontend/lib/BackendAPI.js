@@ -178,6 +178,30 @@ export default class BackendAPI {
       { method: "POST", headers: authHeaders(token) }, "Email failed");
   }
 
+  // ── THE REPORT AS AN EDITABLE DOCUMENT ────────────────────────────────────
+  // Errors keep the server's code and status: 409 is "changed since you
+  // opened it", 422 an edit that cannot be saved, 503 a moment's outage.
+
+  /** The newest version of the report, with the list of versions; {editable: false} for an old report. */
+  static async getReport(token, analysisId) {
+    return chatReq(`${API_BASE}/api/analyses/${analysisId}/report`,
+      { headers: authHeaders(token) }, "Couldn't open the report");
+  }
+
+  /** Save an edit made to version baseVersion. Rebuilds the files. */
+  static async saveReport(token, analysisId, baseVersion, document) {
+    return chatReq(`${API_BASE}/api/analyses/${analysisId}/report`,
+      { method: "PUT", headers: authHeaders(token), body: JSON.stringify({ baseVersion, document }) },
+      "Couldn't save the report");
+  }
+
+  /** Go back to an older version, which is saved again as the newest. */
+  static async restoreReport(token, analysisId, baseVersion, version) {
+    return chatReq(`${API_BASE}/api/analyses/${analysisId}/report/restore`,
+      { method: "POST", headers: authHeaders(token), body: JSON.stringify({ baseVersion, version }) },
+      "Couldn't go back to that version");
+  }
+
   /** Get chart objects for an analysis */
   static async getVisualizations(token, analysisId) {
     const res = await fetch(`${API_BASE}/api/analyses/${analysisId}/visualizations`,

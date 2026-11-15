@@ -33,6 +33,7 @@ public class AnalysisService
     private readonly AnalysisGate             _gate;
     private readonly ILogger<AnalysisService> _logger;
     private readonly OwnerAlerts?             _alerts;
+    private readonly IReportVersionRepository? _versions;
 
     // Where uploads wait until their analysis runs. See UploadStore.
     private static UploadStore Uploads => UploadStore.Users;
@@ -44,7 +45,8 @@ public class AnalysisService
         IUserRepository          users,
         AnalysisGate             gate,
         ILogger<AnalysisService> logger,
-        OwnerAlerts?             alerts = null)
+        OwnerAlerts?             alerts = null,
+        IReportVersionRepository? versions = null)
     {
         _analyses = analyses;
         _storage  = storage;
@@ -53,6 +55,7 @@ public class AnalysisService
         _gate     = gate;
         _logger   = logger;
         _alerts   = alerts;
+        _versions = versions;
     }
 
     // ── Public entry point ─────────────────────────────────────────────────────
@@ -377,7 +380,24 @@ public class AnalysisService
                 }
             }
 
-            // ── Step 5i: A report nobody's model wrote ────────────────────────
+            // ── Step 5i: The report as a document that can be edited ──────────
+            // Version 1, what DIG wrote. Best-effort, like the chat context:
+            // without it the report is complete and only cannot be edited.
+            if (_versions != null && result.ReportDocument is { ValueKind: JsonValueKind.Object } document)
+            {
+                try
+                {
+                    await _versions.TryInsertAsync(new ReportVersion(
+                        analysisId.Value, 1, document.GetRawText(), editedBy: null,
+                        kind: ReportVersion.Written, filesBuilt: pdfPath != null));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[Analysis] Failed to save the report document for {Id} — continuing", analysisId);
+                }
+            }
+
+            // ── Step 5j: A report nobody's model wrote ────────────────────────
             // The person still gets a report: the stats-only one. It is the one
             // failure that arrives looking like a result, so the owner hears
             // about it now, not from the daily check. Once a day at most.

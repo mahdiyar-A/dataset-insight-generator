@@ -322,17 +322,40 @@ public class FakeStorageService : IStorageService
         return path;
     }
 
+    /// <summary>Set to make the next report file saves throw, as an unreachable bucket would.</summary>
+    public bool FailReportSaves { get; set; }
+
+    private async Task<string> SaveReport(string path, byte[] bytes)
+    {
+        if (FailReportSaves) throw new InvalidOperationException("Exception: bucket unreachable");
+        Saved[path] = bytes;
+        await Record(path);
+        Files[path] = bytes;
+        return path;
+    }
+
     public Task<string> SavePdfReportAsync(Guid userId, Guid analysisId, byte[] pdfBytes) =>
-        Record($"{Dir(userId, analysisId)}/report.pdf");
+        SaveReport($"{Dir(userId, analysisId)}/report.pdf", pdfBytes);
 
     public Task<string> SaveWordReportAsync(Guid userId, Guid analysisId, byte[] docxBytes) =>
-        Record($"{Dir(userId, analysisId)}/report.docx");
+        SaveReport($"{Dir(userId, analysisId)}/report.docx", docxBytes);
 
     public Task<string> SavePptxReportAsync(Guid userId, Guid analysisId, byte[] pptxBytes) =>
-        Record($"{Dir(userId, analysisId)}/report.pptx");
+        SaveReport($"{Dir(userId, analysisId)}/report.pptx", pptxBytes);
 
-    public Task<string> SaveChartAsync(Guid userId, Guid analysisId, int index, byte[] pngBytes) =>
-        Record($"{Dir(userId, analysisId)}/chart_{index}.png");
+    public async Task<string> SaveChartAsync(Guid userId, Guid analysisId, int index, byte[] pngBytes)
+    {
+        var path = await Record($"{Dir(userId, analysisId)}/chart_{index}.png");
+        Files[path] = pngBytes;
+        return path;
+    }
+
+    public Task<byte[]?> ReadChartAsync(Guid userId, Guid analysisId, int index) =>
+        Task.FromResult(Files.TryGetValue($"{Dir(userId, analysisId)}/chart_{index}.png", out var bytes)
+                        && bytes.Length > 0 ? bytes : null);
+
+    /// <summary>The bytes last saved as each report file, by path. Record keeps only the path.</summary>
+    public Dictionary<string, byte[]> Saved { get; } = new();
 
     /// <summary>Analysis ids passed to DeleteAnalysisFilesAsync, in order.</summary>
     public List<Guid> DeletedAnalyses { get; } = new();
@@ -544,6 +567,7 @@ public class FakePythonAiClient : IPythonAiClient
           "usage": {{UsageJson ?? "null"}},
           "chat_context": {{ChatContextJson ?? "null"}},
           "report_writer": {{(ReportWriter is null ? "null" : System.Text.Json.JsonSerializer.Serialize(ReportWriter))}},
+          "report_document": {{ReportDocumentJson ?? "null"}},
           "error": null
         }
         """);
@@ -569,5 +593,116 @@ public class FakePythonAiClient : IPythonAiClient
         ModelStatusCalls++;
         if (SimulateDown) throw new HttpRequestException("Simulated: AI service unreachable");
         return Task.FromResult(ModelStatusJson);
+    }
+
+    /// <summary>The response's "report_document", or null to omit it (an AI service from before editing).</summary>
+    public string? ReportDocumentJson { get; set; }
+
+    /// <summary>Every /report/rebuild request, in order.</summary>
+    public List<backend.Application.DTOs.AI.ReportRebuildRequest> RebuildCalls { get; } = new();
+
+    /// <summary>
+    /// What /report/rebuild answers. The default plays the AI service's part:
+    /// the document is the edit as sent (or the original when none), with a
+    /// PDF always and Word or PowerPoint when asked for.
+    /// </summary>
+    public Func<backend.Application.DTOs.AI.ReportRebuildRequest, string>? RebuildReply { get; set; }
+
+    public Task<string> RebuildReportAsync(backend.Application.DTOs.AI.ReportRebuildRequest request)
+    {
+        RebuildCalls.Add(request);
+        if (SimulateDown) throw new TimeoutException("Simulated: /report/rebuild timed out");
+        if (RebuildReply != null) return Task.FromResult(RebuildReply(request));
+        var document = request.EditedJson ?? request.OriginalJson;
+        string File(bool wanted, string text) =>
+            wanted ? System.Text.Json.JsonSerializer.Serialize(Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(text))) : "null";
+        var chat = "{\"version\": 1, \"report\": {\"document\": " + document + "}}";
+        return Task.FromResult($$"""
+        {"document": {{document}},
+         "pdf_report_base64": {{File(true, "PDF:" + document)}},
+         "word_report_base64": {{File(request.WantWord, "WORD:" + document)}},
+         "pptx_report_base64": {{File(request.WantPptx, "PPTX:" + document)}},
+         "warnings": [],
+         "chat_context": {{chat}} }
+        """);
+    }
+}
+
+/// <summary>
+/// In-memory report versions, with the database's one rule that matters: a
+/// version number can be taken once per analysis.
+/// </summary>
+public class FakeReportVersionRepository : IReportVersionRepository
+{
+    private readonly List<ReportVersion> _rows = new();
+    private readonly object _lock = new();
+
+    public IReadOnlyList<ReportVersion> All { get { lock (_lock) return _rows.ToList(); } }
+
+    /// <summary>Set to make every call throw, as before migration 005 is applied.</summary>
+    public bool SimulateMissingTable { get; set; }
+
+    private void Check()
+    {
+        if (SimulateMissingTable) throw new InvalidOperationException("relation \"report_versions\" does not exist");
+    }
+
+    public Task<ReportVersion?> GetLatestAsync(Guid analysisId)
+    {
+        Check();
+        lock (_lock)
+            return Task.FromResult(_rows.Where(r => r.AnalysisId == analysisId)
+                                        .OrderByDescending(r => r.Version).FirstOrDefault());
+    }
+
+    public Task<ReportVersion?> GetAsync(Guid analysisId, int version)
+    {
+        Check();
+        lock (_lock)
+            return Task.FromResult(_rows.FirstOrDefault(r => r.AnalysisId == analysisId && r.Version == version));
+    }
+
+    public Task<List<ReportVersion>> ListAsync(Guid analysisId)
+    {
+        Check();
+        lock (_lock)
+            return Task.FromResult(_rows.Where(r => r.AnalysisId == analysisId)
+                                        .OrderByDescending(r => r.Version).ToList());
+    }
+
+    public Task<bool> TryInsertAsync(ReportVersion version)
+    {
+        Check();
+        lock (_lock)
+        {
+            if (_rows.Any(r => r.AnalysisId == version.AnalysisId && r.Version == version.Version))
+                return Task.FromResult(false);
+            _rows.Add(version);
+            return Task.FromResult(true);
+        }
+    }
+
+    public Task MarkFilesBuiltAsync(Guid analysisId, int version)
+    {
+        Check();
+        lock (_lock)
+        {
+            var i = _rows.FindIndex(r => r.AnalysisId == analysisId && r.Version == version);
+            if (i >= 0)
+            {
+                var r = _rows[i];
+                _rows[i] = new ReportVersion(r.AnalysisId, r.Version, r.Document, r.EditedBy, r.Kind,
+                                             r.RestoredFrom, filesBuilt: true, r.CreatedAt);
+            }
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task TrimAsync(Guid analysisId, int newest, int keep)
+    {
+        Check();
+        lock (_lock)
+            _rows.RemoveAll(r => r.AnalysisId == analysisId && r.Version > 1 && r.Version < newest - keep + 1);
+        return Task.CompletedTask;
     }
 }
