@@ -384,8 +384,11 @@ export default class BackendAPI {
 
   /**
    * Send a chat message to the analysis assistant.
-   * message: "start_analysis" | "yes" | "no"
-   * meta: { fileName, fileSizeBytes, rowCount, columnCount, pendingCondition, analysisId }
+   * message: "start_analysis" | "domain_answer" | "yes" | "no"
+   * meta: { fileName, fileSizeBytes, rowCount, columnCount, pendingCondition, analysisId,
+   *         domainAnswer, domainConfirmed }
+   * A reply with ask: "domain" is the question "what is this data about?", with
+   * options to choose from; answer it with message "domain_answer".
    * customization (pro only): see DEFAULT_SETTINGS in lib/reportSettings.js
    */
   static async sendChatMessage(token, message, meta = {}) {
@@ -402,6 +405,10 @@ export default class BackendAPI {
           pendingCondition: meta.pendingCondition  ?? null,
           analysisId:       meta.analysisId        ?? null,
           customization:    meta.customization     ?? null,
+          // With message "domain_answer": what the person said the data is,
+          // and whether that was DIG's own reading, confirmed.
+          domainAnswer:     meta.domainAnswer      ?? null,
+          domainConfirmed:  meta.domainConfirmed   ?? null,
         }),
       },
       "Failed to send message");
