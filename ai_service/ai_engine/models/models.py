@@ -94,6 +94,18 @@ class DomainResult:
 
     rejection_reason: Optional[str] = None
 
+    # One plain sentence saying what the data is and what one row holds:
+    # "online retail orders, one row per order". The model's reading, unless
+    # described_by_user says these are the person's own words.
+    description: str = ""
+    described_by_user: bool = False
+    # Up to two other readings the model thought plausible. Offered to the
+    # person when DIG is not sure which is right.
+    alternatives: List[str] = field(default_factory=list)
+    # "model" when a model classified the file; "fallback" when none answered
+    # and this is the general stand-in, which is not a reading of the data at all.
+    source: str = "model"
+
 
 @dataclass
 class JudgeResult:
