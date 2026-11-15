@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/privacy' },
 };
 
-const UPDATED = 'LAST UPDATED 5 NOVEMBER 2026';
+const UPDATED = 'LAST UPDATED 14 NOVEMBER 2026';
 
 const INTRO = [
   'DIG turns a data file into an analysis report and answers questions about it. To do that it has to read your file, so this page explains exactly what happens to it: where it is stored, what is computed locally, what is sent to other companies, and how to get rid of it.',
@@ -76,7 +76,7 @@ const SECTIONS = [
       'This is the part most policies are vague about, so here it is precisely. Your file itself is never sent to any AI provider. What is sent is derived from it, and some of that derived data does contain real values from your file:',
     ],
     list: [
-      'Groq — used once per analysis to work out what kind of dataset you uploaded. It receives each column\'s name, data type, how much of it is missing, how many distinct values it holds, basic numeric ranges, the three most frequent values in each text column, and up to five example values taken from each column. Those example values are real cells from your file.',
+      'Groq — used when you press Start, to work out what kind of dataset you uploaded. It receives each column\'s name, data type, how much of it is missing, how many distinct values it holds, basic numeric ranges, the three most frequent values in each text column, and up to five example values taken from each column. Those example values are real cells from your file. When DIG is not sure what your data is about it asks you; if you answer in your own words, your answer is sent with the same details so the file can be worked out again, and it is passed to the model that writes your report.',
       'Report writing — the written report is produced by open-source AI models, tried strongest first: NVIDIA\u2019s Nemotron models (reached through OpenRouter) and, when those are busy or unavailable, models hosted by Groq. Whichever one writes your report receives computed statistics: correlations, group averages, outlier rates, trends, and category labels such as region or product names. If you customize the report, it also receives what you wrote: your focus, assumptions and questions. None of them receives individual rows.',
       'The assistant — the same models handle the chat. When you describe a report, they receive your description and your file\u2019s column names. When you ask about an analysis, they receive your question, the last few messages of the conversation, the statistics above and the report\u2019s text. If those cannot answer it, DIG runs a query on your file on our own servers and sends the model the result: totals, averages, counts or the most common values, at most 15 lines per query. The file itself is not sent, but a question narrow enough to single out one record can return that record\u2019s value.',
       'Because these are free AI services, the company running the model may keep a log of what it receives, under its own terms. That is one more reason to leave sensitive columns out — see below.',
