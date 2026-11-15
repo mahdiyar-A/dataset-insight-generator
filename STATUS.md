@@ -9,10 +9,51 @@
 
 | Suite | Count | Command |
 |---|---|---|
-| C# — unit, integration, edge cases, the real Supabase client against a stand-in server | 455 | `dotnet test backend.Tests/backend.Tests.csproj` |
-| Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is, insights' evidence | 972 | `cd ai_service && pytest tests/` |
-| Frontend — Vitest, including rendered components | 228 | `cd frontend && npm test` |
+| C# — unit, integration, edge cases, the real Supabase client against a stand-in server | 486 | `dotnet test backend.Tests/backend.Tests.csproj` |
+| Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is, insights' evidence, the editable report | 1002 | `cd ai_service && pytest tests/` |
+| Frontend — Vitest, including rendered components | 262 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
+
+---
+
+## The report can be edited, 2026-11-15
+
+The report was final the moment it was written: a wrong word or a weak
+insight meant running the whole analysis again.
+
+- **The report is a document now.** When an analysis finishes, the AI service
+  returns its report as JSON (`ai_engine/report_document.py`): the text
+  sections, the insights (ids i1, i2, ...), the charts (by file number), the
+  answers to the user's questions, and the facts DIG measured. The backend
+  saves it as version 1 in `report_versions` (migration 005).
+- **What the owner can change** (dashboard, Report, "Edit the report"): title,
+  introduction, summary, conclusion, data quality, assumptions, answers; each
+  insight's title and text, its order, removing it (not the last one); each
+  chart's title and caption, which insight it sits under, removing it.
+- **What stays fixed:** the "Based on" lines and everything DIG measured. An
+  edit is always applied to version 1 on the server, and only the editable
+  fields are taken from it, so nothing else can be changed by sending it.
+  Unknown ids are dropped: no insights can be added (that is Stage D).
+- **Save rebuilds the files with no model call:** the PDF, and Word and
+  PowerPoint when the analysis has them, through `POST /report/rebuild`. The
+  chat context is rebuilt too, so the assistant answers from the edited text.
+- **A figure the analysis didn't produce** gets a gentle warning beside the
+  field after saving; the save is never stopped. Only text changed in that
+  save is checked.
+- **Versions:** every save is a new version. Undo and the Versions list go
+  back by saving the old version again as the newest. Version 1 and the 20
+  newest are kept. Two saves from the same starting version: the second gets
+  "changed since you opened it" (409, from the unique version number).
+- **Files follow the newest version.** `files_built` on each version is false
+  between a save and its upload; a download or email first rebuilds the files
+  if the newest version's were not stored.
+- **Owner only, every plan.** Older reports say to run the analysis again.
+  Saves are limited to 60 an hour per user.
+- **Privacy page:** earlier versions are kept with the analysis and deleted
+  with it.
+
+Not covered: a team member cannot edit (Part 4). Charts cannot be redrawn and
+insights cannot be added (Stage D).
 
 ---
 
