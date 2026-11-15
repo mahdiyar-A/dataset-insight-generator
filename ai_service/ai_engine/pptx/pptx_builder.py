@@ -27,7 +27,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from ai_engine.report_labels import confidence_word, is_rtl, labels_for
+from ai_engine.report_labels import basis_line, confidence_word, is_rtl, labels_for
 
 try:
     from pptx import Presentation
@@ -256,8 +256,10 @@ def _insight_slides(deck: _Deck, insight: Dict[str, Any], total: int,
     chart = next((c for c in charts if c.get("image_base64")), None)
     limit = BESIDE_CHART_CHARS if chart else FULL_WIDTH_CHARS
     pages = chunk_text(body, limit)
+    # What the insight rests on, at the foot of its last slide.
+    basis = basis_line(insight, deck.labels, deck.rtl)
     for i, page in enumerate(pages):
-        notes = body
+        notes = body + (f"\n\n{basis}" if basis else "")
         if chart and i == 0 and chart.get("desc"):
             notes += f"\n\n{chart.get('label', '')}: {chart['desc']}"
         slide = deck.slide(notes if i == 0 else "")
@@ -276,7 +278,11 @@ def _insight_slides(deck: _Deck, insight: Dict[str, Any], total: int,
         with_chart = chart is not None and i == 0
         text_w = Inches(5.5) if with_chart else Inches(11.9)
         text_left = content_left + (Inches(6.4) if (deck.rtl and with_chart) else 0)
-        deck.text(slide, text_left, Inches(2.05), text_w, Inches(5.0), page, 15, color=C_BODY)
+        last = basis and i == len(pages) - 1
+        deck.text(slide, text_left, Inches(2.05), text_w, Inches(4.2 if last else 5.0), page, 15, color=C_BODY)
+        if last:
+            deck.text(slide, text_left, Inches(6.35), text_w, Inches(0.85), basis, 10,
+                      italic=True, color=C_MUTED)
         if with_chart:
             chart_left = content_left if deck.rtl else content_left + Inches(5.7)
             if deck.picture(slide, chart["image_base64"], chart_left, Inches(2.0), Inches(6.2), Inches(4.6)):

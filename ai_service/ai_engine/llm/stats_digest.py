@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List, Optional
 
+from ai_engine.llm.evidence import tag
 from ai_engine.models.models import DomainResult, StatsSummary
 
 MAX_MEASURES = 12
@@ -205,7 +206,8 @@ def build_digest(stats: StatsSummary, domain: DomainResult) -> Dict[str, Any]:
         ] or None,
         "quality_issues": list(stats.detectedIssues or [])[:MAX_ISSUES],
     }
-    return _drop_none(digest)
+    # Every result gets an id the report must cite: see evidence.py.
+    return tag(_drop_none(digest))
 
 
 def digest_json(stats: StatsSummary, domain: DomainResult) -> str:

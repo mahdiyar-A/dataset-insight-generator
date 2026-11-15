@@ -29,6 +29,7 @@ from typing import List, Dict, Any, Optional
 from ai_engine.core.confounding import misleading_pairs
 from ai_engine.models.models import StatsSummary, LLMReport, ChartInstruction, DomainResult
 from ai_engine.llm.report_writer import note_outcome, write_report
+from ai_engine.llm.evidence import based_on, catalog, cited, traced, without_ids
 from ai_engine.llm.stats_digest import build_digest, digest_json
 from ai_engine.report_labels import labels_for
 from ai_engine.llm.guard import (
@@ -372,6 +373,7 @@ RESULTS FOR THE USER'S REQUESTS — computed from the whole table for the direct
 Use these figures for those directives and questions, quoted exactly: they were computed for them, so prefer
 them to the summary statistics below. "values" are per group, "rows" how many rows each group has. In a "test",
 "significant": false means the groups do not differ reliably: say that, rather than calling one of them higher.
+An insight built on one of these names its "id" (R1, R2, ...) in rests_on.
 """
 
     # ── Build insight JSON slots ───────────────────────────────────────────
@@ -385,10 +387,12 @@ them to the summary statistics below. "values" are per group, "rows" how many ro
         f'    {{\n      "rank": 1,\n'
         f'      "title": "<Declarative statement of the finding — e.g. \'Sales Peak in October, Not Summer, Across All Three Years\'>",\n'
         f'      "body": "<{insight_body_guidance}>",\n'
+        f'      "rests_on": ["<the id of each result this insight stands on, e.g. F3 — 1 to 3 ids>"],\n'
         f'      "insight_index": 1\n    }}{"," if actual_insights_count > 1 else ""}'
     )
     remaining_slots = "\n".join(
-        f'    {{\n      "rank": {i+1},\n      "title": "...",\n      "body": "...",\n      "insight_index": {i+1}\n    }}{"," if i < actual_insights_count - 1 else ""}'
+        f'    {{\n      "rank": {i+1},\n      "title": "...",\n      "body": "...",\n      "rests_on": ["..."],\n'
+        f'      "insight_index": {i+1}\n    }}{"," if i < actual_insights_count - 1 else ""}'
         for i in range(1, actual_insights_count)
     )
     insight_slots = first_insight + ("\n" + remaining_slots if remaining_slots else "")
@@ -558,7 +562,11 @@ CHART RULES — structural requirements:
 - line/multi_line: only valid if temporal data appears in the stats.
 
 INSIGHT RULES:
-- Produce exactly {actual_insights_count} insights.
+- Every result above has an "id" (F1, F2, ... and R1, R2, ... for the user's requests). Each insight must
+  stand on at least one of them: put the ids its figures and claims come from in "rests_on". Never cite an
+  id for a result the insight does not use, and never write the ids in the title or body.
+- An observation no result supports is not an insight. Produce {actual_insights_count} insights when the
+  results support that many; never pad with one that rests on nothing.
 - Each insight covers a distinct pattern — no overlap in underlying observation.
 - Rank by analytical impact: most important finding is rank 1.
 - Surface group differences, temporal trends, or strong correlations if they exist.
@@ -787,25 +795,92 @@ def _figure_problems(report: LLMReport, prompt: str, digest: Dict[str, Any]) -> 
     return list(dict.fromkeys(found))
 
 
-def _with_checked_figures(report, provider, write, prompt: str, digest: Dict[str, Any], language: str):
+def _untraced(report: LLMReport, known: Dict[str, Any]) -> List[str]:
+    """The titles of the insights that name no result DIG computed."""
+    if not known:
+        return []
+    return [str(i.get("title") or i.get("body") or "")[:80] for i in report.insights
+            if not traced(i.get("restsOn"), known)]
+
+
+def _with_checks(report, provider, write, prompt: str, digest: Dict[str, Any],
+                 known: Dict[str, Any], language: str):
     """
-    One correction, as the chat gets. A report nobody can fix goes out with the
-    doubtful figures named, because a warning beats a confident wrong number.
+    One correction, as the chat gets, for figures the data does not support and
+    for insights that rest on no result. A report nobody can fix goes out with
+    the doubtful figures named, because a warning beats a confident wrong number.
+
+    A rewrite is kept only if it has fewer problems in all and still has an
+    insight that rests on something: a model can clear every problem by
+    writing no insights.
     """
     problems = _figure_problems(report, prompt, digest)
-    if problems:
-        print(f"[Insights] figures not matched to the data: {problems[:8]}", flush=True)
-        second, by = write(f"{prompt}\n\nA draft of this report used these figures, which the data above "
-                           f"does not support: {', '.join(problems[:12])}. Write the report again, using only "
-                           f"figures that appear above, each with the group it belongs to.")
+    untraced = _untraced(report, known)
+    if problems or untraced:
+        notes = []
+        if problems:
+            print(f"[Insights] figures not matched to the data: {problems[:8]}", flush=True)
+            notes.append(f"A draft of this report used these figures, which the data above does not support: "
+                         f"{', '.join(problems[:12])}.")
+        if untraced:
+            print(f"[Insights] {len(untraced)} of {len(report.insights)} insights rest on no result", flush=True)
+            notes.append("These insights in the draft named no result id from the data above: "
+                         + "; ".join(f'"{t}"' for t in untraced[:8])
+                         + ". Each insight must name in rests_on the ids of the results it stands on, "
+                           "and one that no result supports must be left out.")
+        second, by = write(f"{prompt}\n\n{' '.join(notes)} Write the report again, using only figures that "
+                           f"appear above, each with the group it belongs to.")
         if second is not None:
-            left = _figure_problems(second, prompt, digest)
-            if len(left) < len(problems):
+            left, left_untraced = _figure_problems(second, prompt, digest), _untraced(second, known)
+            keeps_one = not known or len(second.insights) > len(left_untraced)
+            if keeps_one and len(left) + len(left_untraced) < len(problems) + len(untraced):
                 report, provider, problems = second, by, left
     if problems:
         line = labels_for(language)["unmatched"].format(figures=", ".join(problems[:8]))
         report.dataQualitySection = f"{report.dataQualitySection}\n\n{line}".strip()
     return report, provider
+
+
+def _index(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _keep_traced(report: LLMReport, known: Dict[str, Any], language: str) -> None:
+    """
+    Give each insight the lines saying what it rests on, and leave out the ones
+    that rest on nothing, saying how many went.
+
+    If none rests on anything, all stay with a warning: a report with no
+    insights tells a reader less than one that says its insights are unchecked.
+    A chart drawn for an insight that went moves to the charts at the end.
+    """
+    if not known or not report.insights:
+        return
+    labels = labels_for(language)
+    kept, dropped = [], []
+    for insight in report.insights:
+        ids = traced(insight.get("restsOn"), known)
+        insight["restsOn"] = ids
+        insight["basedOn"] = based_on(ids, known, language)
+        (kept if ids else dropped).append(insight)
+    if not kept:
+        report.dataQualitySection = f"{report.dataQualitySection}\n\n{labels['ev_untraced']}".strip()
+        return
+    if not dropped:
+        return
+    gone = {_index(i.get("insight_index") or i.get("rank")) for i in dropped}
+    gone -= {_index(i.get("insight_index") or i.get("rank")) for i in kept}
+    for chart in report.chartInstructions or []:
+        if _index(chart.insightIndex) in gone:
+            chart.insightIndex = 0
+    for rank, insight in enumerate(kept, 1):
+        insight["rank"] = rank
+    report.insights = kept
+    line = labels["ev_left_out"].format(count=len(dropped))
+    report.dataQualitySection = f"{report.dataQualitySection}\n\n{line}".strip()
 
 
 def _parse_report(text: str, stats: StatsSummary, domain: DomainResult) -> Optional[LLMReport]:
@@ -879,7 +954,8 @@ def _parse_report(text: str, stats: StatsSummary, domain: DomainResult) -> Optio
     for i, ins in enumerate(parsed.get("insights", []) or []):
         if not isinstance(ins, dict):
             continue
-        title, body = str(ins.get("title") or "").strip(), str(ins.get("body") or "").strip()
+        title = without_ids(str(ins.get("title") or "")).strip()
+        body = without_ids(str(ins.get("body") or "")).strip()
         if not title and not body:
             continue
         try:
@@ -890,7 +966,8 @@ def _parse_report(text: str, stats: StatsSummary, domain: DomainResult) -> Optio
             idx = int(ins.get("insight_index", rank))
         except (TypeError, ValueError):
             idx = rank
-        insights.append({"rank": rank, "title": title, "body": body, "insight_index": idx})
+        insights.append({"rank": rank, "title": title, "body": body, "insight_index": idx,
+                         "restsOn": cited(ins.get("rests_on"))})
 
     answers = []
     for qa in parsed.get("question_answers", []) or []:
@@ -1004,10 +1081,12 @@ def generate_report(
         return report
 
     try:
-        report, provider = _with_checked_figures(report, provider, write, prompt,
-                                                 build_digest(stats, domain), language)
+        digest = build_digest(stats, domain)
+        known = catalog(digest, requested)
+        report, provider = _with_checks(report, provider, write, prompt, digest, known, language)
+        _keep_traced(report, known, language)
     except Exception as e:   # a check must never cost anyone their report
-        print(f"[Insights] figure check skipped: {type(e).__name__}: {e}", flush=True)
+        print(f"[Insights] report check skipped: {type(e).__name__}: {e}", flush=True)
 
     report.writerModel = provider.display_name
     report.assumptions = clean_user_text(assumptions, 600)
