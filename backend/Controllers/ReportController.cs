@@ -11,9 +11,15 @@ namespace backend.Controllers;
 /// The report of one analysis as a document its owner edits in DIG, with every
 /// save kept as a version. See ReportService.
 ///
-///   GET  /api/analyses/{id}/report           the newest version and the list of versions
-///   PUT  /api/analyses/{id}/report           save an edit; rebuilds the files
-///   POST /api/analyses/{id}/report/restore   go back to an older version, as a new one
+///   GET  /api/analyses/{id}/report             the newest version and the list of versions
+///   PUT  /api/analyses/{id}/report             save an edit; rebuilds the files
+///   POST /api/analyses/{id}/report/restore     go back to an older version, as a new one
+///   POST /api/analyses/{id}/report/apply       apply a suggestion the chat made, as a new version
+///   GET  /api/analyses/{id}/report/next-steps  what might be done next, chosen without a model
+///   POST /api/analyses/{id}/report/draw        a chart DIG draws from named columns, as a suggestion
+///
+/// Nothing here asks a model, so nothing here counts against the chat's
+/// allowance: a suggestion in the owner's own words is asked in the chat.
 /// </summary>
 [ApiController]
 [Route("api/analyses/{id:guid}/report")]
@@ -35,6 +41,19 @@ public class ReportController : ControllerBase
         public int BaseVersion { get; set; }
         public int Version     { get; set; }
     }
+
+    public sealed class ApplyBody
+    {
+        public Guid ProposalId { get; set; }
+    }
+
+    public sealed class DrawBody
+    {
+        public JsonElement Chart { get; set; }   // {"type", "x", "y", "group", "agg"}
+        public string?     Label { get; set; }
+    }
+
+    private const int MaxLabelChars = 120;
 
     private Guid UserId()
     {
@@ -73,6 +92,59 @@ public class ReportController : ControllerBase
     public async Task<IActionResult> Restore(Guid id, [FromBody] RestoreBody body) =>
         Answer(await _reports.RestoreAsync(UserId(), id, body.BaseVersion, body.Version));
 
+    [HttpPost("apply")]
+    [EnableRateLimiting("report-save")]
+    public async Task<IActionResult> Apply(Guid id, [FromBody] ApplyBody body)
+    {
+        var result = await _reports.ApplyProposalAsync(UserId(), id, body.ProposalId);
+        if (result is { Outcome: ReportOutcome.NotFound, Code: "SUGGESTION_EXPIRED" })
+            return NotFound(new
+            {
+                error   = result.Code,
+                message = "That suggestion is no longer available. Ask again and DIG will suggest it afresh.",
+            });
+        return Answer(result);
+    }
+
+    [HttpGet("next-steps")]
+    public async Task<IActionResult> NextSteps(Guid id)
+    {
+        var (outcome, steps) = await _reports.NextStepsAsync(UserId(), id);
+        return outcome == ReportOutcome.Ok ? Ok(new { steps }) : NotFound(new { error = "NOT_FOUND" });
+    }
+
+    [HttpPost("draw")]
+    [EnableRateLimiting("report-draw")]
+    public async Task<IActionResult> Draw(Guid id, [FromBody] DrawBody body)
+    {
+        var label = body.Label?.Trim() ?? "";
+        if (body.Chart.ValueKind != JsonValueKind.Object || label.Length == 0 || label.Length > MaxLabelChars)
+            return BadRequest(new { error = "BAD_CHART" });
+
+        var result = await _reports.DrawAsync(UserId(), id, body.Chart, label);
+        return result.Outcome switch
+        {
+            ReportOutcome.Ok          => Ok(new { proposal = Proposal(result.Proposal!) }),
+            ReportOutcome.Rejected    => UnprocessableEntity(new { error = "CANNOT_DRAW", message = result.Message }),
+            ReportOutcome.NotEditable => UnprocessableEntity(new { error = "NOT_EDITABLE" }),
+            ReportOutcome.Unavailable => StatusCode(503, new
+            {
+                error   = "UNAVAILABLE",
+                message = "The chart couldn't be drawn just now. Try again in a moment.",
+            }),
+            _ => NotFound(new { error = "NOT_FOUND" }),
+        };
+    }
+
+    /// <summary>A suggestion as the page shows it. The changes themselves stay on the server.</summary>
+    public static object Proposal(OfferedProposal p) => new
+    {
+        id          = p.Id,
+        baseVersion = p.BaseVersion,
+        preview     = p.Preview,
+        warnings    = p.Warnings,
+    };
+
     private IActionResult Answer(ReportResult result) => result.Outcome switch
     {
         ReportOutcome.Ok          => Ok(Body(result)),
@@ -106,5 +178,9 @@ public class ReportController : ControllerBase
             createdAt    = v.CreatedAt,
             byDig        = v.ByDig,
         }),
+        // Links to the charts the document places, by file number, including
+        // charts DIG drew later that the analysis's own list does not have.
+        pictures = (result.Pictures ?? new Dictionary<int, string>())
+            .ToDictionary(p => p.Key.ToString(), p => p.Value),
     };
 }

@@ -20,7 +20,7 @@ from ai_engine.training.training_logger import get_training_stats
 from ai_engine.llm.harness import answer_question, build_brief
 from ai_engine.llm.groq_client import detect_domain, domain_to_dict, doubt
 from ai_engine.llm import model_watch
-from ai_engine import report_document
+from ai_engine import report_document, report_changes
 
 # ── Startup banner ────────────────────────────────────────────────────────────
 print("╔══════════════════════════════════════════════╗", flush=True)
@@ -444,6 +444,7 @@ async def ask(
     history_json: str = Form(""),     # [{"role": "user"|"assistant", "content"}], most recent last
     ui_language:  str = Form("en"),
     file:         UploadFile = File(None),   # optional: lets the chat query the data itself
+    document_json: str = Form(""),    # the report as it stands, sent only for its owner: changes may be suggested
 ):
     """
     Answer one question about a finished analysis. See llm.harness.
@@ -452,6 +453,9 @@ async def ask(
     if not isinstance(context, dict):
         raise HTTPException(status_code=400, detail="context_json must be the analysis's chat context.")
     history = _json_form(history_json, [])
+    document = _json_form(document_json, None)
+    if not (isinstance(document, dict) and document.get("schema") == report_document.SCHEMA):
+        document = None
 
     df = None
     if file is not None:
@@ -466,41 +470,88 @@ async def ask(
     tracker = UsageTracker()
     started = time.perf_counter()
     result = answer_question(context, question, history, df=df, api_keys=API_KEYS,
-                             tracker=tracker, ui_language=ui_language)
+                             tracker=tracker, ui_language=ui_language, document=document)
     result["usage"] = tracker.to_dict()
-    print(f"[Ask] {'refused' if result.get('refused') else 'answered'} in "
+    proposed = len((result.get("proposal") or {}).get("changes") or [])
+    print(f"[Ask] {'refused' if result.get('refused') else 'proposed' if proposed else 'answered'} in "
           f"{time.perf_counter() - started:.1f}s by {result.get('model') or '—'}; "
-          f"queries={len(result.get('queries') or [])} unverified={result.get('unverifiedNumbers')}", flush=True)
+          f"queries={len(result.get('queries') or [])} unverified={result.get('unverifiedNumbers')}"
+          f"{f' changes={proposed}' if proposed else ''}", flush=True)
     return JSONResponse(result)
+
+
+@app.post("/report/next-steps")
+async def report_next_steps(
+    chat_context_json: str = Form(""),
+    document_json:     str = Form(...),
+):
+    """What the owner might do next with a report, chosen without a model. See report_changes."""
+    document = _json_form(document_json, None)
+    if not isinstance(document, dict) or document.get("schema") != report_document.SCHEMA:
+        raise HTTPException(status_code=400, detail="document_json must be a report document.")
+    context = _json_form(chat_context_json, {})
+    return JSONResponse({"steps": report_changes.next_steps(document, context if isinstance(context, dict) else {})})
+
+
+@app.post("/report/draw")
+async def report_draw(
+    document_json: str = Form(...),        # the report as it stands
+    chart_json:    str = Form(...),        # {"type", "x", "y", "group", "agg"}
+    label:         str = Form(...),
+    file:          UploadFile = File(...),
+):
+    """
+    A chart DIG draws from named columns, offered as a change to the report.
+    No model. Returns {"proposal"} like a suggestion from the chat, or 422 {"error"}.
+    """
+    document = _json_form(document_json, None)
+    if not isinstance(document, dict) or document.get("schema") != report_document.SCHEMA:
+        raise HTTPException(status_code=400, detail="document_json must be a report document.")
+    file_bytes = await file.read()
+    try:
+        df = _cached_table(file_bytes, file.filename or "dataset").df
+    except Exception as e:
+        print(f"[Draw] file unreadable: {type(e).__name__}: {e}", flush=True)
+        return JSONResponse({"error": "The data file could not be read."}, status_code=422)
+    changes, problems = report_changes.check(
+        [{"op": "add_chart", "chart": _json_form(chart_json, None), "label": label}], document, df=df)
+    if not changes:
+        return JSONResponse({"error": (problems or ["The chart could not be drawn."])[0]}, status_code=422)
+    return JSONResponse({"proposal": {"changes": changes,
+                                      "preview": [report_changes.preview(c, document) for c in changes],
+                                      "warnings": []}})
 
 
 @app.post("/report/rebuild")
 async def rebuild_report(
     original_json:     str = Form(...),   # version 1: what DIG wrote
     edited_json:       str = Form(""),    # what the person sent, or an older version; empty = rebuild as is
-    current_json:      str = Form(""),    # the version the edit started from, to warn only about new figures
+    current_json:      str = Form(""),    # the newest version: what DIG added, and the base for warnings
     chat_context_json: str = Form(""),    # what the chat answers from; returned with the edited words
     want_word:         bool = Form(False),
     want_pptx:         bool = Form(False),
     charts:            List[UploadFile] = File(None),   # chart_{n}.png, as the backend stores them
+    warn:              bool = Form(True),               # warn about figures typed since current_json
+    changes_json:      str = Form(""),    # changes the owner applied from the chat, checked when suggested
+    new_charts:        List[UploadFile] = File(None),   # new_{k}.png: the picture for change k
 ):
     """
     The files for an edited report, built from its document. No model calls.
 
     Returns {"document", "pdf_report_base64", "word_report_base64",
-    "pptx_report_base64", "warnings", "chat_context"}. See report_document.
+    "pptx_report_base64", "warnings", "chat_context", "new_chart_files"},
+    where new_chart_files maps a change's position to the chart file number
+    its picture is to be stored as. See report_document and report_changes.
     """
     original = _json_form(original_json, None)
     if not isinstance(original, dict) or original.get("schema") != report_document.SCHEMA:
         raise HTTPException(status_code=400, detail="original_json must be a report document.")
     edited = _json_form(edited_json, None) if edited_json else original
     current = _json_form(current_json, None)
+    current = current if isinstance(current, dict) else None
     context = _json_form(chat_context_json, None)
-
-    try:
-        document = report_document.apply_edits(original, edited)
-    except report_document.EditRejected as e:
-        return JSONResponse({"error": e.code}, status_code=422)
+    # What DIG added comes from the server's newest version, never from the edit.
+    added = report_document.added_of(current)
 
     pictures = {}
     for upload in charts or []:
@@ -508,12 +559,36 @@ async def rebuild_report(
         if match:
             pictures[int(match.group(1))] = await upload.read()
 
+    new_files = {}
+    if changes_json:
+        changes = _json_form(changes_json, None)
+        if not isinstance(changes, list) or current is None:
+            raise HTTPException(status_code=400, detail="changes_json needs current_json and must be a list.")
+        try:
+            edited, added, new_files = report_changes.apply(current, original, changes)
+        except report_changes.Rejected:
+            return JSONResponse({"error": "too_many_charts"}, status_code=422)
+        uploaded = {}
+        for upload in new_charts or []:
+            match = re.fullmatch(r"new_(\d+)\.png", upload.filename or "")
+            if match:
+                uploaded[int(match.group(1))] = await upload.read()
+        for k, file_no in new_files.items():
+            if k in uploaded:
+                pictures[file_no] = uploaded[k]
+
+    try:
+        document = report_document.apply_edits(original, edited, added)
+    except report_document.EditRejected as e:
+        return JSONResponse({"error": e.code}, status_code=422)
+
     started = time.perf_counter()
     files = report_document.build_files(document, pictures, want_word=want_word, want_pptx=want_pptx)
-    warnings = report_document.number_warnings(document, current, context, original)
+    warnings = report_document.number_warnings(document, current if warn else None, context, original)
     print(f"[Rebuild] files in {time.perf_counter() - started:.1f}s: pdf"
           f"{' word' if files['word'] else ''}{' pptx' if files['pptx'] else ''}, "
-          f"{len(pictures)} chart(s), {len(warnings)} warning(s)", flush=True)
+          f"{len(pictures)} chart(s), {len(warnings)} warning(s)"
+          f"{f', {len(new_files)} new chart(s)' if new_files else ''}", flush=True)
     return JSONResponse({
         "document": document,
         "pdf_report_base64": files["pdf"],
@@ -521,6 +596,7 @@ async def rebuild_report(
         "pptx_report_base64": files["pptx"],
         "warnings": warnings,
         "chat_context": report_document.with_chat(context, document),
+        "new_chart_files": {str(k): v for k, v in new_files.items()},
     })
 
 

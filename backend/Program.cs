@@ -91,6 +91,7 @@ builder.Services.AddScoped<IStripeService,       StripeService>();
 builder.Services.AddHttpClient<IPythonAiClient,  PythonAiClient>();
 builder.Services.AddScoped<AnalysisService>();
 builder.Services.AddScoped<ReportService>();
+builder.Services.AddSingleton(_ => new ReportProposals());   // suggestions from the chat, until applied
 builder.Services.AddScoped<AccountDeletion>();
 builder.Services.AddHttpClient<IAuthAdmin, SupabaseAuthAdmin>();
 builder.Services.AddScoped<UploadIntake>();
@@ -302,6 +303,18 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 60,
+                Window      = TimeSpan.FromHours(1),
+                QueueLimit  = 0,
+            }));
+
+    // A chart DIG draws for the report reads the analysis's data file and
+    // draws a picture: no model, but a few seconds of the AI service.
+    options.AddPolicy("report-draw", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ClientKey(ctx),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
                 Window      = TimeSpan.FromHours(1),
                 QueueLimit  = 0,
             }));

@@ -274,7 +274,8 @@ public class EditableReportTests
 
         var call = _factory.PythonAi.RebuildCalls.Last();
         call.EditedJson.Should().Be(Original);
-        call.CurrentJson.Should().BeNull("figures DIG or the person already saved are not warned about again");
+        call.Warn.Should().BeFalse("figures DIG or the person already saved are not warned about again");
+        call.CurrentJson.Should().Contain("Edited review", "what DIG added is carried forward from the newest version");
         Saved(a, "report.pdf").Should().Contain("Sales review");
     }
 
@@ -460,8 +461,8 @@ public class FirstReportVersionTests
     [Test]
     public void The_charts_a_document_places_are_read_from_it_and_nothing_else()
     {
-        ReportService.ChartFiles("""{"charts": [{"file": 0}, {"file": 3}, {"file": 3}, {"file": 9}, {"file": "1"}, {}]}""")
-            .Should().Equal(0, 3);
+        ReportService.ChartFiles("""{"charts": [{"file": 0}, {"file": 3}, {"file": 3}, {"file": 9}, {"file": "1"}, {}, {"file": 20}, {"file": -1}, {"file": 2.5}]}""")
+            .Should().Equal(0, 3, 9);
         ReportService.ChartFiles("""{"charts": "none"}""").Should().BeEmpty();
         ReportService.ChartFiles("{}").Should().BeEmpty();
     }

@@ -1,11 +1,12 @@
 // @ts-nocheck
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useSettings } from "@/app/contexts/SettingsContext";
 import BackendAPI from "@/lib/BackendAPI";
 import { MAX_ASK_CHARS } from "@/lib/reportSettings";
+import ChangeCard from "@/components/ChangeCard";
 
 /*
   Questions about a finished analysis.
@@ -18,7 +19,16 @@ import { MAX_ASK_CHARS } from "@/lib/reportSettings";
   is the backend's. This component's job is to be honest about both: a figure
   that could not be checked is shown as such, and a question we failed to
   answer goes back in the box and costs nothing.
+
+  The owner may also ask for changes to the report. An answer can then carry a
+  suggestion, shown as a card to apply or discard; applying it saves a new
+  version, which Undo goes back from. Next-step buttons come from what DIG
+  computed and the report does not use yet: a chart button draws without AI
+  and costs nothing, the others are questions like any other. Every change
+  is announced as "dig:report-changed" so an open editor can catch up.
 */
+
+const REPORT_CHANGED = "dig:report-changed";
 
 const T = {
   en: {
@@ -39,6 +49,16 @@ const T = {
     noContext: "This analysis was made before questions were available. Run it again to ask about it.",
     notReady: "Questions open once the analysis has finished.",
     unreachable: "The assistant couldn't be reached just now. Your question wasn't counted, so please try again in a minute.",
+    steps: {
+      insight: (cols) => `Add an insight about ${cols.join(" and ")}`,
+      shorten: "Make the summary shorter",
+      chart: (label) => `Add a chart: ${label}`,
+    },
+    costMixed: "Chart buttons are free. The others use one question.",
+    costAsk: "Each of these uses one question.",
+    costFree: "These are free: no question is used.",
+    drawn: "Here is the chart DIG drew from your data. Apply it to add it to the report.",
+    drawFailed: "The chart couldn't be drawn just now. Try again in a moment.",
   },
   fr: {
     title: "Posez une question sur cette analyse",
@@ -58,6 +78,16 @@ const T = {
     noContext: "Cette analyse date d'avant les questions. Relancez-la pour poser des questions.",
     notReady: "Les questions s'ouvrent une fois l'analyse terminée.",
     unreachable: "L'assistant est injoignable pour le moment. Votre question n'a pas été comptée : réessayez dans une minute.",
+    steps: {
+      insight: (cols) => `Ajouter un insight sur ${cols.join(" et ")}`,
+      shorten: "Raccourcir le résumé",
+      chart: (label) => `Ajouter un graphique : ${label}`,
+    },
+    costMixed: "Les boutons de graphique sont gratuits. Les autres utilisent une question.",
+    costAsk: "Chacun de ces boutons utilise une question.",
+    costFree: "Ces boutons sont gratuits : aucune question n'est utilisée.",
+    drawn: "Voici le graphique que DIG a tracé à partir de vos données. Appliquez-le pour l'ajouter au rapport.",
+    drawFailed: "Le graphique n'a pas pu être tracé pour l'instant. Réessayez dans un moment.",
   },
   fa: {
     title: "درباره این تحلیل بپرسید",
@@ -77,8 +107,34 @@ const T = {
     noContext: "این تحلیل پیش از اضافه شدن پرسش و پاسخ انجام شده. برای پرسیدن، آن را دوباره اجرا کنید.",
     notReady: "پرسش‌ها پس از پایان تحلیل فعال می‌شوند.",
     unreachable: "الان به دستیار دسترسی نیست. پرسش شما شمرده نشد؛ لطفاً یک دقیقه دیگر دوباره تلاش کنید.",
+    steps: {
+      insight: (cols) => `افزودن یافته‌ای درباره‌ی ${cols.join(" و ")}`,
+      shorten: "کوتاه‌تر کردن خلاصه",
+      chart: (label) => `افزودن نمودار: ${label}`,
+    },
+    costMixed: "دکمه‌های نمودار رایگان‌اند. بقیه یک پرسش مصرف می‌کنند.",
+    costAsk: "هر کدام از این دکمه‌ها یک پرسش مصرف می‌کند.",
+    costFree: "این دکمه‌ها رایگان‌اند: هیچ پرسشی مصرف نمی‌شود.",
+    drawn: "این نموداری است که DIG از داده‌های شما کشید. برای افزودن آن به گزارش، اعمالش کنید.",
+    drawFailed: "نمودار اکنون کشیده نشد. کمی بعد دوباره تلاش کنید.",
   },
 };
+
+/** A next step, in words. Column names are the data's own. */
+export function stepText(step, t) {
+  if (step.kind === "chart") return t.steps.chart(step.label || (step.about ?? []).join(", "));
+  if (step.what === "shorten") return t.steps.shorten;
+  return t.steps.insight(step.about ?? []);
+}
+
+/** What a failed Apply or Undo means for the card. */
+function cardFailure(err) {
+  if (err?.status === 409) return { status: "closed", message: "conflict" };
+  if (err?.code === "SUGGESTION_EXPIRED") return { status: "closed", message: "expired" };
+  if (err?.status === 422) return { status: "closed", message: "rejected" };
+  if (err?.status === 429) return { status: "open", message: "tooMany" };
+  return { status: "open", message: "unavailable" };
+}
 
 /** Failures after which asking again today cannot help. */
 function closedMessage(code, t, isPro) {
@@ -103,6 +159,7 @@ export default function AnalysisQA({ analysisId, plan = "free" }) {
   const [remaining, setRemaining] = useState(null);
   const [notice,    setNotice]    = useState("");
   const [closed,    setClosed]    = useState("");
+  const [steps,     setSteps]     = useState([]);
 
   const logRef = useRef(null);
 
@@ -110,6 +167,85 @@ export default function AnalysisQA({ analysisId, plan = "free" }) {
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [turns, sending]);
+
+  const refreshSteps = useCallback(() => {
+    if (!token || !analysisId) return;
+    // Nothing to offer twice in a row is no change: no re-render.
+    const take = (list) => {
+      const next = Array.isArray(list) ? list : [];
+      setSteps((prev) => (prev.length === 0 && next.length === 0 ? prev : next));
+    };
+    BackendAPI.getNextSteps(token, analysisId).then(take).catch(() => take([]));
+  }, [token, analysisId]);
+
+  useEffect(() => { refreshSteps(); }, [refreshSteps]);
+
+  const setCard = (index, patch) =>
+    setTurns((prev) => prev.map((turn, i) => (i === index ? { ...turn, card: { ...turn.card, ...patch } } : turn)));
+
+  const announce = (version) => {
+    window.dispatchEvent(new CustomEvent(REPORT_CHANGED, { detail: { analysisId, version } }));
+    refreshSteps();
+  };
+
+  const apply = async (index) => {
+    const turn = turns[index];
+    if (!turn?.proposal) return;
+    setCard(index, { status: "applying", message: undefined });
+    try {
+      const res = await BackendAPI.applyProposal(token, analysisId, turn.proposal.id);
+      setCard(index, { status: "applied", version: res.version });
+      announce(res.version);
+    } catch (err) {
+      setCard(index, cardFailure(err));
+    }
+  };
+
+  // Undo goes back to the version the suggestion was made to, as a new version.
+  const undo = async (index) => {
+    const turn = turns[index];
+    if (!turn?.proposal || turn.card?.version == null) return;
+    setCard(index, { status: "undoing", message: undefined });
+    try {
+      const res = await BackendAPI.restoreReport(token, analysisId, turn.card.version, turn.proposal.baseVersion);
+      setCard(index, { status: "undone", version: res.version });
+      announce(res.version);
+    } catch (err) {
+      setCard(index, err?.status === 409
+        ? { status: "applied", message: "undoConflict", noUndo: true }
+        : { status: "applied", message: "unavailable" });
+    }
+  };
+
+  // A chart button: DIG draws it without AI, and it is offered like a suggestion.
+  const draw = async (step) => {
+    if (sending || closed) return;
+    const text = stepText(step, t);
+    setTurns((prev) => [...prev, { role: "user", text }]);
+    setNotice("");
+    setSending(true);
+    try {
+      const res = await BackendAPI.drawChart(token, analysisId, step.chart, step.label || text);
+      setTurns((prev) => [...prev, { role: "assistant", text: t.drawn, proposal: res.proposal, card: { status: "open" } }]);
+      setSteps((prev) => prev.filter((s) => s !== step));
+    } catch (err) {
+      if (err?.status === 422 && err.code === "CANNOT_DRAW" && err.message) {
+        setTurns((prev) => [...prev, { role: "assistant", text: err.message }]);
+      } else {
+        setTurns((prev) => prev.slice(0, -1));
+        setNotice(t.drawFailed);
+      }
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const takeStep = (step) => {
+    if (step.kind === "chart") return draw(step);
+    // Asked once; a failed question goes back in the box, not back on a button.
+    setSteps((prev) => prev.filter((s) => s !== step));
+    return ask(stepText(step, t));
+  };
 
   const ask = async (text) => {
     const question = text.trim();
@@ -140,6 +276,7 @@ export default function AnalysisQA({ analysisId, plan = "free" }) {
           text: res.answer,
           fromData: res.grounding === "data",
           unverified: res.unverifiedNumbers ?? [],
+          ...(res.proposal?.id ? { proposal: res.proposal, card: { status: "open" } } : {}),
         }]);
       }
     } catch (err) {
@@ -184,6 +321,12 @@ export default function AnalysisQA({ analysisId, plan = "free" }) {
                     ⚠ {t.unverified(turn.unverified.join(", "))}
                   </p>
                 )}
+                {turn.proposal && (
+                  <ChangeCard proposal={turn.proposal} card={turn.card} lang={lang}
+                    onApply={() => void apply(i)}
+                    onDiscard={() => setCard(i, { status: "discarded", message: undefined })}
+                    onUndo={() => void undo(i)} />
+                )}
               </div>
             </div>
           ))}
@@ -205,7 +348,23 @@ export default function AnalysisQA({ analysisId, plan = "free" }) {
         </p>
       ) : (
         <>
-          {turns.length === 0 && !sending && (
+          {steps.length > 0 && !sending && (
+            <div style={{ display:"flex", flexDirection:"column", gap:"4px" }}>
+              <div style={{ display:"flex", gap:"6px", flexWrap:"wrap" }}>
+                {steps.map((step, k) => (
+                  <button key={k} type="button" className="chip-btn subtle" dir="auto"
+                    style={{ fontSize:"0.74rem", padding:"5px 11px" }} onClick={() => void takeStep(step)}>
+                    {step.kind === "chart" ? "📊 " : ""}{stepText(step, t)}
+                  </button>
+                ))}
+              </div>
+              <span className="muted-small">
+                {steps.every((s) => s.kind === "chart") ? t.costFree
+                  : steps.some((s) => s.kind === "chart") ? t.costMixed : t.costAsk}
+              </span>
+            </div>
+          )}
+          {turns.length === 0 && !sending && steps.length === 0 && (
             <div style={{ display:"flex", gap:"6px", flexWrap:"wrap" }}>
               {t.suggestions.map((s) => (
                 <button key={s} type="button" className="chip-btn subtle"

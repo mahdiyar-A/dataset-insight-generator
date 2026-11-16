@@ -20,6 +20,7 @@ public class ChatController : ControllerBase
     private readonly IPythonAiClient     _pythonAi;
     private readonly ChatQuota           _quota;
     private readonly ChatLimits          _limits;
+    private readonly ReportService       _reports;
     private readonly ILogger<ChatController> _logger;
 
     // A question carries the analysed file only up to this size, so the
@@ -49,6 +50,7 @@ public class ChatController : ControllerBase
         IPythonAiClient     pythonAi,
         ChatQuota           quota,
         ChatLimits          limits,
+        ReportService       reports,
         ILogger<ChatController> logger)
     {
         _analysis = analysis;
@@ -58,6 +60,7 @@ public class ChatController : ControllerBase
         _pythonAi = pythonAi;
         _quota    = quota;
         _limits   = limits;
+        _reports  = reports;
         _logger   = logger;
     }
 
@@ -409,6 +412,11 @@ public class ChatController : ControllerBase
     // written from and, for files up to 20 MB, queries on the data itself. The
     // assistant is bounded by the AI service (llm/harness.py): it answers about
     // this analysis only and never runs code. This side meters it per day.
+    //
+    // Only the owner reaches this (the analysis is looked up by owner), so when
+    // the report can be edited it goes along, and the answer may suggest
+    // changes to it. The suggestion is kept here; the page gets an id and a
+    // preview, and applying it is a save (ReportController "apply").
     [HttpPost("ask")]
     public async Task<IActionResult> Ask([FromBody] ChatAskRequest req)
     {
@@ -456,11 +464,13 @@ public class ChatController : ControllerBase
             if (fileBytes?.Length > MaxFileForQuestions) fileBytes = null;   // a CSV can outgrow a compressed upload
         }
 
+        var report = await _reports.EditableVersionAsync(analysis.Id);
+
         try
         {
             var raw = await _pythonAi.AskAsync(
                 question, context, HistoryJson(req.History), UiLanguage(req.UiLanguage),
-                fileBytes, fileName);
+                fileBytes, fileName, report?.Document);
             using var doc = JsonDocument.Parse(raw);
             var root = doc.RootElement;
 
@@ -472,6 +482,10 @@ public class ChatController : ControllerBase
                 remaining = _quota.Remaining(key, limit);
             }
 
+            var offered = report != null && !failed && root.TryGetProperty("proposal", out var p)
+                ? _reports.Offer(userId, analysis.Id, report.Version, p)
+                : null;
+
             return Ok(new
             {
                 answer            = Text(root, "answer") ?? "",
@@ -482,6 +496,7 @@ public class ChatController : ControllerBase
                                         ? u.Clone() : EmptyArray,
                 queries           = root.TryGetProperty("queries", out var q) && q.ValueKind == JsonValueKind.Array
                                         ? q.Clone() : EmptyArray,
+                proposal          = offered == null ? null : ReportController.Proposal(offered),
                 remaining,
                 limit,
             });

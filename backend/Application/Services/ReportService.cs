@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using backend.Application.DTOs.AI;
 using backend.Application.Interfaces;
 using backend.Domain.Entities;
@@ -25,7 +26,17 @@ public sealed record ReportResult(
     JsonElement? Document = null,
     JsonElement? Warnings = null,
     IReadOnlyList<ReportVersionSummary>? Versions = null,
-    string? Code = null);
+    string? Code = null,
+    IReadOnlyDictionary<int, string>? Pictures = null);
+
+/// <summary>
+/// A suggestion as the page sees it: an id to apply it by, the version it was
+/// made to, what each change does (with a drawn chart as a data URL) and any
+/// figures worth a second look.
+/// </summary>
+public sealed record OfferedProposal(Guid Id, int BaseVersion, JsonElement Preview, JsonElement Warnings);
+
+public sealed record DrawResult(ReportOutcome Outcome, OfferedProposal? Proposal = null, string? Message = null);
 
 /// <summary>
 /// The report as a document a person edits, with every save kept as a version.
@@ -38,16 +49,34 @@ public sealed record ReportResult(
 ///
 /// Going back to an older version saves it again as the newest, so nothing is
 /// ever lost and going back can itself be undone.
+///
+/// The chat may suggest changes to the report (see ReportProposals). Applying
+/// one is a save like any other: a new version, rebuilt files, undone by going
+/// back. A chart DIG drew for a suggestion is stored as one more chart picture
+/// of the analysis, under the number the AI service gives it.
 /// </summary>
 public class ReportService
 {
     /// <summary>Versions kept besides version 1, which is kept for as long as the analysis.</summary>
     public const int KeepVersions = 20;
 
+    /// <summary>
+    /// Chart pictures an analysis can hold: the run's own (at most 5) and those
+    /// drawn later at the owner's request. MAX_CHART_FILES in report_document.py.
+    /// </summary>
+    public const int MaxChartFiles = 20;
+
+    /// <summary>Charts are drawn from data files up to this size, as questions are.</summary>
+    public const long MaxDataFileBytes = 20L * 1024 * 1024;
+
+    /// <summary>A drawn chart larger than this is not kept: something is wrong with it.</summary>
+    private const int MaxPictureBytes = 3 * 1024 * 1024;
+
     private readonly IAnalysisRepository      _analyses;
     private readonly IReportVersionRepository _versions;
     private readonly IStorageService          _storage;
     private readonly IPythonAiClient          _ai;
+    private readonly ReportProposals          _proposals;
     private readonly ILogger<ReportService>   _logger;
 
     // One save per report at a time on this server. The version number already
@@ -56,13 +85,14 @@ public class ReportService
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> Locks = new();
 
     public ReportService(IAnalysisRepository analyses, IReportVersionRepository versions, IStorageService storage,
-                         IPythonAiClient ai, ILogger<ReportService> logger)
+                         IPythonAiClient ai, ReportProposals proposals, ILogger<ReportService> logger)
     {
-        _analyses = analyses;
-        _versions = versions;
-        _storage  = storage;
-        _ai       = ai;
-        _logger   = logger;
+        _analyses  = analyses;
+        _versions  = versions;
+        _storage   = storage;
+        _ai        = ai;
+        _proposals = proposals;
+        _logger    = logger;
     }
 
     // ── Reading ──────────────────────────────────────────────────────────────
@@ -76,7 +106,36 @@ public class ReportService
         if (latest == null) return new(ReportOutcome.NotEditable);
 
         return new(ReportOutcome.Ok, latest.Version, Parse(latest.Document),
-                   Versions: await SummariesAsync(analysisId));
+                   Versions: await SummariesAsync(analysisId),
+                   Pictures: await PicturesAsync(analysis, latest.Document));
+    }
+
+    /// <summary>
+    /// The newest version, for the chat to suggest changes to. Null when the
+    /// report cannot be edited, or the versions cannot be read just now: the
+    /// chat then answers questions as before.
+    /// </summary>
+    public async Task<ReportVersion?> EditableVersionAsync(Guid analysisId)
+    {
+        try { return await _versions.GetLatestAsync(analysisId); }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[Report] Could not read the versions of {Id} — the chat answers without them",
+                               analysisId);
+            return null;
+        }
+    }
+
+    /// <summary>Links to the pictures of the charts a document places, by file number.</summary>
+    private async Task<Dictionary<int, string>> PicturesAsync(Analysis analysis, string document)
+    {
+        var pictures = new Dictionary<int, string>();
+        foreach (var number in ChartFiles(document))
+        {
+            var url = await _storage.GetChartUrlAsync(analysis.UserId, analysis.Id, number);
+            if (url != null) pictures[number] = url;
+        }
+        return pictures;
     }
 
     private async Task<List<ReportVersionSummary>> SummariesAsync(Guid analysisId) =>
@@ -86,19 +145,42 @@ public class ReportService
 
     // ── Saving ───────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// What a save asks the AI service to make: a whole document (an edit, or
+    /// an older version), or changes from the chat with their drawn pictures.
+    /// </summary>
+    private sealed record Edit(string? Document, string? ChangesJson = null,
+                               IReadOnlyDictionary<int, byte[]>? Pictures = null);
+
     /// <summary>Save an edit made to version <paramref name="baseVersion"/>.</summary>
     public Task<ReportResult> SaveAsync(Guid userId, Guid analysisId, int baseVersion, JsonElement edited) =>
-        ApplyAsync(userId, analysisId, baseVersion, _ => Task.FromResult<string?>(edited.GetRawText()),
+        ApplyAsync(userId, analysisId, baseVersion, _ => Task.FromResult<Edit?>(new Edit(edited.GetRawText())),
                    ReportVersion.Edited, restoredFrom: null, warn: true);
 
     /// <summary>Go back to version <paramref name="target"/>, saving it again as the newest.</summary>
     public Task<ReportResult> RestoreAsync(Guid userId, Guid analysisId, int baseVersion, int target) =>
         ApplyAsync(userId, analysisId, baseVersion,
-                   async id => (await _versions.GetAsync(id, target))?.Document,
+                   async id => (await _versions.GetAsync(id, target)) is { } v ? new Edit(v.Document) : null,
                    ReportVersion.Restored, restoredFrom: target, warn: false);
 
+    /// <summary>
+    /// Apply a suggestion from the chat, as the owner's own edit. Its figures
+    /// were warned about on the suggestion, so they are not again.
+    /// </summary>
+    public async Task<ReportResult> ApplyProposalAsync(Guid userId, Guid analysisId, Guid proposalId)
+    {
+        var proposal = _proposals.Find(proposalId, userId, analysisId);
+        if (proposal == null) return new(ReportOutcome.NotFound, Code: "SUGGESTION_EXPIRED");
+
+        var result = await ApplyAsync(userId, analysisId, proposal.BaseVersion,
+            _ => Task.FromResult<Edit?>(new Edit(null, proposal.ChangesJson, proposal.Pictures)),
+            ReportVersion.Edited, restoredFrom: null, warn: false);
+        if (result.Outcome is ReportOutcome.Ok or ReportOutcome.Conflict) _proposals.Remove(proposalId);
+        return result;
+    }
+
     private async Task<ReportResult> ApplyAsync(
-        Guid userId, Guid analysisId, int baseVersion, Func<Guid, Task<string?>> editedFor,
+        Guid userId, Guid analysisId, int baseVersion, Func<Guid, Task<Edit?>> editFor,
         string kind, int? restoredFrom, bool warn)
     {
         var gate = Locks.GetOrAdd(analysisId, _ => new SemaphoreSlim(1, 1));
@@ -116,14 +198,18 @@ public class ReportService
             var original = latest.Version == 1 ? latest : await _versions.GetAsync(analysisId, 1);
             if (original == null) return new(ReportOutcome.NotEditable);
 
-            var edited = await editedFor(analysisId);
-            if (edited == null) return new(ReportOutcome.NotFound, Code: "NO_SUCH_VERSION");
+            var edit = await editFor(analysisId);
+            if (edit == null) return new(ReportOutcome.NotFound, Code: "NO_SUCH_VERSION");
 
-            var rebuilt = await RebuildAsync(analysis, original.Document, edited,
-                                             warn ? latest.Document : null);
+            var rebuilt = await RebuildAsync(analysis, original.Document, latest.Document, edit, warn);
             if (rebuilt.Error != null) return new(ReportOutcome.Rejected, latest.Version, Code: rebuilt.Error);
             if (rebuilt.Document is not { ValueKind: JsonValueKind.Object } document
                 || string.IsNullOrEmpty(rebuilt.PdfReportBase64))
+                return new(ReportOutcome.Unavailable, latest.Version);
+
+            // A new chart's picture is stored before the version that shows it,
+            // under a number no kept version uses.
+            if (!await StoreNewChartsAsync(analysis, edit, rebuilt))
                 return new(ReportOutcome.Unavailable, latest.Version);
 
             var next = latest.Version + 1;
@@ -136,7 +222,8 @@ public class ReportService
             await TrimAsync(analysisId, next);
 
             return new(ReportOutcome.Ok, next, document, rebuilt.Warnings,
-                       Versions: await SummariesAsync(analysisId));
+                       Versions: await SummariesAsync(analysisId),
+                       Pictures: await PicturesAsync(analysis, document.GetRawText()));
         }
         catch (Exception ex) when (ex is TimeoutException or HttpRequestException)
         {
@@ -172,7 +259,8 @@ public class ReportService
                 var original = latest.Version == 1 ? latest : await _versions.GetAsync(analysis.Id, 1);
                 if (original == null) return;
 
-                var rebuilt = await RebuildAsync(analysis, original.Document, latest.Document, current: null);
+                var rebuilt = await RebuildAsync(analysis, original.Document, latest.Document,
+                                                 new Edit(latest.Document), warn: false);
                 if (rebuilt.Error == null && !string.IsNullOrEmpty(rebuilt.PdfReportBase64))
                     await StoreFilesAsync(analysis, latest.Version, rebuilt);
             }
@@ -190,11 +278,21 @@ public class ReportService
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    private async Task<ReportRebuildResponseDto> RebuildAsync(Analysis analysis, string original, string edited,
-                                                              string? current)
+    /// <summary>
+    /// The files for an edit. <paramref name="latest"/> always goes along: what
+    /// DIG added at the owner's request is carried forward from it, never taken
+    /// from an edit. With <paramref name="warn"/> figures typed since it are
+    /// warned about.
+    /// </summary>
+    private async Task<ReportRebuildResponseDto> RebuildAsync(Analysis analysis, string original, string latest,
+                                                              Edit edit, bool warn)
     {
+        // Only the pictures the result can place: those of the document being
+        // saved, or for changes, of the version they are made to. A new chart's
+        // picture travels with the changes.
+        var placing = edit.Document ?? (edit.ChangesJson != null ? latest : original);
         var charts = new Dictionary<int, byte[]>();
-        foreach (var number in ChartFiles(original))
+        foreach (var number in ChartFiles(placing))
         {
             var png = await _storage.ReadChartAsync(analysis.UserId, analysis.Id, number);
             if (png != null) charts[number] = png;
@@ -202,10 +300,13 @@ public class ReportService
         var chatContext = await _storage.ReadChatContextAsync(analysis.UserId, analysis.Id);
 
         var json = await _ai.RebuildReportAsync(new ReportRebuildRequest(
-            original, edited, current, chatContext,
+            original, edit.Document, latest, chatContext,
             WantWord: analysis.WordReportPath != null,
             WantPptx: analysis.PptxReportPath != null,
-            charts));
+            charts,
+            Warn: warn,
+            ChangesJson: edit.ChangesJson,
+            NewCharts: edit.Pictures));
         return JsonSerializer.Deserialize<ReportRebuildResponseDto>(json) ?? new ReportRebuildResponseDto();
     }
 
@@ -213,15 +314,152 @@ public class ReportService
     public static IEnumerable<int> ChartFiles(string document)
     {
         using var doc = JsonDocument.Parse(document);
-        if (!doc.RootElement.TryGetProperty("charts", out var charts) || charts.ValueKind != JsonValueKind.Array)
+        if (doc.RootElement.ValueKind != JsonValueKind.Object
+            || !doc.RootElement.TryGetProperty("charts", out var charts) || charts.ValueKind != JsonValueKind.Array)
             return Array.Empty<int>();
         return charts.EnumerateArray()
             .Where(c => c.ValueKind == JsonValueKind.Object && c.TryGetProperty("file", out var f)
-                        && f.ValueKind == JsonValueKind.Number)
+                        && f.ValueKind == JsonValueKind.Number && f.TryGetInt32(out _))
             .Select(c => c.GetProperty("file").GetInt32())
-            .Where(n => n is >= 0 and < 5)
+            .Where(n => n is >= 0 and < MaxChartFiles)
             .Distinct()
             .ToList();
+    }
+
+    /// <summary>
+    /// Store the pictures DIG drew for applied changes, under the numbers the
+    /// AI service gave them. False when one could not be stored: nothing is
+    /// saved then, so no version shows a chart without its picture.
+    /// </summary>
+    private async Task<bool> StoreNewChartsAsync(Analysis analysis, Edit edit, ReportRebuildResponseDto rebuilt)
+    {
+        if (edit.Pictures is not { Count: > 0 } pictures || rebuilt.NewChartFiles is not { Count: > 0 } files)
+            return true;
+        try
+        {
+            foreach (var (position, number) in files)
+            {
+                if (!int.TryParse(position, out var k) || !pictures.TryGetValue(k, out var png)) continue;
+                if (number is < 0 or >= MaxChartFiles) return false;
+                await _storage.SaveChartAsync(analysis.UserId, analysis.Id, number, png);
+            }
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Report] Could not store a drawn chart of {Id} — nothing was saved", analysis.Id);
+            return false;
+        }
+    }
+
+    // ── Suggestions ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Keep a suggestion the AI service made and checked, and return what the
+    /// page shows of it. The changes stay here; the page gets an id. Null when
+    /// there is nothing to offer.
+    /// </summary>
+    public OfferedProposal? Offer(Guid userId, Guid analysisId, int baseVersion, JsonElement proposal)
+    {
+        if (proposal.ValueKind != JsonValueKind.Object
+            || !proposal.TryGetProperty("changes", out var changesElement)
+            || changesElement.ValueKind != JsonValueKind.Array || changesElement.GetArrayLength() == 0)
+            return null;
+
+        var changes = JsonNode.Parse(changesElement.GetRawText())!.AsArray();
+        var preview = proposal.TryGetProperty("preview", out var p) && p.ValueKind == JsonValueKind.Array
+            ? JsonNode.Parse(p.GetRawText())!.AsArray()
+            : new JsonArray();
+        var pictures = new Dictionary<int, byte[]>();
+
+        for (var k = 0; k < changes.Count; k++)
+        {
+            if (changes[k] is not JsonObject change) return null;
+            if (change["picture"] is not JsonValue value) continue;
+            change.Remove("picture");
+            if (!value.TryGetValue<string>(out var base64)) return null;
+            byte[] png;
+            try { png = Convert.FromBase64String(base64); }
+            catch (FormatException) { return null; }
+            if (png.Length == 0 || png.Length > MaxPictureBytes) return null;
+            pictures[k] = png;
+            if (k < preview.Count && preview[k] is JsonObject shown)
+                shown["picture"] = "data:image/png;base64," + base64;
+        }
+
+        var warnings = proposal.TryGetProperty("warnings", out var w) && w.ValueKind == JsonValueKind.Array
+            ? w.Clone()
+            : Parse("[]");
+        var id = _proposals.Add(userId, analysisId, baseVersion, changes.ToJsonString(), pictures);
+        return new OfferedProposal(id, baseVersion, Parse(preview.ToJsonString()), warnings);
+    }
+
+    /// <summary>
+    /// What the owner might do next with the report, chosen without a model.
+    /// An empty list when there is nothing to offer or the AI service cannot
+    /// be reached: the page then shows its own suggestions.
+    /// </summary>
+    public async Task<(ReportOutcome Outcome, JsonElement Steps)> NextStepsAsync(Guid userId, Guid analysisId)
+    {
+        var none = Parse("[]");
+        var analysis = await _analyses.GetByIdAsync(analysisId, userId);
+        if (analysis == null || analysis.Status != "done") return (ReportOutcome.NotFound, none);
+
+        var latest = await EditableVersionAsync(analysisId);
+        if (latest == null) return (ReportOutcome.Ok, none);
+        try
+        {
+            var chat = await _storage.ReadChatContextAsync(analysis.UserId, analysis.Id);
+            using var doc = JsonDocument.Parse(await _ai.ReportNextStepsAsync(latest.Document, chat));
+            return doc.RootElement.TryGetProperty("steps", out var steps) && steps.ValueKind == JsonValueKind.Array
+                ? (ReportOutcome.Ok, steps.Clone())
+                : (ReportOutcome.Ok, none);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("[Report] No next steps for {Id} ({Type}: {Msg})", analysisId, ex.GetType().Name, ex.Message);
+            return (ReportOutcome.Ok, none);
+        }
+    }
+
+    /// <summary>
+    /// A chart DIG draws from named columns, offered like a suggestion from the
+    /// chat. No model: it costs no question.
+    /// </summary>
+    public async Task<DrawResult> DrawAsync(Guid userId, Guid analysisId, JsonElement chart, string label)
+    {
+        var analysis = await _analyses.GetByIdAsync(analysisId, userId);
+        if (analysis == null || analysis.Status != "done") return new(ReportOutcome.NotFound);
+
+        var latest = await EditableVersionAsync(analysisId);
+        if (latest == null) return new(ReportOutcome.NotEditable);
+
+        // The data the report read, as for questions.
+        var (path, fileName) = AnalysisFiles.Find(analysis, analysis.CleanedCsvPath != null ? "cleaned" : "original");
+        var bytes = path != null && analysis.FileSizeBytes is > 0 and <= MaxDataFileBytes
+            ? await _storage.DownloadAsync(path)
+            : null;
+        if (bytes is not { Length: > 0 } || bytes.Length > MaxDataFileBytes)
+            return new(ReportOutcome.Rejected, Message: "DIG can't draw from this analysis's data file: it is too large or no longer stored.");
+
+        try
+        {
+            using var doc = JsonDocument.Parse(
+                await _ai.ReportDrawAsync(latest.Document, chart.GetRawText(), label, bytes, fileName));
+            var root = doc.RootElement;
+            if (root.TryGetProperty("error", out var error))
+                return new(ReportOutcome.Rejected,
+                           Message: error.ValueKind == JsonValueKind.String ? error.GetString() : "That chart can't be drawn.");
+            var offered = root.TryGetProperty("proposal", out var proposal)
+                ? Offer(userId, analysisId, latest.Version, proposal)
+                : null;
+            return offered == null ? new(ReportOutcome.Unavailable) : new(ReportOutcome.Ok, offered);
+        }
+        catch (Exception ex) when (ex is TimeoutException or HttpRequestException or JsonException)
+        {
+            _logger.LogWarning(ex, "[Report] Could not draw a chart for {Id}", analysisId);
+            return new(ReportOutcome.Unavailable);
+        }
     }
 
     /// <summary>

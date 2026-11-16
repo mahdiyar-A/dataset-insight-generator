@@ -135,17 +135,54 @@ public class PythonAiClient : IPythonAiClient
     }
 
     public async Task<string> AskAsync(string question, string contextJson, string historyJson, string uiLanguage,
-                                       byte[]? fileBytes, string? fileName)
+                                       byte[]? fileBytes, string? fileName, string? documentJson = null)
     {
         using var content = new MultipartFormDataContent();
         content.Add(new StringContent(question),    "question");
         content.Add(new StringContent(contextJson), "context_json");
         content.Add(new StringContent(historyJson), "history_json");
         content.Add(new StringContent(uiLanguage),  "ui_language");
+        if (documentJson != null)
+            content.Add(new StringContent(documentJson), "document_json");
         if (fileBytes is { Length: > 0 })
             content.Add(FilePart(fileBytes), "file", fileName ?? "data.csv");
         // The AI service gives the models 50 seconds in total.
         return await PostAsync("ask", content, "AIService:AskTimeoutSeconds", 70);
+    }
+
+    public async Task<string> ReportNextStepsAsync(string documentJson, string? chatContextJson)
+    {
+        using var content = new MultipartFormDataContent();
+        content.Add(new StringContent(documentJson), "document_json");
+        if (chatContextJson != null)
+            content.Add(new StringContent(chatContextJson), "chat_context_json");
+        return await PostAsync("report/next-steps", content, "AIService:NextStepsTimeoutSeconds", 15);
+    }
+
+    public async Task<string> ReportDrawAsync(string documentJson, string chartJson, string label,
+                                              byte[] fileBytes, string fileName)
+    {
+        using var content = new MultipartFormDataContent();
+        content.Add(new StringContent(documentJson), "document_json");
+        content.Add(new StringContent(chartJson),    "chart_json");
+        content.Add(new StringContent(label),        "label");
+        content.Add(FilePart(fileBytes), "file", fileName);
+
+        using var cts = new CancellationTokenSource(
+            TimeSpan.FromSeconds(_config.GetValue("AIService:DrawTimeoutSeconds", 45)));
+        try
+        {
+            var response = await _http.PostAsync($"{BaseUrl}/report/draw", content, cts.Token);
+            // 422 is a chart that cannot be drawn, with a reason to show.
+            if ((int)response.StatusCode != 422)
+                response.EnsureSuccessStatusCode();
+            return await response.Content.ReadAsStringAsync(cts.Token);
+        }
+        catch (TaskCanceledException)
+        {
+            _logger.LogWarning("[PythonAI] /report/draw timed out");
+            throw new TimeoutException("Python /report/draw timed out.");
+        }
     }
 
     public async Task<string> ModelStatusAsync()
@@ -175,11 +212,20 @@ public class PythonAiClient : IPythonAiClient
         if (request.ChatContextJson != null) content.Add(new StringContent(request.ChatContextJson), "chat_context_json");
         content.Add(new StringContent(request.WantWord.ToString().ToLower()), "want_word");
         content.Add(new StringContent(request.WantPptx.ToString().ToLower()), "want_pptx");
+        content.Add(new StringContent(request.Warn.ToString().ToLower()), "warn");
         foreach (var (number, png) in request.Charts)
         {
             var part = new ByteArrayContent(png);
             part.Headers.ContentType = new MediaTypeHeaderValue("image/png");
             content.Add(part, "charts", $"chart_{number}.png");
+        }
+        if (request.ChangesJson != null)
+            content.Add(new StringContent(request.ChangesJson), "changes_json");
+        foreach (var (position, png) in request.NewCharts ?? new Dictionary<int, byte[]>())
+        {
+            var part = new ByteArrayContent(png);
+            part.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+            content.Add(part, "new_charts", $"new_{position}.png");
         }
 
         // Building three files with charts takes a few seconds; a slow

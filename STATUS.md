@@ -9,10 +9,65 @@
 
 | Suite | Count | Command |
 |---|---|---|
-| C# — unit, integration, edge cases, the real Supabase client against a stand-in server | 486 | `dotnet test backend.Tests/backend.Tests.csproj` |
-| Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is, insights' evidence, the editable report | 1002 | `cd ai_service && pytest tests/` |
-| Frontend — Vitest, including rendered components | 262 | `cd frontend && npm test` |
+| C# — unit, integration, edge cases, the real Supabase client against a stand-in server, the chat suggesting changes | 508 | `dotnet test backend.Tests/backend.Tests.csproj` |
+| Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is, insights' evidence, the editable report, changes the chat suggests and charts DIG draws | 1052 | `cd ai_service && pytest tests/` |
+| Frontend — Vitest, including rendered components and the change card | 293 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
+
+---
+
+## The chat suggests changes to the report, 2026-11-15
+
+The editor needed the owner to make every change by hand, and could not add
+an insight or a chart.
+
+- **Ask for a change in your own words** in the chat ("make the summary
+  shorter", "add an insight about units"). For the owner of a report that can
+  be edited, the question carries the newest version, and the answer may come
+  with a card: each change, the words now and the words suggested side by
+  side, Apply and Discard. Nothing is saved until Apply.
+- **A fixed list of changes** (`ai_engine/report_changes.py`): rewrite a text
+  section, an insight or an answer; move or remove an insight (never the
+  last); a chart's title, caption and place, remove it, or draw it again as
+  another kind; add an insight; add a chart. At most 3 in one suggestion, 10
+  insights and 8 charts in a report.
+- **A new insight must rest on a computed result** (an F or R id from the
+  analysis) or on a lookup run in the same request (L1, ...). DIG writes its
+  "Based on" line from that result, in the report's language; a model's own
+  line is ignored. What DIG measured and the existing "Based on" lines cannot
+  be changed.
+- **Charts are drawn by DIG**, never by a model: bar, line, scatter,
+  histogram, box, grouped bar, from columns checked against the data. A drawn
+  chart is stored as one more chart picture of the analysis, under the next
+  number no version uses (at most 20 pictures per analysis).
+- **Checked twice:** every change against the report, then every figure in
+  the new words against the analysis, the report and that request's lookups.
+  A wrong change or an unknown figure goes back to the model once; figures
+  still unmatched are shown on the card as a warning.
+- **The suggestion stays on the server** (`ReportProposals`, one hour, the 10
+  newest per person). The page gets an id and a preview, so what is applied
+  is exactly what was checked. Applying it made to an older version is
+  refused as "changed since".
+- **Apply is a save:** a new version, the files rebuilt with no model call,
+  Undo goes back to the version it was made to. An open editor reloads, or
+  says so when it holds unsaved edits.
+- **Next-step buttons** replace the fixed chat suggestions when there is
+  something to offer, chosen without a model from what the analysis computed
+  and the report does not use (`GET /report/next-steps`). A chart button has
+  DIG draw it (`POST /report/draw`, 30 an hour) and costs no question; an
+  insight or "shorten the summary" button is a question like any other.
+- **What it costs:** a suggestion in your own words is 1 question (Free 10 a
+  day, Pro 100); usually one model call, two at most. A failed call is
+  refunded. Apply, Discard, Undo and chart buttons use no AI.
+- **What DIG added is kept** in the document's `added` list, which only
+  grows, is carried forward from the newest version on every save, and is
+  never read from an edit. Going back and forth between versions keeps it.
+- **Privacy page:** an added chart's picture is stored and deleted with the
+  analysis. No database change.
+
+Not covered: the dashboard's Charts section shows only the analysis's own
+charts; added ones show in the editor and the files. A team member cannot
+ask for changes (Part 4).
 
 ---
 

@@ -129,6 +129,8 @@ def _measure(instr: ChartInstruction) -> str:
     weekly averages, so a week of 7,000 read as 160. A title that says average
     settles it; otherwise the title or the description can ask for a total.
     """
+    if instr.aggregate in ("sum", "mean"):
+        return instr.aggregate
     title = instr.title or ""
     if re.search(r"\b(average|avg|mean|median)\b", title, re.IGNORECASE):
         return "mean"
@@ -511,6 +513,7 @@ def generate_charts(df: pd.DataFrame, instructions: List[ChartInstruction]) -> L
             chart_type = "multi_line"
 
         builder = _CHART_BUILDERS.get(chart_type, _bar_chart)
+        drawn = instr
         try:
             img_b64 = builder(df, instr)
         except Exception as e:
@@ -522,7 +525,8 @@ def generate_charts(df: pd.DataFrame, instructions: List[ChartInstruction]) -> L
         # of asking for a chart of one drew nothing. Counting always works.
         if not img_b64 and instr.xColumn not in counted:
             try:
-                img_b64 = _bar_chart(df, replace(instr, yColumn=None))
+                drawn = replace(instr, yColumn=None, groupColumn=None, yColumns=[])
+                img_b64 = _bar_chart(df, drawn)
                 chart_type = "bar"
             except Exception as e:
                 print(f"[Chart] Failed to generate '{instr.title}': {e}")
@@ -539,6 +543,39 @@ def generate_charts(df: pd.DataFrame, instructions: List[ChartInstruction]) -> L
             "color":         instr.color,
             "insight_index": instr.insightIndex,
             "image_base64":  img_b64,
+            # The columns it was drawn from, so it can be drawn again as
+            # another kind of chart. See report_document and report_changes.
+            "spec":          spec_of(drawn),
         })
 
     return results
+
+
+def spec_of(instr: ChartInstruction) -> Dict[str, Any]:
+    """The columns a chart was drawn from."""
+    return {"x": instr.xColumn, "y": instr.yColumn, "group": instr.groupColumn,
+            "yColumns": list(instr.yColumns or []), "aggregate": instr.aggregate or ""}
+
+
+# The kinds of chart a person can ask for in the chat. A heatmap of every
+# numeric column and a multi-line chart need more than a column or two named.
+DRAWABLE = ("bar", "line", "scatter", "histogram", "box", "grouped_bar")
+
+
+def draw_chart(df: pd.DataFrame, instr: ChartInstruction) -> str | None:
+    """
+    One chart exactly as asked, as base64 PNG, or None when it cannot be drawn.
+
+    Unlike generate_charts there is no fallback to a count: a person who asked
+    for a scatter of two columns should hear that it could not be drawn, not
+    be handed a bar chart of something else.
+    """
+    builder = _CHART_BUILDERS.get(instr.chartType)
+    if builder is None or instr.chartType not in DRAWABLE:
+        return None
+    try:
+        return builder(df, instr)
+    except Exception as e:
+        print(f"[Chart] Could not draw '{instr.title}' as {instr.chartType}: {e}")
+        plt.close("all")
+        return None

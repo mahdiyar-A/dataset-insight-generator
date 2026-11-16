@@ -137,6 +137,9 @@ class ChartInstruction:
     chartSubtype: str = ""                        # "grouped" | "stacked" | "multi_line" | ""
     groupColumn: Optional[str] = None            # for grouped bar/line charts and split scatters
     yColumns: List[str] = field(default_factory=list)  # for multi-series charts
+    # "sum" or "mean" when DIG chose it (a chart asked for in the chat); empty
+    # leaves it to the title's words, as for a chart the report's writer named.
+    aggregate: str = ""
 
 
 @dataclass

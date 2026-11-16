@@ -202,6 +202,36 @@ export default class BackendAPI {
       "Couldn't go back to that version");
   }
 
+  /**
+   * Apply a suggestion the chat made, by its id. The server keeps the changes
+   * themselves. 404 SUGGESTION_EXPIRED: it is gone, ask again.
+   */
+  static async applyProposal(token, analysisId, proposalId) {
+    return chatReq(`${API_BASE}/api/analyses/${analysisId}/report/apply`,
+      { method: "POST", headers: authHeaders(token), body: JSON.stringify({ proposalId }) },
+      "Couldn't apply the change");
+  }
+
+  /** What might be done next with the report, chosen without AI. Never throws: [] when unavailable. */
+  static async getNextSteps(token, analysisId) {
+    try {
+      const res = await fetch(`${API_BASE}/api/analyses/${analysisId}/report/next-steps`,
+        { headers: authHeaders(token) });
+      if (!res.ok) return [];
+      const body = await res.json();
+      return Array.isArray(body?.steps) ? body.steps : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /** A chart DIG draws from named columns, offered as a suggestion: {proposal}. Costs no question. */
+  static async drawChart(token, analysisId, chart, label) {
+    return chatReq(`${API_BASE}/api/analyses/${analysisId}/report/draw`,
+      { method: "POST", headers: authHeaders(token), body: JSON.stringify({ chart, label }) },
+      "Couldn't draw the chart");
+  }
+
   /** Get chart objects for an analysis */
   static async getVisualizations(token, analysisId) {
     const res = await fetch(`${API_BASE}/api/analyses/${analysisId}/visualizations`,
