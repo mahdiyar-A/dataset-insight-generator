@@ -53,6 +53,7 @@ const T = {
     saved: (n) => `Saved as version ${n}. The files now match it.`,
     restored: (n, to) => `Went back to version ${to}, saved as version ${n}.`,
     conflict: "This report was changed since you opened it, in another tab or window. Reload it to see the newest version; your unsaved changes here will be replaced.",
+    changedInChat: "A change from the chat was saved as a new version. Reload to see it; your unsaved changes here will be replaced.",
     reload: "Reload",
     noInsights: "A report keeps at least one insight.",
     unavailable: "The report couldn't be saved just now. Your changes are still here; try again in a moment.",
@@ -91,6 +92,7 @@ const T = {
     saved: (n) => `Enregistré comme version ${n}. Les fichiers correspondent.`,
     restored: (n, to) => `Retour à la version ${to}, enregistré comme version ${n}.`,
     conflict: "Ce rapport a été modifié depuis son ouverture, dans un autre onglet ou une autre fenêtre. Rechargez-le pour voir la dernière version ; vos modifications non enregistrées ici seront remplacées.",
+    changedInChat: "Une modification venant du chat a été enregistrée comme nouvelle version. Rechargez pour la voir ; vos modifications non enregistrées ici seront remplacées.",
     reload: "Recharger",
     noInsights: "Un rapport garde au moins un insight.",
     unavailable: "Le rapport n'a pas pu être enregistré pour l'instant. Vos modifications sont toujours là ; réessayez dans un moment.",
@@ -129,6 +131,7 @@ const T = {
     saved: (n) => `به‌عنوان نسخه‌ی ${n} ذخیره شد. فایل‌ها اکنون با آن یکی‌اند.`,
     restored: (n, to) => `به نسخه‌ی ${to} برگشت و به‌عنوان نسخه‌ی ${n} ذخیره شد.`,
     conflict: "این گزارش پس از باز کردنش، در زبانه یا پنجره‌ای دیگر تغییر کرده است. برای دیدن تازه‌ترین نسخه آن را دوباره بارگذاری کنید؛ تغییرات ذخیره‌نشده‌ی اینجا جایگزین می‌شوند.",
+    changedInChat: "تغییری از گفتگو به‌عنوان نسخه‌ای تازه ذخیره شد. برای دیدنش دوباره بارگذاری کنید؛ تغییرات ذخیره‌نشده‌ی اینجا جایگزین می‌شوند.",
     reload: "بارگذاری دوباره",
     noInsights: "گزارش دست‌کم یک یافته نگه می‌دارد.",
     unavailable: "گزارش اکنون ذخیره نشد. تغییرات شما سر جایشان هستند؛ کمی بعد دوباره تلاش کنید.",
@@ -230,6 +233,14 @@ export default function ReportEditor({ analysis, ready }) {
     setBase({ version: result.version, document: result.document });
     setDraft(result.document);
     setVersions(result.versions ?? []);
+    // Links to every chart the version places, charts DIG drew later included.
+    if (result.pictures && typeof result.pictures === "object") {
+      setChartUrls(prev => {
+        const urls = { ...prev };
+        for (const [file, url] of Object.entries(result.pictures)) urls[Number(file)] = url;
+        return urls;
+      });
+    }
   }, []);
 
   const load = useCallback(async () => {
@@ -242,16 +253,19 @@ export default function ReportEditor({ analysis, ready }) {
       take(result);
       setWarnings([]);
       setState("ready");
-      BackendAPI.getVisualizations(token, analysisId)
-        .then(charts => {
-          const urls = {};
-          for (const c of charts) {
-            const file = chartFileOf(c?.url);
-            if (file !== null) urls[file] = c.url;
-          }
-          setChartUrls(urls);
-        })
-        .catch(() => {});
+      // A server from before chart links: the analysis's own charts only.
+      if (!result.pictures) {
+        BackendAPI.getVisualizations(token, analysisId)
+          .then(charts => {
+            const urls = {};
+            for (const c of charts) {
+              const file = chartFileOf(c?.url);
+              if (file !== null) urls[file] = c.url;
+            }
+            setChartUrls(urls);
+          })
+          .catch(() => {});
+      }
     } catch {
       setState("failed");
     }
@@ -259,6 +273,20 @@ export default function ReportEditor({ analysis, ready }) {
 
   // Opened on demand: most visits never edit, and the document is the report's whole text.
   useEffect(() => { if (open && state === "idle") void load(); }, [open, state, load]);
+
+  // A change applied or undone from the chat is a new version. An open editor
+  // with nothing unsaved shows it; one with unsaved edits says so and offers
+  // a reload; a closed one loads afresh when next opened.
+  useEffect(() => {
+    const onChanged = (e) => {
+      if (e?.detail?.analysisId !== analysisId) return;
+      if (!open) { setState("idle"); return; }
+      if (dirty) setNotice({ kind: "conflict", text: t.changedInChat });
+      else if (!busy) void load();
+    };
+    window.addEventListener("dig:report-changed", onChanged);
+    return () => window.removeEventListener("dig:report-changed", onChanged);
+  }, [analysisId, open, dirty, busy, load, t]);
 
   // Leaving with unsaved changes asks first.
   useEffect(() => {

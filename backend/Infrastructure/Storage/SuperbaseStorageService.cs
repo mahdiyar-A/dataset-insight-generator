@@ -25,8 +25,11 @@ public class SupabaseStorageService : IStorageService
     private static string AnalysisDir(Guid userId, Guid analysisId) =>
         $"users/{userId}/analyses/{analysisId}";
 
-    /// <summary>Chart slots we generate. Used to enumerate files for deletion.</summary>
-    private const int MaxCharts = 5;
+    /// <summary>
+    /// Chart slots an analysis can hold: the run's own and those DIG draws
+    /// later at the owner's request. Used to enumerate files for deletion.
+    /// </summary>
+    private const int MaxCharts = ReportService.MaxChartFiles;
 
     // ── Account-level files ──────────────────────────────────────────────────
 
@@ -85,6 +88,20 @@ public class SupabaseStorageService : IStorageService
         if (index < 0 || index >= MaxCharts) return null;
         var bytes = await DownloadAsync(ChartPath(userId, analysisId, index));
         return bytes is { Length: > 0 } ? bytes : null;
+    }
+
+    public async Task<string?> GetChartUrlAsync(Guid userId, Guid analysisId, int index, int expiresInSeconds = 3600)
+    {
+        if (index < 0 || index >= MaxCharts) return null;
+        try
+        {
+            return await GetSignedUrlAsync(ChartPath(userId, analysisId, index), expiresInSeconds);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Storage] GetChartUrlAsync failed for chart {index}: {ex.Message}");
+            return null;
+        }
     }
 
     private static string ChatContextPath(Guid userId, Guid analysisId) =>

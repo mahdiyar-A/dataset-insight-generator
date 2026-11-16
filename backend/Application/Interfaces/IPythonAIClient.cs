@@ -26,10 +26,25 @@ public interface IPythonAiClient
     /// <summary>
     /// Answer a question about a finished analysis. contextJson is the
     /// chat_context the analysis returned; the file, when given, lets the
-    /// assistant query the data itself.
+    /// assistant query the data itself. documentJson, the report as it stands,
+    /// is sent only for its owner: the answer may then carry a "proposal" of
+    /// changes to it, checked by the AI service.
     /// </summary>
     Task<string> AskAsync(string question, string contextJson, string historyJson, string uiLanguage,
-                          byte[]? fileBytes, string? fileName);
+                          byte[]? fileBytes, string? fileName, string? documentJson = null);
+
+    /// <summary>
+    /// What the owner might do next with a report: {"steps": [...]}, chosen
+    /// from what the analysis computed and the report does not use. No model.
+    /// </summary>
+    Task<string> ReportNextStepsAsync(string documentJson, string? chatContextJson);
+
+    /// <summary>
+    /// A chart DIG draws from named columns, offered as a change:
+    /// {"proposal"}, or {"error"} with a reason written for the owner. No model.
+    /// </summary>
+    Task<string> ReportDrawAsync(string documentJson, string chartJson, string label,
+                                 byte[] fileBytes, string fileName);
 
     /// <summary>
     /// Whether the models DIG uses are still offered, what is left of today's

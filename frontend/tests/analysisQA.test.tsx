@@ -25,6 +25,8 @@ let ask: ReturnType<typeof vi.fn>;
 beforeEach(() => {
   ask = vi.fn().mockResolvedValue(answer());
   BackendAPI.chatAsk = ask as unknown as typeof BackendAPI.chatAsk;
+  // No next steps: the questions box as it was before them.
+  BackendAPI.getNextSteps = vi.fn().mockResolvedValue([]) as unknown as typeof BackendAPI.getNextSteps;
 });
 
 async function send(text: string) {

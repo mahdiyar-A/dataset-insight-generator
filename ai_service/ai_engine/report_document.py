@@ -24,6 +24,13 @@ person sent: only the editable parts are taken from the edit, every fixed part
 is copied from the original. Ids come from the original too, so going back to
 an older version can bring back an insight a later version removed, while no
 edit can add an insight that rests on nothing.
+
+The one way in for something new is DIG itself. When the owner applies a
+change the assistant suggested (report_changes), an insight it added, resting
+on a computed result, or a chart DIG drew, goes into `added`: a list that only
+grows, is carried from version to version by the server, and is never read
+from an edit. An edit may place, reword or remove what is in it, exactly as
+for what DIG first wrote.
 """
 from __future__ import annotations
 
@@ -47,8 +54,14 @@ MAX_TITLE = 300
 MAX_PARAGRAPH = 12_000
 MAX_CAPTION = 1_000
 
-# What the files can hold: the backend keeps at most this many chart pictures.
+# Charts an analysis draws: the backend stores at most this many from a run.
 MAX_CHARTS = 5
+
+# Charts a report can show once the owner adds some, and the picture files an
+# analysis can hold (chart_0.png to chart_19.png). A removed chart keeps its
+# file, so a later version can put it back.
+MAX_REPORT_CHARTS = 8
+MAX_CHART_FILES = 20
 
 
 class EditRejected(ValueError):
@@ -100,6 +113,8 @@ def build(report: LLMReport, charts: List[Dict[str, Any]], *, stats: Any, domain
         "desc": str(ch.get("desc") or ""),
         "color": str(ch.get("color") or ""),
         "insight": owner.get(_int(ch.get("insight_index"))),
+        # The columns it was drawn from, so it can be drawn again as another kind.
+        **({"spec": dict(ch["spec"])} if isinstance(ch.get("spec"), dict) else {}),
     } for i, ch in enumerate((charts or [])[:MAX_CHARTS])]
 
     answers = [{
@@ -155,15 +170,30 @@ def _list(value: Any) -> Optional[List[Dict[str, Any]]]:
     return [x for x in value if isinstance(x, dict)]
 
 
-def apply_edits(original: Dict[str, Any], edited: Any) -> Dict[str, Any]:
+def added_of(document: Any) -> Dict[str, List[Dict[str, Any]]]:
+    """What DIG added to a report since it was written, from a stored version."""
+    added = document.get("added") if isinstance(document, dict) else None
+    added = added if isinstance(added, dict) else {}
+    return {"insights": _list(added.get("insights")) or [], "charts": _list(added.get("charts")) or []}
+
+
+def apply_edits(original: Dict[str, Any], edited: Any,
+                added: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     The document `edited` describes, built on `original` (version 1).
 
     Takes only what a person may change from `edited`; anything missing,
     malformed or unknown is left as the original had it. A required field left
     empty (the report title, an insight's title or text) keeps the original's.
+
+    `added` is what DIG added since (see added_of), from the server's newest
+    version. Its insights and charts may be placed like the original's; an
+    `added` inside `edited` is ignored.
     """
+    extra = added_of({"added": added})
     doc = copy.deepcopy(original)
+    if extra["insights"] or extra["charts"]:
+        doc["added"] = copy.deepcopy(extra)
     if not isinstance(edited, dict):
         return doc
 
@@ -179,7 +209,8 @@ def apply_edits(original: Dict[str, Any], edited: Any) -> Dict[str, Any]:
         doc["text"][field_name] = cleaned
 
     # ── Insights: order, removal, title and body ─────────────────────────────
-    known = {i["id"]: i for i in original.get("insights") or []}
+    known = {i["id"]: i for i in [*(original.get("insights") or []), *extra["insights"]]
+             if isinstance(i.get("id"), str)}
     sent = _list(edited.get("insights"))
     if sent is not None:
         kept, seen = [], set()
@@ -200,11 +231,14 @@ def apply_edits(original: Dict[str, Any], edited: Any) -> Dict[str, Any]:
     present = {i["id"] for i in doc["insights"]}
 
     # ── Charts: removal, title, caption and the insight each sits under ──────
-    pictures = {c["file"]: c for c in original.get("charts") or []}
+    pictures = {c["file"]: c for c in [*(original.get("charts") or []), *extra["charts"]]
+                if isinstance(c.get("file"), int) and not isinstance(c.get("file"), bool)}
     sent = _list(edited.get("charts"))
     if sent is not None:
         kept, seen = [], set()
         for item in sent:
+            if len(kept) >= MAX_REPORT_CHARTS:
+                break
             file_no = item.get("file")
             if isinstance(file_no, bool) or file_no not in pictures or file_no in seen:
                 continue

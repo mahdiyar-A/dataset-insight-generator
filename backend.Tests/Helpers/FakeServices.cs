@@ -345,6 +345,7 @@ public class FakeStorageService : IStorageService
 
     public async Task<string> SaveChartAsync(Guid userId, Guid analysisId, int index, byte[] pngBytes)
     {
+        if (FailChartSaves) throw new InvalidOperationException("Exception: bucket unreachable");
         var path = await Record($"{Dir(userId, analysisId)}/chart_{index}.png");
         Files[path] = pngBytes;
         return path;
@@ -353,6 +354,14 @@ public class FakeStorageService : IStorageService
     public Task<byte[]?> ReadChartAsync(Guid userId, Guid analysisId, int index) =>
         Task.FromResult(Files.TryGetValue($"{Dir(userId, analysisId)}/chart_{index}.png", out var bytes)
                         && bytes.Length > 0 ? bytes : null);
+
+    /// <summary>Set to make chart saves throw, as an unreachable bucket would.</summary>
+    public bool FailChartSaves { get; set; }
+
+    public Task<string?> GetChartUrlAsync(Guid userId, Guid analysisId, int index, int expiresInSeconds = 3600) =>
+        Task.FromResult<string?>(index is >= 0 and < backend.Application.Services.ReportService.MaxChartFiles
+            ? $"https://fake-storage.example.com/{Dir(userId, analysisId)}/chart_{index}.png?expires={expiresInSeconds}"
+            : null);
 
     /// <summary>The bytes last saved as each report file, by path. Record keeps only the path.</summary>
     public Dictionary<string, byte[]> Saved { get; } = new();
@@ -497,9 +506,38 @@ public class FakePythonAiClient : IPythonAiClient
     """;
 
     public record AskCall(string Question, string ContextJson, string HistoryJson, string UiLanguage,
-                          byte[]? FileBytes, string? FileName);
+                          byte[]? FileBytes, string? FileName, string? DocumentJson = null);
 
     public List<AskCall> AskCalls { get; } = new();
+
+    /// <summary>What /report/next-steps answers.</summary>
+    public string NextStepsJson { get; set; } = """{"steps": []}""";
+
+    public record NextStepsCall(string DocumentJson, string? ChatContextJson);
+
+    public List<NextStepsCall> NextStepsCalls { get; } = new();
+
+    public Task<string> ReportNextStepsAsync(string documentJson, string? chatContextJson)
+    {
+        NextStepsCalls.Add(new NextStepsCall(documentJson, chatContextJson));
+        if (SimulateDown) throw new HttpRequestException("Simulated: AI service unreachable");
+        return Task.FromResult(NextStepsJson);
+    }
+
+    /// <summary>What /report/draw answers: {"proposal"} or {"error"}.</summary>
+    public string DrawJson { get; set; } = """{"error": "No chart was set up for this test."}""";
+
+    public record DrawCall(string DocumentJson, string ChartJson, string Label, byte[] FileBytes, string FileName);
+
+    public List<DrawCall> DrawCalls { get; } = new();
+
+    public Task<string> ReportDrawAsync(string documentJson, string chartJson, string label,
+                                        byte[] fileBytes, string fileName)
+    {
+        DrawCalls.Add(new DrawCall(documentJson, chartJson, label, fileBytes, fileName));
+        if (SimulateDown) throw new TimeoutException("Simulated: /report/draw timed out");
+        return Task.FromResult(DrawJson);
+    }
 
     public Task<string> InspectAsync(byte[] fileBytes, string fileName)
     {
@@ -516,9 +554,9 @@ public class FakePythonAiClient : IPythonAiClient
     }
 
     public Task<string> AskAsync(string question, string contextJson, string historyJson, string uiLanguage,
-                                 byte[]? fileBytes, string? fileName)
+                                 byte[]? fileBytes, string? fileName, string? documentJson = null)
     {
-        AskCalls.Add(new AskCall(question, contextJson, historyJson, uiLanguage, fileBytes, fileName));
+        AskCalls.Add(new AskCall(question, contextJson, historyJson, uiLanguage, fileBytes, fileName, documentJson));
         if (SimulateDown) throw new TimeoutException("Simulated: /ask timed out");
         return Task.FromResult(AskJson);
     }

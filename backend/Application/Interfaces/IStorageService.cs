@@ -50,6 +50,12 @@ public interface IStorageService
     Task<byte[]?> ReadChartAsync(Guid userId, Guid analysisId, int index);
 
     /// <summary>
+    /// A signed link to one chart picture, for the report editor to show it.
+    /// Null when the number is out of range or the link cannot be made.
+    /// </summary>
+    Task<string?> GetChartUrlAsync(Guid userId, Guid analysisId, int index, int expiresInSeconds = 3600);
+
+    /// <summary>
     /// The context the chat answers this analysis's questions from. There is
     /// no column for it on the analysis row, so it lives at a fixed path, and
     /// these two methods are the only code that knows it.
