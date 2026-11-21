@@ -2,20 +2,27 @@
 "use client";
 
 /**
- * The report as a document its owner edits in DIG. Every save becomes a new
+ * The report as a document edited in DIG, by its owner on the dashboard and by
+ * the team it is shared with on the team page. Every save becomes a new
  * version and rebuilds the PDF (and Word and PowerPoint when the analysis has
  * them); Undo and the version list go back to an older version by saving it
  * again as the newest, so nothing is ever lost.
+ *
+ * A teammate's save shows up here as it happens (lib/useReportLive). Saving
+ * after someone else saved combines the two, part by part; when both changed
+ * the same part the save is refused, naming the part and who changed it.
+ * Viewers see the report and its versions but cannot change them.
  *
  * What DIG measured (row counts, confidence, what each insight rests on) is
  * shown but cannot be edited. See lib/reportEdits.ts and
  * ai_service/ai_engine/report_document.py.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useSettings } from "@/app/contexts/SettingsContext";
 import BackendAPI from "@/lib/BackendAPI";
+import { useReportLive } from "@/lib/useReportLive";
 import {
   RTL_LANGUAGES, canRemoveInsight, chartFileOf, chartsUnder, editOf, moveInsight, removeChart,
   removeInsight, sameDocument, setAnswer, setChart, setInsight, setText, undoTarget, warningsAt,
@@ -52,7 +59,7 @@ const T = {
     restoredFrom: (n) => `went back to version ${n}`,
     saved: (n) => `Saved as version ${n}. The files now match it.`,
     restored: (n, to) => `Went back to version ${to}, saved as version ${n}.`,
-    conflict: "This report was changed since you opened it, in another tab or window. Reload it to see the newest version; your unsaved changes here will be replaced.",
+    conflict: "This report was changed since you opened it. Reload it to see the newest version; your unsaved changes here will be replaced.",
     changedInChat: "A change from the chat was saved as a new version. Reload to see it; your unsaved changes here will be replaced.",
     reload: "Reload",
     noInsights: "A report keeps at least one insight.",
@@ -60,6 +67,23 @@ const T = {
     tooMany: "That's a lot of saves in one hour. Your changes are still here; try again a little later.",
     unsaved: "Unsaved changes",
     figure: (nums) => `${nums.join(", ")}: not a figure the analysis produced. Check it before sharing the report.`,
+    readTitle: "The report",
+    readIntro: "You can read this report and see every version. Ask the team owner to make you an editor to change it.",
+    openRead: "Open the report",
+    byName: (name) => `Saved by ${name}`,
+    byTeammate: "Saved by a teammate",
+    aTeammate: "a teammate",
+    youElsewhere: "you (in another tab)",
+    and: ", ",
+    savedWith: (n, names) => `Saved as version ${n}, together with the changes ${names} saved meanwhile. The files now match it.`,
+    samePart: (names, parts) => `${names} changed the same part since you opened it: ${parts}. Your changes are still here: copy anything you want to keep, then reload to see theirs.`,
+    teammateSaved: (name, n) => `${name} saved version ${n}. You're looking at it now.`,
+    teammateSavedEditing: (name, n) => `${name} saved version ${n}. When you save, your changes are combined with theirs.`,
+    readOnly: "Viewers can read the report. Ask the team owner to make you an editor to change it.",
+    gone: "You can no longer open this report: it is no longer shared with you.",
+    insightOrder: "the order of the insights",
+    chartOrder: "the order of the charts",
+    undoTheirs: (name) => `Undo ${name}'s change`,
   },
   fr: {
     title: "Modifier le rapport",
@@ -91,7 +115,7 @@ const T = {
     restoredFrom: (n) => `retour à la version ${n}`,
     saved: (n) => `Enregistré comme version ${n}. Les fichiers correspondent.`,
     restored: (n, to) => `Retour à la version ${to}, enregistré comme version ${n}.`,
-    conflict: "Ce rapport a été modifié depuis son ouverture, dans un autre onglet ou une autre fenêtre. Rechargez-le pour voir la dernière version ; vos modifications non enregistrées ici seront remplacées.",
+    conflict: "Ce rapport a été modifié depuis son ouverture. Rechargez-le pour voir la dernière version ; vos modifications non enregistrées ici seront remplacées.",
     changedInChat: "Une modification venant du chat a été enregistrée comme nouvelle version. Rechargez pour la voir ; vos modifications non enregistrées ici seront remplacées.",
     reload: "Recharger",
     noInsights: "Un rapport garde au moins un insight.",
@@ -99,6 +123,23 @@ const T = {
     tooMany: "Beaucoup d'enregistrements en une heure. Vos modifications sont toujours là ; réessayez un peu plus tard.",
     unsaved: "Modifications non enregistrées",
     figure: (nums) => `${nums.join(", ")} : ce chiffre ne vient pas de l'analyse. Vérifiez-le avant de partager le rapport.`,
+    readTitle: "Le rapport",
+    readIntro: "Vous pouvez lire ce rapport et voir chaque version. Demandez au propriétaire de l'équipe de vous nommer éditeur pour le modifier.",
+    openRead: "Ouvrir le rapport",
+    byName: (name) => `Enregistrée par ${name}`,
+    byTeammate: "Enregistrée par un membre de l'équipe",
+    aTeammate: "un membre de l'équipe",
+    youElsewhere: "vous (dans un autre onglet)",
+    and: ", ",
+    savedWith: (n, names) => `Enregistré comme version ${n}, avec les modifications enregistrées entre-temps par ${names}. Les fichiers correspondent.`,
+    samePart: (names, parts) => `${names} a modifié la même partie depuis l'ouverture : ${parts}. Vos modifications sont toujours là : copiez ce que vous voulez garder, puis rechargez pour voir les siennes.`,
+    teammateSaved: (name, n) => `${name} a enregistré la version ${n}. Vous la voyez maintenant.`,
+    teammateSavedEditing: (name, n) => `${name} a enregistré la version ${n}. Quand vous enregistrerez, vos modifications seront combinées avec les siennes.`,
+    readOnly: "Les lecteurs peuvent lire le rapport. Demandez au propriétaire de l'équipe de vous nommer éditeur pour le modifier.",
+    gone: "Vous ne pouvez plus ouvrir ce rapport : il n'est plus partagé avec vous.",
+    insightOrder: "l'ordre des insights",
+    chartOrder: "l'ordre des graphiques",
+    undoTheirs: (name) => `Annuler la modification de ${name}`,
   },
   fa: {
     title: "ویرایش گزارش",
@@ -130,7 +171,7 @@ const T = {
     restoredFrom: (n) => `بازگشت به نسخه‌ی ${n}`,
     saved: (n) => `به‌عنوان نسخه‌ی ${n} ذخیره شد. فایل‌ها اکنون با آن یکی‌اند.`,
     restored: (n, to) => `به نسخه‌ی ${to} برگشت و به‌عنوان نسخه‌ی ${n} ذخیره شد.`,
-    conflict: "این گزارش پس از باز کردنش، در زبانه یا پنجره‌ای دیگر تغییر کرده است. برای دیدن تازه‌ترین نسخه آن را دوباره بارگذاری کنید؛ تغییرات ذخیره‌نشده‌ی اینجا جایگزین می‌شوند.",
+    conflict: "این گزارش پس از باز کردنش تغییر کرده است. برای دیدن تازه‌ترین نسخه آن را دوباره بارگذاری کنید؛ تغییرات ذخیره‌نشده‌ی اینجا جایگزین می‌شوند.",
     changedInChat: "تغییری از گفتگو به‌عنوان نسخه‌ای تازه ذخیره شد. برای دیدنش دوباره بارگذاری کنید؛ تغییرات ذخیره‌نشده‌ی اینجا جایگزین می‌شوند.",
     reload: "بارگذاری دوباره",
     noInsights: "گزارش دست‌کم یک یافته نگه می‌دارد.",
@@ -138,6 +179,23 @@ const T = {
     tooMany: "در این یک ساعت ذخیره‌های زیادی انجام شده است. تغییرات شما سر جایشان هستند؛ کمی بعد دوباره تلاش کنید.",
     unsaved: "تغییرات ذخیره‌نشده",
     figure: (nums) => `${nums.join("، ")}: این عدد از تحلیل نیامده است. پیش از هم‌رسانی گزارش آن را بررسی کنید.`,
+    readTitle: "گزارش",
+    readIntro: "می‌توانید این گزارش و همه‌ی نسخه‌هایش را ببینید. برای تغییر آن، از مالک تیم بخواهید شما را ویرایشگر کند.",
+    openRead: "باز کردن گزارش",
+    byName: (name) => `ذخیره‌شده توسط ${name}`,
+    byTeammate: "ذخیره‌شده توسط یکی از هم‌تیمی‌ها",
+    aTeammate: "یکی از هم‌تیمی‌ها",
+    youElsewhere: "شما (در زبانه‌ای دیگر)",
+    and: "، ",
+    savedWith: (n, names) => `به‌عنوان نسخه‌ی ${n} ذخیره شد، همراه با تغییراتی که ${names} در این میان ذخیره کرد. فایل‌ها اکنون با آن یکی‌اند.`,
+    samePart: (names, parts) => `${names} پس از باز شدن گزارش همان بخش را تغییر داد: ${parts}. تغییرات شما سر جایشان هستند: آنچه می‌خواهید نگه دارید کپی کنید، سپس برای دیدن تغییرات او دوباره بارگذاری کنید.`,
+    teammateSaved: (name, n) => `${name} نسخه‌ی ${n} را ذخیره کرد. اکنون همان را می‌بینید.`,
+    teammateSavedEditing: (name, n) => `${name} نسخه‌ی ${n} را ذخیره کرد. هنگام ذخیره، تغییرات شما با تغییرات او ترکیب می‌شود.`,
+    readOnly: "بینندگان می‌توانند گزارش را بخوانند. برای تغییر آن، از مالک تیم بخواهید شما را ویرایشگر کند.",
+    gone: "دیگر نمی‌توانید این گزارش را باز کنید: دیگر با شما هم‌رسانی نشده است.",
+    insightOrder: "ترتیب یافته‌ها",
+    chartOrder: "ترتیب نمودارها",
+    undoTheirs: (name) => `واگرد تغییر ${name}`,
   },
 };
 
@@ -145,6 +203,43 @@ const box = { padding: "12px 14px", borderRadius: "12px", background: "rgba(15,2
 const inputStyle = { width: "100%", boxSizing: "border-box", background: "rgba(2,6,23,0.85)", border: "1px solid rgba(55,65,81,0.9)", borderRadius: "8px", padding: "8px 10px", color: "#e5e7eb", fontSize: "0.82rem", fontFamily: "inherit", lineHeight: 1.5, resize: "vertical" };
 const labelStyle = { fontSize: "0.72rem", color: "#9ca3af", fontWeight: 600, letterSpacing: "0.02em" };
 const smallBtn = { background: "rgba(15,23,42,0.95)", border: "1px solid rgba(55,65,81,0.9)", borderRadius: "999px", padding: "4px 10px", color: "#9ca3af", fontSize: "0.72rem", cursor: "pointer" };
+
+const TEXT_SECTIONS = new Set(["reportTitle", "introduction", "executiveSummary", "conclusion",
+                               "dataQualitySection", "assumptions"]);
+
+/** A part of the report, as the server names it in a refused save, in the reader's words. */
+export function describePart(part, doc, t) {
+  const section = part?.section;
+  if (TEXT_SECTIONS.has(section)) return t[section];
+  if (section === "insightOrder") return t.insightOrder;
+  if (section === "chartOrder") return t.chartOrder;
+  if (section === "insight") {
+    const n = (doc?.insights ?? []).findIndex(i => i.id === part.id) + 1;
+    if (n === 0) return t.insights;
+    return part.field === "title" ? t.insightTitle(n) : t.insightBody(n);
+  }
+  if (section === "chart") {
+    const field = part.field === "label" ? t.chartTitle : part.field === "desc" ? t.chartCaption : t.shownUnder;
+    const chart = (doc?.charts ?? []).find(c => c.file === part.file);
+    return chart?.label ? `${field} (${chart.label})` : field;
+  }
+  if (section === "answer") {
+    const qa = (doc?.questionAnswers ?? []).find(q => q.id === part.id);
+    return qa ? t.answerTo(qa.question) : t.answers;
+  }
+  return t.insights;
+}
+
+/** Who saved, each once: [{ name, byYou, byDig }] from the server, as one phrase. */
+export function whoSaved(people, t) {
+  return (people ?? [])
+    .map(p => (p.byYou ? t.youElsewhere : p.byDig ? "DIG" : (p.name || t.aTeammate)))
+    .join(t.and);
+}
+
+const capital = (text) => (text ? text.charAt(0).toUpperCase() + text.slice(1) : text);
+
+const sameId = (a, b) => String(a ?? "").toLowerCase() === String(b ?? "").toLowerCase();
 
 function rowsFor(text) {
   const value = text ?? "";
@@ -158,21 +253,21 @@ function Warning({ numbers, t }) {
   );
 }
 
-function Field({ label, value, onChange, multiline = true, dir, numbers, t }) {
+function Field({ label, value, onChange, multiline = true, dir, numbers, t, readOnly = false }) {
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
       <span style={labelStyle}>{label}</span>
       {multiline
-        ? <textarea aria-label={label} dir={dir} value={value ?? ""} rows={rowsFor(value)}
+        ? <textarea aria-label={label} dir={dir} value={value ?? ""} rows={rowsFor(value)} readOnly={readOnly}
             onChange={e => onChange(e.target.value)} style={inputStyle} />
-        : <input aria-label={label} dir={dir} value={value ?? ""}
+        : <input aria-label={label} dir={dir} value={value ?? ""} readOnly={readOnly}
             onChange={e => onChange(e.target.value)} style={inputStyle} />}
       <Warning numbers={numbers} t={t} />
     </label>
   );
 }
 
-function ChartRow({ chart, url, doc, dir, warnings, t, onChange }) {
+function ChartRow({ chart, url, doc, dir, warnings, t, onChange, readOnly = false }) {
   return (
     <div style={{ ...box, background: "rgba(2,6,23,0.6)" }}>
       <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", flexWrap: "wrap" }}>
@@ -180,16 +275,16 @@ function ChartRow({ chart, url, doc, dir, warnings, t, onChange }) {
           ? <img src={url} alt={chart.label || t.chart} style={{ width: "140px", maxWidth: "100%", borderRadius: "8px", background: "#fff" }} />
           : <div style={{ width: "140px", height: "80px", borderRadius: "8px", background: "rgba(31,41,55,0.6)" }} />}
         <div style={{ flex: 1, minWidth: "200px", display: "flex", flexDirection: "column", gap: "6px" }}>
-          <Field label={t.chartTitle} value={chart.label} multiline={false} dir={dir} t={t}
+          <Field label={t.chartTitle} value={chart.label} multiline={false} dir={dir} t={t} readOnly={readOnly}
             numbers={warningsAt(warnings, { section: "chart", file: chart.file, field: "label" })}
             onChange={v => onChange(setChart(doc, chart.file, { label: v }))} />
-          <Field label={t.chartCaption} value={chart.desc} multiline={false} dir={dir} t={t}
+          <Field label={t.chartCaption} value={chart.desc} multiline={false} dir={dir} t={t} readOnly={readOnly}
             numbers={warningsAt(warnings, { section: "chart", file: chart.file, field: "desc" })}
             onChange={v => onChange(setChart(doc, chart.file, { desc: v }))} />
           <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
             <label style={{ display: "flex", gap: "6px", alignItems: "center" }}>
               <span style={labelStyle}>{t.shownUnder}</span>
-              <select aria-label={t.shownUnder} value={chart.insight ?? ""}
+              <select aria-label={t.shownUnder} value={chart.insight ?? ""} disabled={readOnly}
                 onChange={e => onChange(setChart(doc, chart.file, { insight: e.target.value || null }))}
                 style={{ ...inputStyle, width: "auto", padding: "4px 8px" }}>
                 {doc.insights.map((ins, i) => (
@@ -198,9 +293,11 @@ function ChartRow({ chart, url, doc, dir, warnings, t, onChange }) {
                 <option value="">{t.otherCharts}</option>
               </select>
             </label>
-            <button type="button" style={smallBtn} onClick={() => onChange(removeChart(doc, chart.file))}>
-              {t.removeChart}
-            </button>
+            {!readOnly && (
+              <button type="button" style={smallBtn} onClick={() => onChange(removeChart(doc, chart.file))}>
+                {t.removeChart}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -208,13 +305,14 @@ function ChartRow({ chart, url, doc, dir, warnings, t, onChange }) {
   );
 }
 
-export default function ReportEditor({ analysis, ready }) {
-  const { token } = useAuth();
+export default function ReportEditor({ analysis, ready, startOpen = false }) {
+  const { token, user } = useAuth();
   const { lang } = useSettings();
   const t = T[lang] || T.en;
 
-  const [open, setOpen]           = useState(false);
-  const [state, setState]         = useState("idle");   // idle | loading | ready | old | failed
+  const [open, setOpen]           = useState(startOpen);
+  const [state, setState]         = useState("idle");   // idle | loading | ready | old | failed | gone
+  const [canEdit, setCanEdit]     = useState(true);
   const [base, setBase]           = useState(null);     // { version, document } as last saved
   const [draft, setDraft]         = useState(null);
   const [versions, setVersions]   = useState([]);
@@ -230,6 +328,8 @@ export default function ReportEditor({ analysis, ready }) {
   const dir = RTL_LANGUAGES.has(docLanguage) ? "rtl" : undefined;
 
   const take = useCallback((result) => {
+    // A server from before teams answers only its owner, who may always edit.
+    setCanEdit(result.canEdit !== false);
     setBase({ version: result.version, document: result.document });
     setDraft(result.document);
     setVersions(result.versions ?? []);
@@ -288,6 +388,44 @@ export default function ReportEditor({ analysis, ready }) {
     return () => window.removeEventListener("dig:report-changed", onChanged);
   }, [analysisId, open, dirty, busy, load, t]);
 
+  // The newest draft and base, for a reply that arrives after the person typed.
+  const latest = useRef({ draft: null, base: null });
+  latest.current = { draft, base };
+
+  /** Show the newest version without the loading screen, unless the person has started typing since. */
+  const refresh = useCallback(async (after) => {
+    try {
+      const result = await BackendAPI.getReport(token, analysisId);
+      if (!result?.editable) return;
+      const { draft: now, base: was } = latest.current;
+      if (now && was && !sameDocument(now, was.document)) return;
+      take(result);
+      setWarnings([]);
+      if (after) setNotice(after);
+    } catch {
+      // The next save, or a reload, catches up.
+    }
+  }, [token, analysisId, take]);
+
+  // Someone saved: a teammate, the owner, or this person in another tab.
+  useReportLive({
+    token, analysisId,
+    active: open && state === "ready",
+    onSaved: (saved) => {
+      if (busy || !base || saved.version <= base.version) return;
+      const who = capital(sameId(saved.savedBy, user?.id) ? t.youElsewhere : (saved.savedByName || t.aTeammate));
+      if (dirty) setNotice({ kind: "info", text: t.teammateSavedEditing(who, saved.version) });
+      else void refresh({ kind: "ok", text: t.teammateSaved(who, saved.version) });
+    },
+    onRemoved: () => {
+      setState("gone");
+      setDraft(null);
+      setBase(null);
+      setNotice(null);
+    },
+    onReconnected: () => { if (!dirty && !busy) void refresh(null); },
+  });
+
   // Leaving with unsaved changes asks first.
   useEffect(() => {
     if (!dirty) return;
@@ -297,7 +435,12 @@ export default function ReportEditor({ analysis, ready }) {
   }, [dirty]);
 
   const explain = (err) => {
+    if (err?.status === 409 && err?.code === "SAME_PART_CHANGED") {
+      const parts = (err.parts ?? []).map(part => describePart(part, draft, t)).join(t.and);
+      return { kind: "conflict", text: t.samePart(capital(whoSaved(err.savedBy, t) || t.aTeammate), parts) };
+    }
     if (err?.status === 409) return { kind: "conflict", text: t.conflict };
+    if (err?.status === 403) return { kind: "error", text: t.readOnly };
     if (err?.code === "no_insights") return { kind: "error", text: t.noInsights };
     if (err?.status === 429) return { kind: "error", text: t.tooMany };
     return { kind: "error", text: t.unavailable };
@@ -311,7 +454,8 @@ export default function ReportEditor({ analysis, ready }) {
       const result = await BackendAPI.saveReport(token, analysisId, base.version, editOf(draft));
       take(result);
       setWarnings(result.warnings ?? []);
-      setNotice({ kind: "ok", text: t.saved(result.version) });
+      const others = result.combinedWith?.length ? whoSaved(result.combinedWith, t) : null;
+      setNotice({ kind: "ok", text: others ? t.savedWith(result.version, others) : t.saved(result.version) });
     } catch (err) {
       setNotice(explain(err));
     } finally {
@@ -336,13 +480,19 @@ export default function ReportEditor({ analysis, ready }) {
   };
 
   const undoTo = useMemo(() => (base ? undoTarget(versions, base.version) : null), [versions, base]);
+  const newest = versions.find(v => v.version === base?.version);
+  const undoLabel = newest && newest.byYou === false && !newest.byDig
+    ? t.undoTheirs(newest.byName || t.aTeammate) : t.undo;
+  const savedBy = (v) => (v.byDig ? t.byDig
+    : v.byYou === false ? (v.byName ? t.byName(v.byName) : t.byTeammate) : t.byYou);
+  const readOnly = !canEdit;
 
   if (!analysisId || !ready) return null;
 
   const doc = draft;
   const facts = doc?.facts ?? {};
   const textField = (field, multiline = true) => (
-    <Field label={t[field]} value={doc.text?.[field]} multiline={multiline} dir={dir} t={t}
+    <Field label={t[field]} value={doc.text?.[field]} multiline={multiline} dir={dir} t={t} readOnly={readOnly}
       numbers={warningsAt(warnings, { section: field })}
       onChange={v => setDraft(setText(doc, field, v))} />
   );
@@ -350,18 +500,19 @@ export default function ReportEditor({ analysis, ready }) {
   return (
     <div className="card analysis-report-card" style={{ marginBottom: "16px" }}>
       <div className="card-header">
-        <h2>{t.title}</h2>
+        <h2>{readOnly ? t.readTitle : t.title}</h2>
         {base && <span className="pill">{t.version(base.version)}{dirty ? ` · ${t.unsaved}` : ""}</span>}
       </div>
-      <p className="muted-small" style={{ margin: 0 }}>{t.intro}</p>
+      <p className="muted-small" style={{ margin: 0 }}>{readOnly ? t.readIntro : t.intro}</p>
 
       <button type="button" className="secondary-btn" onClick={() => setOpen(o => !o)}
         style={{ alignSelf: "flex-start" }}>
-        {open ? t.close : t.open}
+        {open ? t.close : readOnly ? t.openRead : t.open}
       </button>
 
       {open && state === "loading" && <p className="muted-small">{t.loading}</p>}
       {open && state === "old" && <p className="muted-small">{t.old}</p>}
+      {open && state === "gone" && <p role="alert" className="muted-small">{t.gone}</p>}
       {open && state === "failed" && (
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
           <p className="muted-small" style={{ margin: 0 }}>{t.failed}</p>
@@ -382,7 +533,7 @@ export default function ReportEditor({ analysis, ready }) {
             <div key={ins.id} style={box}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                 <strong style={{ fontSize: "0.8rem", color: "#e5e7eb" }}>{t.insight(i + 1)}</strong>
-                <div style={{ display: "flex", gap: "6px" }}>
+                {!readOnly && <div style={{ display: "flex", gap: "6px" }}>
                   <button type="button" style={smallBtn} disabled={i === 0}
                     aria-label={`${t.up}: ${t.insight(i + 1)}`}
                     onClick={() => setDraft(moveInsight(doc, ins.id, -1))}>↑ {t.up}</button>
@@ -393,12 +544,12 @@ export default function ReportEditor({ analysis, ready }) {
                     title={canRemoveInsight(doc) ? undefined : t.lastInsight}
                     aria-label={`${t.remove}: ${t.insight(i + 1)}`}
                     onClick={() => setDraft(removeInsight(doc, ins.id))}>{t.remove}</button>
-                </div>
+                </div>}
               </div>
-              <Field label={t.insightTitle(i + 1)} value={ins.title} multiline={false} dir={dir} t={t}
+              <Field label={t.insightTitle(i + 1)} value={ins.title} multiline={false} dir={dir} t={t} readOnly={readOnly}
                 numbers={warningsAt(warnings, { section: "insight", id: ins.id, field: "title" })}
                 onChange={v => setDraft(setInsight(doc, ins.id, "title", v))} />
-              <Field label={t.insightBody(i + 1)} value={ins.body} dir={dir} t={t}
+              <Field label={t.insightBody(i + 1)} value={ins.body} dir={dir} t={t} readOnly={readOnly}
                 numbers={warningsAt(warnings, { section: "insight", id: ins.id, field: "body" })}
                 onChange={v => setDraft(setInsight(doc, ins.id, "body", v))} />
               {ins.basedOn?.length > 0 && (
@@ -411,7 +562,7 @@ export default function ReportEditor({ analysis, ready }) {
               )}
               {chartsUnder(doc, ins.id).map(chart => (
                 <ChartRow key={chart.file} chart={chart} url={chartUrls[chart.file]} doc={doc} dir={dir}
-                  warnings={warnings} t={t} onChange={setDraft} />
+                  warnings={warnings} t={t} onChange={setDraft} readOnly={readOnly} />
               ))}
             </div>
           ))}
@@ -421,7 +572,7 @@ export default function ReportEditor({ analysis, ready }) {
               <strong style={{ fontSize: "0.8rem", color: "#e5e7eb" }}>{t.otherChartsHeading}</strong>
               {chartsUnder(doc, null).map(chart => (
                 <ChartRow key={chart.file} chart={chart} url={chartUrls[chart.file]} doc={doc} dir={dir}
-                  warnings={warnings} t={t} onChange={setDraft} />
+                  warnings={warnings} t={t} onChange={setDraft} readOnly={readOnly} />
               ))}
             </div>
           )}
@@ -430,7 +581,7 @@ export default function ReportEditor({ analysis, ready }) {
             <div style={box}>
               <strong style={{ fontSize: "0.8rem", color: "#e5e7eb" }}>{t.answers}</strong>
               {doc.questionAnswers.map(qa => (
-                <Field key={qa.id} label={t.answerTo(qa.question)} value={qa.answer} dir={dir} t={t}
+                <Field key={qa.id} label={t.answerTo(qa.question)} value={qa.answer} dir={dir} t={t} readOnly={readOnly}
                   numbers={warningsAt(warnings, { section: "answer", id: qa.id })}
                   onChange={v => setDraft(setAnswer(doc, qa.id, v))} />
               ))}
@@ -450,8 +601,8 @@ export default function ReportEditor({ analysis, ready }) {
           {/* Save bar: stays in view while a long report is edited. */}
           <div style={{ position: "sticky", bottom: 0, display: "flex", flexDirection: "column", gap: "8px", padding: "10px 0 4px", background: "rgba(15,23,42,0.98)" }}>
             {notice && (
-              <div role={notice.kind === "ok" ? "status" : "alert"}
-                style={{ fontSize: "0.78rem", color: notice.kind === "ok" ? "#bbf7d0" : "#fca5a5", display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+              <div role={notice.kind === "ok" || notice.kind === "info" ? "status" : "alert"}
+                style={{ fontSize: "0.78rem", color: notice.kind === "ok" ? "#bbf7d0" : notice.kind === "info" ? "#bfdbfe" : "#fca5a5", display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
                 <span>{notice.text}</span>
                 {notice.kind === "conflict" && (
                   <button type="button" style={smallBtn} onClick={() => void load()}>{t.reload}</button>
@@ -459,6 +610,7 @@ export default function ReportEditor({ analysis, ready }) {
               </div>
             )}
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+              {!readOnly && <>
               <button type="button" className="primary-btn-lg" disabled={!dirty || busy} onClick={() => void save()}
                 style={{ width: "auto", marginTop: 0, padding: "8px 18px", opacity: (!dirty || busy) ? 0.5 : 1, cursor: (!dirty || busy) ? "not-allowed" : "pointer" }}>
                 {busy ? t.saving : t.save}
@@ -470,8 +622,9 @@ export default function ReportEditor({ analysis, ready }) {
               <button type="button" className="secondary-btn" disabled={dirty || busy || undoTo == null}
                 title={dirty ? t.undoHint : undefined} onClick={() => void goBackTo(undoTo)}
                 style={{ opacity: (dirty || busy || undoTo == null) ? 0.5 : 1 }}>
-                ↶ {t.undo}
+                ↶ {undoLabel}
               </button>
+              </>}
               <button type="button" className="secondary-btn" onClick={() => setShowVersions(s => !s)}>
                 {showVersions ? t.hideVersions : `${t.versions} (${versions.length})`}
               </button>
@@ -482,13 +635,13 @@ export default function ReportEditor({ analysis, ready }) {
                   <li key={v.version} style={{ display: "flex", gap: "8px", alignItems: "center", fontSize: "0.76rem", color: "#d1d5db", flexWrap: "wrap" }}>
                     <strong>{t.version(v.version)}</strong>
                     <span className="muted-small">
-                      {v.byDig ? t.byDig : t.byYou}
+                      {savedBy(v)}
                       {v.kind === "restored" && v.restoredFrom ? ` · ${t.restoredFrom(v.restoredFrom)}` : ""}
                       {` · ${new Date(v.createdAt).toLocaleString(lang)}`}
                     </span>
                     {v.version === base.version
                       ? <span className="pill">{t.current}</span>
-                      : <button type="button" style={smallBtn} disabled={dirty || busy}
+                      : !readOnly && <button type="button" style={smallBtn} disabled={dirty || busy}
                           title={dirty ? t.undoHint : undefined}
                           aria-label={`${t.goBack}: ${t.version(v.version)}`}
                           onClick={() => void goBackTo(v.version)}>{t.goBack}</button>}

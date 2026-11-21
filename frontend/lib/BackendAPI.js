@@ -51,6 +51,9 @@ async function chatReq(url, options, errorMsg) {
   throw Object.assign(new Error(body?.message || errorMsg), {
     code: body?.error ?? null,
     status: res.status,
+    // A save refused because a teammate changed the same part: which parts, and who.
+    parts: Array.isArray(body?.parts) ? body.parts : null,
+    savedBy: Array.isArray(body?.savedBy) ? body.savedBy : null,
   });
 }
 
@@ -180,7 +183,9 @@ export default class BackendAPI {
 
   // ── THE REPORT AS AN EDITABLE DOCUMENT ────────────────────────────────────
   // Errors keep the server's code and status: 409 is "changed since you
-  // opened it", 422 an edit that cannot be saved, 503 a moment's outage.
+  // opened it" (with the parts and who, when a teammate changed the same
+  // part), 403 a viewer who may only read, 422 an edit that cannot be saved,
+  // 503 a moment's outage.
 
   /** The newest version of the report, with the list of versions; {editable: false} for an old report. */
   static async getReport(token, analysisId) {

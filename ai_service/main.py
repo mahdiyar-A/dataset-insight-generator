@@ -534,6 +534,7 @@ async def rebuild_report(
     warn:              bool = Form(True),               # warn about figures typed since current_json
     changes_json:      str = Form(""),    # changes the owner applied from the chat, checked when suggested
     new_charts:        List[UploadFile] = File(None),   # new_{k}.png: the picture for change k
+    base_json:         str = Form(""),    # the version the edit was made to, when someone saved since
 ):
     """
     The files for an edited report, built from its document. No model calls.
@@ -542,6 +543,11 @@ async def rebuild_report(
     "pptx_report_base64", "warnings", "chat_context", "new_chart_files"},
     where new_chart_files maps a change's position to the chart file number
     its picture is to be stored as. See report_document and report_changes.
+
+    With base_json, someone saved current_json since the edit was made to
+    base_json: the two are combined part by part (report_document.merge), or
+    refused with {"error": "same_part", "parts": [...]} when both changed the
+    same part.
     """
     original = _json_form(original_json, None)
     if not isinstance(original, dict) or original.get("schema") != report_document.SCHEMA:
@@ -577,8 +583,13 @@ async def rebuild_report(
             if k in uploaded:
                 pictures[file_no] = uploaded[k]
 
+    base = _json_form(base_json, None) if base_json and not changes_json else None
     try:
         document = report_document.apply_edits(original, edited, added)
+        if isinstance(base, dict) and current is not None:
+            document = report_document.merge(base, current, document)
+    except report_document.SamePart as e:
+        return JSONResponse({"error": "same_part", "parts": e.parts}, status_code=422)
     except report_document.EditRejected as e:
         return JSONResponse({"error": e.code}, status_code=422)
 

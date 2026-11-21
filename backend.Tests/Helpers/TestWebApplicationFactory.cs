@@ -34,6 +34,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
     public FakeWorkspaceRepository WorkspaceRepo { get; } = new();
     public FakeAuthAdmin          AuthAdmin      { get; } = new();
     public FakeReportVersionRepository Versions  { get; } = new();
+    public FakeReportLive         ReportLive     { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -114,6 +115,9 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
 
             services.RemoveAll<IReportVersionRepository>();
             services.AddScoped<IReportVersionRepository>(_ => Versions);
+
+            services.RemoveAll<IReportLive>();
+            services.AddSingleton<IReportLive>(ReportLive);
 
             // Email and Stripe don't need to be replaced unless a test
             // specifically exercises those paths, but remove to avoid

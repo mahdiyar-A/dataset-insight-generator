@@ -16,6 +16,9 @@ namespace backend.Application.DTOs.AI;
 /// ChangesJson is a suggestion from the chat the owner applied, made to
 /// CurrentJson in place of an edit; NewCharts maps a change's position in it
 /// to the picture DIG drew for it.
+///
+/// BaseJson is the version the edit was made to, when someone else saved
+/// CurrentJson since: the two are combined part by part.
 /// </summary>
 public sealed record ReportRebuildRequest(
     string OriginalJson,
@@ -27,7 +30,8 @@ public sealed record ReportRebuildRequest(
     IReadOnlyDictionary<int, byte[]> Charts,
     bool Warn = true,
     string? ChangesJson = null,
-    IReadOnlyDictionary<int, byte[]>? NewCharts = null);
+    IReadOnlyDictionary<int, byte[]>? NewCharts = null,
+    string? BaseJson = null);
 
 public sealed class ReportRebuildResponseDto
 {
@@ -41,4 +45,6 @@ public sealed class ReportRebuildResponseDto
     [JsonPropertyName("new_chart_files")]    public Dictionary<string, int>? NewChartFiles { get; set; }
     // Set instead of everything above when the edit cannot become a report.
     [JsonPropertyName("error")]              public string?      Error            { get; set; }
+    // With error "same_part": the parts both saves changed, as the page names them.
+    [JsonPropertyName("parts")]              public JsonElement? Parts            { get; set; }
 }

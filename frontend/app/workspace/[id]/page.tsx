@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
+import ReportEditor from "@/components/ReportEditor";
 import * as signalR from "@microsoft/signalr";
 import {
   mergeAnnotation, replaceAnnotation, markResolved, removeAnnotation, colorFor,
@@ -547,8 +548,9 @@ export default function WorkspacePage() {
               </button>
             </div>
 
-            {/* Permission badge */}
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "6px",
+            {/* Permission badge. Not for the PDF: the report below says whether
+                this person may edit it, from their role in the team. */}
+            {activeFile.key !== "pdf" && <div style={{ display: "inline-flex", alignItems: "center", gap: "6px",
               padding: "4px 12px", borderRadius: "999px", marginBottom: "20px",
               background: canEdit(activeFile.key)
                 ? "rgba(16,185,129,0.1)" : "rgba(30,41,59,0.5)",
@@ -558,7 +560,7 @@ export default function WorkspacePage() {
                 fontSize: "0.72rem", fontWeight: 600 }}>
                 {canEdit(activeFile.key) ? "✎ Editor" : "👁 Viewer"}
               </span>
-            </div>
+            </div>}
 
             {/* Shared surface — cursors are positioned relative to this box */}
             <div
@@ -606,6 +608,15 @@ export default function WorkspacePage() {
                 </div>
               ))}
             </div>
+
+            {/* The report itself, edited together: owner and editors change it,
+                viewers read it. Saves by anyone show up here as they happen. */}
+            {activeFile.key === "pdf" && workspace?.analysisId && (
+              <div style={{ marginTop: "20px" }}>
+                <ReportEditor key={workspace.analysisId} analysis={{ id: workspace.analysisId }}
+                  ready={Boolean(workspace.analysis?.hasPdf)} startOpen />
+              </div>
+            )}
           </div>
         ) : (
           <div style={{ flex: 1, display: "flex", alignItems: "center",

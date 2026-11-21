@@ -322,7 +322,11 @@ public class TeamsController : ControllerBase
         if (team == null) return NotFound();
         if (team.OwnerId != userId) return Forbid();
 
+        // Who was in it and what it shared, read before they are gone, so
+        // everyone's live connections to them can be ended after.
+        var snapshot = await _live.BeforeDeleteAsync(id);
         await _teams.DeleteTeamAsync(id, userId);
+        await _live.DeletedAsync(snapshot);
         return NoContent();
     }
 

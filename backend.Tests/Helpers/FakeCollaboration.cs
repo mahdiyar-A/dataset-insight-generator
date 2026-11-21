@@ -36,7 +36,16 @@ public class FakeTeamRepository : ITeamRepository
     public Task<List<Team>> GetUserTeamsAsync(Guid userId) => Task.FromResult(new List<Team>());
     public Task<Team> CreateTeamAsync(Team team) => throw new NotSupportedException();
     public Task UpdateTeamAsync(Team team) => throw new NotSupportedException();
-    public Task DeleteTeamAsync(Guid teamId, Guid ownerId) => throw new NotSupportedException();
+    public List<Guid> DeletedTeams { get; } = new();
+
+    public Task DeleteTeamAsync(Guid teamId, Guid ownerId)
+    {
+        NeedsTeam();
+        DeletedTeams.Add(teamId);
+        MemberRows.Clear();
+        Members.Clear();
+        return Task.CompletedTask;
+    }
     public Task<List<TeamMember>> GetMembersAsync(Guid teamId) =>
         Team != null ? Task.FromResult(MemberRows.ToList()) : throw new NotSupportedException();
 
@@ -137,8 +146,15 @@ public class FakeWorkspaceRepository : IWorkspaceRepository
             ? new List<SharedWorkspace> { Workspace } : new List<SharedWorkspace>());
     }
 
+    /// <summary>
+    /// Who is in the team the workspace belongs to, for the report's team
+    /// access. Unset, nobody sees the workspace through a team, as before.
+    /// </summary>
+    public Func<Guid, bool>? InTeam { get; set; }
+
     public Task<List<SharedWorkspace>> GetUserSharedWorkspacesAsync(Guid userId) =>
-        Task.FromResult(new List<SharedWorkspace>());
+        Task.FromResult(Workspace != null && InTeam?.Invoke(userId) == true
+            ? new List<SharedWorkspace> { Workspace } : new List<SharedWorkspace>());
     public Task<SharedWorkspace> ShareAnalysisAsync(SharedWorkspace workspace) => throw new NotSupportedException();
     public Task UnshareAsync(Guid workspaceId) => throw new NotSupportedException();
     public Task<List<WorkspaceFilePermission>> GetPermissionsAsync(Guid workspaceId) =>
@@ -202,6 +218,25 @@ public class FakeLiveAccess : ILiveAccess
         RevokedFrom.Add((teamId, userId));
         return Task.CompletedTask;
     }
+
+    public List<Guid> SnapshotsTaken { get; } = new();
+    public List<TeamSnapshot> Deleted { get; } = new();
+
+    /// <summary>What a snapshot reads; unset, an empty team. Lets a test see when it was taken.</summary>
+    public Func<Guid, TeamSnapshot>? SnapshotOf { get; set; }
+
+    public Task<TeamSnapshot> BeforeDeleteAsync(Guid teamId)
+    {
+        SnapshotsTaken.Add(teamId);
+        return Task.FromResult(SnapshotOf?.Invoke(teamId)
+            ?? new TeamSnapshot(teamId, Array.Empty<Guid>(), Array.Empty<SharedWorkspace>()));
+    }
+
+    public Task DeletedAsync(TeamSnapshot team)
+    {
+        Deleted.Add(team);
+        return Task.CompletedTask;
+    }
 }
 
 public class FakeAuthAdmin : IAuthAdmin
@@ -211,6 +246,24 @@ public class FakeAuthAdmin : IAuthAdmin
     public Task DeleteUserAsync(Guid userId)
     {
         Deleted.Add(userId);
+        return Task.CompletedTask;
+    }
+}
+
+/// <summary>Records every "the report was saved" notice instead of sending it.</summary>
+public class FakeReportLive : IReportLive
+{
+    public record Notice(Guid AnalysisId, int Version, Guid SavedBy, string? SavedByName);
+
+    public List<Notice> Sent { get; } = new();
+
+    /// <summary>When true, sending fails, as a dropped live channel would.</summary>
+    public bool Fail { get; set; }
+
+    public Task SavedAsync(Guid analysisId, int version, Guid savedBy, string? savedByName)
+    {
+        if (Fail) throw new InvalidOperationException("live channel down");
+        lock (Sent) Sent.Add(new Notice(analysisId, version, savedBy, savedByName));
         return Task.CompletedTask;
     }
 }

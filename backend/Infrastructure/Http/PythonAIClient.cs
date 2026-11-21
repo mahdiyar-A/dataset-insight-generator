@@ -210,6 +210,7 @@ public class PythonAiClient : IPythonAiClient
         if (request.EditedJson != null)      content.Add(new StringContent(request.EditedJson),      "edited_json");
         if (request.CurrentJson != null)     content.Add(new StringContent(request.CurrentJson),     "current_json");
         if (request.ChatContextJson != null) content.Add(new StringContent(request.ChatContextJson), "chat_context_json");
+        if (request.BaseJson != null)        content.Add(new StringContent(request.BaseJson),        "base_json");
         content.Add(new StringContent(request.WantWord.ToString().ToLower()), "want_word");
         content.Add(new StringContent(request.WantPptx.ToString().ToLower()), "want_pptx");
         content.Add(new StringContent(request.Warn.ToString().ToLower()), "warn");

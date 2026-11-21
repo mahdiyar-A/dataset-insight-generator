@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/privacy' },
 };
 
-const UPDATED = 'LAST UPDATED 15 NOVEMBER 2026';
+const UPDATED = 'LAST UPDATED 21 NOVEMBER 2026';
 
 const INTRO = [
   'DIG turns a data file into an analysis report and answers questions about it. To do that it has to read your file, so this page explains exactly what happens to it: where it is stored, what is computed locally, what is sent to other companies, and how to get rid of it.',
@@ -68,6 +68,13 @@ const SECTIONS = [
     body: [
       'Uploaded files, generated reports and analysis summaries are held in private storage on Supabase, which hosts our database and file storage. The storage bucket is private: files are not reachable by URL, and access requires a signed request tied to your account.',
       'Our database enforces row-level security, meaning the rules that restrict each row to its owner are applied by the database itself rather than only by application code. A bug in the application cannot hand your rows to another user.',
+    ],
+  },
+  {
+    heading: 'Sharing with a team',
+    body: [
+      'If you join a team, everyone in it can see your name and email address, the comments you leave, and what you type into a report the team shares, and each saved version of that report names who saved it.',
+      'Whoever shares an analysis with a team decides which of its files each member may open, and removing someone from the team, or deleting the team, ends their access straight away.',
     ],
   },
   {
