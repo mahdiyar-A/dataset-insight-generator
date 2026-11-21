@@ -91,6 +91,8 @@ builder.Services.AddScoped<IStripeService,       StripeService>();
 builder.Services.AddHttpClient<IPythonAiClient,  PythonAiClient>();
 builder.Services.AddScoped<AnalysisService>();
 builder.Services.AddScoped<ReportService>();
+builder.Services.AddScoped<ReportAccess>();                  // who may read and who may edit a report
+builder.Services.AddSingleton<IReportLive, ReportLive>();     // tells open pages a report was saved
 builder.Services.AddSingleton(_ => new ReportProposals());   // suggestions from the chat, until applied
 builder.Services.AddScoped<AccountDeletion>();
 builder.Services.AddHttpClient<IAuthAdmin, SupabaseAuthAdmin>();
@@ -402,6 +404,8 @@ app.MapControllers();
 // ── SignalR hub endpoint ──────────────────────────────────────────────────────
 // Frontend connects to: /hubs/collab?workspaceId={id}&access_token={token}
 app.MapHub<CollaborationHub>("/hubs/collab");
+// A report open in the editor: /hubs/report?access_token={token}, then WatchReport(analysisId)
+app.MapHub<ReportHub>("/hubs/report");
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok", version = "2.0.0" }));
 

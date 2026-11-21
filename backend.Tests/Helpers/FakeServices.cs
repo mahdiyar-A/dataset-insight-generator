@@ -224,8 +224,14 @@ public class FakeUserRepository : IUserRepository
         reportsUsed: DefaultUser?.ReportsUsed ?? 0,
         reportsResetAt: DefaultUser?.ReportsResetAt ?? DateTime.UtcNow.AddDays(-1));
 
+    /// <summary>User names by id, for tests where who saved matters.</summary>
+    public Dictionary<Guid, string> Names { get; } = new();
+
     public Task<User?> GetByIdAsync(Guid id) =>
-        Task.FromResult<User?>(DefaultUser ?? MakeDefault(id));
+        Task.FromResult<User?>(Names.TryGetValue(id, out var name)
+            ? User.Restore(id, name, $"{name}@example.com", "supabase-auth", null, null, true, true,
+                           DateTime.UtcNow.AddDays(-1), null)
+            : DefaultUser ?? MakeDefault(id));
 
     /// <summary>
     /// Who an address belongs to, for tests where that matters. Unset, every

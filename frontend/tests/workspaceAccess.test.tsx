@@ -37,6 +37,8 @@ vi.mock("next/navigation", () => ({ useRouter: () => router, useParams: () => pa
 vi.mock("@/app/contexts/AuthContext", () => ({
   useAuth: () => ({ token: "tok", user: { id: "sharer", plan: "pro" }, isLoading: false }),
 }));
+// The report editor under the PDF reads the language setting.
+vi.mock("@/app/contexts/SettingsContext", () => ({ useSettings: () => ({ lang: "en" }) }));
 
 const comment = (over = {}) => ({
   id: "c1", userId: "sharer", fileType: "pdf", content: "Is this right?",
@@ -69,6 +71,8 @@ beforeEach(() => {
   api.getWorkspacePermissions = vi.fn(async () => rules);
   api.setPermission           = setPermission;
   api.editAnnotation          = editAnnotation;
+  // The report under the PDF: made before reports could be edited, so it says so and nothing more.
+  api.getReport               = vi.fn(async () => ({ editable: false }));
 });
 
 const openPdf = async () => {
@@ -143,5 +147,40 @@ describe("being removed from the team", () => {
     expect(await screen.findByText("You no longer have access to this workspace.")).toBeInTheDocument();
     expect(screen.queryByText("PDF Report")).not.toBeInTheDocument();
     expect(hub.stop).toHaveBeenCalled();
+  });
+});
+
+describe("the report under the PDF", () => {
+  const report = (canEdit: boolean) => ({
+    editable: true, canEdit, version: 1, warnings: [], pictures: {},
+    versions: [{ version: 1, kind: "written", restoredFrom: null, createdAt: "2026-11-21T10:00:00Z",
+                 byDig: true, byYou: false, byName: null }],
+    document: {
+      schema: 1,
+      text: { reportTitle: "Sales in 2025", introduction: "", executiveSummary: "", conclusion: "",
+              dataQualitySection: "", assumptions: "" },
+      insights: [{ id: "i1", title: "North leads", body: "North sold 120.", basedOn: [] }],
+      charts: [], questionAnswers: [], facts: { rowCount: 10, language: "en" },
+    },
+  });
+
+  it("is open for an editor to change, and the PDF has no Viewer badge", async () => {
+    (BackendAPI as unknown as Record<string, unknown>).getReport = vi.fn(async () => report(true));
+    render(<WorkspacePage />);
+    await openPdf();
+
+    const title = await screen.findByRole("textbox", { name: "Report title" });
+    expect(title).not.toHaveAttribute("readonly");
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(screen.queryByText("👁 Viewer")).not.toBeInTheDocument();
+  });
+
+  it("is open to read, not change, for a viewer", async () => {
+    (BackendAPI as unknown as Record<string, unknown>).getReport = vi.fn(async () => report(false));
+    render(<WorkspacePage />);
+    await openPdf();
+
+    expect(await screen.findByRole("textbox", { name: "Report title" })).toHaveAttribute("readonly");
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
   });
 });

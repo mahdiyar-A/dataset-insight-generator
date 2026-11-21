@@ -13,12 +13,14 @@ public enum ReportOutcome
     NotFound,      // no such analysis for this person, or no such version
     NotEditable,   // made before reports could be edited: there is no document
     Conflict,      // saved since this person opened it
+    ReadOnly,      // this person may read the report but not change it
     Rejected,      // the edit cannot become a report; Code says why
     Unavailable,   // the files could not be rebuilt just now
 }
 
 /// <summary>One entry in a report's version list: who, when, and what kind of save.</summary>
-public sealed record ReportVersionSummary(int Version, string Kind, int? RestoredFrom, DateTime CreatedAt, bool ByDig);
+public sealed record ReportVersionSummary(int Version, string Kind, int? RestoredFrom, DateTime CreatedAt, bool ByDig,
+                                          Guid? EditedBy = null, string? EditedByName = null);
 
 public sealed record ReportResult(
     ReportOutcome Outcome,
@@ -27,7 +29,13 @@ public sealed record ReportResult(
     JsonElement? Warnings = null,
     IReadOnlyList<ReportVersionSummary>? Versions = null,
     string? Code = null,
-    IReadOnlyDictionary<int, string>? Pictures = null);
+    IReadOnlyDictionary<int, string>? Pictures = null,
+    bool CanEdit = false,
+    // The parts two saves both changed, when a save was refused for it.
+    JsonElement? Parts = null,
+    // The versions saved since this person opened the report: combined with
+    // their save, or the reason it was refused.
+    IReadOnlyList<ReportVersionSummary>? SavedSince = null);
 
 /// <summary>
 /// A suggestion as the page sees it: an id to apply it by, the version it was
@@ -49,6 +57,12 @@ public sealed record DrawResult(ReportOutcome Outcome, OfferedProposal? Proposal
 ///
 /// Going back to an older version saves it again as the newest, so nothing is
 /// ever lost and going back can itself be undone.
+///
+/// The owner and the people a team shares the analysis with edit it together
+/// (ReportAccess says who). A save made to a version someone else has saved
+/// over since is combined with theirs part by part; only when both changed the
+/// same part is it refused, naming the parts. Every save is announced to the
+/// pages that have the report open (IReportLive).
 ///
 /// The chat may suggest changes to the report (see ReportProposals). Applying
 /// one is a save like any other: a new version, rebuilt files, undone by going
@@ -77,6 +91,9 @@ public class ReportService
     private readonly IStorageService          _storage;
     private readonly IPythonAiClient          _ai;
     private readonly ReportProposals          _proposals;
+    private readonly ReportAccess             _access;
+    private readonly IUserRepository          _users;
+    private readonly IReportLive              _live;
     private readonly ILogger<ReportService>   _logger;
 
     // One save per report at a time on this server. The version number already
@@ -85,13 +102,17 @@ public class ReportService
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> Locks = new();
 
     public ReportService(IAnalysisRepository analyses, IReportVersionRepository versions, IStorageService storage,
-                         IPythonAiClient ai, ReportProposals proposals, ILogger<ReportService> logger)
+                         IPythonAiClient ai, ReportProposals proposals, ReportAccess access, IUserRepository users,
+                         IReportLive live, ILogger<ReportService> logger)
     {
         _analyses  = analyses;
         _versions  = versions;
         _storage   = storage;
         _ai        = ai;
         _proposals = proposals;
+        _access    = access;
+        _users     = users;
+        _live      = live;
         _logger    = logger;
     }
 
@@ -99,15 +120,16 @@ public class ReportService
 
     public async Task<ReportResult> GetAsync(Guid userId, Guid analysisId)
     {
-        var analysis = await _analyses.GetByIdAsync(analysisId, userId);
-        if (analysis == null || analysis.Status != "done") return new(ReportOutcome.NotFound);
+        var (analysis, role) = await _access.ForAsync(userId, analysisId);
+        if (analysis == null || role == ReportRole.None || analysis.Status != "done") return new(ReportOutcome.NotFound);
 
         var latest = await _versions.GetLatestAsync(analysisId);
         if (latest == null) return new(ReportOutcome.NotEditable);
 
         return new(ReportOutcome.Ok, latest.Version, Parse(latest.Document),
                    Versions: await SummariesAsync(analysisId),
-                   Pictures: await PicturesAsync(analysis, latest.Document));
+                   Pictures: await PicturesAsync(analysis, latest.Document),
+                   CanEdit: role == ReportRole.Edit);
     }
 
     /// <summary>
@@ -138,10 +160,32 @@ public class ReportService
         return pictures;
     }
 
-    private async Task<List<ReportVersionSummary>> SummariesAsync(Guid analysisId) =>
-        (await _versions.ListAsync(analysisId))
-            .Select(v => new ReportVersionSummary(v.Version, v.Kind, v.RestoredFrom, v.CreatedAt, v.EditedBy == null))
+    private async Task<List<ReportVersionSummary>> SummariesAsync(Guid analysisId)
+    {
+        var versions = await _versions.ListAsync(analysisId);
+        var names = new Dictionary<Guid, string?>();
+        foreach (var id in versions.Select(v => v.EditedBy).OfType<Guid>().Distinct())
+            names[id] = await NameOfAsync(id);
+        return versions
+            .Select(v => new ReportVersionSummary(v.Version, v.Kind, v.RestoredFrom, v.CreatedAt, v.EditedBy == null,
+                                                  v.EditedBy, v.EditedBy is { } by ? names[by] : null))
             .ToList();
+    }
+
+    /// <summary>The name a teammate sees on a save: the person's user name, never their address.</summary>
+    private async Task<string?> NameOfAsync(Guid userId)
+    {
+        try
+        {
+            var name = (await _users.GetByIdAsync(userId))?.UserName;
+            return string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[Report] Could not read the name of {User}", userId);
+            return null;
+        }
+    }
 
     // ── Saving ───────────────────────────────────────────────────────────────
 
@@ -152,10 +196,13 @@ public class ReportService
     private sealed record Edit(string? Document, string? ChangesJson = null,
                                IReadOnlyDictionary<int, byte[]>? Pictures = null);
 
-    /// <summary>Save an edit made to version <paramref name="baseVersion"/>.</summary>
+    /// <summary>
+    /// Save an edit made to version <paramref name="baseVersion"/>. When someone
+    /// saved since, the two are combined part by part.
+    /// </summary>
     public Task<ReportResult> SaveAsync(Guid userId, Guid analysisId, int baseVersion, JsonElement edited) =>
         ApplyAsync(userId, analysisId, baseVersion, _ => Task.FromResult<Edit?>(new Edit(edited.GetRawText())),
-                   ReportVersion.Edited, restoredFrom: null, warn: true);
+                   ReportVersion.Edited, restoredFrom: null, warn: true, combine: true);
 
     /// <summary>Go back to version <paramref name="target"/>, saving it again as the newest.</summary>
     public Task<ReportResult> RestoreAsync(Guid userId, Guid analysisId, int baseVersion, int target) =>
@@ -179,21 +226,38 @@ public class ReportService
         return result;
     }
 
+    /// <param name="combine">
+    /// When someone saved since <paramref name="baseVersion"/>, combine this
+    /// edit with what they saved instead of refusing it. Only for an edit: going
+    /// back to a version, or a suggestion from the chat, is made to the whole
+    /// report as it was.
+    /// </param>
     private async Task<ReportResult> ApplyAsync(
         Guid userId, Guid analysisId, int baseVersion, Func<Guid, Task<Edit?>> editFor,
-        string kind, int? restoredFrom, bool warn)
+        string kind, int? restoredFrom, bool warn, bool combine = false)
     {
         var gate = Locks.GetOrAdd(analysisId, _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync();
         try
         {
-            var analysis = await _analyses.GetByIdAsync(analysisId, userId);
-            if (analysis == null || analysis.Status != "done") return new(ReportOutcome.NotFound);
+            var (analysis, role) = await _access.ForAsync(userId, analysisId);
+            if (analysis == null || role == ReportRole.None || analysis.Status != "done")
+                return new(ReportOutcome.NotFound);
+            if (role != ReportRole.Edit) return new(ReportOutcome.ReadOnly);
 
             var latest = await _versions.GetLatestAsync(analysisId);
             if (latest == null) return new(ReportOutcome.NotEditable);
+
+            // Saved by someone else since this person opened it: combined with
+            // what they saved, when there is still a version to combine from.
+            ReportVersion? opened = null;
             if (latest.Version != baseVersion)
-                return new(ReportOutcome.Conflict, latest.Version, Code: "CHANGED_SINCE_OPENED");
+            {
+                if (combine && baseVersion >= 1 && baseVersion < latest.Version)
+                    opened = await _versions.GetAsync(analysisId, baseVersion);
+                if (opened == null)
+                    return new(ReportOutcome.Conflict, latest.Version, Code: "CHANGED_SINCE_OPENED");
+            }
 
             var original = latest.Version == 1 ? latest : await _versions.GetAsync(analysisId, 1);
             if (original == null) return new(ReportOutcome.NotEditable);
@@ -201,7 +265,10 @@ public class ReportService
             var edit = await editFor(analysisId);
             if (edit == null) return new(ReportOutcome.NotFound, Code: "NO_SUCH_VERSION");
 
-            var rebuilt = await RebuildAsync(analysis, original.Document, latest.Document, edit, warn);
+            var rebuilt = await RebuildAsync(analysis, original.Document, latest.Document, edit, warn, opened?.Document);
+            if (rebuilt.Error == "same_part")
+                return new(ReportOutcome.Conflict, latest.Version, Code: "SAME_PART_CHANGED",
+                           Parts: rebuilt.Parts, SavedSince: await SavedSinceAsync(analysisId, baseVersion));
             if (rebuilt.Error != null) return new(ReportOutcome.Rejected, latest.Version, Code: rebuilt.Error);
             if (rebuilt.Document is not { ValueKind: JsonValueKind.Object } document
                 || string.IsNullOrEmpty(rebuilt.PdfReportBase64))
@@ -220,10 +287,16 @@ public class ReportService
 
             await StoreFilesAsync(analysis, next, rebuilt);
             await TrimAsync(analysisId, next);
+            await AnnounceAsync(analysisId, next, userId);
 
+            var versions = await SummariesAsync(analysisId);
             return new(ReportOutcome.Ok, next, document, rebuilt.Warnings,
-                       Versions: await SummariesAsync(analysisId),
-                       Pictures: await PicturesAsync(analysis, document.GetRawText()));
+                       Versions: versions,
+                       Pictures: await PicturesAsync(analysis, document.GetRawText()),
+                       CanEdit: true,
+                       SavedSince: opened == null ? null
+                           : versions.Where(v => v.Version > baseVersion && v.Version < next)
+                                     .OrderBy(v => v.Version).ToList());
         }
         catch (Exception ex) when (ex is TimeoutException or HttpRequestException)
         {
@@ -233,6 +306,23 @@ public class ReportService
         finally
         {
             gate.Release();
+        }
+    }
+
+    /// <summary>The versions saved after <paramref name="baseVersion"/>, oldest first.</summary>
+    private async Task<List<ReportVersionSummary>> SavedSinceAsync(Guid analysisId, int baseVersion) =>
+        (await SummariesAsync(analysisId)).Where(v => v.Version > baseVersion).OrderBy(v => v.Version).ToList();
+
+    /// <summary>
+    /// Tell the pages that have the report open. The save has happened: a
+    /// failure here only means they catch up on their next load.
+    /// </summary>
+    private async Task AnnounceAsync(Guid analysisId, int version, Guid userId)
+    {
+        try { await _live.SavedAsync(analysisId, version, userId, await NameOfAsync(userId)); }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[Report] Saved version {Version} of {Id} but could not announce it", version, analysisId);
         }
     }
 
@@ -282,10 +372,11 @@ public class ReportService
     /// The files for an edit. <paramref name="latest"/> always goes along: what
     /// DIG added at the owner's request is carried forward from it, never taken
     /// from an edit. With <paramref name="warn"/> figures typed since it are
-    /// warned about.
+    /// warned about. With <paramref name="opened"/>, the version the edit was
+    /// made to, the edit is combined with what was saved since.
     /// </summary>
     private async Task<ReportRebuildResponseDto> RebuildAsync(Analysis analysis, string original, string latest,
-                                                              Edit edit, bool warn)
+                                                              Edit edit, bool warn, string? opened = null)
     {
         // Only the pictures the result can place: those of the document being
         // saved, or for changes, of the version they are made to. A new chart's
@@ -306,7 +397,8 @@ public class ReportService
             charts,
             Warn: warn,
             ChangesJson: edit.ChangesJson,
-            NewCharts: edit.Pictures));
+            NewCharts: edit.Pictures,
+            BaseJson: opened));
         return JsonSerializer.Deserialize<ReportRebuildResponseDto>(json) ?? new ReportRebuildResponseDto();
     }
 

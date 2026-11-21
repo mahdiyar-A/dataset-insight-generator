@@ -42,3 +42,12 @@ window.HTMLElement.prototype.getBoundingClientRect = function () {
 // localhost, which is fine, but being explicit keeps assertions on request URLs
 // stable.
 process.env.NEXT_PUBLIC_API_BASE_URL = "http://test.local";
+
+// The report editor's live channel (lib/useReportLive) would open a real
+// SignalR connection. In tests it only remembers what the editor asked for, so
+// a test can play a teammate's save: globalThis.__reportLive.onSaved({...}).
+vi.mock("@/lib/useReportLive", () => ({
+  useReportLive: (options: Record<string, unknown>) => {
+    (globalThis as Record<string, unknown>).__reportLive = options;
+  },
+}));

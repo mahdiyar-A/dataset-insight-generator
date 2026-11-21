@@ -270,6 +270,149 @@ def apply_edits(original: Dict[str, Any], edited: Any,
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Two people's saves
+# ─────────────────────────────────────────────────────────────────────────────
+
+class SamePart(ValueError):
+    """Two saves made from the same version changed the same part differently."""
+
+    def __init__(self, parts: List[Dict[str, Any]]):
+        super().__init__("same_part")
+        self.parts = parts
+
+
+_MISSING = object()
+
+
+def _parts(doc: Dict[str, Any]) -> Dict[tuple, Any]:
+    """
+    Every part of a document a person may change, by where it sits, read as an
+    edit would leave it: a version DIG wrote and the same words sent back
+    untouched compare equal.
+    """
+    parts: Dict[tuple, Any] = {}
+    text = doc.get("text") if isinstance(doc.get("text"), dict) else {}
+    for field_name in TEXT_FIELDS:
+        value = text.get(field_name)
+        parts[("text", field_name)] = (_line(value, MAX_TITLE) if field_name == "reportTitle"
+                                       else _paragraph(value)) or ""
+    insights = _list(doc.get("insights")) or []
+    parts[("insights",)] = tuple(i.get("id") for i in insights)
+    for ins in insights:
+        parts[("insight", ins.get("id"), "title")] = _line(ins.get("title"), MAX_TITLE) or ""
+        parts[("insight", ins.get("id"), "body")] = _paragraph(ins.get("body")) or ""
+    charts = _list(doc.get("charts")) or []
+    parts[("charts",)] = tuple(c.get("file") for c in charts)
+    for chart in charts:
+        parts[("chart", chart.get("file"), "label")] = _line(chart.get("label"), MAX_TITLE) or ""
+        parts[("chart", chart.get("file"), "desc")] = _line(chart.get("desc"), MAX_CAPTION) or ""
+        owner = chart.get("insight")
+        parts[("chart", chart.get("file"), "insight")] = owner if isinstance(owner, str) else None
+    for qa in _list(doc.get("questionAnswers")) or []:
+        parts[("answer", qa.get("id"))] = _paragraph(qa.get("answer")) or ""
+    return parts
+
+
+def _where(key: tuple) -> Dict[str, Any]:
+    """A part's place, as the page names it."""
+    if key[0] == "text":
+        return {"section": key[1]}
+    if key == ("insights",):
+        return {"section": "insightOrder"}
+    if key == ("charts",):
+        return {"section": "chartOrder"}
+    if key[0] == "insight":
+        return {"section": "insight", "id": key[1], "field": key[2]}
+    if key[0] == "chart":
+        return {"section": "chart", "file": key[1], "field": key[2]}
+    return {"section": "answer", "id": key[1]}
+
+
+def merge(base: Dict[str, Any], theirs: Dict[str, Any], mine: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    One document from two saves made to the same version `base`: `theirs`, the
+    newest version, saved by someone else since, and `mine`, being saved now
+    (already through apply_edits).
+
+    Each part takes the side that changed it. A part both sides changed to
+    different things is refused with SamePart, naming every such part, so
+    nobody's words are silently lost. Removing an insight and changing it is
+    such a clash; so is putting the insights (or the charts) in two different
+    orders. Everything fixed, and what DIG added, comes from theirs.
+    """
+    b_parts, t_parts, m_parts = _parts(base), _parts(theirs), _parts(mine)
+    t_ids = set(t_parts[("insights",)])
+    m_ids = set(m_parts[("insights",)])
+
+    take: Dict[tuple, str] = {}
+    clashes: List[tuple] = []
+    for key in dict.fromkeys([*b_parts, *t_parts, *m_parts]):
+        b = b_parts.get(key, _MISSING)
+        t = t_parts.get(key, _MISSING)
+        m = m_parts.get(key, _MISSING)
+        if key[0] == "chart" and key[2] == "insight" and isinstance(b, str):
+            # A chart whose insight one side removed joined the other charts:
+            # that side did not move it.
+            if t is None and b not in t_ids:
+                t = b
+            if m is None and b not in m_ids:
+                m = b
+        if m == b:
+            take[key] = "theirs"
+        elif t == b or t == m:
+            take[key] = "mine"
+        else:
+            clashes.append(key)
+    if clashes:
+        raise SamePart([_where(k) for k in clashes])
+
+    def side(key: tuple) -> Dict[tuple, Any]:
+        return m_parts if take.get(key) == "mine" else t_parts
+
+    doc = copy.deepcopy(theirs)
+    doc.setdefault("text", {})
+    for field_name in TEXT_FIELDS:
+        if take.get(("text", field_name)) == "mine":
+            doc["text"][field_name] = (mine.get("text") or {}).get(field_name, "")
+
+    def by(document: Dict[str, Any], section: str, key: str) -> Dict[Any, Dict[str, Any]]:
+        return {item.get(key): item for item in _list(document.get(section)) or []}
+
+    t_ins, m_ins = by(theirs, "insights", "id"), by(mine, "insights", "id")
+    insights = []
+    for iid in side(("insights",))[("insights",)]:
+        item = copy.deepcopy(t_ins.get(iid) or m_ins[iid])
+        for field_name in ("title", "body"):
+            mine_wins = take.get(("insight", iid, field_name)) == "mine" and iid in m_ins
+            source = m_ins if mine_wins or iid not in t_ins else t_ins
+            item[field_name] = source[iid][field_name]
+        insights.append(item)
+    if not insights and (base.get("insights") or theirs.get("insights")):
+        raise EditRejected("no_insights")
+    doc["insights"] = insights
+    present = {i["id"] for i in insights}
+
+    t_charts, m_charts = by(theirs, "charts", "file"), by(mine, "charts", "file")
+    charts = []
+    for file_no in side(("charts",))[("charts",)]:
+        item = copy.deepcopy(t_charts.get(file_no) or m_charts[file_no])
+        for field_name in ("label", "desc", "insight"):
+            mine_wins = take.get(("chart", file_no, field_name)) == "mine" and file_no in m_charts
+            source = m_charts if mine_wins or file_no not in t_charts else t_charts
+            item[field_name] = source[file_no].get(field_name)
+        if item.get("insight") not in present:
+            item["insight"] = None
+        charts.append(item)
+    doc["charts"] = charts
+
+    m_answers = by(mine, "questionAnswers", "id")
+    for qa in _list(doc.get("questionAnswers")) or []:
+        if take.get(("answer", qa.get("id"))) == "mine" and qa.get("id") in m_answers:
+            qa["answer"] = m_answers[qa["id"]].get("answer", qa.get("answer"))
+    return doc
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Back to a report, and to files
 # ─────────────────────────────────────────────────────────────────────────────
 

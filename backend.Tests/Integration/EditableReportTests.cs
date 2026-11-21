@@ -170,7 +170,7 @@ public class EditableReportTests
     }
 
     [Test]
-    public async Task A_save_from_an_older_version_is_refused_not_written_over_the_newer_one()
+    public async Task A_save_from_an_older_version_is_combined_with_the_newer_one_not_written_over_it()
     {
         var a = SeedAnalysis();
         (await Save(a.Id, 1, Edited("First"))).StatusCode.Should().Be(HttpStatusCode.OK);
@@ -178,13 +178,61 @@ public class EditableReportTests
         // A second tab still showing version 1.
         var r = await Save(a.Id, 1, Edited("Second"));
 
-        r.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        // The AI service is given the version it was made to, to combine the
+        // two part by part (report_document.merge, tested in the AI service).
+        r.StatusCode.Should().Be(HttpStatusCode.OK);
+        var call = _factory.PythonAi.RebuildCalls.Last();
+        call.BaseJson.Should().Be(Original);
+        call.CurrentJson.Should().Contain("First");
+        call.EditedJson.Should().Contain("Second");
+
         var body = await Json(r);
-        body.GetProperty("error").GetString().Should().Be("CHANGED_SINCE_OPENED");
-        body.GetProperty("version").GetInt32().Should().Be(2);
+        body.GetProperty("version").GetInt32().Should().Be(3);
+        var with = body.GetProperty("combinedWith").EnumerateArray().Single();
+        with.GetProperty("byYou").GetBoolean().Should().BeTrue("the other tab was this person's own");
+        _factory.Versions.All.Should().HaveCount(3);
+    }
+
+    [Test]
+    public async Task A_save_with_nothing_saved_since_is_not_combined_with_anything()
+    {
+        var a = SeedAnalysis();
+
+        var r = await Save(a.Id, 1, Edited("Only me"));
+
+        _factory.PythonAi.RebuildCalls.Single().BaseJson.Should().BeNull();
+        (await Json(r)).GetProperty("combinedWith").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    [Test]
+    public async Task A_save_from_a_version_that_does_not_exist_is_refused_and_costs_nothing()
+    {
+        var a = SeedAnalysis();
+        (await Save(a.Id, 1, Edited("First"))).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        foreach (var made in new[] { 0, 7 })
+        {
+            var r = await Save(a.Id, made, Edited("Second"));
+            r.StatusCode.Should().Be(HttpStatusCode.Conflict);
+            (await Json(r)).GetProperty("error").GetString().Should().Be("CHANGED_SINCE_OPENED");
+        }
         _factory.Versions.All.Should().HaveCount(2);
-        _factory.Versions.All.Single(v => v.Version == 2).Document.Should().Contain("First");
         _factory.PythonAi.RebuildCalls.Should().HaveCount(1, "a refused save costs nothing");
+    }
+
+    [Test]
+    public async Task Going_back_from_an_older_version_is_still_refused_not_combined()
+    {
+        var a = SeedAnalysis();
+        (await Save(a.Id, 1, Edited("First"))).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await Save(a.Id, 2, Edited("Second"))).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Going back is to the whole report as it was: from version 2's page, not 3's.
+        var r = await Restore(a.Id, 2, 1);
+
+        r.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await Json(r)).GetProperty("error").GetString().Should().Be("CHANGED_SINCE_OPENED");
+        _factory.Versions.All.Should().HaveCount(3);
     }
 
     [Test]

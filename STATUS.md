@@ -1,7 +1,7 @@
 # DIG — Project Status
 
 **Branch:** `main`
-**Last updated:** 2026-11-15
+**Last updated:** 2026-11-21
 
 ---
 
@@ -9,10 +9,53 @@
 
 | Suite | Count | Command |
 |---|---|---|
-| C# — unit, integration, edge cases, the real Supabase client against a stand-in server, the chat suggesting changes | 508 | `dotnet test backend.Tests/backend.Tests.csproj` |
-| Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is, insights' evidence, the editable report, changes the chat suggests and charts DIG draws | 1052 | `cd ai_service && pytest tests/` |
-| Frontend — Vitest, including rendered components and the change card | 293 | `cd frontend && npm test` |
+| C# — unit, integration, edge cases, the real Supabase client against a stand-in server, the chat suggesting changes, teams editing the report | 538 | `dotnet test backend.Tests/backend.Tests.csproj` |
+| Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is, insights' evidence, the editable report, changes the chat suggests and charts DIG draws, combining teammates' saves | 1070 | `cd ai_service && pytest tests/` |
+| Frontend — Vitest, including rendered components, the change card and the live report channel | 319 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
+
+---
+
+## Teammates edit the report, 2026-11-21
+
+Part 4, Stage A. Only the owner could edit a report; a team could only look
+at the PDF and comment on it.
+
+- **The report opens under the PDF on the team page**, in the same editor
+  the owner has on the dashboard. Who may do what (`ReportAccess`):
+  the owner of the analysis, the team's owner and its editors edit; viewers
+  read every version and comment, with no Save, Undo or Go back. Someone set
+  to "No access" for the PDF (or for all files) gets nothing, since the
+  report is what the PDF is built from; the PDF's rule counts over "all".
+- **Saves made at the same time are combined**, part by part
+  (`report_document.merge`): a text section, each insight's title and text,
+  each chart's title, caption and place, each answer, and the two orders. If
+  only one side changed a part, that change is kept; if both changed the same
+  part differently, the save is refused (409 `SAME_PART_CHANGED`) naming the
+  parts and who changed them, and the person's words stay in the editor.
+  Going back to a version and applying a chat change are not combined: they
+  still need the newest version.
+- **Every version names who saved it**: DIG, you, or a teammate by user name,
+  never by email address. Undo says whose change it takes back.
+- **Pages update as saves happen** (`/hubs/report`, `ReportHub`). The notice
+  carries only the version number and who saved it, never the report's
+  words; the page then loads the version itself. A page with nothing unsaved
+  shows the new version at once; one with unsaved words keeps them and says
+  the next save combines them. After a dropped connection the page catches
+  up. The owner's dashboard shows the newest version, whoever saved it.
+- **Losing access ends it at once**: removed from the team, or the team
+  deleted, the page closes the report. Fixed on the way: deleting a team did
+  not cut anyone's live connection to what it shared. The team's members are
+  now read before it is deleted.
+- **Still the owner's for now:** next-step buttons and charts DIG draws, and
+  the chat (Stage C).
+- **Privacy page:** what teammates see of you (name, email address, comments,
+  what you type in a shared report, who saved each version). No database
+  change.
+
+Not covered: unsharing a workspace does not end live connections to it (as
+before this change). The file badge never shows "Editor" because no rule
+sets "edit" (as before; now hidden for the PDF).
 
 ---
 
