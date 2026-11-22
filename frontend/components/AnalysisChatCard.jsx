@@ -48,7 +48,7 @@ const T = {
     stages: ["Upload", "Analysis", "Report Ready"],
     idleTitle: "Ready to analyse",
     idleDesc: (fileName) => fileName
-      ? <>Press <strong style={{ color:"#bfdbfe" }}>Start</strong> to begin the analysis pipeline.</>
+      ? <>Press <strong style={{ color:"var(--cobalt-accent)" }}>Start</strong> to begin the analysis pipeline.</>
       : "Upload a data file above first, then start the analysis.",
     start: "Start",
     cancel: "Cancel",
@@ -70,7 +70,7 @@ const T = {
     stages: ["Import", "Analyse", "Rapport prêt"],
     idleTitle: "Prêt à analyser",
     idleDesc: (fileName) => fileName
-      ? <>Appuyez sur <strong style={{ color:"#bfdbfe" }}>Démarrer</strong> pour lancer l&apos;analyse.</>
+      ? <>Appuyez sur <strong style={{ color:"var(--cobalt-accent)" }}>Démarrer</strong> pour lancer l&apos;analyse.</>
       : "Importez d'abord un fichier de données, puis démarrez l'analyse.",
     start: "Démarrer",
     cancel: "Annuler",
@@ -92,7 +92,7 @@ const T = {
     stages: ["آپلود", "تحلیل", "گزارش آماده"],
     idleTitle: "آماده برای تحلیل",
     idleDesc: (fileName) => fileName
-      ? <><strong style={{ color:"#bfdbfe" }}>شروع</strong> را فشار دهید تا تحلیل آغاز شود.</>
+      ? <><strong style={{ color:"var(--cobalt-accent)" }}>شروع</strong> را فشار دهید تا تحلیل آغاز شود.</>
       : "ابتدا یک فایل داده آپلود کنید، سپس تحلیل را شروع کنید.",
     start: "شروع",
     cancel: "لغو",
@@ -364,10 +364,10 @@ export default function AnalysisAssistantCard({
 
   // Condition badge color
   const conditionStyle = {
-    not_clean:    { color: "#fbbf24", bg: "rgba(120,53,15,0.2)",   border: "rgba(180,83,9,0.3)"   },
-    low_accuracy: { color: "#f97373", bg: "rgba(127,29,29,0.15)",  border: "rgba(249,115,115,0.3)" },
-    not_workable: { color: "#f97373", bg: "rgba(127,29,29,0.2)",   border: "rgba(249,115,115,0.4)" },
-    all_good:     { color: "#bbf7d0", bg: "rgba(22,163,74,0.1)",   border: "rgba(34,197,94,0.3)"  },
+    not_clean:    { color: "var(--warn-text)", bg: "color-mix(in srgb, var(--warn) 20%, transparent)",   border: "color-mix(in srgb, var(--warn) 35%, transparent)"   },
+    low_accuracy: { color: "var(--danger-text)", bg: "color-mix(in srgb, var(--danger) 15%, transparent)",  border: "color-mix(in srgb, var(--danger) 35%, transparent)" },
+    not_workable: { color: "var(--danger-text)", bg: "color-mix(in srgb, var(--danger) 20%, transparent)",   border: "color-mix(in srgb, var(--danger) 40%, transparent)" },
+    all_good:     { color: "var(--ok-text)", bg: "color-mix(in srgb, var(--ok) 10%, transparent)",   border: "color-mix(in srgb, var(--ok) 35%, transparent)"  },
   }[condition] ?? null;
 
   return (
@@ -388,7 +388,7 @@ export default function AnalysisAssistantCard({
           <span className="pill live-pill">{t.pills.running}</span>
         ) : null}
         {stage === 2 && (
-          <span className="pill" style={{ borderColor:"rgba(34,197,94,0.6)", color:"#bbf7d0", background:"rgba(22,163,74,0.1)" }}>
+          <span className="pill" style={{ borderColor:"var(--ok-text)", color:"var(--ok-text)", background:"color-mix(in srgb, var(--ok) 10%, transparent)" }}>
             {t.pills.complete}
           </span>
         )}
@@ -410,13 +410,13 @@ export default function AnalysisAssistantCard({
 
       {/* ── STAGE 0: idle ── */}
       {stage === 0 && (
-        <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:"12px", padding:"28px 20px", border:"1px dashed rgba(55,65,81,0.8)", borderRadius:"14px", background:"radial-gradient(circle at top, rgba(37,99,235,0.06), transparent)", textAlign:"center" }}>
-          <div style={{ width:"52px", height:"52px", borderRadius:"50%", background:"rgba(37,99,235,0.12)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+        <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:"12px", padding:"28px 20px", border:"1px dashed var(--line)", borderRadius:"0", background:"radial-gradient(circle at top, color-mix(in srgb, var(--cobalt) 6%, transparent), transparent)", textAlign:"center" }}>
+          <div style={{ width:"52px", height:"52px", borderRadius:"50%", background:"color-mix(in srgb, var(--cobalt) 12%, transparent)", display:"flex", alignItems:"center", justifyContent:"center" }}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="1.6">
               <polygon points="5 3 19 12 5 21 5 3"/>
             </svg>
           </div>
-          <p style={{ margin:0, fontSize:"0.9rem", fontWeight:600, color:"#e5e7eb" }}>{t.idleTitle}</p>
+          <p style={{ margin:0, fontSize:"0.9rem", fontWeight:600, color:"var(--ink)" }}>{t.idleTitle}</p>
           <p className="muted-small" style={{ maxWidth:"260px", lineHeight:"1.6" }}>
             {t.idleDesc(dataset?.fileName)}
           </p>
@@ -465,7 +465,7 @@ export default function AnalysisAssistantCard({
                     <button key={option} type="button" className="chip-btn subtle"
                       onClick={() => answerDomain(option, i === 0)}
                       style={{ fontSize:"0.78rem", padding:"6px 12px", textAlign:"start",
-                        borderColor:"rgba(37,99,235,0.45)", color:"#bfdbfe", background:"rgba(37,99,235,0.12)" }}>
+                        borderColor:"color-mix(in srgb, var(--cobalt) 45%, transparent)", color:"var(--cobalt-accent)", background:"color-mix(in srgb, var(--cobalt) 12%, transparent)" }}>
                       {option}
                     </button>
                   ))}
@@ -481,9 +481,9 @@ export default function AnalysisAssistantCard({
                   value={domainDraft}
                   maxLength={300}
                   onChange={(e) => setDomainDraft(e.target.value)}
-                  style={{ flex:1, minWidth:0, padding:"8px 12px", borderRadius:"8px", outline:"none",
-                    border:"1px solid rgba(55,65,81,0.8)", background:"rgba(15,23,42,0.9)",
-                    color:"#e2e8f0", fontSize:"0.82rem" }}
+                  style={{ flex:1, minWidth:0, padding:"8px 12px", borderRadius:"0", outline:"none",
+                    border:"1px solid var(--line)", background:"var(--card)",
+                    color:"var(--ink)", fontSize:"0.82rem" }}
                 />
                 <button type="submit" className="primary-btn" disabled={!domainDraft.trim()}
                   style={{ padding:"8px 16px", fontSize:"0.8rem", opacity: domainDraft.trim() ? 1 : 0.5,
@@ -510,11 +510,11 @@ export default function AnalysisAssistantCard({
             {awaitingResponse && !sending && (
               <>
                 <button className="chip-btn subtle" onClick={handleNo}
-                  style={{ fontSize:"0.8rem", padding:"6px 16px", borderColor:"rgba(249,115,115,0.4)", color:"#f97373", background:"rgba(127,29,29,0.15)" }}>
+                  style={{ fontSize:"0.8rem", padding:"6px 16px", borderColor:"color-mix(in srgb, var(--danger) 40%, transparent)", color:"var(--danger-text)", background:"color-mix(in srgb, var(--danger) 15%, transparent)" }}>
                   {t.no}
                 </button>
                 <button className="chip-btn subtle" onClick={handleYes}
-                  style={{ fontSize:"0.8rem", padding:"6px 16px", borderColor:"rgba(34,197,94,0.4)", color:"#bbf7d0", background:"rgba(22,163,74,0.12)" }}>
+                  style={{ fontSize:"0.8rem", padding:"6px 16px", borderColor:"color-mix(in srgb, var(--ok) 40%, transparent)", color:"var(--ok-text)", background:"color-mix(in srgb, var(--ok) 12%, transparent)" }}>
                   {t.yes}
                 </button>
               </>
@@ -536,7 +536,7 @@ export default function AnalysisAssistantCard({
           </div>
 
           <button className="primary-btn"
-            style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:"8px", borderRadius:"999px", background:"linear-gradient(135deg,#16a34a,#15803d)", boxShadow:"0 8px 24px rgba(22,163,74,0.35)" }}
+            style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:"8px", background:"var(--cobalt)" }}
             onClick={onViewReport}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <polyline points="6 9 12 15 18 9"/>

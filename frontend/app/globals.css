@@ -3,12 +3,12 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: var(--font-sans), "Work Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 body {
-    background: radial-gradient(circle at top, #101728, #050810);
-    color: #f9fafb;
+    background: var(--paper);
+    color: var(--ink);
     min-height: 100vh;
 }
 
@@ -18,7 +18,7 @@ body {
     justify-content: space-between;
     align-items: center;
     padding: 18px 8vw;
-    background: rgba(5, 8, 16, 0.9);
+    background: var(--card);
     backdrop-filter: blur(10px);
     position: sticky;
     top: 0;
@@ -32,19 +32,19 @@ body {
     font-weight: 100 ;
     letter-spacing: 0.03em;
     font-size: 1.9rem;
-    color: #f9fafb;
+    color: var(--ink);
 }
 
 .nav-links a {
     margin-left: 24px;
     text-decoration: none;
-    color: #d1d5db;
+    color: var(--ink);
     font-size: 0.9rem;
     transition: color 0.2s ease;
 }
 
 .nav-links a:hover {
-    color: #60a5fa;
+    color: var(--cobalt-accent);
 }
 
 /* Hero section */
@@ -64,7 +64,7 @@ body {
 
 .hero-subtitle {
     font-size: 0.98rem;
-    color: #e5e7eb;
+    color: var(--ink);
     max-width: 540px;
     margin-bottom: 24px;
 }
@@ -78,7 +78,7 @@ body {
 
 .small-note {
     font-size: 0.78rem;
-    color: #9ca3af;
+    color: var(--ink-soft);
 }
 
 /* Hero side panel */
@@ -88,10 +88,10 @@ body {
 }
 
 .hero-card {
-    background: radial-gradient(circle at top left, #1f2937, #020617);
-    border-radius: 18px;
+    background: radial-gradient(circle at top left, var(--card), var(--card));
+    border-radius: 0;
     padding: 22px 20px;
-    border: 1px solid rgba(148, 163, 184, 0.35);
+    border: 1px solid var(--line);
     box-shadow: 0 18px 45px rgba(15, 23, 42, 0.75);
     max-width: 340px;
 }
@@ -104,7 +104,7 @@ body {
 .hero-card ol {
     padding-left: 18px;
     font-size: 0.9rem;
-    color: #e5e7eb;
+    color: var(--ink);
 }
 
 .hero-card li + li {
@@ -117,7 +117,7 @@ body {
     align-items: center;
     justify-content: center;
     padding: 9px 18px;
-    border-radius: 999px;
+    border-radius: 0;
     font-size: 0.9rem;
     font-weight: 500;
     border: 1px solid transparent;
@@ -127,36 +127,36 @@ body {
 }
 
 .btn.primary {
-    background: linear-gradient(to right, #3b82f6, #6366f1);
+    background: linear-gradient(to right, var(--cobalt), var(--cobalt));
     color: #f9fafb;
-    box-shadow: 0 12px 30px rgba(37, 99, 235, 0.45);
+    box-shadow: 0 12px 30px color-mix(in srgb, var(--cobalt) 35%, transparent);
 }
 
 .btn.primary:hover {
     transform: translateY(-1px);
-    box-shadow: 0 16px 40px rgba(37, 99, 235, 0.6);
+    box-shadow: 0 16px 40px color-mix(in srgb, var(--cobalt) 35%, transparent);
 }
 
 .btn.secondary {
-    background: rgba(15, 23, 42, 0.9);
-    color: #e5e7eb;
-    border-color: rgba(148, 163, 184, 0.6);
+    background: var(--card);
+    color: var(--ink);
+    border-color: var(--line);
 }
 
 .btn.secondary:hover {
-    background: rgba(15, 23, 42, 1);
-    border-color: #60a5fa;
+    background: var(--card);
+    border-color: var(--cobalt-accent);
 }
 
 .btn.ghost {
     background: transparent;
-    color: #9ca3af;
-    border-color: rgba(148, 163, 184, 0.6);
+    color: var(--ink-soft);
+    border-color: var(--line);
 }
 
 .btn.ghost:hover {
-    color: #f9fafb;
-    border-color: #60a5fa;
+    color: var(--ink);
+    border-color: var(--cobalt-accent);
 }
 
 /* Sections */
@@ -165,7 +165,7 @@ body {
 }
 
 .section-light {
-    background: linear-gradient(to bottom, #020617, #020617);
+    background: linear-gradient(to bottom, var(--card), var(--card));
 }
 
 .section h2 {
@@ -175,7 +175,7 @@ body {
 
 .section-subtitle {
     font-size: 0.9rem;
-    color: #9ca3af;
+    color: var(--ink-soft);
     max-width: 620px;
     margin-bottom: 22px;
 }
@@ -190,12 +190,12 @@ body {
 
 .card,
 .wide-card {
-    background: rgba(15, 23, 42, 0.9);
-    border-radius: 16px;
-    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: var(--card);
+    border-radius: 0;
+    border: 1px solid var(--line);
     padding: 16px 18px;
     font-size: 0.9rem;
-    color: #e5e7eb;
+    color: var(--ink);
     box-shadow: 0 16px 35px rgba(15, 23, 42, 0.7);
 }
 
@@ -205,7 +205,7 @@ body {
 }
 
 .card p {
-    color: #d1d5db;
+    color: var(--ink);
 }
 
 .wide-card ul {
@@ -228,9 +228,9 @@ body {
     padding: 16px 8vw 24px;
     text-align: center;
     font-size: 0.78rem;
-    color: #6b7280;
-    border-top: 1px solid rgba(31, 41, 55, 0.9);
-    background: #020617;
+    color: var(--ink-faint);
+    border-top: 1px solid var(--line);
+    background: var(--card);
 }
 
 /* Mobile Responsive */
@@ -318,33 +318,33 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-    background: rgba(2, 6, 23, 0.9); /* deep background */
+    background: var(--card); /* deep background */
 }
 
 ::-webkit-scrollbar-thumb {
     background: linear-gradient(
         180deg,
-        #3b82f6,
-        #6366f1
+        var(--cobalt),
+        var(--cobalt)
     );
-    border-radius: 999px;
-    border: 2px solid rgba(2, 6, 23, 0.9); /* spacing effect */
+    border-radius: 0;
+    border: 2px solid var(--line); /* spacing effect */
     transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(
         180deg,
-        #60a5fa,
-        #818cf8
+        var(--cobalt),
+        var(--cobalt)
     );
-    box-shadow: 0 0 12px rgba(99,102,241,0.5);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--cobalt) 35%, transparent);
 }
 
 /* Firefox */
 * {
     scrollbar-width: thin;
-    scrollbar-color: #5d7baf rgba(2, 6, 23, 0.9);
+    scrollbar-color: var(--ink-faint) var(--paper-alt);
 }
 /* base */
 
@@ -361,8 +361,6 @@ body {
     --danger: #f97373;
     --radius-lg: 18px;
     --shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.85);
-    --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-        sans-serif;
 }
 
 * {
@@ -372,7 +370,7 @@ body {
 body.dig-body {
     margin: 0;
     font-family: var(--font-sans);
-    background: radial-gradient(circle at top, #020617 0, #020617 45%, #000 100%);
+    background: var(--paper);
     color: var(--text);
     display: flex;
 }
@@ -435,18 +433,18 @@ body.dig-body {
     background: var(--accent);
     color: white;
     padding: 9px 16px;
-    border-radius: 999px;
+    border-radius: 0;
     font-size: 0.85rem;
     cursor: pointer;
     font-weight: 500;
-    box-shadow: 0 12px 30px rgba(37, 99, 235, 0.35);
+    box-shadow: 0 12px 30px color-mix(in srgb, var(--cobalt) 35%, transparent);
     transition: transform 0.1s, box-shadow 0.1s, background 0.1s;
 }
 
 .primary-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 18px 40px rgba(37, 99, 235, 0.5);
-    background: #1d4ed8;
+    box-shadow: 0 18px 40px color-mix(in srgb, var(--cobalt) 35%, transparent);
+    background: var(--cobalt);
 }
 
 /* profile */
@@ -457,9 +455,9 @@ body.dig-body {
     align-items: center;
     gap: 9px;
     padding: 6px 10px 6px 7px;
-    border-radius: 999px;
-    background: rgba(15, 23, 42, 0.9);
-    border: 1px solid rgba(55, 65, 81, 0.9);
+    border-radius: 0;
+    background: var(--card);
+    border: 1px solid var(--line);
     cursor: pointer;
 }
 
@@ -473,7 +471,7 @@ body.dig-body {
     justify-content: center;
     font-size: 0.85rem;
     font-weight: 600;
-    color: #bfdbfe;
+    color: var(--cobalt-accent);
 }
 
 .profile-text {
@@ -507,8 +505,8 @@ body.dig-body {
     position: absolute;
     right: 0;
     top: 38px;
-    background: #020617;
-    border-radius: 14px;
+    background: var(--card);
+    border-radius: 0;
     border: 1px solid var(--border);
     min-width: 190px;
     padding: 6px 0;
@@ -529,7 +527,7 @@ body.dig-body {
 }
 
 .profile-dropdown a:hover {
-    background: rgba(15, 23, 42, 0.95);
+    background: var(--card);
     color: var(--text);
 }
 
@@ -540,15 +538,15 @@ body.dig-body {
     justify-content: space-between;
     align-items: center;
     padding: 9px 14px;
-    border-radius: 999px;
-    background: rgba(15, 23, 42, 0.9);
-    border: 1px dashed rgba(55, 65, 81, 0.9);
+    border-radius: 0;
+    background: var(--card);
+    border: 1px dashed var(--line);
     font-size: 0.8rem;
     color: var(--text-soft);
 }
 
 .guest-link {
-    color: #93c5fd;
+    color: var(--cobalt-accent);
     text-decoration: none;
     font-weight: 500;
 }
@@ -560,9 +558,9 @@ body.dig-body {
 /* cards and grids */
 
 .card {
-    background: rgba(15, 23, 42, 0.96);
-    border-radius: var(--radius-lg);
-    border: 1px solid rgba(31, 41, 55, 0.9);
+    background: var(--card);
+    border-radius: 0;
+    border: 1px solid var(--line);
     padding: 16px 18px;
     box-shadow: var(--shadow-soft);
 }
@@ -616,12 +614,12 @@ body.dig-body {
 .upload-dropzone {
     margin-top: 4px;
     display: block;
-    border-radius: 16px;
-    border: 1px dashed rgba(55, 65, 81, 0.9);
+    border-radius: 0;
+    border: 1px dashed var(--line);
     background: radial-gradient(
         circle at top left,
-        rgba(37, 99, 235, 0.18),
-        rgba(15, 23, 42, 0.96)
+        color-mix(in srgb, var(--cobalt) 18%, transparent),
+        var(--card)
     );
     cursor: pointer;
     padding: 60px;
@@ -646,7 +644,7 @@ body.dig-body {
     align-items: center;
     justify-content: center;
     font-size: 1rem;
-    color: #bfdbfe;
+    color: var(--cobalt-accent);
 }
 
 .dropzone-title {
@@ -669,10 +667,10 @@ body.dig-body {
 
 .status-pill {
     padding: 4px 10px;
-    border-radius: 999px;
+    border-radius: 0;
     font-size: 0.75rem;
     font-weight: 500;
-    border: 1px solid rgba(75, 85, 99, 0.9);
+    border: 1px solid var(--line);
     color: white;
 }
 .status-pill.idle {
@@ -681,29 +679,29 @@ body.dig-body {
 
 .status-pill.uploading {
     border-color: var(--accent);
-    color: #bfdbfe;
-    background: rgba(37, 99, 235, 0.12);
+    color: var(--cobalt-accent);
+    background: color-mix(in srgb, var(--cobalt) 12%, transparent);
 }
 
 .status-pill.ready {
-    border-color: #22c55e;
-    color: #bbf7d0;
-    background: rgba(34, 197, 94, 0.15);
+    border-color: var(--ok-text);
+    color: var(--ok-text);
+    background: color-mix(in srgb, var(--ok) 15%, transparent);
 }
 
 .progress-track {
     width: 100%;
     height: 5px;
-    border-radius: 999px;
-    background: rgba(31, 41, 55, 0.9);
+    border-radius: 0;
+    background: var(--card);
     overflow: hidden;
 }
 
 .progress-fill {
     height: 100%;
     width: 0;
-    background: linear-gradient(90deg, #3b82f6, #22c55e);
-    border-radius: 999px;
+    background: linear-gradient(90deg, var(--cobalt), var(--ok));
+    border-radius: 0;
     transition: width 0.12s linear;
 }
 
@@ -722,10 +720,10 @@ body.dig-body {
 
 .stat {
     flex: 1;
-    background: rgba(15, 23, 42, 0.9);
-    border-radius: 12px;
+    background: var(--card);
+    border-radius: 0;
     padding: 10px 12px;
-    border: 1px solid rgba(31, 41, 55, 0.9);
+    border: 1px solid var(--line);
 }
 
 .stat-label {
@@ -751,16 +749,16 @@ body.dig-body {
 .table-card td {
     padding: 6px 6px;
     text-align: left;
-    border-bottom: 1px solid rgba(31, 41, 55, 0.8);
+    border-bottom: 1px solid var(--line);
 }
 
 .table-card thead th {
     font-weight: 500;
-    color: #bfdbfe;
+    color: var(--cobalt-accent);
 }
 
 .table-card tbody tr:nth-child(even) {
-    background: rgba(15, 23, 42, 0.9);
+    background: var(--card);
 }
 
 .card-header {
@@ -773,8 +771,8 @@ body.dig-body {
 .pill {
     font-size: 0.7rem;
     padding: 3px 8px;
-    border-radius: 999px;
-    border: 1px solid rgba(55, 65, 81, 0.9);
+    border-radius: 0;
+    border: 1px solid var(--line);
     color: var(--text-soft);
 }
 /* Analysis Assistant header actions (Open AA link) */
@@ -787,24 +785,24 @@ body.dig-body {
 
 .open-aa {
     font-size: 0.72rem;
-    color: #93c5fd;
+    color: var(--cobalt-accent);
     text-decoration: none;
     padding: 4px 10px;
-    border-radius: 999px;
-    border: 1px solid rgba(37,99,235,0.35);
-    background: rgba(37,99,235,0.12);
+    border-radius: 0;
+    border: 1px solid color-mix(in srgb, var(--cobalt) 35%, transparent);
+    background: color-mix(in srgb, var(--cobalt) 12%, transparent);
     white-space: nowrap;
 }
 
 .open-aa:hover {
-    background: rgba(37,99,235,0.22);
-    color: #bfdbfe;
+    background: color-mix(in srgb, var(--cobalt) 22%, transparent);
+    color: var(--cobalt-accent);
 }
 
 .live-pill {
-    border-color: rgba(74, 222, 128, 0.6);
-    color: #bbf7d0;
-    background: rgba(22, 163, 74, 0.1);
+    border-color: var(--ok-text);
+    color: var(--ok-text);
+    background: color-mix(in srgb, var(--ok) 10%, transparent);
 }
 
 .charts-column {
@@ -825,7 +823,7 @@ body.dig-body {
     flex: 1;
     font-size: 0.7rem;
     text-align: center;
-    color: #bfdbfe;
+    color: var(--cobalt-accent);
     display: flex;
     flex-direction: column-reverse;
     gap: 4px;
@@ -836,9 +834,9 @@ body.dig-body {
     display: block;
     width: 100%;
     height: var(--h);
-    background: linear-gradient(180deg, #60a5fa, #2563eb);
-    border-radius: 999px 999px 4px 4px;
-    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.5);
+    background: linear-gradient(180deg, var(--cobalt), var(--cobalt));
+    border-radius: 0;
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--cobalt) 35%, transparent);
 }
 
 /* mock line chart */
@@ -847,13 +845,13 @@ body.dig-body {
     position: relative;
     height: 130px;
     margin-top: 10px;
-    border-radius: 14px;
-    border: 1px solid rgba(31, 41, 55, 0.9);
+    border-radius: 0;
+    border: 1px solid var(--line);
     overflow: hidden;
     background: radial-gradient(
         circle at top,
-        rgba(37, 99, 235, 0.25),
-        rgba(15, 23, 42, 0.96)
+        color-mix(in srgb, var(--cobalt) 25%, transparent),
+        var(--card)
     );
 }
 
@@ -862,10 +860,10 @@ body.dig-body {
     inset: 0;
     background-image: linear-gradient(
             to right,
-            rgba(31, 41, 55, 0.5) 1px,
+            color-mix(in srgb, var(--card) 50%, transparent) 1px,
             transparent 1px
         ),
-        linear-gradient(to top, rgba(31, 41, 55, 0.5) 1px, transparent 1px);
+        linear-gradient(to top, color-mix(in srgb, var(--card) 50%, transparent) 1px, transparent 1px);
     background-size: 26px 26px;
     opacity: 0.4;
 }
@@ -883,10 +881,10 @@ body.dig-body {
     top: 55%;
     width: 140%;
     height: 2px;
-    background: linear-gradient(90deg, #22c55e, #3b82f6);
+    background: linear-gradient(90deg, var(--ok), var(--cobalt));
     transform-origin: left center;
     transform: translateY(-50%) skewY(-8deg);
-    box-shadow: 0 10px 26px rgba(34, 197, 94, 0.5);
+    box-shadow: 0 10px 26px color-mix(in srgb, var(--ok) 35%, transparent);
 }
 
 /* analysis chat */
@@ -907,27 +905,27 @@ body.dig-body {
 .analysis-timeline .step {
     font-size: 0.7rem;
     padding: 3px 8px;
-    border-radius: 999px;
-    border: 1px solid rgba(55, 65, 81, 0.9);
+    border-radius: 0;
+    border: 1px solid var(--line);
     color: var(--text-soft);
 }
 
 .analysis-timeline .step.done {
-    border-color: rgba(34, 197, 94, 0.7);
-    color: #bbf7d0;
-    background: rgba(22, 163, 74, 0.15);
+    border-color: var(--ok-text);
+    color: var(--ok-text);
+    background: color-mix(in srgb, var(--ok) 15%, transparent);
 }
 
 .analysis-timeline .step.active {
     border-color: var(--accent);
-    color: #bfdbfe;
-    background: rgba(37, 99, 235, 0.18);
+    color: var(--cobalt-accent);
+    background: color-mix(in srgb, var(--cobalt) 18%, transparent);
 }
 
 .analysis-chat-log {
-    background: rgba(15, 23, 42, 0.96);
-    border-radius: 14px;
-    border: 1px solid rgba(31, 41, 55, 0.9);
+    background: var(--card);
+    border-radius: 0;
+    border: 1px solid var(--line);
     padding: 10px 12px;
     max-height: 230px;
     overflow-y: auto;
@@ -938,7 +936,7 @@ body.dig-body {
     max-height: 250px;
     padding-right: 8px; /* space for scrollbar */
     scrollbar-width: thin;
-    scrollbar-color: #5d7baf transparent;
+    scrollbar-color: var(--ink-faint) transparent;
 }
 
 .msg-row {
@@ -956,13 +954,13 @@ body.dig-body {
 .msg-row .msg {
     max-width: 90%;
     padding: 7px 10px;
-    border-radius: 12px;
+    border-radius: 0;
     line-height: 1.4;
 }
 
 .msg-row.assistant .msg {
-    background: rgba(15, 23, 42, 0.9);
-    border: 1px solid rgba(37, 99, 235, 0.3);
+    background: var(--card);
+    border: 1px solid color-mix(in srgb, var(--cobalt) 35%, transparent);
     color: var(--text);
 }
 
@@ -972,7 +970,7 @@ body.dig-body {
 }
 
 .msg-row.user .msg {
-    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    background: linear-gradient(135deg, var(--cobalt), var(--cobalt));
     color: white;
     border-bottom-right-radius: 3px;
 }
@@ -1000,9 +998,9 @@ body.dig-body {
     display: inline-block;
     margin-top: 6px;
     padding: 5px 10px;
-    border-radius: 999px;
-    background: rgba(37, 99, 235, 0.2);
-    color: #93c5fd;
+    border-radius: 0;
+    background: color-mix(in srgb, var(--cobalt) 20%, transparent);
+    color: var(--cobalt-accent);
     text-decoration: none;
     font-size: 0.75rem;
 }
@@ -1022,18 +1020,18 @@ body.dig-body {
 
 .chip-btn {
     border: none;
-    border-radius: 999px;
+    border-radius: 0;
     padding: 5px 10px;
     font-size: 0.72rem;
     cursor: pointer;
-    background: rgba(37, 99, 235, 0.18);
-    color: #bfdbfe;
+    background: color-mix(in srgb, var(--cobalt) 18%, transparent);
+    color: var(--cobalt-accent);
 }
 
 .chip-btn.subtle {
-    background: rgba(15, 23, 42, 0.9);
+    background: var(--card);
     color: var(--text-soft);
-    border: 1px solid rgba(55, 65, 81, 0.9);
+    border: 1px solid var(--line);
 }
 
 .chip-btn:hover {
@@ -1048,26 +1046,26 @@ body.dig-body {
 
 .analysis-input-row input {
     flex: 1;
-    border-radius: 999px;
-    border: 1px solid rgba(55, 65, 81, 0.9);
-    background: rgba(15, 23, 42, 0.95);
+    border-radius: 0;
+    border: 1px solid var(--line);
+    background: var(--card);
     padding: 7px 12px;
     font-size: 0.78rem;
     color: var(--text);
 }
 
 .analysis-input-row input::placeholder {
-    color: rgba(148, 163, 184, 0.9);
+    color: var(--ink-soft);
 }
 
 .analysis-input-row input:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.5);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--cobalt) 35%, transparent);
 }
 
 .send-btn {
-    border-radius: 999px;
+    border-radius: 0;
     border: none;
     background: var(--accent);
     color: white;
@@ -1088,14 +1086,14 @@ body.dig-body {
     margin-top: 4px;
     width: 100%;
     border: none;
-    border-radius: 999px;
+    border-radius: 0;
     padding: 10px 14px;
     font-size: 0.82rem;
     cursor: pointer;
     background: var(--accent);
     color: white;
     font-weight: 500;
-    box-shadow: 0 12px 32px rgba(37, 99, 235, 0.4);
+    box-shadow: 0 12px 32px color-mix(in srgb, var(--cobalt) 35%, transparent);
 }
 
 .primary-btn-lg.disabled {
@@ -1112,11 +1110,11 @@ body.dig-body {
 }
 
 .secondary-btn {
-    border-radius: 999px;
+    border-radius: 0;
     padding: 7px 10px;
     font-size: 0.78rem;
-    border: 1px solid rgba(55, 65, 81, 0.9);
-    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid var(--line);
+    background: var(--card);
     color: var(--text-soft);
     cursor: pointer;
     text-align: left;
@@ -1157,9 +1155,9 @@ body.dig-body {
 
 .note-label {
     padding: 3px 7px;
-    border-radius: 999px;
-    background: rgba(37, 99, 235, 0.18);
-    color: #bfdbfe;
+    border-radius: 0;
+    background: color-mix(in srgb, var(--cobalt) 18%, transparent);
+    color: var(--cobalt-accent);
 }
 
 .note-text {
@@ -1175,7 +1173,7 @@ body.dig-body {
     color: var(--text-soft);
     display: flex;
     justify-content: space-between;
-    border-top: 1px solid rgba(31, 41, 55, 0.9);
+    border-top: 1px solid var(--line);
 }
 
 /* responsive */
@@ -1208,28 +1206,28 @@ body.dig-body {
 .guest-register-btn {
     width: auto; /* let it size based on content */
     padding: 12px 24px;
-    border-radius: 999px;
+    border-radius: 0;
     border: none;
-    background: #3b82f6;
+    background: var(--cobalt);
     color: #fff;
     font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
-    box-shadow: 0 12px 28px rgba(61, 105, 131, 0.555);
+    box-shadow: 0 12px 28px color-mix(in srgb, var(--cobalt) 35%, transparent);
     transition: var(--transition);
 }
 /* Banner box */
 .guest-banner {
-    background-color: rgba(33, 37, 41, 0); /* matches dashboard theme */
-    border: 1px solid rgba(39, 79, 131, 0.877);
-    border-radius: 12px;
+    background-color: color-mix(in srgb, var(--card) 0%, transparent); /* matches dashboard theme */
+    border: 1px solid var(--cobalt-accent);
+    border-radius: 0;
     border-width: 2px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
 .guest-text {
     font-size: 0.9rem;
-    color: #ffffff;
+    color: var(--ink);
 }
 .dataset-management-grid {
     margin-top: 32px;
@@ -1269,33 +1267,33 @@ body.dig-body {
 .table-action {
     padding: 6px 14px;
     font-size: 0.8rem;
-    border-radius: 6px;
+    border-radius: 0;
     border: 1px solid var(--border);
     background-color: transparent;
-    color: #778695; /* <-- soft grey text */
+    color: var(--ink-soft); /* <-- soft grey text */
     cursor: pointer;
     transition: 0.25s ease;
 }
 .table-action.delete{
     padding: 6px 14px;
     font-size: 0.8rem;
-    border-radius: 6px;
-    border: 1px solid #5d1e2d;
+    border-radius: 0;
+    border: 1px solid var(--line);
     background-color: transparent;
-    color: #b92b4c; /* <-- soft grey text */
+    color: var(--danger-text); /* <-- soft grey text */
     cursor: pointer;
     transition: 0.25s ease;
 }
 .table-action.delete:hover{
-     background: rgba(108, 17, 17, 0.393);
-    color: #bb5a5a; /* <-- brighter grey on hover */
+     background: color-mix(in srgb, var(--danger) 39%, transparent);
+    color: var(--danger-text); /* <-- brighter grey on hover */
     border-color: var(--accent2);
     transform: translateY(-1px);
 }
 
 .table-action:hover {
-    background: rgba(255,255,255,0.08);
-    color: #e5e5e5; /* <-- brighter grey on hover */
+    background: color-mix(in srgb, var(--ink) 8%, transparent);
+    color: var(--ink); /* <-- brighter grey on hover */
     border-color: var(--accent2);
     transform: translateY(-1px);
 }
@@ -1319,8 +1317,8 @@ body.dig-body {
     left: 0;
     height: 100vh;
     width: 64px;
-    background: #020617;
-    border-right: 1px solid rgba(31, 41, 55, 0.8);
+    background: var(--card);
+    border-right: 1px solid var(--line);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -1338,7 +1336,7 @@ body.dig-body {
     align-items: center;
     gap: 10px;
     padding: 18px 14px;
-    border-bottom: 1px solid rgba(31, 41, 55, 0.6);
+    border-bottom: 1px solid var(--line);
     flex-shrink: 0;
 }
 
@@ -1352,7 +1350,7 @@ body.dig-body {
 .sidebar-logo-text {
     font-size: 1rem;
     font-weight: 700;
-    color: #60a5fa;
+    color: var(--cobalt-accent);
     white-space: nowrap;
     opacity: 0;
     transition: opacity 0.2s ease 0.05s;
@@ -1378,7 +1376,7 @@ body.dig-body {
     flex-direction: column;
     gap: 4px;
     padding: 10px 10px 18px;
-    border-top: 1px solid rgba(31, 41, 55, 0.6);
+    border-top: 1px solid var(--line);
 }
 
 /* Nav link button */
@@ -1387,10 +1385,10 @@ body.dig-body {
     align-items: center;
     gap: 12px;
     padding: 10px 10px;
-    border-radius: 10px;
+    border-radius: 0;
     border: none;
     background: transparent;
-    color: #6b7280;
+    color: var(--ink-faint);
     cursor: pointer;
     text-align: left;
     width: 100%;
@@ -1400,13 +1398,13 @@ body.dig-body {
 }
 
 .sidebar-link:hover {
-    background: rgba(37, 99, 235, 0.12);
-    color: #e5e7eb;
+    background: color-mix(in srgb, var(--cobalt) 12%, transparent);
+    color: var(--ink);
 }
 
 .sidebar-link.active {
-    background: rgba(37, 99, 235, 0.18);
-    color: #bfdbfe;
+    background: color-mix(in srgb, var(--cobalt) 18%, transparent);
+    color: var(--cobalt-accent);
 }
 
 .sidebar-icon {
@@ -1435,8 +1433,8 @@ body.dig-body {
     transition: margin-left 0.25s ease;
 }
 .info-card {
-    border: 1px solid var(--border, #1f2937);
-    border-radius: 14px;
+    border: 1px solid var(--border, var(--line));
+    border-radius: 0;
     padding: 1.5rem;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -1447,7 +1445,7 @@ body.dig-body {
     font-size: 1.25rem;
     font-weight: 400;
     margin-bottom: 1rem;
-    color: var(--text, #e5e7eb);
+    color: var(--text, var(--ink));
 }
 
 /* Table */
@@ -1462,21 +1460,21 @@ body.dig-body {
     text-align: left;
     font-size: 0.85rem;
     font-weight: 300;
-    color: var(--text-soft, #9ca3af);
+    color: var(--text-soft, var(--ink-soft));
     padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--border, #1f2937);
+    border-bottom: 1px solid var(--border, var(--line));
 }
 
 /* Table rows */
 .info-card tbody td {
     padding: 0.6rem 0;
     font-size: 0.8rem;
-    color: var(--text, #e5e7eb);
+    color: var(--text, var(--ink));
 }
 
 /* Subtle row separation */
 .info-card tbody tr:not(:last-child) td {
-    border-bottom: 1px solid rgba(31, 41, 55, 0.5);
+    border-bottom: 1px solid var(--line);
 }
 
 /* Muted support link */
@@ -1485,14 +1483,14 @@ body.dig-body {
     align-items: center;
     gap: 0.35rem;
     font-size: 0.9rem;
-    color: var(--text-soft, #9ca3af);
+    color: var(--text-soft, var(--ink-soft));
     text-decoration: none;
     margin-top: 0.25rem;
     transition: color 0.2s ease, transform 0.2s ease;
 }
 
 .muted-link:hover {
-    color: var(--accent, #2563eb);
+    color: var(--accent, var(--cobalt-accent));
     transform: translateX(2px);
 }
 
@@ -1508,17 +1506,17 @@ body.dig-body {
 .analysis-chat-log::-webkit-scrollbar-thumb {
     background: linear-gradient(
         180deg,
-        rgba(99,102,241,0.7),
-        rgba(59,130,246,0.7)
+        var(--cobalt),
+        var(--cobalt)
     );
-    border-radius: 999px;
+    border-radius: 0;
 }
 
 .analysis-chat-log::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(
         180deg,
-        rgba(99,102,241,1),
-        rgba(59,130,246,1)
+        var(--cobalt),
+        var(--cobalt)
     );
 }
 
@@ -1533,33 +1531,33 @@ body.dig-body {
 }
 
 ::-webkit-scrollbar-track {
-    background: rgba(2, 6, 23, 0.9); /* deep background */
+    background: var(--card); /* deep background */
 }
 
 ::-webkit-scrollbar-thumb {
     background: linear-gradient(
         180deg,
-        #3b82f6,
-        #6366f1
+        var(--cobalt),
+        var(--cobalt)
     );
-    border-radius: 999px;
-    border: 2px solid rgba(2, 6, 23, 0.9); /* spacing effect */
+    border-radius: 0;
+    border: 2px solid var(--line); /* spacing effect */
     transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(
         180deg,
-        #60a5fa,
-        #818cf8
+        var(--cobalt),
+        var(--cobalt)
     );
-    box-shadow: 0 0 12px rgba(99,102,241,0.5);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--cobalt) 35%, transparent);
 }
 
 /* Firefox */
 * {
     scrollbar-width: thin;
-    scrollbar-color: #5d7baf rgba(2, 6, 23, 0.9);
+    scrollbar-color: var(--ink-faint) var(--paper-alt);
 }
 /* Chart card container (relative for arrow positioning) */
 .chart-card {
@@ -1571,7 +1569,7 @@ body.dig-body {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    background-color: rgba(37, 99, 235, 0.1); /* barely visible */
+    background-color: color-mix(in srgb, var(--cobalt) 10%, transparent); /* barely visible */
     border: none;
     color: white;
     font-size: 1.2rem;
@@ -1606,4 +1604,796 @@ body.dig-body {
 .chart-card .carousel-arrow:hover {
     background-color: var(--accent); /* blue from global */
     transform: translateY(-50%) scale
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ATLAS — the signed-in app in the landing page's look.
+
+   Paper, ink, cobalt and lime, 2px ink rules, square corners, hard offset
+   shadows; Bricolage Grotesque for headings, Work Sans for everything else.
+   The values mirror ATLAS in app/page.tsx. SettingsContext sets
+   data-theme="light" or "dark" on <html>; with none yet (first paint) the
+   dark theme applies, as the default brightness is dark.
+
+   Components use the tokens below. The older names (--bg, --panel, --text,
+   --accent ...) are kept, pointing at the new tokens, for anything not yet
+   moved over.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root,
+:root[data-theme="dark"] {
+    --paper: #151a2b;
+    --paper-alt: #1b2138;
+    --card: #1e2440;
+    --ink: #f2efe9;
+    --ink-soft: #bcc2d4;
+    --ink-faint: #8e96ad;
+    --rule: #f2efe9;
+    --line: rgba(242, 239, 233, 0.26);
+    --hairline: rgba(242, 239, 233, 0.16);
+    --cobalt: #2536e0;
+    --cobalt-accent: #8b95f5;
+    --lime: #d6f24a;
+    --lime-text: #d6f24a;
+    --ok: #2f8f4e;
+    --ok-text: #8fdc9f;
+    --danger: #d9473c;
+    --danger-text: #ff9b8f;
+    --warn: #c98a1a;
+    --warn-text: #f5c86a;
+    --sidebar: #0e1220;
+    color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+    --paper: #f2efe9;
+    --paper-alt: #e9e5dd;
+    --card: #ffffff;
+    --ink: #12121a;
+    --ink-soft: #4a4741;
+    --ink-faint: #66635d;
+    --rule: #12121a;
+    --line: rgba(18, 18, 26, 0.28);
+    --hairline: rgba(18, 18, 26, 0.16);
+    --cobalt: #2536e0;
+    --cobalt-accent: #2536e0;
+    --lime: #d6f24a;
+    --lime-text: #4d5c00;
+    --ok: #1f7a3a;
+    --ok-text: #1d6b34;
+    --danger: #c0362c;
+    --danger-text: #b42318;
+    --warn: #b06a00;
+    --warn-text: #8a5300;
+    --sidebar: #12121a;
+    color-scheme: light;
+}
+
+:root {
+    --app-sans: var(--font-sans), "Work Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --app-display: var(--font-display), "Bricolage Grotesque", Georgia, serif;
+    --shadow-hard: 4px 4px 0 var(--rule);
+    --shadow-lift: 6px 6px 0 var(--rule);
+
+    /* The older names, now pointing at Atlas. */
+    --bg: var(--paper);
+    --bg-elevated: var(--paper-alt);
+    --panel: var(--card);
+    --panel2: var(--paper-alt);
+    --accent: var(--cobalt);
+    --accent-soft: color-mix(in srgb, var(--cobalt) 18%, transparent);
+    --text: var(--ink);
+    --text-soft: var(--ink-soft);
+    --border: var(--line);
+    --radius-lg: 0;
+    --shadow-soft: none;
+}
+
+/* ── Page ───────────────────────────────────────────────────────────────── */
+
+/* Headings everywhere in the display face; any page's own choice still wins. */
+:where(h1, h2, h3) {
+    font-family: var(--app-display);
+    letter-spacing: -0.02em;
+}
+
+
+.dig-body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--app-sans);
+}
+
+.dig-body :is(h1, h2, h3),
+.atlas-display {
+    font-family: var(--app-display);
+    letter-spacing: -0.02em;
+}
+
+.dig-body :is(button, a, input, select, textarea, [tabindex]):focus-visible {
+    outline: 3px solid var(--cobalt-accent);
+    outline-offset: 2px;
+}
+
+/* ── Sidebar: ink, labelled, lime for where you are ─────────────────────── */
+
+.dig-sidebar,
+.dig-sidebar:hover {
+    width: 232px;
+    background: var(--sidebar);
+    border-right: 2px solid var(--rule);
+    color: #f2efe9;
+}
+
+.sidebar-logo-wrap {
+    padding: 22px 18px;
+    border-bottom: 2px solid rgba(242, 239, 233, 0.14);
+}
+
+.sidebar-logo-img {
+    border-radius: 0;
+    background: var(--lime);
+    padding: 4px;
+    border: 2px solid #f2efe9;
+}
+
+.sidebar-logo-text,
+.dig-sidebar:hover .sidebar-logo-text {
+    opacity: 1;
+    color: #f2efe9;
+    font-family: var(--app-display);
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.sidebar-nav {
+    padding: 16px 12px;
+    gap: 4px;
+}
+
+.sidebar-bottom {
+    padding: 12px 12px 20px;
+    border-top: 2px solid rgba(242, 239, 233, 0.14);
+}
+
+.sidebar-link {
+    min-height: 44px;
+    padding: 0 12px;
+    border-radius: 0;
+    color: #e9e5dd;
+    font-family: var(--app-sans);
+}
+
+.sidebar-link:hover {
+    background: rgba(242, 239, 233, 0.1);
+    color: #f2efe9;
+}
+
+.sidebar-link.active {
+    background: var(--lime);
+    color: #12121a;
+    font-weight: 600;
+}
+
+.sidebar-label,
+.dig-sidebar:hover .sidebar-label {
+    opacity: 1;
+    pointer-events: auto;
+    font-size: 0.95rem;
+}
+
+.sidebar-link.active .sidebar-label {
+    font-weight: 600;
+}
+
+.dig-main {
+    margin-left: 232px;
+    padding: 36px clamp(16px, 3.5vw, 48px) 48px;
+    gap: 28px;
+}
+
+/* Phones: the sidebar becomes a bar across the top, scrolling sideways. */
+@media (max-width: 860px) {
+    .dig-body {
+        flex-direction: column;
+    }
+
+    .dig-sidebar,
+    .dig-sidebar:hover {
+        display: flex;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        height: 60px;
+        flex-direction: row;
+        align-items: center;
+        border-right: none;
+        border-bottom: 2px solid var(--rule);
+        overflow-x: auto;
+    }
+
+    .sidebar-logo-wrap {
+        padding: 10px 14px;
+        border-bottom: none;
+    }
+
+    .sidebar-logo-text { display: none; }
+
+    .sidebar-nav,
+    .sidebar-bottom {
+        flex-direction: row;
+        flex: none;
+        padding: 6px;
+        border-top: none;
+    }
+
+    .sidebar-bottom .atlas-plan-card { display: none; }
+
+    .sidebar-link { width: auto; }
+
+    .dig-main {
+        margin-left: 0;
+        padding: 84px 16px 40px;
+    }
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+
+.dig-topbar {
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 18px;
+}
+
+.dig-topbar h1 {
+    font-size: clamp(2rem, 4vw, 3rem);
+    line-height: 1.02;
+    letter-spacing: -0.03em;
+    font-weight: 800;
+}
+
+.atlas-eyebrow {
+    margin: 0 0 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--cobalt-accent);
+}
+
+.subtitle {
+    font-size: 1rem;
+    color: var(--ink-soft);
+    margin-top: 8px;
+}
+
+.profile-wrapper {
+    border-radius: 0;
+    background: var(--card);
+    border: 2px solid var(--rule);
+    padding: 6px 12px 6px 6px;
+}
+
+.avatar {
+    background: var(--cobalt);
+    color: #fff;
+    font-weight: 700;
+}
+
+.profile-name { color: var(--ink); font-weight: 600; }
+.profile-role, .profile-dropdown-icon { color: var(--ink-faint); }
+
+.profile-dropdown {
+    border-radius: 0;
+    background: var(--card);
+    border: 2px solid var(--rule);
+    box-shadow: var(--shadow-hard);
+}
+
+.profile-dropdown a { color: var(--ink); border-radius: 0; }
+.profile-dropdown a:hover { background: var(--lime); color: #12121a; }
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+
+.atlas-btn,
+.primary-btn,
+.primary-btn-lg,
+.secondary-btn,
+.send-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 18px;
+    border: 2px solid var(--rule);
+    border-radius: 0;
+    font-family: var(--app-sans);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    box-shadow: none;
+    transition: transform 0.08s, box-shadow 0.08s;
+}
+
+.atlas-btn:not(:disabled):hover,
+.primary-btn:hover,
+.primary-btn-lg:not(.disabled):not(:disabled):hover,
+.secondary-btn:not(.disabled):not(:disabled):hover,
+.send-btn:not(:disabled):hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-hard);
+}
+
+.primary-btn,
+.primary-btn-lg,
+.send-btn,
+.atlas-btn.cobalt {
+    background: var(--cobalt);
+    color: #fff;
+}
+
+.primary-btn:hover { background: var(--cobalt); }
+
+.atlas-btn.lime {
+    background: var(--lime);
+    color: #12121a;
+    border-color: #12121a;
+}
+
+.secondary-btn,
+.atlas-btn {
+    background: var(--card);
+    color: var(--ink);
+}
+
+.primary-btn-lg.disabled,
+.secondary-btn.disabled,
+.atlas-btn:disabled {
+    opacity: 0.5;
+}
+
+.chip-btn,
+.chip-btn.subtle {
+    min-height: 40px;
+    padding: 0 14px;
+    border: 2px solid var(--rule);
+    border-radius: 0;
+    background: var(--card);
+    color: var(--ink);
+    font-size: 0.88rem;
+    font-weight: 500;
+}
+
+.chip-btn:hover {
+    background: var(--lime);
+    color: #12121a;
+    filter: none;
+}
+
+/* ── Cards ──────────────────────────────────────────────────────────────── */
+
+.card,
+.info-card {
+    background: var(--card);
+    border: 2px solid var(--rule);
+    border-radius: 0;
+    box-shadow: none;
+    padding: 20px 22px;
+    color: var(--ink);
+}
+
+.card h2,
+.info-card h2 {
+    font-family: var(--app-display);
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+}
+
+.card-header {
+    border-bottom-color: var(--rule);
+}
+
+.pill,
+.status-pill,
+.live-pill {
+    border-radius: 0;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+}
+
+.status-pill.ready { background: var(--lime); color: #12121a; }
+.status-pill.uploading { background: color-mix(in srgb, var(--cobalt) 20%, var(--card)); color: var(--ink); }
+.status-pill.idle { background: var(--paper-alt); color: var(--ink-soft); }
+
+.muted, .muted-small { color: var(--ink-soft); }
+
+.upper-grid { gap: 24px; }
+
+@media (max-width: 860px) {
+    .upper-grid,
+    .middle-grid,
+    .analysis-grid,
+    .lower-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* ── Upload ─────────────────────────────────────────────────────────────── */
+
+.upload-dropzone {
+    border: 2px dashed var(--rule);
+    border-radius: 0;
+    background: var(--paper);
+}
+
+.upload-dropzone:hover { background: color-mix(in srgb, var(--lime) 22%, var(--paper)); }
+
+.dropzone-icon {
+    border-radius: 0;
+    background: var(--lime);
+    color: #12121a;
+    border: 2px solid #12121a;
+}
+
+.progress-track {
+    border-radius: 0;
+    border: 2px solid var(--rule);
+    background: var(--paper);
+    height: 12px;
+}
+
+.progress-fill {
+    border-radius: 0;
+    background: var(--cobalt);
+}
+
+/* ── Chat ───────────────────────────────────────────────────────────────── */
+
+.analysis-chat-log { border-radius: 0; }
+
+.msg-row .msg { border-radius: 0; font-size: 0.92rem; line-height: 1.5; }
+
+.msg-row.assistant .msg {
+    background: var(--paper);
+    border: 1.5px solid var(--rule);
+    color: var(--ink);
+}
+
+.msg-row.user .msg {
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+}
+
+.analysis-timeline .step { border-radius: 0; }
+.analysis-timeline .step.done { background: var(--cobalt); color: #fff; }
+.analysis-timeline .step.active { background: var(--lime); color: #12121a; }
+
+.analysis-input-row input {
+    min-height: 44px;
+    border: 2px solid var(--rule);
+    border-radius: 0;
+    background: var(--card);
+    color: var(--ink);
+    font-size: 0.95rem;
+    padding: 0 14px;
+}
+
+.analysis-input-row input::placeholder { color: var(--ink-faint); }
+.analysis-input-row input:focus { border-color: var(--cobalt-accent); box-shadow: none; }
+
+/* ── Tables ─────────────────────────────────────────────────────────────── */
+
+.info-card thead th,
+.table-card thead th,
+.dataset-table th {
+    background: var(--paper-alt);
+    color: var(--ink);
+    font-weight: 600;
+    border-color: var(--rule);
+}
+
+.info-card tbody td,
+.table-card td,
+.dataset-table td {
+    color: var(--ink);
+    border-color: var(--hairline);
+}
+
+.muted-link { color: var(--cobalt-accent); }
+
+/* ── Usage meters on the dashboard ──────────────────────────────────────── */
+
+.atlas-meters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.atlas-meter {
+    background: var(--card);
+    border: 2px solid var(--rule);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: var(--ink);
+    text-decoration: none;
+}
+
+.atlas-meter.muted-box {
+    background: var(--paper-alt);
+    border-style: dashed;
+}
+
+.atlas-meter-label { margin: 0; font-size: 0.82rem; font-weight: 600; color: var(--ink-soft); }
+.atlas-meter-value { margin: 0; font-family: var(--app-display); font-size: 1.9rem; font-weight: 800; line-height: 1; }
+.atlas-meter-value span { font-size: 1.1rem; font-weight: 600; color: var(--ink-faint); }
+.atlas-meter-note { margin: 0; font-size: 0.82rem; color: var(--ink-faint); }
+
+.atlas-meter-track {
+    height: 12px;
+    border: 2px solid var(--rule);
+    background: var(--paper);
+}
+
+.atlas-meter-track > div {
+    height: 100%;
+    background: var(--cobalt);
+}
+
+/* ── Notices across the top of a page ───────────────────────────────────── */
+
+.atlas-notice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+    padding: 12px 16px;
+    border: 2px solid var(--rule);
+    font-size: 0.95rem;
+    color: var(--ink);
+}
+
+.atlas-notice.ok { background: color-mix(in srgb, var(--lime) 35%, var(--card)); }
+.atlas-notice.info { background: color-mix(in srgb, var(--cobalt) 16%, var(--card)); }
+.atlas-notice.bad { background: color-mix(in srgb, var(--danger) 16%, var(--card)); }
+.atlas-notice.warn { background: color-mix(in srgb, var(--warn) 18%, var(--card)); }
+.atlas-notice > span { flex: 1 1 280px; }
+
+/* ── Section headings on the dashboard ──────────────────────────────────── */
+
+.atlas-section-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px 16px;
+    margin: 0 0 14px;
+}
+
+.atlas-section-head h2 {
+    margin: 0;
+    font-family: var(--app-display);
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.atlas-section-head p { margin: 0; color: var(--ink-soft); font-size: 0.95rem; }
+
+/* ── The Pro band ───────────────────────────────────────────────────────── */
+
+.atlas-band {
+    background: var(--lime);
+    color: #12121a;
+    border: 2px solid #12121a;
+    padding: 24px 26px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px 24px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.atlas-band p { margin: 0 0 8px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; }
+
+.atlas-band h2 {
+    margin: 0;
+    font-family: var(--app-display);
+    font-size: clamp(1.4rem, 2.6vw, 2rem);
+    line-height: 1.08;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    max-width: 640px;
+}
+
+.atlas-band .atlas-btn {
+    background: #12121a;
+    color: #f2efe9;
+    border-color: #12121a;
+}
+
+/* ── The plan card at the foot of the sidebar ───────────────────────────── */
+
+.atlas-plan-card {
+    margin: 0 0 10px;
+    border: 2px solid rgba(242, 239, 233, 0.8);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.atlas-plan-card p { margin: 0; font-size: 0.85rem; line-height: 1.45; color: #e9e5dd; }
+.atlas-plan-card .atlas-plan-name { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; color: #d6f24a; }
+
+.atlas-plan-card .atlas-btn {
+    min-height: 40px;
+    background: #d6f24a;
+    color: #12121a;
+    border-color: #d6f24a;
+}
+
+.atlas-plan-card.pro .atlas-btn {
+    background: transparent;
+    color: #f2efe9;
+    border-color: #f2efe9;
+}
+
+/* ── Sidebar extras ─────────────────────────────────────────────────────── */
+
+.dig-sidebar { overflow-y: auto; }
+.sidebar-nav { overflow: visible; }
+
+.atlas-pro-tag {
+    margin-left: auto;
+    padding: 2px 6px;
+    border: 1.5px solid #d6f24a;
+    color: #d6f24a;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+/* Content keeps a readable width on wide screens. */
+.dig-main > * {
+    width: 100%;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* ── Sign-in pages (login, register, password reset) ────────────────────── */
+/* Scoped to .auth-body: these used to come from login.css and register.css,
+   whose :root and body rules leaked into every page after signing in. */
+
+.auth-body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--app-sans);
+}
+
+.auth-container {
+    width: 100%;
+    max-width: 440px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 36px 32px;
+    background: var(--card);
+    border: 2px solid var(--rule);
+    box-shadow: var(--shadow-lift);
+    color: var(--ink);
+    text-align: start;
+}
+
+.auth-container h2 {
+    margin: 0 0 6px;
+    font-family: var(--app-display);
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+}
+
+.auth-container input {
+    width: 100%;
+    min-height: 48px;
+    padding: 0 14px;
+    border: 2px solid var(--rule);
+    background: var(--card);
+    color: var(--ink);
+    font: inherit;
+    font-size: 1rem;
+}
+
+.auth-container input::placeholder { color: var(--ink-faint); }
+
+.auth-container :is(input, button, a):focus-visible {
+    outline: 3px solid var(--cobalt-accent);
+    outline-offset: 2px;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.input-group label {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+}
+
+.name-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+.name-row .input-group { flex: 1 1 150px; }
+
+.auth-btn {
+    width: 100%;
+    min-height: 48px;
+    margin-top: 4px;
+    border: 2px solid var(--rule);
+    background: var(--cobalt);
+    color: #fff;
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.08s, box-shadow 0.08s;
+}
+
+.auth-btn:not(:disabled):hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-hard);
+}
+
+.auth-btn:disabled { opacity: 0.6; cursor: default; }
+
+.auth-error {
+    margin: 0;
+    color: var(--danger-text);
+    font-size: 0.92rem;
+}
+
+.forgot-password {
+    text-align: end;
+    font-size: 0.9rem;
+}
+
+.forgot-password a,
+.auth-footer a {
+    color: var(--cobalt-accent);
+    font-weight: 600;
+}
+
+.auth-footer {
+    text-align: center;
+    font-size: 0.92rem;
+    color: var(--ink-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .atlas-btn, .primary-btn, .primary-btn-lg, .secondary-btn, .send-btn, .auth-btn { transition: none; }
+    .atlas-btn:hover, .primary-btn:hover, .primary-btn-lg:hover, .secondary-btn:hover, .send-btn:hover { transform: none; }
 }

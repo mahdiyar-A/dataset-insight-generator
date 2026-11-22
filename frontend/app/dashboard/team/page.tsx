@@ -150,11 +150,11 @@ export default function TeamPage() {
   if (isLoading || !token) return null;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080d1a", color: "#e2e8f0",
+    <div style={{ minHeight: "100vh", background: "var(--paper)", color: "var(--ink)",
       padding: "40px 24px", maxWidth: "900px", margin: "0 auto" }}>
 
       <button onClick={() => router.push("/dashboard")}
-        style={{ background: "none", border: "none", color: "#64748b",
+        style={{ background: "none", border: "none", color: "var(--ink-faint)",
           fontSize: "0.85rem", cursor: "pointer", marginBottom: "28px" }}>
         ← Back to Dashboard
       </button>
@@ -162,17 +162,17 @@ export default function TeamPage() {
       <h1 style={{ fontSize: "1.8rem", fontWeight: 800, marginBottom: "4px" }}>
         Collaboration Teams
       </h1>
-      <p style={{ color: "#64748b", marginBottom: "32px", fontSize: "0.88rem" }}>
+      <p style={{ color: "var(--ink-faint)", marginBottom: "32px", fontSize: "0.88rem" }}>
         Create a team, invite Pro members, and share analyses for real-time collaboration.
       </p>
 
       {!isPro && (
-        <div style={{ padding: "16px 20px", borderRadius: "12px", marginBottom: "24px",
-          background: "rgba(234,179,8,0.08)", border: "1px solid rgba(234,179,8,0.25)" }}>
-          <p style={{ margin: 0, color: "#fde68a", fontSize: "0.88rem" }}>
+        <div style={{ padding: "16px 20px", borderRadius: "0", marginBottom: "24px",
+          background: "color-mix(in srgb, var(--warn) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--warn) 35%, transparent)" }}>
+          <p style={{ margin: 0, color: "var(--warn-text)", fontSize: "0.88rem" }}>
             ⚡ Team collaboration requires a Pro plan.{" "}
             <button onClick={() => router.push("/plans")}
-              style={{ background: "none", border: "none", color: "#60a5fa",
+              style={{ background: "none", border: "none", color: "var(--cobalt-accent)",
                 cursor: "pointer", fontWeight: 600, padding: 0 }}>
               Upgrade →
             </button>
@@ -181,16 +181,16 @@ export default function TeamPage() {
       )}
 
       {error && (
-        <p style={{ color: "#f87171", background: "rgba(239,68,68,0.08)",
-          border: "1px solid rgba(239,68,68,0.2)", borderRadius: "8px",
+        <p style={{ color: "var(--danger-text)", background: "color-mix(in srgb, var(--danger) 8%, transparent)",
+          border: "1px solid color-mix(in srgb, var(--danger) 35%, transparent)", borderRadius: "0",
           padding: "10px 14px", fontSize: "0.85rem", marginBottom: "16px" }}>
           {error}
         </p>
       )}
 
       {notice && (
-        <p role="status" style={{ color: "#86efac", background: "rgba(22,163,74,0.08)",
-          border: "1px solid rgba(34,197,94,0.25)", borderRadius: "8px",
+        <p role="status" style={{ color: "var(--ok-text)", background: "color-mix(in srgb, var(--ok) 8%, transparent)",
+          border: "1px solid color-mix(in srgb, var(--ok) 35%, transparent)", borderRadius: "0",
           padding: "10px 14px", fontSize: "0.85rem", marginBottom: "16px" }}>
           {notice}
         </p>
@@ -201,7 +201,7 @@ export default function TeamPage() {
 
         {/* Team list sidebar */}
         <div>
-          <p style={{ color: "#64748b", fontSize: "0.75rem", textTransform: "uppercase",
+          <p style={{ color: "var(--ink-faint)", fontSize: "0.75rem", textTransform: "uppercase",
             letterSpacing: "0.06em", marginBottom: "10px" }}>
             Your teams
           </p>
@@ -210,14 +210,14 @@ export default function TeamPage() {
             <button key={t.id}
               onClick={() => setActiveTeam(t)}
               style={{ width: "100%", textAlign: "left", padding: "10px 14px",
-                borderRadius: "10px", border: "none", cursor: "pointer", marginBottom: "6px",
+                borderRadius: "0", border: "none", cursor: "pointer", marginBottom: "6px",
                 background: activeTeam?.id === t.id
-                  ? "rgba(37,99,235,0.15)" : "rgba(15,23,42,0.6)",
-                color: activeTeam?.id === t.id ? "#93c5fd" : "#94a3b8",
+                  ? "color-mix(in srgb, var(--cobalt) 15%, transparent)" : "color-mix(in srgb, var(--card) 60%, transparent)",
+                color: activeTeam?.id === t.id ? "var(--cobalt-accent)" : "var(--ink-soft)",
                 fontWeight: activeTeam?.id === t.id ? 600 : 400 }}>
               {t.name}
               {t.isOwner && <span style={{ marginLeft: "6px", fontSize: "0.7rem",
-                color: "#475569" }}>owner</span>}
+                color: "var(--ink-faint)" }}>owner</span>}
             </button>
           ))}
 
@@ -228,16 +228,16 @@ export default function TeamPage() {
                 onChange={e => setNewTeamName(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleCreateTeam()}
                 placeholder="New team name…"
-                style={{ width: "100%", padding: "9px 12px", borderRadius: "8px",
-                  background: "rgba(15,23,42,0.8)", border: "1px solid rgba(30,41,59,0.8)",
-                  color: "#e2e8f0", fontSize: "0.83rem", outline: "none",
+                style={{ width: "100%", padding: "9px 12px", borderRadius: "0",
+                  background: "color-mix(in srgb, var(--card) 80%, transparent)", border: "1px solid var(--line)",
+                  color: "var(--ink)", fontSize: "0.83rem", outline: "none",
                   boxSizing: "border-box" }} />
               <button
                 onClick={handleCreateTeam}
                 disabled={busy || !newTeamName.trim()}
                 style={{ width: "100%", marginTop: "8px", padding: "9px",
-                  borderRadius: "8px", border: "none",
-                  background: "rgba(37,99,235,0.3)", color: "#93c5fd",
+                  borderRadius: "0", border: "none",
+                  background: "color-mix(in srgb, var(--cobalt) 30%, transparent)", color: "var(--cobalt-accent)",
                   fontWeight: 600, fontSize: "0.83rem", cursor: "pointer",
                   opacity: busy || !newTeamName.trim() ? 0.5 : 1 }}>
                 + Create team
@@ -248,8 +248,8 @@ export default function TeamPage() {
 
         {/* Team detail */}
         {activeTeam ? (
-          <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(30,41,59,0.8)",
-            borderRadius: "16px", padding: "28px" }}>
+          <div style={{ background: "color-mix(in srgb, var(--card) 80%, transparent)", border: "1px solid var(--line)",
+            borderRadius: "0", padding: "28px" }}>
 
             <div style={{ display: "flex", justifyContent: "space-between",
               alignItems: "flex-start", marginBottom: "24px" }}>
@@ -257,23 +257,23 @@ export default function TeamPage() {
                 <h2 style={{ margin: "0 0 4px", fontSize: "1.25rem", fontWeight: 700 }}>
                   {activeTeam.name}
                 </h2>
-                <p style={{ margin: 0, color: "#475569", fontSize: "0.78rem" }}>
-                  Invite code: <code style={{ color: "#60a5fa",
-                    background: "rgba(37,99,235,0.1)", padding: "2px 6px",
-                    borderRadius: "4px" }}>{activeTeam.inviteCode}</code>
+                <p style={{ margin: 0, color: "var(--ink-faint)", fontSize: "0.78rem" }}>
+                  Invite code: <code style={{ color: "var(--cobalt-accent)",
+                    background: "color-mix(in srgb, var(--cobalt) 10%, transparent)", padding: "2px 6px",
+                    borderRadius: "0"}}>{activeTeam.inviteCode}</code>
                 </p>
               </div>
               {activeTeam.isOwner && (
                 <button onClick={handleDeleteTeam}
-                  style={{ background: "none", border: "1px solid rgba(239,68,68,0.3)",
-                    color: "#f87171", borderRadius: "8px", padding: "6px 12px",
+                  style={{ background: "none", border: "1px solid color-mix(in srgb, var(--danger) 35%, transparent)",
+                    color: "var(--danger-text)", borderRadius: "0", padding: "6px 12px",
                     fontSize: "0.78rem", cursor: "pointer" }}>
                   Delete team
                 </button>
               )}
             </div>
 
-            <p style={{ margin: "0 0 16px", color: teamFull ? "#fde68a" : "#64748b", fontSize: "0.8rem" }}>
+            <p style={{ margin: "0 0 16px", color: teamFull ? "var(--warn-text)" : "var(--ink-faint)", fontSize: "0.8rem" }}>
               {seatsUsed} of {maxMembers} seats used
               {invites.length > 0 && ` (${invites.length} waiting on an invitation)`}
             </p>
@@ -282,10 +282,10 @@ export default function TeamPage() {
             <div style={{ display: "flex", gap: "4px", marginBottom: "20px" }}>
               {(["members", "invites", "shared"] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)}
-                  style={{ padding: "7px 16px", borderRadius: "8px", border: "none",
+                  style={{ padding: "7px 16px", borderRadius: "0", border: "none",
                     fontWeight: 600, fontSize: "0.83rem", cursor: "pointer",
-                    background: tab === t ? "rgba(37,99,235,0.2)" : "transparent",
-                    color: tab === t ? "#93c5fd" : "#475569" }}>
+                    background: tab === t ? "color-mix(in srgb, var(--cobalt) 20%, transparent)" : "transparent",
+                    color: tab === t ? "var(--cobalt-accent)" : "var(--ink-faint)" }}>
                   {t.charAt(0).toUpperCase() + t.slice(1)}
                 </button>
               ))}
@@ -296,14 +296,14 @@ export default function TeamPage() {
               <div>
                 {members.map(m => (
                   <div key={m.userId} style={{ display: "flex", justifyContent: "space-between",
-                    alignItems: "center", padding: "10px 14px", borderRadius: "10px",
-                    background: "rgba(2,6,23,0.4)", marginBottom: "8px",
-                    border: "1px solid rgba(30,41,59,0.5)" }}>
+                    alignItems: "center", padding: "10px 14px", borderRadius: "0",
+                    background: "color-mix(in srgb, var(--card) 40%, transparent)", marginBottom: "8px",
+                    border: "1px solid var(--line)" }}>
                     <div>
                       <p style={{ margin: "0 0 2px", fontWeight: 600, fontSize: "0.88rem" }}>
                         {m.userName || m.email || m.userId}
                       </p>
-                      <p style={{ margin: 0, color: "#475569", fontSize: "0.75rem" }}>
+                      <p style={{ margin: 0, color: "var(--ink-faint)", fontSize: "0.75rem" }}>
                         {m.email} · {m.plan ?? "free"} plan
                       </p>
                     </div>
@@ -313,20 +313,20 @@ export default function TeamPage() {
                           value={m.role}
                           aria-label={`Role for ${m.userName || m.email || "this member"}`}
                           onChange={e => handleRoleChange(m.userId, e.target.value)}
-                          style={{ padding: "4px 8px", borderRadius: "8px",
-                            border: "1px solid rgba(30,41,59,0.8)",
-                            background: "rgba(2,6,23,0.6)", color: "#94a3b8",
+                          style={{ padding: "4px 8px", borderRadius: "0",
+                            border: "1px solid var(--line)",
+                            background: "color-mix(in srgb, var(--card) 60%, transparent)", color: "var(--ink-soft)",
                             fontSize: "0.75rem", cursor: "pointer" }}>
                           <option value="viewer">Viewer</option>
                           <option value="editor">Editor</option>
                         </select>
                       ) : (
-                      <span style={{ padding: "3px 10px", borderRadius: "999px",
+                      <span style={{ padding: "3px 10px", borderRadius: "0",
                         background: m.role === "owner"
-                          ? "rgba(124,58,237,0.15)" : "rgba(30,41,59,0.6)",
+                          ? "color-mix(in srgb, var(--cobalt) 15%, transparent)" : "color-mix(in srgb, var(--card) 60%, transparent)",
                         border: m.role === "owner"
-                          ? "1px solid rgba(124,58,237,0.35)" : "1px solid rgba(30,41,59,0.8)",
-                        color: m.role === "owner" ? "#c4b5fd" : "#64748b",
+                          ? "1px solid color-mix(in srgb, var(--cobalt) 35%, transparent)" : "1px solid var(--line)",
+                        color: m.role === "owner" ? "var(--cobalt-accent)" : "var(--ink-faint)",
                         fontSize: "0.72rem", fontWeight: 600 }}>
                         {m.role}
                       </span>
@@ -334,7 +334,7 @@ export default function TeamPage() {
                       {activeTeam.isOwner && m.role !== "owner" && (
                         <button onClick={() => handleRemoveMember(m.userId)}
                           style={{ background: "none", border: "none",
-                            color: "#f87171", cursor: "pointer", fontSize: "0.78rem" }}>
+                            color: "var(--danger-text)", cursor: "pointer", fontSize: "0.78rem" }}>
                           Remove
                         </button>
                       )}
@@ -344,7 +344,7 @@ export default function TeamPage() {
 
                 {/* Invite form */}
                 {isPro && canInvite && teamFull && (
-                  <p style={{ margin: "16px 0 0", color: "#fde68a", fontSize: "0.8rem" }}>
+                  <p style={{ margin: "16px 0 0", color: "var(--warn-text)", fontSize: "0.8rem" }}>
                     This team is full. A team holds up to {maxMembers} people, counting invitations
                     not yet answered. Remove a member or revoke an invitation to invite someone else.
                   </p>
@@ -358,28 +358,28 @@ export default function TeamPage() {
                       onChange={e => setInviteEmail(e.target.value)}
                       placeholder="Email address…"
                       style={{ flex: "1 1 200px", padding: "10px 14px",
-                        borderRadius: "8px", border: "1px solid rgba(30,41,59,0.8)",
-                        background: "rgba(2,6,23,0.6)", color: "#e2e8f0",
+                        borderRadius: "0", border: "1px solid var(--line)",
+                        background: "color-mix(in srgb, var(--card) 60%, transparent)", color: "var(--ink)",
                         fontSize: "0.85rem", outline: "none" }} />
                     <select
                       value={inviteRole}
                       onChange={e => setInviteRole(e.target.value)}
-                      style={{ padding: "10px 12px", borderRadius: "8px",
-                        border: "1px solid rgba(30,41,59,0.8)",
-                        background: "rgba(2,6,23,0.6)", color: "#94a3b8",
+                      style={{ padding: "10px 12px", borderRadius: "0",
+                        border: "1px solid var(--line)",
+                        background: "color-mix(in srgb, var(--card) 60%, transparent)", color: "var(--ink-soft)",
                         fontSize: "0.85rem", cursor: "pointer" }}>
                       <option value="viewer">Viewer</option>
                       <option value="editor">Editor</option>
                     </select>
                     <button onClick={handleInvite} disabled={busy || !inviteEmail.trim()}
-                      style={{ padding: "10px 20px", borderRadius: "8px", border: "none",
-                        background: "rgba(37,99,235,0.3)", color: "#93c5fd",
+                      style={{ padding: "10px 20px", borderRadius: "0", border: "none",
+                        background: "color-mix(in srgb, var(--cobalt) 30%, transparent)", color: "var(--cobalt-accent)",
                         fontWeight: 600, fontSize: "0.85rem", cursor: "pointer",
                         opacity: busy || !inviteEmail.trim() ? 0.5 : 1 }}>
                       Send invite
                     </button>
                   </div>
-                  <p style={{ margin: "8px 0 0", color: "#64748b", fontSize: "0.78rem" }}>
+                  <p style={{ margin: "8px 0 0", color: "var(--ink-faint)", fontSize: "0.78rem" }}>
                     Viewers can read and comment. Editors can also share analyses and invite people.
                   </p>
                   </>
@@ -391,22 +391,22 @@ export default function TeamPage() {
             {tab === "invites" && (
               <div>
                 {invites.length === 0 ? (
-                  <p style={{ color: "#475569", fontSize: "0.85rem" }}>No pending invitations.</p>
+                  <p style={{ color: "var(--ink-faint)", fontSize: "0.85rem" }}>No pending invitations.</p>
                 ) : invites.map(inv => (
                   <div key={inv.id} style={{ display: "flex", justifyContent: "space-between",
-                    alignItems: "center", padding: "10px 14px", borderRadius: "10px",
-                    background: "rgba(2,6,23,0.4)", marginBottom: "8px",
-                    border: "1px solid rgba(30,41,59,0.5)" }}>
+                    alignItems: "center", padding: "10px 14px", borderRadius: "0",
+                    background: "color-mix(in srgb, var(--card) 40%, transparent)", marginBottom: "8px",
+                    border: "1px solid var(--line)" }}>
                     <div>
                       <p style={{ margin: "0 0 2px", fontSize: "0.88rem" }}>{inv.email}</p>
-                      <p style={{ margin: 0, color: "#475569", fontSize: "0.75rem" }}>
+                      <p style={{ margin: 0, color: "var(--ink-faint)", fontSize: "0.75rem" }}>
                         Role: {inv.role} · Sent {new Date(inv.createdAt).toLocaleDateString()}
                       </p>
                     </div>
                     {activeTeam.isOwner && (
                       <button onClick={() => handleRevokeInvite(inv.id)}
                         style={{ background: "none", border: "none",
-                          color: "#f87171", cursor: "pointer", fontSize: "0.78rem" }}>
+                          color: "var(--danger-text)", cursor: "pointer", fontSize: "0.78rem" }}>
                         Revoke
                       </button>
                     )}
@@ -420,35 +420,35 @@ export default function TeamPage() {
             {tab === "shared" && (
               <div>
                 {shared.length === 0 ? (
-                  <p style={{ color: "#475569", fontSize: "0.85rem" }}>
+                  <p style={{ color: "var(--ink-faint)", fontSize: "0.85rem" }}>
                     Nothing is shared with this team yet. Open an analysis on the dashboard
                     and choose &ldquo;Share with a team&rdquo; in the report section.
                   </p>
                 ) : shared.map(s => (
                   <div key={s.id} style={{ display: "flex", justifyContent: "space-between",
-                    alignItems: "center", padding: "10px 14px", borderRadius: "10px",
-                    background: "rgba(2,6,23,0.4)", marginBottom: "8px",
-                    border: "1px solid rgba(30,41,59,0.5)" }}>
+                    alignItems: "center", padding: "10px 14px", borderRadius: "0",
+                    background: "color-mix(in srgb, var(--card) 40%, transparent)", marginBottom: "8px",
+                    border: "1px solid var(--line)" }}>
                     <div style={{ minWidth: 0 }}>
                       <p style={{ margin: "0 0 2px", fontWeight: 600, fontSize: "0.88rem",
                         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {s.fileName || "Analysis"}
                       </p>
-                      <p style={{ margin: 0, color: "#475569", fontSize: "0.75rem" }}>
+                      <p style={{ margin: 0, color: "var(--ink-faint)", fontSize: "0.75rem" }}>
                         Shared {new Date(s.sharedAt).toLocaleDateString()}
                       </p>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
                       <button onClick={() => router.push(`/workspace/${s.id}`)}
-                        style={{ padding: "6px 14px", borderRadius: "8px", border: "none",
-                          background: "rgba(37,99,235,0.3)", color: "#93c5fd",
+                        style={{ padding: "6px 14px", borderRadius: "0", border: "none",
+                          background: "color-mix(in srgb, var(--cobalt) 30%, transparent)", color: "var(--cobalt-accent)",
                           fontWeight: 600, fontSize: "0.78rem", cursor: "pointer" }}>
                         Open
                       </button>
                       {s.canUnshare && (
                         <button onClick={() => handleUnshare(s.id)}
                           style={{ background: "none", border: "none",
-                            color: "#f87171", cursor: "pointer", fontSize: "0.78rem" }}>
+                            color: "var(--danger-text)", cursor: "pointer", fontSize: "0.78rem" }}>
                           Stop sharing
                         </button>
                       )}
@@ -460,7 +460,7 @@ export default function TeamPage() {
           </div>
         ) : (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center",
-            height: "200px", color: "#334155", fontSize: "0.88rem" }}>
+            height: "200px", color: "var(--ink-faint)", fontSize: "0.88rem" }}>
             {isPro ? "Create or select a team to get started" : "Upgrade to Pro to use teams"}
           </div>
         )}

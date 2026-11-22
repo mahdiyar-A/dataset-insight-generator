@@ -11,8 +11,40 @@
 |---|---|---|
 | C# — unit, integration, edge cases, the real Supabase client against a stand-in server, the chat suggesting changes, teams editing the report | 538 | `dotnet test backend.Tests/backend.Tests.csproj` |
 | Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is, insights' evidence, the editable report, changes the chat suggests and charts DIG draws, combining teammates' saves | 1070 | `cd ai_service && pytest tests/` |
-| Frontend — Vitest, including rendered components, the change card and the live report channel | 319 | `cd frontend && npm test` |
+| Frontend — Vitest, including rendered components, the change card, the live report channel and the two themes | 328 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
+
+---
+
+## The signed-in pages in the landing page's look, 2026-11-21
+
+From the approved design canvas. The dashboard and every signed-in page were
+dark-only, with about 1,300 colours written into each component; they now
+use the landing page's "Atlas" look in both light and dark.
+
+- **Two themes, one setting.** `globals.css` holds the colours as tokens
+  (paper, ink, cobalt, lime) for `data-theme="light"` and `"dark"`;
+  `SettingsContext` sets the attribute (light above 65, as on the landing
+  page; dark by default) and clears the colours older versions set inline.
+  Settings offers Dark or Light instead of a brightness slider.
+- **The dashboard**: a labelled ink sidebar with lime for where you are (a
+  bar across the top on phones, which had no navigation before); a greeting
+  with a New analysis button; what you have used (analyses kept against 5 or
+  15, questions a day, team editing); notices without emoji; "Your analyses"
+  in the page instead of pinned to the bottom; a Pro band for free accounts.
+  Team is in the sidebar for everyone, since a free account can be invited.
+- **Every other signed-in page** (team, plan, settings, profile, admin,
+  pricing, the team report page) and the sign-in pages: paper background,
+  square ruled cards, Bricolage Grotesque headings and Work Sans text.
+- **Fixed on the way:** `login.css` and `register.css` set site-wide colours,
+  fonts and a centred `body`, which stayed in force after signing in. The
+  sign-in styles now live in `globals.css`, scoped to `.auth-body`.
+
+Not in this change: the report page's new layout from the canvas (outline
+and versions on the left, chat on the right, who is editing which part) comes
+with Stage B, which adds the part holds it shows. The questions meter shows
+the daily allowance, not the count used: the server reports that only after
+a question. No database or server change.
 
 ---
 

@@ -58,14 +58,14 @@ export default function AuthLinkStatus({ successTitle, successMessage, redirectT
   const title = { loading: 'Checking...', success: successTitle, info: 'One more step', error: 'Link not valid' }[status];
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', padding: '16px' }}>
-      <div style={{ background: '#1e293b', padding: '48px', borderRadius: '16px', border: '1px solid #334155', textAlign: 'center', maxWidth: '420px', width: '100%' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--card)', padding: '16px' }}>
+      <div style={{ background: 'var(--card)', padding: '48px', borderRadius: '0', border: '1px solid var(--line)', textAlign: 'center', maxWidth: '420px', width: '100%' }}>
         <div style={{ fontSize: '48px', marginBottom: '16px' }}>{icon}</div>
-        <h2 style={{ color: '#e2e8f0', marginBottom: '12px', fontSize: '1.3rem' }}>{title}</h2>
-        <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6 }}>{message}</p>
+        <h2 style={{ color: 'var(--ink)', marginBottom: '12px', fontSize: '1.3rem' }}>{title}</h2>
+        <p style={{ color: 'var(--ink-soft)', fontSize: '0.9rem', lineHeight: 1.6 }}>{message}</p>
         {(status === 'error' || status === 'info') && (
           <button onClick={() => router.push(status === 'error' ? '/login' : redirectTo)}
-            style={{ marginTop: '24px', padding: '10px 24px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>
+            style={{ marginTop: '24px', padding: '10px 24px', background: 'var(--cobalt)', color: '#fff', border: 'none', borderRadius: '0', cursor: 'pointer', fontWeight: 600 }}>
             {status === 'error' ? 'Back to login' : redirectLabel}
           </button>
         )}

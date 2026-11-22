@@ -93,8 +93,8 @@ export default function SocialSignIn() {
           disabled={busy !== null}
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-            width: '100%', padding: '11px 14px', borderRadius: '999px',
-            border: '1px solid #334155', background: 'rgba(15,23,42,0.6)', color: '#e5e7eb',
+            width: '100%', padding: '11px 14px', borderRadius: '0',
+            border: '1px solid var(--line)', background: 'color-mix(in srgb, var(--card) 60%, transparent)', color: 'var(--ink)',
             fontSize: '0.92rem', fontWeight: 600, cursor: busy ? 'wait' : 'pointer',
             opacity: busy && busy !== p.id ? 0.55 : 1, minHeight: '44px',
           }}
@@ -104,10 +104,10 @@ export default function SocialSignIn() {
         </button>
       ))}
       {error && <p className="auth-error" style={{ margin: 0 }}>{error}</p>}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '6px 0 2px', color: '#64748b', fontSize: '0.8rem' }}>
-        <span style={{ flex: 1, height: 1, background: '#334155' }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '6px 0 2px', color: 'var(--ink-faint)', fontSize: '0.8rem' }}>
+        <span style={{ flex: 1, height: 1, background: 'var(--card)' }} />
         or use email
-        <span style={{ flex: 1, height: 1, background: '#334155' }} />
+        <span style={{ flex: 1, height: 1, background: 'var(--card)' }} />
       </div>
     </div>
   );

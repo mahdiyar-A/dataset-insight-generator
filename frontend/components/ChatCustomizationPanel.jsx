@@ -229,15 +229,15 @@ const T = {
 };
 
 const FIELD_LABEL = {
-  margin: "0 0 5px", fontSize: "0.7rem", color: "#64748b",
+  margin: "0 0 5px", fontSize: "0.7rem", color: "var(--ink-faint)",
   textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600,
 };
-const FIELD_HINT = { margin: "4px 0 0", fontSize: "0.7rem", color: "#64748b" };
+const FIELD_HINT = { margin: "4px 0 0", fontSize: "0.7rem", color: "var(--ink-faint)" };
 
 const inputStyle = (filled) => ({
-  width: "100%", padding: "8px 12px", borderRadius: "7px",
-  border: filled ? "1px solid rgba(251,191,36,0.45)" : "1px solid rgba(30,41,59,0.8)",
-  background: "rgba(15,23,42,0.9)", color: "#e2e8f0",
+  width: "100%", padding: "8px 12px", borderRadius: "0",
+  border: filled ? "1px solid color-mix(in srgb, var(--warn) 45%, transparent)" : "1px solid var(--line)",
+  background: "var(--card)", color: "var(--ink)",
   fontSize: "0.82rem", outline: "none", boxSizing: "border-box",
   fontFamily: "inherit",
 });
@@ -248,24 +248,24 @@ function LockedBanner({ onUpgrade, t }) {
   return (
     <div style={{
       width: "100%", boxSizing: "border-box",
-      padding: "12px 16px", borderRadius: "10px", marginTop: "10px",
-      background: "rgba(234,179,8,0.06)", border: "1px solid rgba(234,179,8,0.18)",
-      display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px",
+      padding: "12px 16px", borderRadius: "0", marginTop: "10px",
+      background: "var(--paper-alt)", border: "2px dashed var(--rule)",
+      display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "12px",
     }}>
-      <div style={{ textAlign: "start" }}>
-        <p style={{ margin: "0 0 2px", fontSize: "0.83rem", fontWeight: 600, color: "#fde68a" }}>
+      <div style={{ textAlign: "start", flex: "1 1 200px" }}>
+        <p style={{ margin: "0 0 2px", fontSize: "0.9rem", fontWeight: 600, color: "var(--ink)" }}>
           {t.lockedTitle}
         </p>
-        <p style={{ margin: 0, fontSize: "0.75rem", color: "#d6b35c" }}>
+        <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--ink-soft)" }}>
           {t.lockedDesc}
         </p>
       </div>
       <button
         onClick={onUpgrade ?? (() => router.push("/plans"))}
         style={{
-          padding: "7px 14px", borderRadius: "8px", border: "none",
-          background: "linear-gradient(135deg, #d97706, #b45309)",
-          color: "#fff", fontWeight: 700, fontSize: "0.78rem",
+          minHeight: "40px", padding: "0 14px", border: "2px solid #12121a",
+          background: "var(--lime)",
+          color: "#12121a", fontWeight: 700, fontSize: "0.85rem",
           cursor: "pointer", whiteSpace: "nowrap",
         }}>
         {t.upgrade}
@@ -284,9 +284,9 @@ function Sel({ label, value, onChange, options, flex = "1 1 140px" }) {
         value={value}
         onChange={e => onChange(e.target.value)}
         style={{
-          width: "100%", padding: "7px 10px", borderRadius: "7px",
-          border: "1px solid rgba(30,41,59,0.8)",
-          background: "rgba(15,23,42,0.9)", color: "#e2e8f0",
+          width: "100%", padding: "7px 10px", borderRadius: "0",
+          border: "1px solid var(--line)",
+          background: "var(--card)", color: "var(--ink)",
           fontSize: "0.82rem", cursor: "pointer", outline: "none",
         }}>
         {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -306,11 +306,11 @@ function Chip({ label, active, onClick, disabled }) {
       onClick={onClick}
       disabled={disabled}
       style={{
-        padding: "6px 13px", borderRadius: "7px",
+        padding: "6px 13px", borderRadius: "0",
         cursor: disabled ? "default" : "pointer",
-        border: active ? "1px solid rgba(37,99,235,0.45)" : "1px solid rgba(30,41,59,0.7)",
-        background: active ? "rgba(37,99,235,0.14)" : "rgba(15,23,42,0.6)",
-        color: active ? "#93c5fd" : "#6b7280",
+        border: active ? "1px solid color-mix(in srgb, var(--cobalt) 45%, transparent)" : "1px solid var(--line)",
+        background: active ? "color-mix(in srgb, var(--cobalt) 14%, transparent)" : "color-mix(in srgb, var(--card) 60%, transparent)",
+        color: active ? "var(--cobalt-accent)" : "var(--ink-faint)",
         fontSize: "0.8rem", fontWeight: active ? 600 : 400,
         transition: "all 0.15s",
       }}>
@@ -323,9 +323,9 @@ function Chip({ label, active, onClick, disabled }) {
 function SectionLabel({ text }) {
   return (
     <p style={{
-      margin: "16px 0 8px", fontSize: "0.68rem", color: "#64748b",
+      margin: "16px 0 8px", fontSize: "0.68rem", color: "var(--ink-faint)",
       textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700,
-      borderBottom: "1px solid rgba(30,41,59,0.5)", paddingBottom: "4px",
+      borderBottom: "1px solid var(--line)", paddingBottom: "4px",
     }}>{text}</p>
   );
 }
@@ -367,14 +367,14 @@ function TagInput({ tags, onChange, t }) {
       <p style={FIELD_LABEL}>{t.mustMention}</p>
       <div style={{
         display: "flex", flexWrap: "wrap", gap: "6px", padding: "8px",
-        borderRadius: "7px", border: "1px solid rgba(30,41,59,0.8)",
-        background: "rgba(15,23,42,0.9)", minHeight: "38px", alignItems: "center",
+        borderRadius: "0", border: "1px solid var(--line)",
+        background: "var(--card)", minHeight: "38px", alignItems: "center",
       }}>
         {tags.map(tag => (
           <span key={tag} style={{
             display: "flex", alignItems: "center", gap: "4px",
-            padding: "2px 8px", borderRadius: "5px",
-            background: "rgba(99,102,241,0.18)", color: "#a5b4fc", fontSize: "0.78rem",
+            padding: "2px 8px", borderRadius: "0",
+            background: "color-mix(in srgb, var(--cobalt) 18%, transparent)", color: "var(--cobalt-accent)", fontSize: "0.78rem",
           }}>
             {tag}
             <button
@@ -382,7 +382,7 @@ function TagInput({ tags, onChange, t }) {
               aria-label={`${t.remove} ${tag}`}
               onClick={() => onChange(tags.filter(x => x !== tag))}
               style={{
-                background: "none", border: "none", color: "#6366f1",
+                background: "none", border: "none", color: "var(--cobalt-accent)",
                 cursor: "pointer", padding: 0, fontSize: "0.9rem", lineHeight: 1,
               }}>×</button>
           </span>
@@ -400,14 +400,14 @@ function TagInput({ tags, onChange, t }) {
             placeholder={tags.length ? t.mustMentionMore : t.mustMentionPh}
             style={{
               flex: "1 1 120px", background: "none", border: "none", outline: "none",
-              color: "#e2e8f0", fontSize: "0.82rem", minWidth: "80px",
+              color: "var(--ink)", fontSize: "0.82rem", minWidth: "80px",
             }}
           />
         )}
         {input.trim() && (
           <button type="button" onClick={add} style={{
-            padding: "2px 8px", borderRadius: "5px", border: "none",
-            background: "rgba(99,102,241,0.25)", color: "#a5b4fc",
+            padding: "2px 8px", borderRadius: "0", border: "none",
+            background: "color-mix(in srgb, var(--cobalt) 25%, transparent)", color: "var(--cobalt-accent)",
             fontSize: "0.75rem", cursor: "pointer",
           }}>{t.add}</button>
         )}
@@ -453,7 +453,7 @@ function QuestionList({ questions, onChange, t }) {
               aria-label={`${t.remove} ${i + 1}`}
               onClick={() => onChange(questions.filter((_, x) => x !== i))}
               style={{
-                background: "none", border: "none", color: "#64748b", cursor: "pointer",
+                background: "none", border: "none", color: "var(--ink-faint)", cursor: "pointer",
                 fontSize: "1.05rem", lineHeight: 1, padding: "7px 4px",
               }}>×</button>
           </div>
@@ -505,10 +505,10 @@ function BriefBox({ opts, onChange, t }) {
 
   return (
     <div style={{
-      padding: "12px", borderRadius: "10px",
-      background: "rgba(37,99,235,0.07)", border: "1px solid rgba(37,99,235,0.22)",
+      padding: "12px", borderRadius: "0",
+      background: "color-mix(in srgb, var(--cobalt) 7%, transparent)", border: "1px solid color-mix(in srgb, var(--cobalt) 35%, transparent)",
     }}>
-      <p style={{ margin: "0 0 6px", fontSize: "0.82rem", fontWeight: 600, color: "#bfdbfe" }}>
+      <p style={{ margin: "0 0 6px", fontSize: "0.82rem", fontWeight: 600, color: "var(--cobalt-accent)" }}>
         {t.briefTitle}
       </p>
       <textarea
@@ -537,17 +537,17 @@ function BriefBox({ opts, onChange, t }) {
       </div>
       <p style={FIELD_HINT}>{t.briefHint}</p>
       {note && (
-        <p role="status" dir="auto" style={{ margin: "8px 0 0", fontSize: "0.78rem", lineHeight: 1.5, color: "#bbf7d0" }}>
+        <p role="status" dir="auto" style={{ margin: "8px 0 0", fontSize: "0.78rem", lineHeight: 1.5, color: "var(--ok-text)" }}>
           {note}
         </p>
       )}
       {result?.notPossible?.length > 0 && (
-        <p dir="auto" style={{ margin: "6px 0 0", fontSize: "0.75rem", lineHeight: 1.5, color: "#fbbf24" }}>
+        <p dir="auto" style={{ margin: "6px 0 0", fontSize: "0.75rem", lineHeight: 1.5, color: "var(--warn-text)" }}>
           {t.briefNotPossible} {result.notPossible.join(" · ")}
         </p>
       )}
       {error && (
-        <p role="alert" style={{ margin: "8px 0 0", fontSize: "0.76rem", color: "#f97373" }}>{error}</p>
+        <p role="alert" style={{ margin: "8px 0 0", fontSize: "0.76rem", color: "var(--danger-text)" }}>{error}</p>
       )}
     </div>
   );
@@ -588,26 +588,26 @@ export default function ChatCustomizationPanel({ value = null, onChange, onUpgra
         onClick={() => setOpen(o => !o)}
         style={{
           display: "flex", alignItems: "center", gap: "8px", width: "100%",
-          padding: "10px 14px", borderRadius: "10px",
-          borderWidth: "0 0 0 3px", borderStyle: "solid", borderColor: "rgba(37,99,235,0.5)",
-          background: open ? "rgba(37,99,235,0.12)" : "rgba(15,23,42,0.6)",
+          padding: "10px 14px", borderRadius: "0",
+          borderWidth: "0 0 0 3px", borderStyle: "solid", borderColor: "var(--cobalt-accent)",
+          background: open ? "color-mix(in srgb, var(--cobalt) 12%, transparent)" : "color-mix(in srgb, var(--card) 60%, transparent)",
           cursor: "pointer",
         }}>
         <span style={{ fontSize: "0.9rem" }}>⚙️</span>
-        <span style={{ flex: 1, textAlign: "start", fontSize: "0.85rem", fontWeight: 600, color: "#bfdbfe" }}>
+        <span style={{ flex: 1, textAlign: "start", fontSize: "0.85rem", fontWeight: 600, color: "var(--cobalt-accent)" }}>
           {t.toggle}
         </span>
         {!open && directives > 0 && (
           <span style={{
-            padding: "1px 7px", borderRadius: "10px",
-            background: "rgba(251,191,36,0.18)", color: "#fbbf24",
+            padding: "1px 7px", borderRadius: "0",
+            background: "color-mix(in srgb, var(--warn) 18%, transparent)", color: "var(--warn-text)",
             fontSize: "0.7rem", fontWeight: 700,
           }}>
             {t.directives(directives)}
           </span>
         )}
         <span style={{
-          color: "#64748b", fontSize: "0.8rem",
+          color: "var(--ink-faint)", fontSize: "0.8rem",
           transform: open ? "rotate(180deg)" : "none",
           transition: "transform 0.2s", display: "inline-block",
         }}>▾</span>
@@ -617,8 +617,8 @@ export default function ChatCustomizationPanel({ value = null, onChange, onUpgra
       {open && (
         <div style={{
           marginTop: "8px", padding: "16px",
-          background: "rgba(15,23,42,0.8)",
-          border: "1px solid rgba(30,41,59,0.8)", borderRadius: "12px",
+          background: "color-mix(in srgb, var(--card) 80%, transparent)",
+          border: "1px solid var(--line)", borderRadius: "0",
         }}>
 
           <BriefBox opts={opts} onChange={onChange} t={t} />
@@ -684,8 +684,8 @@ export default function ChatCustomizationPanel({ value = null, onChange, onUpgra
           <p style={{ ...FIELD_HINT, marginTop: "6px" }}>{t.outputHint}</p>
 
           <p style={{
-            margin: "14px 0 0", padding: "10px 14px", borderRadius: "8px", fontSize: "0.77rem", lineHeight: 1.7,
-            color: "#94a3b8", background: "rgba(2,6,23,0.5)", border: "1px solid rgba(30,41,59,0.6)",
+            margin: "14px 0 0", padding: "10px 14px", borderRadius: "0", fontSize: "0.77rem", lineHeight: 1.7,
+            color: "var(--ink-soft)", background: "color-mix(in srgb, var(--card) 50%, transparent)", border: "1px solid var(--line)",
           }}>
             {t.summary(opts, t)}
           </p>

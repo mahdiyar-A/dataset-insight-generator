@@ -5,7 +5,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/app/contexts/AuthContext';
-import './register.css';
 import { errorMessage } from "@/lib/types";
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
@@ -59,13 +58,13 @@ export default function RegisterPage() {
         <div className="auth-container" style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>📧</div>
           <h2>Check your email</h2>
-          <p style={{ color: '#94a3b8', lineHeight: 1.7, marginBottom: '24px' }}>
-            We sent a verification link to <strong style={{ color: '#e2e8f0' }}>{email}</strong>.
+          <p style={{ color: 'var(--ink-soft)', lineHeight: 1.7, marginBottom: '24px' }}>
+            We sent a verification link to <strong style={{ color: 'var(--ink)' }}>{email}</strong>.
             <br />Click the link to activate your account.
           </p>
-          <p style={{ color: '#64748b', fontSize: '0.85rem' }}>
+          <p style={{ color: 'var(--ink-faint)', fontSize: '0.85rem' }}>
             Didn't receive it? Check spam or{' '}
-            <span style={{ color: '#3b82f6', cursor: 'pointer' }}
+            <span style={{ color: 'var(--cobalt-accent)', cursor: 'pointer' }}
               onClick={() => setVerificationSent(false)}>
               try again
             </span>
@@ -79,7 +78,7 @@ export default function RegisterPage() {
     <div className="auth-body">
       <div className="auth-container">
         <button onClick={() => router.push('/')}
-          style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '0.85rem', alignSelf: 'flex-start', marginBottom: '8px', padding: '0' }}>
+          style={{ background: 'none', border: 'none', color: 'var(--ink-faint)', cursor: 'pointer', fontSize: '0.85rem', alignSelf: 'flex-start', marginBottom: '8px', padding: '0' }}>
           ← Back
         </button>
         <h2>Create Account</h2>

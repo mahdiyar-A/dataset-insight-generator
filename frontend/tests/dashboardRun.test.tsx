@@ -24,7 +24,6 @@ vi.mock("@/components/HistoryTape", () => ({ default: () => null }));
 vi.mock("@/components/chartsCard", () => ({ default: () => null }));
 vi.mock("@/components/downloadCard", () => ({ default: () => null }));
 vi.mock("@/components/infoCards", () => ({ default: () => null }));
-vi.mock("@/components/PlanBadge", () => ({ default: () => null }));
 vi.mock("@/components/AnalysisChatCard", () => ({
   default: ({ onAnalysisStarted }: { onAnalysisStarted: (id: string | null) => void }) => (
     <button onClick={() => onAnalysisStarted(startedId)}>start</button>

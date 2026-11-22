@@ -31,15 +31,15 @@ export default function ForgotPasswordPage() {
   };
 
   if (sent) return (
-    <div className="auth-body" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a' }}>
-      <div style={{ background: '#1e293b', padding: '48px', borderRadius: '16px', border: '1px solid #334155', textAlign: 'center', maxWidth: '400px', width: '100%' }}>
+    <div className="auth-body" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--paper)' }}>
+      <div style={{ background: 'var(--card)', padding: '48px', borderRadius: '0', border: '1px solid var(--line)', textAlign: 'center', maxWidth: '400px', width: '100%' }}>
         <div style={{ fontSize: '48px', marginBottom: '16px' }}>📧</div>
-        <h2 style={{ color: '#e2e8f0', marginBottom: '12px' }}>Check your email</h2>
-        <p style={{ color: '#94a3b8', lineHeight: 1.7 }}>
-          We sent a password reset link to <strong style={{ color: '#e2e8f0' }}>{email}</strong>.
+        <h2 style={{ color: 'var(--ink)', marginBottom: '12px' }}>Check your email</h2>
+        <p style={{ color: 'var(--ink-soft)', lineHeight: 1.7 }}>
+          We sent a password reset link to <strong style={{ color: 'var(--ink)' }}>{email}</strong>.
         </p>
         <button onClick={() => router.push('/login')}
-          style={{ marginTop: '24px', padding: '10px 24px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>
+          style={{ marginTop: '24px', padding: '10px 24px', background: 'var(--cobalt)', color: '#fff', border: 'none', borderRadius: '0', cursor: 'pointer', fontWeight: 600 }}>
           Back to Login
         </button>
       </div>
@@ -47,22 +47,22 @@ export default function ForgotPasswordPage() {
   );
 
   return (
-    <div className="auth-body" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a' }}>
-      <div style={{ background: '#1e293b', padding: '48px', borderRadius: '16px', border: '1px solid #334155', width: '100%', maxWidth: '400px' }}>
+    <div className="auth-body" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--paper)' }}>
+      <div style={{ background: 'var(--card)', padding: '48px', borderRadius: '0', border: '1px solid var(--line)', width: '100%', maxWidth: '400px' }}>
         <button onClick={() => router.push('/login')}
-          style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '0.85rem', marginBottom: '16px', padding: '0' }}>
+          style={{ background: 'none', border: 'none', color: 'var(--ink-faint)', cursor: 'pointer', fontSize: '0.85rem', marginBottom: '16px', padding: '0' }}>
           ← Back to Login
         </button>
-        <h2 style={{ color: '#e2e8f0', marginBottom: '8px' }}>Forgot Password</h2>
-        <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '24px' }}>
+        <h2 style={{ color: 'var(--ink)', marginBottom: '8px' }}>Forgot Password</h2>
+        <p style={{ color: 'var(--ink-soft)', fontSize: '0.85rem', marginBottom: '24px' }}>
           Enter your email and we'll send you a reset link.
         </p>
         <input type="email" placeholder="Your email address" value={email}
           onChange={e => setEmail(e.target.value)}
-          style={{ width: '100%', padding: '10px 14px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#e2e8f0', fontSize: '0.9rem', boxSizing: 'border-box', marginBottom: '12px' }} />
-        {error && <p style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '12px' }}>{error}</p>}
+          style={{ width: '100%', padding: '10px 14px', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: '0', color: 'var(--ink)', fontSize: '0.9rem', boxSizing: 'border-box', marginBottom: '12px' }} />
+        {error && <p style={{ color: 'var(--danger-text)', fontSize: '0.85rem', marginBottom: '12px' }}>{error}</p>}
         <button onClick={handleSubmit} disabled={loading}
-          style={{ width: '100%', padding: '12px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+          style={{ width: '100%', padding: '12px', background: 'var(--cobalt)', color: '#fff', border: 'none', borderRadius: '0', fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
           {loading ? 'Sending…' : 'Send Reset Link'}
         </button>
       </div>

@@ -230,9 +230,9 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, onUploadFai
         className="upload-dropzone"
         style={{
           padding: "28px 24px",
-          borderColor: dragging ? "rgba(37,99,235,0.8)" : undefined,
+          borderColor: dragging ? "var(--cobalt-accent)" : undefined,
           background: dragging
-            ? "radial-gradient(circle at top left, rgba(37,99,235,0.3), rgba(15,23,42,0.96))"
+            ? "radial-gradient(circle at top left, color-mix(in srgb, var(--cobalt) 30%, transparent), var(--card))"
             : undefined,
           transition: "border-color 0.2s, background 0.2s",
         }}
@@ -266,13 +266,13 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, onUploadFai
       </label>
 
       {notice && (
-        <p role="alert" style={{ margin: 0, fontSize: "0.78rem", lineHeight: 1.5, color: "#f97373" }}>{notice}</p>
+        <p role="alert" style={{ margin: 0, fontSize: "0.78rem", lineHeight: 1.5, color: "var(--danger-text)" }}>{notice}</p>
       )}
 
       {/* Progress bar */}
       <div className="upload-status-bar">
         <div className="status-header">
-          <span style={{ color: status === "error" ? "#f97373" : undefined }}>
+          <span style={{ color: status === "error" ? "var(--danger-text)" : undefined }}>
             {status === "idle"      && t.statusMsg.idle}
             {status === "uploading" && t.statusMsg.uploading}
             {status === "done"      && t.statusMsg.done}
@@ -286,7 +286,7 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, onUploadFai
             style={{
               width: progressWidth[status],
               background: status === "error"
-                ? "linear-gradient(90deg,#f97373,#ef4444)"
+                ? "linear-gradient(90deg,var(--danger),var(--danger))"
                 : undefined,
               transition: "width 0.5s ease",
             }}
@@ -312,7 +312,7 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, onUploadFai
       {preview && (
         <div style={{ marginTop: "4px" }}>
           <div className="card-header" style={{ marginBottom: "8px" }}>
-            <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "#9ca3af" }}>
+            <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--ink-soft)" }}>
               {t.preview}
             </span>
             <span className="pill">
@@ -322,18 +322,18 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, onUploadFai
           </div>
           <div style={{
             overflowX: "auto",
-            borderRadius: "12px",
-            border: "1px solid rgba(31,41,55,0.9)",
-            background: "rgba(15,23,42,0.96)",
+            borderRadius: "0",
+            border: "1px solid var(--line)",
+            background: "var(--card)",
           }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.75rem" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid rgba(31,41,55,0.9)" }}>
-                  <th style={{ padding: "8px", color: "#374151", fontWeight: 500, textAlign: "center", width: "28px", background: "rgba(2,6,23,0.6)" }}>
+                <tr style={{ borderBottom: "1px solid var(--line)" }}>
+                  <th style={{ padding: "8px", color: "var(--ink-faint)", fontWeight: 500, textAlign: "center", width: "28px", background: "color-mix(in srgb, var(--card) 60%, transparent)" }}>
                     #
                   </th>
                   {preview.headers.map((h, i) => (
-                    <th key={i} style={{ padding: "8px 12px", color: "#bfdbfe", fontWeight: 500, textAlign: "left", whiteSpace: "nowrap", background: "rgba(2,6,23,0.6)" }}>
+                    <th key={i} style={{ padding: "8px 12px", color: "var(--cobalt-accent)", fontWeight: 500, textAlign: "left", whiteSpace: "nowrap", background: "color-mix(in srgb, var(--card) 60%, transparent)" }}>
                       {h}
                     </th>
                   ))}
@@ -341,14 +341,14 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, onUploadFai
               </thead>
               <tbody>
                 {preview.rows.map((row, ri) => (
-                  <tr key={ri} style={{ background: ri % 2 === 0 ? "rgba(15,23,42,0.5)" : "transparent", borderBottom: "1px solid rgba(31,41,55,0.5)" }}>
-                    <td style={{ padding: "6px 8px", color: "#374151", textAlign: "center", fontSize: "0.7rem" }}>
+                  <tr key={ri} style={{ background: ri % 2 === 0 ? "color-mix(in srgb, var(--card) 50%, transparent)" : "transparent", borderBottom: "1px solid var(--line)" }}>
+                    <td style={{ padding: "6px 8px", color: "var(--ink-faint)", textAlign: "center", fontSize: "0.7rem" }}>
                       {ri + 1}
                     </td>
                     {row.map((cell, ci) => {
                       const isEmpty = !cell || cell === "" || cell.toLowerCase() === "na" || cell.toLowerCase() === "null";
                       return (
-                        <td key={ci} style={{ padding: "6px 12px", whiteSpace: "nowrap", maxWidth: "130px", overflow: "hidden", textOverflow: "ellipsis", color: isEmpty ? "#f97373" : "#d1d5db" }}>
+                        <td key={ci} style={{ padding: "6px 12px", whiteSpace: "nowrap", maxWidth: "130px", overflow: "hidden", textOverflow: "ellipsis", color: isEmpty ? "var(--danger-text)" : "var(--ink)" }}>
                           {isEmpty ? <span style={{ opacity: 0.5 }}>—</span> : cell}
                         </td>
                       );

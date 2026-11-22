@@ -24,11 +24,11 @@ function PDFModal({ reportFileName, pdfUrl, onClose }: {
   reportFileName: string; pdfUrl: string; onClose: () => void;
 }) {
   return (
-    <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(2,6,23,0.8)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:"20px" }}>
-      <div onClick={e => e.stopPropagation()} style={{ background:"#020617", border:"1px solid rgba(31,41,55,0.9)", borderRadius:"18px", padding:"16px", width:"min(1000px, 95vw)", height:"min(85vh, 900px)", display:"flex", flexDirection:"column", gap:"12px", boxShadow:"0 24px 60px rgba(0,0,0,0.6)", overflow:"hidden" }}>
+    <div onClick={onClose} style={{ position:"fixed", inset:0, background:"color-mix(in srgb, var(--card) 80%, transparent)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:"20px" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:"var(--card)", border:"1px solid var(--line)", borderRadius:"0", padding:"16px", width:"min(1000px, 95vw)", height:"min(85vh, 900px)", display:"flex", flexDirection:"column", gap:"12px", boxShadow:"0 24px 60px rgba(0,0,0,0.6)", overflow:"hidden" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
-            <div style={{ width:"38px", height:"38px", borderRadius:"8px", background:"rgba(239,68,68,0.15)", border:"1px solid rgba(239,68,68,0.3)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <div style={{ width:"38px", height:"38px", borderRadius:"0", background:"color-mix(in srgb, var(--danger) 15%, transparent)", border:"1px solid color-mix(in srgb, var(--danger) 35%, transparent)", display:"flex", alignItems:"center", justifyContent:"center" }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="1.6">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                 <polyline points="14 2 14 8 20 8"/>
@@ -37,18 +37,18 @@ function PDFModal({ reportFileName, pdfUrl, onClose }: {
               </svg>
             </div>
             <div>
-              <h3 style={{ margin:0, fontSize:"0.95rem", fontWeight:700, color:"#e5e7eb" }}>{reportFileName}</h3>
+              <h3 style={{ margin:0, fontSize:"0.95rem", fontWeight:700, color:"var(--ink)" }}>{reportFileName}</h3>
               <p className="muted-small" style={{ marginTop:"2px" }}>Live report preview</p>
             </div>
           </div>
-          <button onClick={onClose} style={{ background:"rgba(15,23,42,0.9)", border:"1px solid rgba(55,65,81,0.8)", borderRadius:"8px", padding:"7px", color:"#6b7280", cursor:"pointer", display:"flex" }}>
+          <button onClick={onClose} style={{ background:"var(--card)", border:"1px solid var(--line)", borderRadius:"0", padding:"7px", color:"var(--ink-faint)", cursor:"pointer", display:"flex" }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </button>
         </div>
-        <div style={{ flex:1, borderRadius:"12px", overflow:"hidden", border:"1px solid rgba(31,41,55,0.8)" }}>
-          <iframe title="PDF preview" src={pdfUrl} style={{ width:"100%", height:"100%", border:0, background:"#fff" }}/>
+        <div style={{ flex:1, borderRadius:"0", overflow:"hidden", border:"1px solid var(--line)" }}>
+          <iframe title="PDF preview" src={pdfUrl} style={{ width:"100%", height:"100%", border:0, background:"var(--card)" }}/>
         </div>
         <p className="muted-small" style={{ textAlign:"center", margin:0 }}>If the preview doesn&apos;t load, use &quot;Download PDF Report&quot;.</p>
       </div>
@@ -350,19 +350,19 @@ export default function GuestDashboardPage() {
           </div>
           <div className="topbar-right">
             <div className="profile-wrapper">
-              <div className="avatar" style={{ background: "linear-gradient(135deg, #78350f, #92400e)", color: "#fbbf24", fontSize: "0.85rem", fontWeight: 800 }}>G</div>
+              <div className="avatar" style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--warn) 22%, var(--card)), var(--warn))", color: "var(--warn-text)", fontSize: "0.85rem", fontWeight: 800 }}>G</div>
               <div className="profile-text">
                 <span className="profile-name">Guest</span>
                 <span className="profile-role">Guest session</span>
               </div>
               <div className="profile-dropdown-icon">▾</div>
               <div className="profile-dropdown" style={{ minWidth: "210px" }}>
-                <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(31,41,55,0.8)", cursor: "default" }}>
-                  <p style={{ margin: 0, fontSize: "0.75rem", color: "#6b7280", lineHeight: 1.6 }}>
+                <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--line)", cursor: "default" }}>
+                  <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--ink-faint)", lineHeight: 1.6 }}>
                     You're browsing as a guest.<br />Your session is not saved.
                   </p>
                 </div>
-                <a onClick={() => router.push("/register")} style={{ cursor: "pointer", color: "#93c5fd", fontWeight: 600 }}>Create free account →</a>
+                <a onClick={() => router.push("/register")} style={{ cursor: "pointer", color: "var(--cobalt-accent)", fontWeight: 600 }}>Create free account →</a>
                 <a onClick={() => router.push("/login")}    style={{ cursor: "pointer" }}>Log in to existing account</a>
               </div>
             </div>
@@ -370,19 +370,19 @@ export default function GuestDashboardPage() {
         </header>
 
         {/* Guest notice bar */}
-        <div style={{ padding: "9px 24px", background: "rgba(120,53,15,0.12)", borderBottom: "1px solid rgba(180,83,9,0.2)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
-          <span style={{ fontSize: "0.79rem", color: "#fbbf24" }}>👤 Guest session — all data is lost when you close this tab.</span>
+        <div style={{ padding: "9px 24px", background: "color-mix(in srgb, var(--warn) 12%, transparent)", borderBottom: "1px solid color-mix(in srgb, var(--warn) 35%, transparent)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+          <span style={{ fontSize: "0.79rem", color: "var(--warn-text)" }}>👤 Guest session — all data is lost when you close this tab.</span>
           <div style={{ display: "flex", gap: "8px" }}>
-            <button onClick={() => router.push("/register")} style={{ padding: "5px 14px", borderRadius: "999px", border: "1px solid rgba(37,99,235,0.4)", background: "rgba(37,99,235,0.12)", color: "#93c5fd", fontSize: "0.74rem", fontWeight: 600, cursor: "pointer" }}>Sign up free</button>
-            <button onClick={() => router.push("/login")}    style={{ padding: "5px 12px", borderRadius: "999px", border: "1px solid rgba(55,65,81,0.5)", background: "transparent", color: "#6b7280", fontSize: "0.74rem", cursor: "pointer" }}>Log in</button>
+            <button onClick={() => router.push("/register")} style={{ padding: "5px 14px", borderRadius: "0", border: "1px solid color-mix(in srgb, var(--cobalt) 40%, transparent)", background: "color-mix(in srgb, var(--cobalt) 12%, transparent)", color: "var(--cobalt-accent)", fontSize: "0.74rem", fontWeight: 600, cursor: "pointer" }}>Sign up free</button>
+            <button onClick={() => router.push("/login")}    style={{ padding: "5px 12px", borderRadius: "0", border: "1px solid var(--line)", background: "transparent", color: "var(--ink-faint)", fontSize: "0.74rem", cursor: "pointer" }}>Log in</button>
           </div>
         </div>
 
         {/* Report-ready banner */}
         {reportReady && (
-          <div style={{ padding: "12px 24px", background: "linear-gradient(90deg, rgba(22,163,74,0.12), rgba(22,163,74,0.06))", borderBottom: "1px solid rgba(34,197,94,0.2)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
-            <span style={{ fontSize: "0.85rem", color: "#bbf7d0", fontWeight: 600 }}>✅ Analysis complete — your report is ready.</span>
-            <button onClick={scrollToReport} style={{ padding: "6px 16px", borderRadius: "999px", border: "1px solid rgba(34,197,94,0.4)", background: "rgba(22,163,74,0.15)", color: "#86efac", fontSize: "0.78rem", fontWeight: 700, cursor: "pointer" }}>View Report →</button>
+          <div style={{ padding: "12px 24px", background: "linear-gradient(90deg, color-mix(in srgb, var(--ok) 12%, transparent), color-mix(in srgb, var(--ok) 6%, transparent))", borderBottom: "1px solid color-mix(in srgb, var(--ok) 35%, transparent)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+            <span style={{ fontSize: "0.85rem", color: "var(--ok-text)", fontWeight: 600 }}>✅ Analysis complete — your report is ready.</span>
+            <button onClick={scrollToReport} style={{ padding: "6px 16px", borderRadius: "0", border: "1px solid color-mix(in srgb, var(--ok) 40%, transparent)", background: "color-mix(in srgb, var(--ok) 15%, transparent)", color: "var(--ok-text)", fontSize: "0.78rem", fontWeight: 700, cursor: "pointer" }}>View Report →</button>
           </div>
         )}
 
@@ -420,10 +420,10 @@ export default function GuestDashboardPage() {
               <tbody>
                 {!showDataset ? (
                   <tr>
-                    <td><span style={{ color: "#4b5563", fontSize: "0.82rem" }}>No dataset uploaded yet</span></td>
-                    <td style={{ color: "#374151" }}>—</td>
-                    <td style={{ color: "#374151" }}>—</td>
-                    <td style={{ color: "#374151" }}>—</td>
+                    <td><span style={{ color: "var(--ink-faint)", fontSize: "0.82rem" }}>No dataset uploaded yet</span></td>
+                    <td style={{ color: "var(--ink-faint)" }}>—</td>
+                    <td style={{ color: "var(--ink-faint)" }}>—</td>
+                    <td style={{ color: "var(--ink-faint)" }}>—</td>
                     <td className="actions-cell">
                       <button className="table-action" disabled style={{ opacity: 0.3, cursor: "not-allowed" }}>Download</button>
                       <button className="table-action delete" disabled style={{ opacity: 0.3, cursor: "not-allowed" }}>Delete</button>
@@ -433,17 +433,17 @@ export default function GuestDashboardPage() {
                   <tr>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span style={{ display: "inline-flex", padding: "4px", background: "rgba(37,99,235,0.12)", borderRadius: "6px" }}>
+                        <span style={{ display: "inline-flex", padding: "4px", background: "color-mix(in srgb, var(--cobalt) 12%, transparent)", borderRadius: "0"}}>
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                         </span>
-                        <span style={{ fontWeight: 500, color: "#e5e7eb" }}>{dataset.fileName}</span>
+                        <span style={{ fontWeight: 500, color: "var(--ink)" }}>{dataset.fileName}</span>
                       </div>
                     </td>
                     <td>{dataset.rowCount}</td>
                     <td>{dataset.columnCount}</td>
                     <td>{dataset.fileSizeBytes ? `${(dataset.fileSizeBytes / 1024).toFixed(1)} KB` : "—"}</td>
                     <td className="actions-cell">
-                      <button className="table-action" onClick={downloadPdf} disabled={!pdfBase64} style={{ opacity: pdfBase64 ? 1 : 0.4, borderColor: "rgba(37,99,235,0.35)", color: "#93c5fd" }}>Download</button>
+                      <button className="table-action" onClick={downloadPdf} disabled={!pdfBase64} style={{ opacity: pdfBase64 ? 1 : 0.4, borderColor: "color-mix(in srgb, var(--cobalt) 35%, transparent)", color: "var(--cobalt-accent)" }}>Download</button>
                       <button className="table-action delete" onClick={handleDelete}>Delete</button>
                     </td>
                   </tr>
@@ -463,7 +463,7 @@ export default function GuestDashboardPage() {
           <div className="card analysis-report-card">
             <div className="card-header">
               <h2>Report & Exports</h2>
-              <span className="pill" style={reportReady ? { borderColor: "rgba(34,197,94,0.5)", color: "#bbf7d0", background: "rgba(22,163,74,0.1)" } : {}}>
+              <span className="pill" style={reportReady ? { borderColor: "var(--ok-text)", color: "var(--ok-text)", background: "color-mix(in srgb, var(--ok) 10%, transparent)" } : {}}>
                 {reportReady ? "✓ Ready" : "Not started"}
               </span>
             </div>
@@ -474,19 +474,19 @@ export default function GuestDashboardPage() {
             </p>
 
             {/* PDF file row */}
-            <div style={{ display:"flex", alignItems:"center", gap:"12px", padding:"12px 14px", borderRadius:"12px", background:"rgba(15,23,42,0.9)", border:"1px solid rgba(31,41,55,0.9)" }}>
-              <div style={{ width:"38px", height:"38px", borderRadius:"8px", background: reportReady ? "rgba(239,68,68,0.15)" : "rgba(31,41,55,0.8)", border:`1px solid ${reportReady ? "rgba(239,68,68,0.3)" : "rgba(55,65,81,0.8)"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:"12px", padding:"12px 14px", borderRadius:"0", background:"var(--card)", border:"1px solid var(--line)" }}>
+              <div style={{ width:"38px", height:"38px", borderRadius:"0", background: reportReady ? "color-mix(in srgb, var(--danger) 15%, transparent)" : "color-mix(in srgb, var(--card) 80%, transparent)", border:`1px solid ${reportReady ? "color-mix(in srgb, var(--danger) 35%, transparent)" : "var(--line)"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={reportReady ? "#f87171" : "#4b5563"} strokeWidth="1.6">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                   <polyline points="14 2 14 8 20 8"/>
                 </svg>
               </div>
               <div style={{ flex:1 }}>
-                <p style={{ margin:0, fontSize:"0.82rem", fontWeight:600, color: reportReady ? "#e5e7eb" : "#4b5563" }}>{reportFileName}</p>
+                <p style={{ margin:0, fontSize:"0.82rem", fontWeight:600, color: reportReady ? "var(--ink)" : "var(--ink-faint)" }}>{reportFileName}</p>
                 <p className="muted-small">{reportReady ? "Ready" : "Pending analysis"}</p>
               </div>
               <button disabled={!reportReady || !pdfBase64 || pdfLoading} onClick={handleViewPdf}
-                style={{ background:"rgba(37,99,235,0.12)", border:"1px solid rgba(37,99,235,0.3)", borderRadius:"8px", padding:"6px 12px", color:(!reportReady||!pdfBase64||pdfLoading) ? "#374151" : "#93c5fd", fontSize:"0.75rem", fontWeight:600, cursor:(!reportReady||!pdfBase64||pdfLoading) ? "not-allowed" : "pointer", opacity:(!reportReady||!pdfBase64||pdfLoading) ? 0.45 : 1 }}>
+                style={{ background:"color-mix(in srgb, var(--cobalt) 12%, transparent)", border:"1px solid color-mix(in srgb, var(--cobalt) 35%, transparent)", borderRadius:"0", padding:"6px 12px", color:(!reportReady||!pdfBase64||pdfLoading) ? "var(--ink-faint)" : "var(--cobalt-accent)", fontSize:"0.75rem", fontWeight:600, cursor:(!reportReady||!pdfBase64||pdfLoading) ? "not-allowed" : "pointer", opacity:(!reportReady||!pdfBase64||pdfLoading) ? 0.45 : 1 }}>
                 {pdfLoading ? "Loading…" : "View PDF"}
               </button>
             </div>
@@ -504,26 +504,26 @@ export default function GuestDashboardPage() {
             </div>
 
             {/* Sign-up upsell */}
-            <div style={{ padding: "16px 18px", borderRadius: "14px", background: "rgba(37,99,235,0.07)", border: "1px solid rgba(37,99,235,0.18)", display: "flex", flexDirection: "column", gap: "8px" }}>
-              <p style={{ margin: 0, fontWeight: 700, color: "#bfdbfe", fontSize: "0.85rem" }}>💡 Want to keep your results?</p>
-              <p style={{ margin: 0, color: "#6b7280", fontSize: "0.78rem" }}>Sign up free to save your dataset, access your report anytime, and keep your history.</p>
+            <div style={{ padding: "16px 18px", borderRadius: "0", background: "color-mix(in srgb, var(--cobalt) 7%, transparent)", border: "1px solid color-mix(in srgb, var(--cobalt) 35%, transparent)", display: "flex", flexDirection: "column", gap: "8px" }}>
+              <p style={{ margin: 0, fontWeight: 700, color: "var(--cobalt-accent)", fontSize: "0.85rem" }}>💡 Want to keep your results?</p>
+              <p style={{ margin: 0, color: "var(--ink-faint)", fontSize: "0.78rem" }}>Sign up free to save your dataset, access your report anytime, and keep your history.</p>
               <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
-                <button onClick={() => router.push("/register")} style={{ padding: "8px 18px", borderRadius: "999px", border: "none", background: "linear-gradient(90deg, #2563eb, #4f46e5)", color: "#fff", fontSize: "0.82rem", fontWeight: 700, cursor: "pointer" }}>Create free account</button>
-                <button onClick={() => router.push("/login")}    style={{ padding: "8px 16px", borderRadius: "999px", border: "1px solid rgba(55,65,81,0.8)", background: "transparent", color: "#9ca3af", fontSize: "0.82rem", cursor: "pointer" }}>Log in</button>
+                <button onClick={() => router.push("/register")} style={{ padding: "8px 18px", borderRadius: "0", border: "none", background: "linear-gradient(90deg, var(--cobalt), var(--cobalt))", color: "#fff", fontSize: "0.82rem", fontWeight: 700, cursor: "pointer" }}>Create free account</button>
+                <button onClick={() => router.push("/login")}    style={{ padding: "8px 16px", borderRadius: "0", border: "1px solid var(--line)", background: "transparent", color: "var(--ink-soft)", fontSize: "0.82rem", cursor: "pointer" }}>Log in</button>
               </div>
             </div>
 
             {/* What's included */}
             <div style={{ marginTop:"8px" }}>
-              <h3 style={{ fontSize:"0.78rem", color:"#6b7280", letterSpacing:"0.05em", textTransform:"uppercase", margin:"0 0 10px 0" }}>
+              <h3 style={{ fontSize:"0.78rem", color:"var(--ink-faint)", letterSpacing:"0.05em", textTransform:"uppercase", margin:"0 0 10px 0" }}>
                 What&apos;s included in your report
               </h3>
               <div style={{ display:"flex", flexDirection:"column", gap:"7px" }}>
                 {REPORT_SECTIONS.map((s,i) => (
-                  <div key={i} style={{ display:"flex", gap:"10px", alignItems:"flex-start", padding:"9px 12px", borderRadius:"10px", background:"rgba(15,23,42,0.9)", border:"1px solid rgba(31,41,55,0.8)" }}>
+                  <div key={i} style={{ display:"flex", gap:"10px", alignItems:"flex-start", padding:"9px 12px", borderRadius:"0", background:"var(--card)", border:"1px solid var(--line)" }}>
                     <span style={{ fontSize:"15px", flexShrink:0, marginTop:"1px" }}>{s.emoji}</span>
                     <div>
-                      <p style={{ margin:0, fontSize:"0.8rem", fontWeight:600, color:"#d1d5db" }}>{s.title}</p>
+                      <p style={{ margin:0, fontSize:"0.8rem", fontWeight:600, color:"var(--ink)" }}>{s.title}</p>
                       <p className="muted-small" style={{ marginTop:"2px", lineHeight:"1.5" }}>{s.desc}</p>
                     </div>
                   </div>

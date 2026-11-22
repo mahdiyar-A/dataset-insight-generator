@@ -353,42 +353,42 @@ export default function WorkspacePage() {
   const activeCursors = Object.values(cursors).filter(c => c.fileType === activeKey);
 
   if (loading) return (
-    <div style={{ minHeight: "100vh", background: "#080d1a", display: "flex",
-      alignItems: "center", justifyContent: "center", color: "#64748b" }}>
+    <div style={{ minHeight: "100vh", background: "var(--card)", display: "flex",
+      alignItems: "center", justifyContent: "center", color: "var(--ink-faint)" }}>
       Loading workspace…
     </div>
   );
 
   if (error) return (
-    <div style={{ minHeight: "100vh", background: "#080d1a", display: "flex",
+    <div style={{ minHeight: "100vh", background: "var(--card)", display: "flex",
       alignItems: "center", justifyContent: "center", flexDirection: "column",
-      gap: "16px", color: "#f87171" }}>
+      gap: "16px", color: "var(--danger-text)" }}>
       <p>{error}</p>
       <button onClick={() => router.back()} style={{ background: "none", border: "none",
-        color: "#64748b", cursor: "pointer" }}>← Go back</button>
+        color: "var(--ink-faint)", cursor: "pointer" }}>← Go back</button>
     </div>
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080d1a", color: "#e2e8f0",
+    <div style={{ minHeight: "100vh", background: "var(--paper)", color: "var(--ink)",
       display: "grid", gridTemplateColumns: "260px 1fr 320px",
       gridTemplateRows: "56px 1fr", height: "100vh", overflow: "hidden" }}>
 
       {/* ── Top bar ──────────────────────────────────────────────────────── */}
       <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center",
         padding: "0 20px", gap: "16px",
-        borderBottom: "1px solid rgba(30,41,59,0.8)",
-        background: "rgba(8,13,26,0.98)" }}>
+        borderBottom: "1px solid var(--line)",
+        background: "var(--card)" }}>
 
         <button onClick={() => router.push("/dashboard")}
-          style={{ background: "none", border: "none", color: "#64748b",
+          style={{ background: "none", border: "none", color: "var(--ink-faint)",
             cursor: "pointer", fontSize: "0.85rem" }}>
           ← Dashboard
         </button>
 
         <div style={{ flex: 1 }}>
           <h1 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 700,
-            color: "#e2e8f0" }}>
+            color: "var(--ink)" }}>
             {workspace?.analysis?.fileName ?? "Shared Workspace"}
           </h1>
         </div>
@@ -398,16 +398,16 @@ export default function WorkspacePage() {
           {presence.map((p, i) => (
             <div key={p.userId} title={p.userName} style={{
               width: "28px", height: "28px", borderRadius: "50%",
-              background: p.color, border: "2px solid #080d1a",
+              background: p.color, border: "2px solid var(--line)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: "0.7rem", fontWeight: 700, color: "#fff",
+              fontSize: "0.7rem", fontWeight: 700, color: "var(--ink)",
               marginLeft: i > 0 ? "-8px" : 0, zIndex: presence.length - i,
             }}>
               {(p.userName || "?").charAt(0).toUpperCase()}
             </div>
           ))}
           {presence.length > 0 && (
-            <span style={{ marginLeft: "8px", color: "#475569", fontSize: "0.75rem",
+            <span style={{ marginLeft: "8px", color: "var(--ink-faint)", fontSize: "0.75rem",
               display: "flex", alignItems: "center" }}>
               {presence.length} online
             </span>
@@ -416,9 +416,9 @@ export default function WorkspacePage() {
       </div>
 
       {/* ── Left: hierarchical file tree ─────────────────────────────────── */}
-      <div style={{ borderRight: "1px solid rgba(30,41,59,0.8)",
-        background: "rgba(8,13,26,0.6)", padding: "16px", overflowY: "auto" }}>
-        <p style={{ margin: "0 0 12px", color: "#475569", fontSize: "0.72rem",
+      <div style={{ borderRight: "1px solid var(--line)",
+        background: "color-mix(in srgb, var(--card) 60%, transparent)", padding: "16px", overflowY: "auto" }}>
+        <p style={{ margin: "0 0 12px", color: "var(--ink-faint)", fontSize: "0.72rem",
           textTransform: "uppercase", letterSpacing: "0.06em" }}>
           Files
         </p>
@@ -430,31 +430,31 @@ export default function WorkspacePage() {
           return (
             <div key={file.key}
               onClick={() => accessible && setActiveKey(file.key)}
-              style={{ padding: "10px 12px", borderRadius: "8px", marginBottom: "4px",
+              style={{ padding: "10px 12px", borderRadius: "0", marginBottom: "4px",
                 cursor: accessible ? "pointer" : "not-allowed",
-                background: isActive ? "rgba(37,99,235,0.15)" : "transparent",
-                border: isActive ? "1px solid rgba(37,99,235,0.3)" : "1px solid transparent",
+                background: isActive ? "color-mix(in srgb, var(--cobalt) 15%, transparent)" : "transparent",
+                border: isActive ? "1px solid color-mix(in srgb, var(--cobalt) 35%, transparent)" : "1px solid transparent",
                 opacity: file.available ? 1 : 0.35,
                 display: "flex", alignItems: "center", gap: "10px" }}>
               <span style={{ fontSize: "1rem" }}>{file.icon}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ margin: 0, fontSize: "0.83rem", fontWeight: 500,
-                  color: isActive ? "#93c5fd" : "#cbd5e1",
+                  color: isActive ? "var(--cobalt-accent)" : "var(--ink)",
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {file.label}
                 </p>
                 {!file.available && (
-                  <p style={{ margin: 0, fontSize: "0.68rem", color: "#374151" }}>Not generated</p>
+                  <p style={{ margin: 0, fontSize: "0.68rem", color: "var(--ink-faint)" }}>Not generated</p>
                 )}
                 {file.available && !canAccess(file.key) && (
-                  <p style={{ margin: 0, fontSize: "0.68rem", color: "#374151" }}>No access</p>
+                  <p style={{ margin: 0, fontSize: "0.68rem", color: "var(--ink-faint)" }}>No access</p>
                 )}
               </div>
               {file.available && accessible && (
                 <button
                   onClick={e => { e.stopPropagation(); handleDownload(file.key); }}
                   title="Download"
-                  style={{ background: "none", border: "none", color: "#475569",
+                  style={{ background: "none", border: "none", color: "var(--ink-faint)",
                     cursor: "pointer", fontSize: "0.85rem", padding: "2px" }}>
                   ↓
                 </button>
@@ -465,17 +465,17 @@ export default function WorkspacePage() {
 
         {/* Analysis info */}
         {workspace?.analysis && (
-          <div style={{ marginTop: "24px", padding: "14px", borderRadius: "10px",
-            background: "rgba(15,23,42,0.6)", border: "1px solid rgba(30,41,59,0.6)" }}>
-            <p style={{ margin: "0 0 6px", color: "#475569", fontSize: "0.72rem",
+          <div style={{ marginTop: "24px", padding: "14px", borderRadius: "0",
+            background: "color-mix(in srgb, var(--card) 60%, transparent)", border: "1px solid var(--line)" }}>
+            <p style={{ margin: "0 0 6px", color: "var(--ink-faint)", fontSize: "0.72rem",
               textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Dataset
             </p>
-            <p style={{ margin: "0 0 4px", fontSize: "0.82rem", color: "#94a3b8" }}>
+            <p style={{ margin: "0 0 4px", fontSize: "0.82rem", color: "var(--ink-soft)" }}>
               {workspace.analysis.rowCount?.toLocaleString() ?? "—"} rows ×{" "}
               {workspace.analysis.columnCount ?? "—"} cols
             </p>
-            <p style={{ margin: 0, fontSize: "0.75rem", color: "#475569" }}>
+            <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--ink-faint)" }}>
               {workspace.analysis.completedAt
                 ? new Date(workspace.analysis.completedAt).toLocaleDateString("en-CA")
                 : "In progress"}
@@ -485,14 +485,14 @@ export default function WorkspacePage() {
 
         {/* Who can open the selected file */}
         {canManage && activeFile && (
-          <div style={{ marginTop: "16px", padding: "14px", borderRadius: "10px",
-            background: "rgba(15,23,42,0.6)", border: "1px solid rgba(30,41,59,0.6)" }}>
-            <p style={{ margin: "0 0 8px", color: "#475569", fontSize: "0.72rem",
+          <div style={{ marginTop: "16px", padding: "14px", borderRadius: "0",
+            background: "color-mix(in srgb, var(--card) 60%, transparent)", border: "1px solid var(--line)" }}>
+            <p style={{ margin: "0 0 8px", color: "var(--ink-faint)", fontSize: "0.72rem",
               textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Who can open {activeFile.label}
             </p>
             {restrictable.length === 0 ? (
-              <p style={{ margin: 0, fontSize: "0.76rem", color: "#475569" }}>
+              <p style={{ margin: 0, fontSize: "0.76rem", color: "var(--ink-faint)" }}>
                 Nobody else is in the team yet.
               </p>
             ) : restrictable.map(m => {
@@ -500,7 +500,7 @@ export default function WorkspacePage() {
               return (
                 <div key={m.userId} style={{ display: "flex", alignItems: "center",
                   justifyContent: "space-between", gap: "8px", marginBottom: "6px" }}>
-                  <span title={m.email} style={{ fontSize: "0.78rem", color: "#94a3b8", minWidth: 0,
+                  <span title={m.email} style={{ fontSize: "0.78rem", color: "var(--ink-soft)", minWidth: 0,
                     overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {name}
                   </span>
@@ -509,9 +509,9 @@ export default function WorkspacePage() {
                     value={accessFor(m.userId, activeFile.key)}
                     onChange={e => handleSetAccess(m.userId, activeFile.key,
                       e.target.value === "none" ? "none" : "view")}
-                    style={{ padding: "3px 6px", borderRadius: "6px", flexShrink: 0,
-                      border: "1px solid rgba(30,41,59,0.8)", background: "rgba(2,6,23,0.6)",
-                      color: "#94a3b8", fontSize: "0.72rem", cursor: "pointer" }}>
+                    style={{ padding: "3px 6px", borderRadius: "0", flexShrink: 0,
+                      border: "1px solid var(--line)", background: "color-mix(in srgb, var(--card) 60%, transparent)",
+                      color: "var(--ink-soft)", fontSize: "0.72rem", cursor: "pointer" }}>
                     <option value="view">Can open</option>
                     <option value="none">No access</option>
                   </select>
@@ -519,7 +519,7 @@ export default function WorkspacePage() {
               );
             })}
             {accessError && (
-              <p role="alert" style={{ margin: "6px 0 0", fontSize: "0.72rem", color: "#f87171" }}>
+              <p role="alert" style={{ margin: "6px 0 0", fontSize: "0.72rem", color: "var(--danger-text)" }}>
                 {accessError}
               </p>
             )}
@@ -529,7 +529,7 @@ export default function WorkspacePage() {
 
       {/* ── Centre: file preview area ─────────────────────────────────────── */}
       <div style={{ display: "flex", flexDirection: "column", overflow: "hidden",
-        background: "rgba(2,6,23,0.8)" }}>
+        background: "color-mix(in srgb, var(--card) 80%, transparent)" }}>
 
         {activeFile ? (
           <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
@@ -541,9 +541,9 @@ export default function WorkspacePage() {
               </h2>
               <button
                 onClick={() => handleDownload(activeFile.key)}
-                style={{ marginLeft: "auto", padding: "7px 16px", borderRadius: "8px",
-                  border: "1px solid rgba(59,130,246,0.35)", background: "transparent",
-                  color: "#93c5fd", fontSize: "0.8rem", cursor: "pointer" }}>
+                style={{ marginLeft: "auto", padding: "7px 16px", borderRadius: "0",
+                  border: "1px solid color-mix(in srgb, var(--cobalt) 35%, transparent)", background: "transparent",
+                  color: "var(--cobalt-accent)", fontSize: "0.8rem", cursor: "pointer" }}>
                 Download
               </button>
             </div>
@@ -551,12 +551,12 @@ export default function WorkspacePage() {
             {/* Permission badge. Not for the PDF: the report below says whether
                 this person may edit it, from their role in the team. */}
             {activeFile.key !== "pdf" && <div style={{ display: "inline-flex", alignItems: "center", gap: "6px",
-              padding: "4px 12px", borderRadius: "999px", marginBottom: "20px",
+              padding: "4px 12px", borderRadius: "0", marginBottom: "20px",
               background: canEdit(activeFile.key)
-                ? "rgba(16,185,129,0.1)" : "rgba(30,41,59,0.5)",
+                ? "color-mix(in srgb, var(--ok) 10%, transparent)" : "color-mix(in srgb, var(--card) 50%, transparent)",
               border: canEdit(activeFile.key)
-                ? "1px solid rgba(16,185,129,0.25)" : "1px solid rgba(30,41,59,0.6)" }}>
-              <span style={{ color: canEdit(activeFile.key) ? "#6ee7b7" : "#64748b",
+                ? "1px solid color-mix(in srgb, var(--ok) 35%, transparent)" : "1px solid var(--line)" }}>
+              <span style={{ color: canEdit(activeFile.key) ? "var(--ok-text)" : "var(--ink-faint)",
                 fontSize: "0.72rem", fontWeight: 600 }}>
                 {canEdit(activeFile.key) ? "✎ Editor" : "👁 Viewer"}
               </span>
@@ -566,21 +566,21 @@ export default function WorkspacePage() {
             <div
               ref={previewRef}
               onPointerMove={handlePointerMove}
-              style={{ position: "relative", background: "rgba(15,23,42,0.7)",
-                borderRadius: "12px", border: "1px solid rgba(30,41,59,0.7)",
-                padding: "48px", textAlign: "center", color: "#334155",
+              style={{ position: "relative", background: "color-mix(in srgb, var(--card) 70%, transparent)",
+                borderRadius: "0", border: "1px solid var(--line)",
+                padding: "48px", textAlign: "center", color: "var(--ink-faint)",
                 minHeight: "320px", overflow: "hidden" }}>
 
               <p style={{ fontSize: "2rem", margin: "0 0 12px" }}>{activeFile.icon}</p>
-              <p style={{ margin: "0 0 6px", color: "#64748b", fontSize: "0.9rem" }}>
+              <p style={{ margin: "0 0 6px", color: "var(--ink-faint)", fontSize: "0.9rem" }}>
                 {activeFile.label}
               </p>
-              <p style={{ margin: 0, color: "#334155", fontSize: "0.78rem" }}>
+              <p style={{ margin: 0, color: "var(--ink-faint)", fontSize: "0.78rem" }}>
                 Download to open in your preferred application.
                 Use the annotations panel to leave comments for your team.
               </p>
               {activeCursors.length > 0 && (
-                <p style={{ margin: "16px 0 0", color: "#475569", fontSize: "0.72rem" }}>
+                <p style={{ margin: "16px 0 0", color: "var(--ink-faint)", fontSize: "0.72rem" }}>
                   {activeCursors.length === 1
                     ? `${activeCursors[0].userName} is viewing this file`
                     : `${activeCursors.length} collaborators are viewing this file`}
@@ -600,8 +600,8 @@ export default function WorkspacePage() {
                       fill={c.color} stroke="#0b1220" strokeWidth="1" strokeLinejoin="round" />
                   </svg>
                   <span style={{ position: "absolute", left: "16px", top: "12px",
-                    background: c.color, color: "#fff", fontSize: "0.65rem",
-                    fontWeight: 600, padding: "2px 6px", borderRadius: "4px",
+                    background: c.color, color: "var(--ink)", fontSize: "0.65rem",
+                    fontWeight: 600, padding: "2px 6px", borderRadius: "0",
                     whiteSpace: "nowrap" }}>
                     {c.userName}
                   </span>
@@ -620,7 +620,7 @@ export default function WorkspacePage() {
           </div>
         ) : (
           <div style={{ flex: 1, display: "flex", alignItems: "center",
-            justifyContent: "center", color: "#334155", flexDirection: "column", gap: "8px" }}>
+            justifyContent: "center", color: "var(--ink-faint)", flexDirection: "column", gap: "8px" }}>
             <span style={{ fontSize: "2.5rem", opacity: 0.3 }}>📁</span>
             <p style={{ margin: 0, fontSize: "0.88rem" }}>
               Select a file from the left panel
@@ -630,15 +630,15 @@ export default function WorkspacePage() {
       </div>
 
       {/* ── Right: annotations panel ──────────────────────────────────────── */}
-      <div style={{ borderLeft: "1px solid rgba(30,41,59,0.8)",
-        background: "rgba(8,13,26,0.7)", display: "flex",
+      <div style={{ borderLeft: "1px solid var(--line)",
+        background: "color-mix(in srgb, var(--card) 70%, transparent)", display: "flex",
         flexDirection: "column", overflow: "hidden" }}>
 
         <div style={{ padding: "16px 16px 12px",
-          borderBottom: "1px solid rgba(30,41,59,0.6)" }}>
-          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#94a3b8" }}>
+          borderBottom: "1px solid var(--line)" }}>
+          <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "var(--ink-soft)" }}>
             Annotations
-            {activeFile && <span style={{ marginLeft: "8px", color: "#475569",
+            {activeFile && <span style={{ marginLeft: "8px", color: "var(--ink-faint)",
               fontWeight: 400, fontSize: "0.8rem" }}>
               ({visibleAnnotations.filter(a => !a.resolvedAt).length} open)
             </span>}
@@ -648,12 +648,12 @@ export default function WorkspacePage() {
         {/* Annotation list */}
         <div style={{ flex: 1, overflowY: "auto", padding: "12px" }}>
           {!activeFile ? (
-            <p style={{ color: "#334155", fontSize: "0.82rem", textAlign: "center",
+            <p style={{ color: "var(--ink-faint)", fontSize: "0.82rem", textAlign: "center",
               marginTop: "24px" }}>
               Select a file to view annotations
             </p>
           ) : visibleAnnotations.length === 0 ? (
-            <p style={{ color: "#334155", fontSize: "0.82rem", textAlign: "center",
+            <p style={{ color: "var(--ink-faint)", fontSize: "0.82rem", textAlign: "center",
               marginTop: "24px" }}>
               No annotations yet. Add the first one below.
             </p>
@@ -661,8 +661,8 @@ export default function WorkspacePage() {
             visibleAnnotations.map(ann => (
               <div key={ann.id} style={{ marginBottom: "12px",
                 opacity: ann.resolvedAt ? 0.45 : 1 }}>
-                <div style={{ background: "rgba(15,23,42,0.7)",
-                  border: "1px solid rgba(30,41,59,0.6)", borderRadius: "10px",
+                <div style={{ background: "color-mix(in srgb, var(--card) 70%, transparent)",
+                  border: "1px solid var(--line)", borderRadius: "0",
                   padding: "12px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between",
                     alignItems: "flex-start", marginBottom: "6px" }}>
@@ -670,17 +670,17 @@ export default function WorkspacePage() {
                       <div style={{ width: "20px", height: "20px", borderRadius: "50%",
                         background: colorFor(ann.userId), display: "flex", alignItems: "center",
                         justifyContent: "center", fontSize: "0.65rem", fontWeight: 700,
-                        color: "#fff", flexShrink: 0 }}>
+                        color: "var(--ink)", flexShrink: 0 }}>
                         {(ann.authorName || ann.authorEmail || "?").charAt(0).toUpperCase()}
                       </div>
-                      <span style={{ fontSize: "0.78rem", color: "#64748b" }}>
+                      <span style={{ fontSize: "0.78rem", color: "var(--ink-faint)" }}>
                         {ann.authorName || ann.authorEmail || "Unknown"}
                       </span>
                     </div>
                     {ann.resolvedAt && (
-                      <span style={{ fontSize: "0.68rem", color: "#10b981",
-                        background: "rgba(16,185,129,0.1)", padding: "2px 8px",
-                        borderRadius: "999px" }}>
+                      <span style={{ fontSize: "0.68rem", color: "var(--ok-text)",
+                        background: "color-mix(in srgb, var(--ok) 10%, transparent)", padding: "2px 8px",
+                        borderRadius: "0"}}>
                         ✓ Resolved
                       </span>
                     )}
@@ -691,28 +691,28 @@ export default function WorkspacePage() {
                         value={editDraft}
                         onChange={e => setEditDraft(e.target.value)}
                         rows={3}
-                        style={{ width: "100%", padding: "8px 10px", borderRadius: "6px",
-                          border: "1px solid rgba(59,130,246,0.4)", background: "rgba(2,6,23,0.8)",
-                          color: "#e2e8f0", fontSize: "0.83rem", resize: "none", outline: "none",
+                        style={{ width: "100%", padding: "8px 10px", borderRadius: "0",
+                          border: "1px solid color-mix(in srgb, var(--cobalt) 40%, transparent)", background: "color-mix(in srgb, var(--card) 80%, transparent)",
+                          color: "var(--ink)", fontSize: "0.83rem", resize: "none", outline: "none",
                           boxSizing: "border-box", fontFamily: "inherit" }} />
                       <div style={{ display: "flex", gap: "8px", marginTop: "6px" }}>
                         <button onClick={handleSaveEdit}
                           disabled={!editDraft.trim()}
-                          style={{ background: "rgba(37,99,235,0.25)", border: "none",
-                            color: "#93c5fd", cursor: "pointer", fontSize: "0.72rem",
-                            padding: "4px 10px", borderRadius: "5px",
+                          style={{ background: "color-mix(in srgb, var(--cobalt) 25%, transparent)", border: "none",
+                            color: "var(--cobalt-accent)", cursor: "pointer", fontSize: "0.72rem",
+                            padding: "4px 10px", borderRadius: "0",
                             opacity: editDraft.trim() ? 1 : 0.4 }}>
                           Save
                         </button>
                         <button onClick={() => { setEditingId(null); setEditDraft(""); }}
-                          style={{ background: "none", border: "none", color: "#475569",
+                          style={{ background: "none", border: "none", color: "var(--ink-faint)",
                             cursor: "pointer", fontSize: "0.72rem", padding: "4px 0" }}>
                           Cancel
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <p style={{ margin: "0 0 8px", fontSize: "0.85rem", color: "#cbd5e1",
+                    <p style={{ margin: "0 0 8px", fontSize: "0.85rem", color: "var(--ink)",
                       lineHeight: "1.5" }}>
                       {ann.content}
                     </p>
@@ -723,12 +723,12 @@ export default function WorkspacePage() {
                       {!ann.resolvedAt && (
                         <>
                           <button onClick={() => setReplyTo(ann.id)}
-                            style={{ background: "none", border: "none", color: "#475569",
+                            style={{ background: "none", border: "none", color: "var(--ink-faint)",
                               cursor: "pointer", fontSize: "0.72rem", padding: 0 }}>
                             Reply
                           </button>
                           <button onClick={() => handleResolve(ann.id)}
-                            style={{ background: "none", border: "none", color: "#10b981",
+                            style={{ background: "none", border: "none", color: "var(--ok-text)",
                               cursor: "pointer", fontSize: "0.72rem", padding: 0 }}>
                             Resolve
                           </button>
@@ -736,14 +736,14 @@ export default function WorkspacePage() {
                       )}
                       {ann.userId === user?.id && !ann.resolvedAt && (
                         <button onClick={() => handleStartEdit(ann)}
-                          style={{ background: "none", border: "none", color: "#93c5fd",
+                          style={{ background: "none", border: "none", color: "var(--cobalt-accent)",
                             cursor: "pointer", fontSize: "0.72rem", padding: 0 }}>
                           Edit
                         </button>
                       )}
                       {ann.userId === user?.id && (
                         <button onClick={() => handleDeleteAnnotation(ann.id)}
-                          style={{ background: "none", border: "none", color: "#f87171",
+                          style={{ background: "none", border: "none", color: "var(--danger-text)",
                             cursor: "pointer", fontSize: "0.72rem", padding: 0 }}>
                           Delete
                         </button>
@@ -754,19 +754,19 @@ export default function WorkspacePage() {
                   {/* Replies */}
                   {ann.replies?.length > 0 && (
                     <div style={{ marginTop: "10px", paddingLeft: "14px",
-                      borderLeft: "2px solid rgba(30,41,59,0.8)" }}>
+                      borderLeft: "2px solid var(--line)" }}>
                       {ann.replies.map(r => (
                         <div key={r.id} style={{ marginBottom: "8px" }}>
                           <span style={{ fontSize: "0.72rem", color: colorFor(r.userId) }}>
                             {r.authorName || r.authorEmail || "Unknown"}:
                           </span>
                           <p style={{ margin: "2px 0 0", fontSize: "0.82rem",
-                            color: "#94a3b8" }}>
+                            color: "var(--ink-soft)" }}>
                             {r.content}
                           </p>
                           {r.userId === user?.id && (
                             <button onClick={() => handleDeleteAnnotation(r.id)}
-                              style={{ background: "none", border: "none", color: "#f87171",
+                              style={{ background: "none", border: "none", color: "var(--danger-text)",
                                 cursor: "pointer", fontSize: "0.68rem", padding: "2px 0 0" }}>
                               Delete
                             </button>
@@ -783,15 +783,15 @@ export default function WorkspacePage() {
 
         {/* New annotation input */}
         {activeFile && (
-          <div style={{ padding: "12px", borderTop: "1px solid rgba(30,41,59,0.6)" }}>
+          <div style={{ padding: "12px", borderTop: "1px solid var(--line)" }}>
             {replyTo && (
               <div style={{ display: "flex", justifyContent: "space-between",
                 alignItems: "center", marginBottom: "6px" }}>
-                <span style={{ fontSize: "0.72rem", color: "#475569" }}>
+                <span style={{ fontSize: "0.72rem", color: "var(--ink-faint)" }}>
                   Replying to thread
                 </span>
                 <button onClick={() => setReplyTo(null)}
-                  style={{ background: "none", border: "none", color: "#475569",
+                  style={{ background: "none", border: "none", color: "var(--ink-faint)",
                     cursor: "pointer", fontSize: "0.72rem" }}>
                   Cancel
                 </button>
@@ -803,15 +803,15 @@ export default function WorkspacePage() {
               placeholder={activeFile ? `Annotate ${activeFile.label}…` : "Select a file first"}
               rows={3}
               disabled={!activeFile}
-              style={{ width: "100%", padding: "10px 12px", borderRadius: "8px",
-                border: "1px solid rgba(30,41,59,0.8)", background: "rgba(2,6,23,0.7)",
-                color: "#e2e8f0", fontSize: "0.83rem", resize: "none", outline: "none",
+              style={{ width: "100%", padding: "10px 12px", borderRadius: "0",
+                border: "1px solid var(--line)", background: "color-mix(in srgb, var(--card) 70%, transparent)",
+                color: "var(--ink)", fontSize: "0.83rem", resize: "none", outline: "none",
                 boxSizing: "border-box", fontFamily: "inherit" }} />
             <button
               onClick={handleAddAnnotation}
               disabled={!newComment.trim()}
-              style={{ width: "100%", marginTop: "8px", padding: "9px", borderRadius: "8px",
-                border: "none", background: "rgba(37,99,235,0.25)", color: "#93c5fd",
+              style={{ width: "100%", marginTop: "8px", padding: "9px", borderRadius: "0",
+                border: "none", background: "color-mix(in srgb, var(--cobalt) 25%, transparent)", color: "var(--cobalt-accent)",
                 fontWeight: 600, fontSize: "0.83rem", cursor: "pointer",
                 opacity: !newComment.trim() ? 0.4 : 1 }}>
               Add annotation

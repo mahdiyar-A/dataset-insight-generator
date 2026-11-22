@@ -103,22 +103,20 @@ export default function PlansPage() {
   const currentPlan = userPlan?.plan ?? "free";
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080d1a", color: "#e2e8f0", padding: "60px 24px" }}>
+    <div style={{ minHeight: "100vh", background: "var(--paper)", color: "var(--ink)", padding: "60px 24px" }}>
 
       {/* Header */}
       <div style={{ textAlign: "center", marginBottom: "56px" }}>
-        <div style={{ display: "inline-block", padding: "6px 16px", borderRadius: "999px",
-          background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.3)",
-          fontSize: "0.78rem", color: "#93c5fd", marginBottom: "16px", letterSpacing: "0.05em" }}>
+        <div style={{ display: "inline-block", padding: "6px 16px", borderRadius: "0",
+          background: "color-mix(in srgb, var(--cobalt) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--cobalt) 35%, transparent)",
+          fontSize: "0.78rem", color: "var(--cobalt-accent)", marginBottom: "16px", letterSpacing: "0.05em" }}>
           PRICING
         </div>
-        <h1 style={{ fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 800,
-          background: "linear-gradient(135deg, #e2e8f0, #93c5fd)",
-          WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-          margin: "0 0 12px" }}>
+        <h1 style={{ fontSize: "clamp(2rem, 4.5vw, 3.2rem)", fontWeight: 800,
+          color: "var(--ink)", lineHeight: 1.05, margin: "0 0 12px" }}>
           Simple, transparent pricing
         </h1>
-        <p style={{ color: "#64748b", fontSize: "1rem", maxWidth: "480px", margin: "0 auto" }}>
+        <p style={{ color: "var(--ink-faint)", fontSize: "1rem", maxWidth: "480px", margin: "0 auto" }}>
           Start free. Upgrade when you need collaboration, more analyses, and premium exports.
         </p>
       </div>
@@ -134,26 +132,26 @@ export default function PlansPage() {
             <div key={plan.id} style={{
               flex: "1 1 360px", maxWidth: "400px",
               background: isPro
-                ? "linear-gradient(160deg, rgba(37,99,235,0.15), rgba(15,23,42,0.98))"
-                : "rgba(15,23,42,0.8)",
-              border: isPro ? "1px solid rgba(59,130,246,0.5)" : "1px solid rgba(30,41,59,0.8)",
-              borderRadius: "20px", padding: "36px",
+                ? "linear-gradient(160deg, color-mix(in srgb, var(--cobalt) 15%, transparent), var(--card))"
+                : "color-mix(in srgb, var(--card) 80%, transparent)",
+              border: isPro ? "1px solid var(--cobalt-accent)" : "1px solid var(--line)",
+              borderRadius: "0", padding: "36px",
               position: "relative", overflow: "hidden",
             }}>
 
               {/* Pro glow */}
               {isPro && <div style={{
                 position: "absolute", top: 0, left: 0, right: 0, height: "2px",
-                background: "linear-gradient(90deg, #2563eb, #7c3aed, #2563eb)",
+                background: "linear-gradient(90deg, var(--cobalt), var(--cobalt), var(--cobalt))",
               }} />}
 
               {/* Badge */}
               {plan.badge && (
                 <div style={{
                   position: "absolute", top: "20px", right: "20px",
-                  background: "rgba(124,58,237,0.2)", border: "1px solid rgba(124,58,237,0.4)",
-                  borderRadius: "999px", padding: "3px 12px",
-                  fontSize: "0.72rem", color: "#c4b5fd", fontWeight: 600,
+                  background: "color-mix(in srgb, var(--cobalt) 20%, transparent)", border: "1px solid color-mix(in srgb, var(--cobalt) 40%, transparent)",
+                  borderRadius: "0", padding: "3px 12px",
+                  fontSize: "0.72rem", color: "var(--cobalt-accent)", fontWeight: 600,
                 }}>
                   {plan.badge}
                 </div>
@@ -162,15 +160,15 @@ export default function PlansPage() {
               {/* Plan name */}
               <div style={{ marginBottom: "24px" }}>
                 <h2 style={{ fontSize: "1.25rem", fontWeight: 700, margin: "0 0 4px",
-                  color: isPro ? "#bfdbfe" : "#e2e8f0" }}>
+                  color: isPro ? "var(--cobalt-accent)" : "var(--ink)" }}>
                   {plan.name}
                 </h2>
                 <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
                   <span style={{ fontSize: "2.4rem", fontWeight: 800,
-                    color: isPro ? "#60a5fa" : "#e2e8f0" }}>
+                    color: isPro ? "var(--cobalt-accent)" : "var(--ink)" }}>
                     {plan.price}
                   </span>
-                  <span style={{ color: "#64748b", fontSize: "0.85rem" }}>
+                  <span style={{ color: "var(--ink-faint)", fontSize: "0.85rem" }}>
                     {plan.interval}
                   </span>
                 </div>
@@ -181,17 +179,17 @@ export default function PlansPage() {
                 {plan.features.map(f => (
                   <div key={f} style={{ display: "flex", alignItems: "flex-start",
                     gap: "10px", marginBottom: "10px" }}>
-                    <span style={{ color: "#10b981", fontSize: "0.9rem", flexShrink: 0,
+                    <span style={{ color: "var(--ok-text)", fontSize: "0.9rem", flexShrink: 0,
                       marginTop: "1px" }}>✓</span>
-                    <span style={{ fontSize: "0.88rem", color: "#cbd5e1" }}>{f}</span>
+                    <span style={{ fontSize: "0.88rem", color: "var(--ink)" }}>{f}</span>
                   </div>
                 ))}
                 {plan.missing.map(f => (
                   <div key={f} style={{ display: "flex", alignItems: "flex-start",
                     gap: "10px", marginBottom: "10px", opacity: 0.35 }}>
-                    <span style={{ color: "#4b5563", fontSize: "0.9rem", flexShrink: 0,
+                    <span style={{ color: "var(--ink-faint)", fontSize: "0.9rem", flexShrink: 0,
                       marginTop: "1px" }}>✗</span>
-                    <span style={{ fontSize: "0.88rem", color: "#4b5563",
+                    <span style={{ fontSize: "0.88rem", color: "var(--ink-faint)",
                       textDecoration: "line-through" }}>{f}</span>
                   </div>
                 ))}
@@ -199,8 +197,8 @@ export default function PlansPage() {
 
               {/* CTA */}
               {isCurrent ? (
-                <div style={{ padding: "12px", textAlign: "center", borderRadius: "10px",
-                  border: "1px solid rgba(30,41,59,0.8)", color: "#64748b",
+                <div style={{ padding: "12px", textAlign: "center", borderRadius: "0",
+                  border: "1px solid var(--line)", color: "var(--ink-faint)",
                   fontSize: "0.88rem", fontWeight: 600 }}>
                   ✓ Your current plan
                 </div>
@@ -208,21 +206,21 @@ export default function PlansPage() {
                 <button
                   onClick={handleManage}
                   disabled={loading}
-                  style={{ width: "100%", padding: "14px", borderRadius: "10px",
-                    border: "1px solid rgba(59,130,246,0.4)", background: "transparent",
-                    color: "#93c5fd", fontSize: "0.9rem", fontWeight: 700, cursor: "pointer" }}>
+                  style={{ width: "100%", padding: "14px", borderRadius: "0",
+                    border: "1px solid color-mix(in srgb, var(--cobalt) 40%, transparent)", background: "transparent",
+                    color: "var(--cobalt-accent)", fontSize: "0.9rem", fontWeight: 700, cursor: "pointer" }}>
                   Manage subscription
                 </button>
               ) : (
                 <button
                   onClick={isPro ? handleUpgrade : undefined}
                   disabled={loading || !isPro}
-                  style={{ width: "100%", padding: "14px", borderRadius: "10px",
+                  style={{ width: "100%", padding: "14px", borderRadius: "0",
                     border: "none",
                     background: isPro
-                      ? "linear-gradient(135deg, #2563eb, #1d4ed8)"
-                      : "rgba(30,41,59,0.6)",
-                    color: isPro ? "#fff" : "#64748b",
+                      ? "linear-gradient(135deg, var(--cobalt), var(--cobalt))"
+                      : "color-mix(in srgb, var(--card) 60%, transparent)",
+                    color: isPro ? "var(--ink)" : "var(--ink-faint)",
                     fontSize: "0.9rem", fontWeight: 700,
                     cursor: isPro ? "pointer" : "default",
                     opacity: loading ? 0.7 : 1 }}>
@@ -236,13 +234,13 @@ export default function PlansPage() {
 
       {/* Error */}
       {error && (
-        <p style={{ textAlign: "center", color: "#f87171", marginTop: "24px", fontSize: "0.88rem" }}>
+        <p style={{ textAlign: "center", color: "var(--danger-text)", marginTop: "24px", fontSize: "0.88rem" }}>
           {error}
         </p>
       )}
 
       {/* Payment note */}
-      <p style={{ textAlign: "center", color: "#334155", fontSize: "0.78rem", marginTop: "36px" }}>
+      <p style={{ textAlign: "center", color: "var(--ink-faint)", fontSize: "0.78rem", marginTop: "36px" }}>
         Payments are processed securely by Stripe. We never store your card details.
         Cancel anytime from your billing portal.
       </p>
@@ -251,7 +249,7 @@ export default function PlansPage() {
       <div style={{ textAlign: "center", marginTop: "32px" }}>
         <button
           onClick={() => router.back()}
-          style={{ background: "none", border: "none", color: "#475569",
+          style={{ background: "none", border: "none", color: "var(--ink-faint)",
             fontSize: "0.85rem", cursor: "pointer" }}>
           ← Back
         </button>

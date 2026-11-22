@@ -52,7 +52,7 @@ const T = {
 };
 
 /* ── Fallback SVG renderers ────────────────────────────────────────────────── */
-function BarChart({ color = "#3b82f6" }) {
+function BarChart({ color = "var(--cobalt-accent)" }) {
   const bars = [40, 65, 30, 80, 55, 70, 45, 90, 35, 60];
   return (
     <svg viewBox="0 0 220 130" width="100%" height="100%">
@@ -64,7 +64,7 @@ function BarChart({ color = "#3b82f6" }) {
     </svg>
   );
 }
-function LineChart({ color = "#ec4899" }) {
+function LineChart({ color = "var(--cobalt-accent)" }) {
   const pts = [10, 38, 22, 60, 42, 78, 52, 68, 62, 88, 72, 48, 82, 92];
   const xs  = pts.map((_, i) => (i / (pts.length - 1)) * 210 + 5);
   const ys  = pts.map((y) => 125 - y);
@@ -97,7 +97,7 @@ function Heatmap() {
     </svg>
   );
 }
-function ScatterPlot({ color = "#f97316" }) {
+function ScatterPlot({ color = "var(--warn-text)" }) {
   const seed = (n) => (((Math.sin(n) * 43758.5453) % 1) + 1) % 1;
   const pts  = Array.from({ length: 28 }, (_, i) => [seed(i * 3.1) * 208 + 6, seed(i * 7.3) * 118 + 6]);
   return (
@@ -108,7 +108,7 @@ function ScatterPlot({ color = "#f97316" }) {
     </svg>
   );
 }
-function AreaChart({ color = "#10b981" }) {
+function AreaChart({ color = "var(--ok-text)" }) {
   const pts  = [5, 18, 32, 22, 48, 38, 62, 52, 78, 68, 88, 72];
   const xs   = pts.map((_, i) => (i / (pts.length - 1)) * 210 + 5);
   const ys   = pts.map((y) => 125 - y);
@@ -128,11 +128,11 @@ function AreaChart({ color = "#10b981" }) {
 }
 
 const SVG_FALLBACKS = [
-  { type: "bar",     label: "Distribution", Chart: BarChart,    color: "#3b82f6", desc: "Column value frequencies"   },
-  { type: "heatmap", label: "Correlation",  Chart: Heatmap,     color: "#a855f7", desc: "Feature correlation matrix" },
-  { type: "scatter", label: "Outliers",     Chart: ScatterPlot, color: "#f97316", desc: "Anomaly scatter patterns"   },
-  { type: "line",    label: "Trends",       Chart: LineChart,   color: "#ec4899", desc: "Time-series trends"         },
-  { type: "area",    label: "Growth",       Chart: AreaChart,   color: "#10b981", desc: "Cumulative trend view"      },
+  { type: "bar",     label: "Distribution", Chart: BarChart,    color: "var(--cobalt-accent)", desc: "Column value frequencies"   },
+  { type: "heatmap", label: "Correlation",  Chart: Heatmap,     color: "var(--cobalt-accent)", desc: "Feature correlation matrix" },
+  { type: "scatter", label: "Outliers",     Chart: ScatterPlot, color: "var(--warn-text)", desc: "Anomaly scatter patterns"   },
+  { type: "line",    label: "Trends",       Chart: LineChart,   color: "var(--cobalt-accent)", desc: "Time-series trends"         },
+  { type: "area",    label: "Growth",       Chart: AreaChart,   color: "var(--ok-text)", desc: "Cumulative trend view"      },
 ];
 
 /* ── Zoom / lightbox modal ─────────────────────────────────────────────────── */
@@ -144,13 +144,13 @@ function ZoomModal({ chart, imgSrc, onClose, escClose }) {
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const color = chart?.color || "#3b82f6";
+  const color = chart?.color || "var(--cobalt-accent)";
   return (
     <div
       onClick={onClose}
       style={{
         position: "fixed", inset: 0,
-        background: "rgba(2,6,23,0.88)",
+        background: "var(--card)",
         backdropFilter: "blur(8px)",
         display: "flex", alignItems: "center", justifyContent: "center",
         zIndex: 2000, padding: "24px",
@@ -159,31 +159,31 @@ function ZoomModal({ chart, imgSrc, onClose, escClose }) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#0a1628",
-          border: `1px solid ${color}44`,
-          borderRadius: "20px",
+          background: "var(--card)",
+          border: `1px solid color-mix(in srgb, ${color} 27%, transparent)`,
+          borderRadius: "0",
           padding: "20px",
           width: "min(900px, 95vw)",
           maxHeight: "90vh",
           display: "flex", flexDirection: "column", gap: "14px",
-          boxShadow: `0 0 60px ${color}22, 0 24px 60px rgba(0,0,0,0.7)`,
+          boxShadow: `0 0 60px color-mix(in srgb, ${color} 13%, transparent), 0 24px 60px rgba(0,0,0,0.7)`,
         }}
       >
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <p style={{ margin: 0, fontWeight: 700, color: "#e2e8f0", fontSize: "0.95rem" }}>
+            <p style={{ margin: 0, fontWeight: 700, color: "var(--ink)", fontSize: "0.95rem" }}>
               {chart?.label}
             </p>
-            <p style={{ margin: 0, color: "#64748b", fontSize: "0.78rem", marginTop: "2px" }}>
+            <p style={{ margin: 0, color: "var(--ink-faint)", fontSize: "0.78rem", marginTop: "2px" }}>
               {chart?.desc}
             </p>
           </div>
           <button
             onClick={onClose}
             style={{
-              background: "rgba(15,23,42,0.9)", border: "1px solid rgba(55,65,81,0.8)",
-              borderRadius: "8px", padding: "7px", color: "#6b7280",
+              background: "var(--card)", border: "1px solid var(--line)",
+              borderRadius: "0", padding: "7px", color: "var(--ink-faint)",
               cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
             }}
           >
@@ -195,15 +195,15 @@ function ZoomModal({ chart, imgSrc, onClose, escClose }) {
 
         {/* Chart — large */}
         <div style={{
-          flex: 1, borderRadius: "12px", overflow: "hidden",
-          border: `1px solid ${color}22`,
-          background: "radial-gradient(circle at top, rgba(37,99,235,0.06), rgba(10,22,40,0.98))",
+          flex: 1, borderRadius: "0", overflow: "hidden",
+          border: `1px solid color-mix(in srgb, ${color} 13%, transparent)`,
+          background: "radial-gradient(circle at top, color-mix(in srgb, var(--cobalt) 6%, transparent), var(--card))",
           display: "flex", alignItems: "center", justifyContent: "center",
           minHeight: "420px",
         }}>
           {imgSrc ? (
             <img src={imgSrc} alt={chart?.label}
-              style={{ maxWidth: "100%", maxHeight: "520px", objectFit: "contain", borderRadius: "8px" }} />
+              style={{ maxWidth: "100%", maxHeight: "520px", objectFit: "contain", borderRadius: "0"}} />
           ) : (
             <div style={{ width: "100%", height: "420px", padding: "24px" }}>
               {chart?.Chart && <chart.Chart color={color} />}
@@ -211,7 +211,7 @@ function ZoomModal({ chart, imgSrc, onClose, escClose }) {
           )}
         </div>
 
-        <p style={{ margin: 0, textAlign: "center", color: "#475569", fontSize: "0.75rem" }}>
+        <p style={{ margin: 0, textAlign: "center", color: "var(--ink-faint)", fontSize: "0.75rem" }}>
           {escClose}
         </p>
       </div>
@@ -282,7 +282,7 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
   const closeZoom = useCallback(() => setZoomedIdx(null), []);
 
   const current      = charts[active];
-  const currentColor = current?.color || "#3b82f6";
+  const currentColor = current?.color || "var(--cobalt-accent)";
   const hasUrl       = !!current?.url;
   const hasB64       = !!current?.image_base64;
   const hasRealImg   = hasUrl || hasB64;
@@ -309,7 +309,7 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
         <div className="card-header">
           <h2>{t.title}</h2>
           {current ? (
-            <span className="pill" style={{ borderColor: `${currentColor}44`, color: currentColor, background: `${currentColor}14` }}>
+            <span className="pill" style={{ borderColor: `color-mix(in srgb, ${currentColor} 27%, transparent)`, color: currentColor, background: `color-mix(in srgb, ${currentColor} 8%, transparent)` }}>
               {current.label}
             </span>
           ) : (
@@ -321,9 +321,9 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
 
         {/* ── Chart display area ── */}
         <div style={{
-          background: "radial-gradient(circle at top, rgba(37,99,235,0.06), rgba(15,23,42,0.96))",
-          borderRadius: "14px",
-          border: "1px solid rgba(31,41,55,0.9)",
+          background: "radial-gradient(circle at top, color-mix(in srgb, var(--cobalt) 6%, transparent), var(--card))",
+          borderRadius: "0",
+          border: "1px solid var(--line)",
           minHeight: "260px",
           display: "flex", flexDirection: "column",
           overflow: "hidden",
@@ -335,17 +335,17 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
 
           ) : charts.length === 0 ? (
             <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "10px", padding: "40px", minHeight: "260px", textAlign: "center" }}>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(55,65,81,0.8)" strokeWidth="1.4">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--line)" strokeWidth="1.4">
                 <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
               </svg>
               {!dataset ? (
                 <>
-                  <p style={{ margin: 0, color: "#4b5563", fontSize: "0.85rem", fontWeight: 600 }}>{t.noVizYet}</p>
+                  <p style={{ margin: 0, color: "var(--ink-faint)", fontSize: "0.85rem", fontWeight: 600 }}>{t.noVizYet}</p>
                   <p className="muted-small">{t.uploadHint}</p>
                 </>
               ) : (
                 <>
-                  <p style={{ margin: 0, color: "#4b5563", fontSize: "0.85rem", fontWeight: 600 }}>{t.chartsPending}</p>
+                  <p style={{ margin: 0, color: "var(--ink-faint)", fontSize: "0.85rem", fontWeight: 600 }}>{t.chartsPending}</p>
                   <p className="muted-small">{t.runHint}</p>
                 </>
               )}
@@ -355,7 +355,7 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
             <>
               {/* Info bar */}
               <div style={{ padding: "14px 16px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#9ca3af" }}>
+                <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--ink-soft)" }}>
                   {t.chartOf(active + 1, charts.length)} — {current.label}
                 </span>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -367,8 +367,8 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
                     onClick={() => setZoomedIdx(active)}
                     title={t.zoom}
                     style={{
-                      background: `${currentColor}18`, border: `1px solid ${currentColor}44`,
-                      borderRadius: "6px", padding: "4px 8px", color: currentColor,
+                      background: `color-mix(in srgb, ${currentColor} 9%, transparent)`, border: `1px solid color-mix(in srgb, ${currentColor} 27%, transparent)`,
+                      borderRadius: "0", padding: "4px 8px", color: currentColor,
                       fontSize: "0.7rem", fontWeight: 700, cursor: "pointer",
                       display: "flex", alignItems: "center", gap: "4px", flexShrink: 0,
                     }}
@@ -396,7 +396,7 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
                   <img
                     src={imgSrc}
                     alt={current.label}
-                    style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: "8px" }}
+                    style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: "0"}}
                     onError={(e) => { e.currentTarget.style.display = "none"; }}
                   />
                 ) : (
@@ -407,8 +407,8 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
                 {/* Hover hint overlay */}
                 <div style={{
                   position: "absolute", bottom: "20px", right: "24px",
-                  background: "rgba(0,0,0,0.55)", borderRadius: "6px",
-                  padding: "3px 8px", color: "#94a3b8", fontSize: "0.68rem",
+                  background: "color-mix(in srgb, var(--card) 55%, transparent)", borderRadius: "0",
+                  padding: "3px 8px", color: "var(--ink-soft)", fontSize: "0.68rem",
                   pointerEvents: "none", opacity: 0.8,
                 }}>
                   {t.clickZoom}
@@ -422,16 +422,16 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
         {charts.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", marginTop: "4px" }}>
             {charts.map((c, i) => {
-              const dotColor = c.color || "#3b82f6";
+              const dotColor = c.color || "var(--cobalt-accent)";
               const isActive = active === i;
               return (
                 <button key={i} title={`${i + 1}: ${c.label}`} onClick={() => setActive(i)}
                   style={{
-                    width: isActive ? "26px" : "10px", height: "10px", borderRadius: "5px",
-                    border: `2px solid ${isActive ? dotColor : "rgba(55,65,81,0.8)"}`,
+                    width: isActive ? "26px" : "10px", height: "10px", borderRadius: "0",
+                    border: `2px solid ${isActive ? dotColor : "var(--line)"}`,
                     background: isActive ? dotColor : "transparent",
                     cursor: "pointer", padding: 0, transition: "all 0.25s ease",
-                    boxShadow: isActive ? `0 0 8px ${dotColor}88` : "none",
+                    boxShadow: isActive ? `0 0 8px color-mix(in srgb, ${dotColor} 53%, transparent)` : "none",
                   }}
                 />
               );
@@ -441,9 +441,9 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
 
         {/* Tab labels */}
         {charts.length > 0 && (
-          <div style={{ display: "flex", borderTop: "1px solid rgba(31,41,55,0.9)", marginTop: "4px" }}>
+          <div style={{ display: "flex", borderTop: "1px solid var(--line)", marginTop: "4px" }}>
             {charts.map((c, i) => {
-              const tabColor = c.color || "#3b82f6";
+              const tabColor = c.color || "var(--cobalt-accent)";
               const isActive = active === i;
               return (
                 <button key={i} onClick={() => setActive(i)}
@@ -451,7 +451,7 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
                     flex: 1, padding: "9px 4px", background: "transparent",
                     borderWidth: "0 0 2px", borderStyle: "solid",
                     borderColor: isActive ? tabColor : "transparent",
-                    color: isActive ? tabColor : "#4b5563",
+                    color: isActive ? tabColor : "var(--ink-soft)",
                     fontSize: "0.72rem", fontWeight: isActive ? 700 : 500,
                     cursor: "pointer", transition: "color 0.2s, border-color 0.2s",
                     letterSpacing: "0.02em", whiteSpace: "nowrap",

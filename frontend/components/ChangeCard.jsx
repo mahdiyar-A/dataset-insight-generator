@@ -130,7 +130,7 @@ export function describeChange(p, c) {
   }
 }
 
-const textBox = { margin: 0, padding: "6px 8px", borderRadius: "8px", fontSize: "0.76rem", lineHeight: 1.5,
+const textBox = { margin: 0, padding: "6px 8px", borderRadius: "0", fontSize: "0.76rem", lineHeight: 1.5,
                   whiteSpace: "pre-wrap", flex: "1 1 180px", minWidth: 0 };
 const smallLabel = { display: "block", fontSize: "0.66rem", fontWeight: 700, letterSpacing: "0.04em",
                      textTransform: "uppercase", marginBottom: "3px" };
@@ -147,12 +147,12 @@ function Words({ title, body }) {
 function BeforeAfter({ beforeTitle, before, afterTitle, after, c }) {
   return (
     <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-      <div dir="auto" style={{ ...textBox, background: "rgba(127,29,29,0.18)", color: "#fecaca" }}>
-        <span style={{ ...smallLabel, color: "#fca5a5" }}>{c.now}</span>
+      <div dir="auto" style={{ ...textBox, background: "color-mix(in srgb, var(--danger) 18%, transparent)", color: "var(--danger-text)" }}>
+        <span style={{ ...smallLabel, color: "var(--danger-text)" }}>{c.now}</span>
         <Words title={beforeTitle} body={before} />
       </div>
-      <div dir="auto" style={{ ...textBox, background: "rgba(20,83,45,0.25)", color: "#bbf7d0" }}>
-        <span style={{ ...smallLabel, color: "#86efac" }}>{c.suggested}</span>
+      <div dir="auto" style={{ ...textBox, background: "color-mix(in srgb, var(--card) 25%, transparent)", color: "var(--ok-text)" }}>
+        <span style={{ ...smallLabel, color: "var(--ok-text)" }}>{c.suggested}</span>
         <Words title={afterTitle} body={after} />
       </div>
     </div>
@@ -161,7 +161,7 @@ function BeforeAfter({ beforeTitle, before, afterTitle, after, c }) {
 
 function Picture({ src, alt }) {
   if (!src) return null;
-  return <img src={src} alt={alt} style={{ width: "100%", maxWidth: "320px", borderRadius: "8px", background: "#fff" }} />;
+  return <img src={src} alt={alt} style={{ width: "100%", maxWidth: "320px", borderRadius: "0", background: "var(--card)" }} />;
 }
 
 function ChangeBody({ p, c }) {
@@ -180,11 +180,11 @@ function ChangeBody({ p, c }) {
       );
     case "add_insight":
       return (
-        <div dir="auto" style={{ ...textBox, background: "rgba(20,83,45,0.25)", color: "#bbf7d0" }}>
+        <div dir="auto" style={{ ...textBox, background: "color-mix(in srgb, var(--card) 25%, transparent)", color: "var(--ok-text)" }}>
           <Words title={p.title} body={p.after} />
           {p.basedOn?.length > 0 && (
-            <span style={{ display: "block", marginTop: "6px", fontStyle: "italic", color: "#d1fae5" }}>
-              <span style={{ ...smallLabel, color: "#86efac" }}>{c.basedOn}</span>
+            <span style={{ display: "block", marginTop: "6px", fontStyle: "italic", color: "var(--ink)" }}>
+              <span style={{ ...smallLabel, color: "var(--ok-text)" }}>{c.basedOn}</span>
               {p.basedOn.join("; ")}
             </span>
           )}
@@ -194,7 +194,7 @@ function ChangeBody({ p, c }) {
       return (
         <>
           <Picture src={p.picture} alt={p.chart} />
-          <p dir="auto" style={{ margin: 0, fontSize: "0.76rem", color: "#e5e7eb" }}>
+          <p dir="auto" style={{ margin: 0, fontSize: "0.76rem", color: "var(--ink)" }}>
             <strong>{p.chart}</strong>{p.after ? ` — ${p.after}` : ""}
           </p>
           <p className="muted-small" style={{ margin: 0 }}>{c.under(p.under)}</p>
@@ -222,26 +222,26 @@ export default function ChangeCard({ proposal, card, lang, onApply, onDiscard, o
 
   return (
     <section aria-label={c.heading(preview.length)}
-      style={{ marginTop: "8px", padding: "10px", borderRadius: "10px", display: "flex", flexDirection: "column",
-               gap: "8px", background: "rgba(2,6,23,0.55)", border: "1px solid rgba(56,189,248,0.35)" }}>
-      <strong style={{ fontSize: "0.74rem", color: "#7dd3fc" }}>{c.heading(preview.length)}</strong>
+      style={{ marginTop: "8px", padding: "10px", borderRadius: "0", display: "flex", flexDirection: "column",
+               gap: "8px", background: "color-mix(in srgb, var(--card) 55%, transparent)", border: "1px solid color-mix(in srgb, var(--cobalt) 35%, transparent)" }}>
+      <strong style={{ fontSize: "0.74rem", color: "var(--cobalt-accent)" }}>{c.heading(preview.length)}</strong>
 
       {preview.map((p, k) => (
         <div key={k} style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <span dir="auto" style={{ fontSize: "0.76rem", fontWeight: 600, color: "#e5e7eb" }}>{describeChange(p, c)}</span>
+          <span dir="auto" style={{ fontSize: "0.76rem", fontWeight: 600, color: "var(--ink)" }}>{describeChange(p, c)}</span>
           <ChangeBody p={p} c={c} />
         </div>
       ))}
 
       {proposal?.warnings?.length > 0 && status === "open" && (
-        <p role="note" style={{ margin: 0, fontSize: "0.72rem", color: "#fbbf24" }}>⚠ {c.warn(proposal.warnings.join(", "))}</p>
+        <p role="note" style={{ margin: 0, fontSize: "0.72rem", color: "var(--warn-text)" }}>⚠ {c.warn(proposal.warnings.join(", "))}</p>
       )}
 
       {card?.message && (
-        <p role="alert" style={{ margin: 0, fontSize: "0.74rem", color: "#fca5a5" }}>{c[card.message] ?? c.unavailable}</p>
+        <p role="alert" style={{ margin: 0, fontSize: "0.74rem", color: "var(--danger-text)" }}>{c[card.message] ?? c.unavailable}</p>
       )}
-      {status === "applied" && <p role="status" style={{ margin: 0, fontSize: "0.74rem", color: "#bbf7d0" }}>{c.applied(card.version)}</p>}
-      {status === "undone" && <p role="status" style={{ margin: 0, fontSize: "0.74rem", color: "#bbf7d0" }}>{c.undone(card.version)}</p>}
+      {status === "applied" && <p role="status" style={{ margin: 0, fontSize: "0.74rem", color: "var(--ok-text)" }}>{c.applied(card.version)}</p>}
+      {status === "undone" && <p role="status" style={{ margin: 0, fontSize: "0.74rem", color: "var(--ok-text)" }}>{c.undone(card.version)}</p>}
       {status === "discarded" && <p role="status" className="muted-small" style={{ margin: 0 }}>{c.discarded}</p>}
 
       <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>

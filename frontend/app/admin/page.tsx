@@ -52,14 +52,14 @@ function DayBarChart({ title, days, value, format, barColor }: {
   const bw = (W - PAD * 2) / days.length;
 
   return (
-    <div style={{ background: "rgba(15,23,42,0.8)",
-      border: "1px solid rgba(30,41,59,0.7)", borderRadius: "14px",
+    <div style={{ background: "color-mix(in srgb, var(--card) 80%, transparent)",
+      border: "1px solid var(--line)", borderRadius: "0",
       padding: "18px 22px" }}>
       <div style={{ display: "flex", justifyContent: "space-between",
         alignItems: "baseline", marginBottom: "10px" }}>
         <h3 style={{ margin: 0, fontSize: "0.85rem", fontWeight: 700,
-          color: "#94a3b8" }}>{title}</h3>
-        <span style={{ fontSize: "0.75rem", color: "#475569", minHeight: "1em" }}>
+          color: "var(--ink-soft)" }}>{title}</h3>
+        <span style={{ fontSize: "0.75rem", color: "var(--ink-faint)", minHeight: "1em" }}>
           {hover != null
             ? `${days[hover].date} — ${format(value(days[hover]))}`
             : `peak ${format(max)}`}
@@ -97,7 +97,7 @@ function DayBarChart({ title, days, value, format, barColor }: {
       </svg>
 
       <div style={{ display: "flex", justifyContent: "space-between",
-        marginTop: "6px", fontSize: "0.68rem", color: "#334155" }}>
+        marginTop: "6px", fontSize: "0.68rem", color: "var(--ink-faint)" }}>
         <span>{days[0]?.date}</span>
         <span>{days[days.length - 1]?.date}</span>
       </div>
@@ -174,29 +174,29 @@ export default function AdminPage() {
   if (isLoading || !token) return null;
   if (!isAdmin) return null;
 
-  const StatCard = ({ label, value, sub, color = "#e2e8f0" }: {
+  const StatCard = ({ label, value, sub, color = "var(--ink)" }: {
     label: string;
     value: React.ReactNode;
     sub?: React.ReactNode;
     color?: string;
   }) => (
-    <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(30,41,59,0.7)",
-      borderRadius: "14px", padding: "22px" }}>
-      <p style={{ margin: "0 0 6px", color: "#475569", fontSize: "0.75rem",
+    <div style={{ background: "color-mix(in srgb, var(--card) 80%, transparent)", border: "1px solid var(--line)",
+      borderRadius: "0", padding: "22px" }}>
+      <p style={{ margin: "0 0 6px", color: "var(--ink-faint)", fontSize: "0.75rem",
         textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</p>
       <p style={{ margin: "0 0 4px", fontSize: "2rem", fontWeight: 800, color }}>{value}</p>
-      {sub && <p style={{ margin: 0, fontSize: "0.75rem", color: "#334155" }}>{sub}</p>}
+      {sub && <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--ink-faint)" }}>{sub}</p>}
     </div>
   );
 
   const planBadge = (plan: string) => ({
-    admin: { bg: "rgba(124,58,237,0.15)", border: "rgba(124,58,237,0.35)", color: "#c4b5fd" },
-    pro:   { bg: "rgba(37,99,235,0.15)",  border: "rgba(37,99,235,0.35)",  color: "#93c5fd" },
-    free:  { bg: "rgba(30,41,59,0.5)",    border: "rgba(30,41,59,0.7)",    color: "#64748b" },
-  }[plan] ?? { bg: "rgba(30,41,59,0.5)", border: "rgba(30,41,59,0.7)", color: "#64748b" });
+    admin: { bg: "color-mix(in srgb, var(--cobalt) 15%, transparent)", border: "color-mix(in srgb, var(--cobalt) 35%, transparent)", color: "var(--cobalt-accent)" },
+    pro:   { bg: "color-mix(in srgb, var(--cobalt) 15%, transparent)",  border: "color-mix(in srgb, var(--cobalt) 35%, transparent)",  color: "var(--cobalt-accent)" },
+    free:  { bg: "color-mix(in srgb, var(--card) 50%, transparent)",    border: "var(--line)",    color: "var(--ink-faint)" },
+  }[plan] ?? { bg: "color-mix(in srgb, var(--card) 50%, transparent)", border: "var(--line)", color: "var(--ink-faint)" });
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080d1a", color: "#e2e8f0",
+    <div style={{ minHeight: "100vh", background: "var(--paper)", color: "var(--ink)",
       padding: "40px 24px", maxWidth: "1100px", margin: "0 auto" }}>
 
       {/* Header */}
@@ -205,9 +205,9 @@ export default function AdminPage() {
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: "10px",
             marginBottom: "6px" }}>
-            <span style={{ padding: "3px 10px", borderRadius: "999px", fontSize: "0.72rem",
-              fontWeight: 700, background: "rgba(124,58,237,0.15)",
-              border: "1px solid rgba(124,58,237,0.35)", color: "#c4b5fd" }}>
+            <span style={{ padding: "3px 10px", borderRadius: "0", fontSize: "0.72rem",
+              fontWeight: 700, background: "color-mix(in srgb, var(--cobalt) 15%, transparent)",
+              border: "1px solid color-mix(in srgb, var(--cobalt) 35%, transparent)", color: "var(--cobalt-accent)" }}>
               ADMIN
             </span>
           </div>
@@ -216,17 +216,17 @@ export default function AdminPage() {
           </h1>
         </div>
         <button onClick={() => router.push("/dashboard")}
-          style={{ background: "none", border: "1px solid rgba(30,41,59,0.7)",
-            color: "#64748b", borderRadius: "8px", padding: "8px 16px",
+          style={{ background: "none", border: "1px solid var(--line)",
+            color: "var(--ink-faint)", borderRadius: "0", padding: "8px 16px",
             fontSize: "0.83rem", cursor: "pointer" }}>
           ← User Dashboard
         </button>
       </div>
 
       {error && (
-        <div style={{ padding: "12px 16px", borderRadius: "10px", marginBottom: "20px",
-          background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)",
-          color: "#fca5a5", fontSize: "0.85rem" }}>
+        <div style={{ padding: "12px 16px", borderRadius: "0", marginBottom: "20px",
+          background: "color-mix(in srgb, var(--danger) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--danger) 35%, transparent)",
+          color: "var(--danger-text)", fontSize: "0.85rem" }}>
           {error}
         </div>
       )}
@@ -235,10 +235,10 @@ export default function AdminPage() {
       <div style={{ display: "flex", gap: "4px", marginBottom: "28px" }}>
         {(["overview", "analytics", "models", "users"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
-            style={{ padding: "8px 20px", borderRadius: "8px", border: "none",
+            style={{ padding: "8px 20px", borderRadius: "0", border: "none",
               fontWeight: 600, fontSize: "0.85rem", cursor: "pointer",
-              background: tab === t ? "rgba(37,99,235,0.2)" : "transparent",
-              color: tab === t ? "#93c5fd" : "#475569" }}>
+              background: tab === t ? "color-mix(in srgb, var(--cobalt) 20%, transparent)" : "transparent",
+              color: tab === t ? "var(--cobalt-accent)" : "var(--ink-faint)" }}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
@@ -249,18 +249,18 @@ export default function AdminPage() {
         <div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
             gap: "16px", marginBottom: "32px" }}>
-            <StatCard label="Total Users"     value={stats.totalUsers}     color="#e2e8f0" />
-            <StatCard label="Free Users"      value={stats.freeUsers}      color="#94a3b8" />
-            <StatCard label="Pro Users"       value={stats.proUsers}       color="#60a5fa" />
-            <StatCard label="Active Today"    value={stats.activeToday}    color="#10b981" />
-            <StatCard label="Active This Week" value={stats.activeThisWeek} color="#a78bfa" />
+            <StatCard label="Total Users"     value={stats.totalUsers}     color="var(--ink)" />
+            <StatCard label="Free Users"      value={stats.freeUsers}      color="var(--ink-soft)" />
+            <StatCard label="Pro Users"       value={stats.proUsers}       color="var(--cobalt-accent)" />
+            <StatCard label="Active Today"    value={stats.activeToday}    color="var(--ok-text)" />
+            <StatCard label="Active This Week" value={stats.activeThisWeek} color="var(--cobalt-accent)" />
           </div>
 
           {/* Health */}
-          <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(30,41,59,0.7)",
-            borderRadius: "14px", padding: "22px" }}>
+          <div style={{ background: "color-mix(in srgb, var(--card) 80%, transparent)", border: "1px solid var(--line)",
+            borderRadius: "0", padding: "22px" }}>
             <h3 style={{ margin: "0 0 16px", fontSize: "1rem", fontWeight: 700,
-              color: "#94a3b8" }}>
+              color: "var(--ink-soft)" }}>
               System Health
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -272,13 +272,13 @@ export default function AdminPage() {
                 { label: "AI Service",       status: "ok" },
               ].map(s => (
                 <div key={s.label} style={{ display: "flex", justifyContent: "space-between",
-                  alignItems: "center", padding: "10px 14px", borderRadius: "8px",
-                  background: "rgba(2,6,23,0.5)", border: "1px solid rgba(30,41,59,0.5)" }}>
-                  <span style={{ fontSize: "0.85rem", color: "#94a3b8" }}>{s.label}</span>
-                  <span style={{ padding: "3px 10px", borderRadius: "999px", fontSize: "0.72rem",
+                  alignItems: "center", padding: "10px 14px", borderRadius: "0",
+                  background: "color-mix(in srgb, var(--card) 50%, transparent)", border: "1px solid var(--line)" }}>
+                  <span style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>{s.label}</span>
+                  <span style={{ padding: "3px 10px", borderRadius: "0", fontSize: "0.72rem",
                     fontWeight: 600,
-                    background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)",
-                    color: "#6ee7b7" }}>
+                    background: "color-mix(in srgb, var(--ok) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--ok) 35%, transparent)",
+                    color: "var(--ok-text)" }}>
                     ✓ {s.status}
                   </span>
                 </div>
@@ -291,10 +291,10 @@ export default function AdminPage() {
       {/* Analytics */}
       {tab === "analytics" && (
         !analytics ? (
-          <p style={{ color: "#475569", fontSize: "0.9rem" }}>Loading analytics…</p>
+          <p style={{ color: "var(--ink-faint)", fontSize: "0.9rem" }}>Loading analytics…</p>
         ) : (
           <div>
-            <p style={{ color: "#475569", fontSize: "0.8rem", margin: "0 0 16px" }}>
+            <p style={{ color: "var(--ink-faint)", fontSize: "0.8rem", margin: "0 0 16px" }}>
               Last {analytics.windowDays} days
             </p>
 
@@ -302,25 +302,25 @@ export default function AdminPage() {
               gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
               gap: "16px", marginBottom: "32px" }}>
               <StatCard label="Analyses" value={analytics.totals.analyses}
-                sub={`${analytics.totals.failed} failed`} color="#e2e8f0" />
+                sub={`${analytics.totals.failed} failed`} color="var(--ink)" />
               <StatCard label="Success Rate"
                 value={`${Math.round(analytics.totals.successRate * 100)}%`}
-                color="#10b981" />
+                color="var(--ok-text)" />
               <StatCard label="LLM Cost"
                 value={`$${analytics.totals.totalCostUsd.toFixed(2)}`}
                 sub={`${analytics.totals.costedRuns} runs recorded cost`}
-                color="#a78bfa" />
+                color="var(--cobalt-accent)" />
               <StatCard label="Avg Cost / Analysis"
                 value={`$${analytics.totals.avgCostUsd.toFixed(4)}`}
                 sub={`${(analytics.totals.tokensIn / 1000).toFixed(0)}k in / ${(analytics.totals.tokensOut / 1000).toFixed(0)}k out tokens`}
-                color="#a78bfa" />
+                color="var(--cobalt-accent)" />
               <StatCard label="Active Analysts"
                 value={analytics.users.activeAnalysts}
-                sub={`of ${analytics.users.total} users`} color="#60a5fa" />
+                sub={`of ${analytics.users.total} users`} color="var(--cobalt-accent)" />
               <StatCard label="Est. MRR"
                 value={`$${analytics.users.estimatedMrrUsd.toFixed(2)}`}
                 sub={`${analytics.users.pro} pro × $9.99 — see Stripe for net`}
-                color="#10b981" />
+                color="var(--ok-text)" />
             </div>
 
             <div style={{ display: "grid",
@@ -331,23 +331,23 @@ export default function AdminPage() {
                 days={analytics.perDay}
                 value={d => d.analyses}
                 format={v => `${v}`}
-                barColor="#60a5fa"
+                barColor="var(--cobalt-accent)"
               />
               <DayBarChart
                 title="LLM cost per day (USD)"
                 days={analytics.perDay}
                 value={d => d.costUsd}
                 format={v => `$${v.toFixed(3)}`}
-                barColor="#a78bfa"
+                barColor="var(--cobalt-accent)"
               />
             </div>
 
             {/* Same numbers as a table — for screen readers, and for anyone
                 who wants the exact values rather than bar heights. */}
-            <details style={{ background: "rgba(15,23,42,0.8)",
-              border: "1px solid rgba(30,41,59,0.7)", borderRadius: "14px",
+            <details style={{ background: "color-mix(in srgb, var(--card) 80%, transparent)",
+              border: "1px solid var(--line)", borderRadius: "0",
               padding: "16px 22px" }}>
-              <summary style={{ cursor: "pointer", color: "#94a3b8",
+              <summary style={{ cursor: "pointer", color: "var(--ink-soft)",
                 fontSize: "0.85rem", fontWeight: 600 }}>
                 Daily numbers as a table
               </summary>
@@ -355,22 +355,22 @@ export default function AdminPage() {
                 <table style={{ width: "100%", borderCollapse: "collapse",
                   fontSize: "0.78rem" }}>
                   <thead>
-                    <tr style={{ borderBottom: "1px solid rgba(30,41,59,0.7)" }}>
+                    <tr style={{ borderBottom: "1px solid var(--line)" }}>
                       {["Date", "Analyses", "Failed", "Cost (USD)"].map(h => (
                         <th key={h} style={{ padding: "8px 12px", textAlign: "left",
-                          color: "#475569", fontWeight: 600 }}>{h}</th>
+                          color: "var(--ink-faint)", fontWeight: 600 }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {analytics.perDay.map(d => (
                       <tr key={d.date}
-                        style={{ borderBottom: "1px solid rgba(30,41,59,0.3)" }}>
-                        <td style={{ padding: "6px 12px", color: "#64748b" }}>{d.date}</td>
-                        <td style={{ padding: "6px 12px", color: "#cbd5e1" }}>{d.analyses}</td>
+                        style={{ borderBottom: "1px solid var(--line)" }}>
+                        <td style={{ padding: "6px 12px", color: "var(--ink-faint)" }}>{d.date}</td>
+                        <td style={{ padding: "6px 12px", color: "var(--ink)" }}>{d.analyses}</td>
                         <td style={{ padding: "6px 12px",
-                          color: d.failed > 0 ? "#f87171" : "#334155" }}>{d.failed}</td>
-                        <td style={{ padding: "6px 12px", color: "#cbd5e1" }}>
+                          color: d.failed > 0 ? "var(--danger-text)" : "var(--ink-faint)" }}>{d.failed}</td>
+                        <td style={{ padding: "6px 12px", color: "var(--ink)" }}>
                           ${d.costUsd.toFixed(4)}
                         </td>
                       </tr>
@@ -397,21 +397,21 @@ export default function AdminPage() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search by email or name…"
-                style={{ flex: 1, padding: "9px 14px", borderRadius: "8px",
-                  border: "1px solid rgba(30,41,59,0.8)",
-                  background: "rgba(15,23,42,0.8)", color: "#e2e8f0",
+                style={{ flex: 1, padding: "9px 14px", borderRadius: "0",
+                  border: "1px solid var(--line)",
+                  background: "color-mix(in srgb, var(--card) 80%, transparent)", color: "var(--ink)",
                   fontSize: "0.85rem", outline: "none" }} />
               <button type="submit"
-                style={{ padding: "9px 18px", borderRadius: "8px", border: "none",
-                  background: "rgba(37,99,235,0.25)", color: "#93c5fd",
+                style={{ padding: "9px 18px", borderRadius: "0", border: "none",
+                  background: "color-mix(in srgb, var(--cobalt) 25%, transparent)", color: "var(--cobalt-accent)",
                   fontWeight: 600, fontSize: "0.83rem", cursor: "pointer" }}>
                 Search
               </button>
             </form>
             <select value={planFilter} onChange={e => { setPlanFilter(e.target.value); setPage(1); }}
-              style={{ padding: "9px 14px", borderRadius: "8px",
-                border: "1px solid rgba(30,41,59,0.8)",
-                background: "rgba(15,23,42,0.8)", color: "#94a3b8",
+              style={{ padding: "9px 14px", borderRadius: "0",
+                border: "1px solid var(--line)",
+                background: "color-mix(in srgb, var(--card) 80%, transparent)", color: "var(--ink-soft)",
                 fontSize: "0.85rem", cursor: "pointer" }}>
               <option value="">All plans</option>
               <option value="free">Free</option>
@@ -420,20 +420,20 @@ export default function AdminPage() {
             </select>
           </div>
 
-          <p style={{ color: "#475569", fontSize: "0.8rem", marginBottom: "12px" }}>
+          <p style={{ color: "var(--ink-faint)", fontSize: "0.8rem", marginBottom: "12px" }}>
             {total} users total
           </p>
 
           {/* Table */}
-          <div style={{ background: "rgba(15,23,42,0.8)", border: "1px solid rgba(30,41,59,0.7)",
-            borderRadius: "14px", overflow: "hidden" }}>
+          <div style={{ background: "color-mix(in srgb, var(--card) 80%, transparent)", border: "1px solid var(--line)",
+            borderRadius: "0", overflow: "hidden" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.83rem" }}>
               <thead>
-                <tr style={{ background: "rgba(2,6,23,0.6)",
-                  borderBottom: "1px solid rgba(30,41,59,0.7)" }}>
+                <tr style={{ background: "color-mix(in srgb, var(--card) 60%, transparent)",
+                  borderBottom: "1px solid var(--line)" }}>
                   {["User", "Plan", "Active", "Joined", "Actions"].map(h => (
                     <th key={h} style={{ padding: "12px 16px", textAlign: "left",
-                      color: "#475569", fontWeight: 600, fontSize: "0.75rem",
+                      color: "var(--ink-faint)", fontWeight: 600, fontSize: "0.75rem",
                       textTransform: "uppercase", letterSpacing: "0.05em" }}>
                       {h}
                     </th>
@@ -446,29 +446,29 @@ export default function AdminPage() {
                   return (
                     <tr key={u.id} style={{
                       borderBottom: i < users.length - 1
-                        ? "1px solid rgba(30,41,59,0.4)" : "none",
-                      background: i % 2 === 0 ? "transparent" : "rgba(2,6,23,0.2)" }}>
+                        ? "1px solid var(--line)" : "none",
+                      background: i % 2 === 0 ? "transparent" : "color-mix(in srgb, var(--card) 20%, transparent)" }}>
                       <td style={{ padding: "12px 16px" }}>
                         <p style={{ margin: "0 0 2px", fontWeight: 600,
-                          color: "#cbd5e1" }}>{u.userName}</p>
-                        <p style={{ margin: 0, color: "#475569",
+                          color: "var(--ink)" }}>{u.userName}</p>
+                        <p style={{ margin: 0, color: "var(--ink-faint)",
                           fontSize: "0.75rem" }}>{u.email}</p>
                       </td>
                       <td style={{ padding: "12px 16px" }}>
-                        <span style={{ padding: "3px 10px", borderRadius: "999px",
+                        <span style={{ padding: "3px 10px", borderRadius: "0",
                           fontSize: "0.72rem", fontWeight: 600,
                           background: badge.bg, border: `1px solid ${badge.border}`,
                           color: badge.color }}>
                           {u.plan}
                         </span>
                       </td>
-                      <td style={{ padding: "12px 16px", color: "#64748b",
+                      <td style={{ padding: "12px 16px", color: "var(--ink-faint)",
                         fontSize: "0.78rem" }}>
                         {u.lastActive
                           ? new Date(u.lastActive).toLocaleDateString("en-CA")
                           : "—"}
                       </td>
-                      <td style={{ padding: "12px 16px", color: "#64748b",
+                      <td style={{ padding: "12px 16px", color: "var(--ink-faint)",
                         fontSize: "0.78rem" }}>
                         {new Date(u.createdAt).toLocaleDateString("en-CA")}
                       </td>
@@ -477,31 +477,31 @@ export default function AdminPage() {
                           {/* Plan toggle */}
                           {u.plan !== "pro" && (
                             <button onClick={() => handleSetPlan(u.id, "pro")}
-                              style={{ padding: "4px 10px", borderRadius: "6px", border: "none",
-                                background: "rgba(37,99,235,0.2)", color: "#93c5fd",
+                              style={{ padding: "4px 10px", borderRadius: "0", border: "none",
+                                background: "color-mix(in srgb, var(--cobalt) 20%, transparent)", color: "var(--cobalt-accent)",
                                 fontSize: "0.72rem", cursor: "pointer" }}>
                               → Pro
                             </button>
                           )}
                           {u.plan !== "free" && u.plan !== "admin" && (
                             <button onClick={() => handleSetPlan(u.id, "free")}
-                              style={{ padding: "4px 10px", borderRadius: "6px", border: "none",
-                                background: "rgba(30,41,59,0.5)", color: "#64748b",
+                              style={{ padding: "4px 10px", borderRadius: "0", border: "none",
+                                background: "color-mix(in srgb, var(--card) 50%, transparent)", color: "var(--ink-faint)",
                                 fontSize: "0.72rem", cursor: "pointer" }}>
                               → Free
                             </button>
                           )}
                           {u.plan !== "admin" && (
                             <button onClick={() => handleSetPlan(u.id, "admin")}
-                              style={{ padding: "4px 10px", borderRadius: "6px", border: "none",
-                                background: "rgba(124,58,237,0.15)", color: "#c4b5fd",
+                              style={{ padding: "4px 10px", borderRadius: "0", border: "none",
+                                background: "color-mix(in srgb, var(--cobalt) 15%, transparent)", color: "var(--cobalt-accent)",
                                 fontSize: "0.72rem", cursor: "pointer" }}>
                               → Admin
                             </button>
                           )}
                           <button onClick={() => handleDeleteUser(u.id, u.email)}
-                            style={{ padding: "4px 10px", borderRadius: "6px", border: "none",
-                              background: "rgba(239,68,68,0.1)", color: "#f87171",
+                            style={{ padding: "4px 10px", borderRadius: "0", border: "none",
+                              background: "color-mix(in srgb, var(--danger) 10%, transparent)", color: "var(--danger-text)",
                               fontSize: "0.72rem", cursor: "pointer" }}>
                             Delete
                           </button>
@@ -519,19 +519,19 @@ export default function AdminPage() {
             <div style={{ display: "flex", justifyContent: "center", gap: "8px",
               marginTop: "20px" }}>
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                style={{ padding: "7px 14px", borderRadius: "8px",
-                  border: "1px solid rgba(30,41,59,0.7)", background: "transparent",
-                  color: "#64748b", cursor: "pointer", opacity: page === 1 ? 0.4 : 1 }}>
+                style={{ padding: "7px 14px", borderRadius: "0",
+                  border: "1px solid var(--line)", background: "transparent",
+                  color: "var(--ink-faint)", cursor: "pointer", opacity: page === 1 ? 0.4 : 1 }}>
                 ←
               </button>
-              <span style={{ padding: "7px 14px", color: "#64748b", fontSize: "0.83rem" }}>
+              <span style={{ padding: "7px 14px", color: "var(--ink-faint)", fontSize: "0.83rem" }}>
                 Page {page} of {Math.ceil(total / 20)}
               </span>
               <button onClick={() => setPage(p => p + 1)}
                 disabled={page >= Math.ceil(total / 20)}
-                style={{ padding: "7px 14px", borderRadius: "8px",
-                  border: "1px solid rgba(30,41,59,0.7)", background: "transparent",
-                  color: "#64748b", cursor: "pointer",
+                style={{ padding: "7px 14px", borderRadius: "0",
+                  border: "1px solid var(--line)", background: "transparent",
+                  color: "var(--ink-faint)", cursor: "pointer",
                   opacity: page >= Math.ceil(total / 20) ? 0.4 : 1 }}>
                 →
               </button>
