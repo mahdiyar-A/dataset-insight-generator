@@ -14,6 +14,7 @@ import { DEMO_CSS } from './demoStyles';
 import {
   AskStop, BASICS, CheckStop, CleanStop, ExploreStop, FilesStop, PlansStop, ReportStop, STOPS, TIP_COUNT, UploadStop, WhatStop,
 } from './stops';
+import { TeamStop } from './TeamStop';
 import { TourContext } from './tour';
 import type { Draft, Line, Plan, Tour } from './tour';
 
@@ -327,6 +328,7 @@ export default function DemoTour() {
       case 'what': return <WhatStop />;
       case 'report': return <ReportStop active={active} />;
       case 'ask': return <AskStop active={active} />;
+      case 'team': return <TeamStop active={active} />;
       case 'plans': return <PlansStop />;
       case 'files': return <FilesStop />;
     }

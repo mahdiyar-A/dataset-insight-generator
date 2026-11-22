@@ -23,6 +23,9 @@ import pandas as pd
 from ai_engine.llm.guard import one_line
 from ai_engine.llm.report_writer import GROQ_URL, OPENROUTER_URL, ReportProvider, note_outcome, write_report
 from ai_engine.models.models import DomainResult
+from ai_engine.reading import by_rules as reading_by_rules
+from ai_engine.reading import from_dict as reading_from_dict
+from ai_engine.reading import from_model as reading_from_model
 
 # What a person may say their data is, when asked: one line.
 MAX_DESCRIPTION_CHARS = 300
@@ -188,6 +191,15 @@ Respond ONLY with valid JSON — no markdown, no explanation, no text outside th
     "...": "..."
   }},
 
+  "reader": {{
+    "reader": "<at most 8 words: who most likely keeps this file and will read the report, e.g. 'a café owner', 'you, tracking your own reading', 'a clinic's care team', 'a lab researcher'>",
+    "setting": "<personal | business | public | research | technical>",
+    "level": "<plain | balanced | expert>",
+    "voice": "<friendly | professional | formal>",
+    "charts": "<simple | standard | detailed>",
+    "theme": "<signature | clean | warm | classic | midnight>"
+  }},
+
   "cleaning_needed": <true | false>,
   "cleaning_methods": [
     "<one method per entry — use these exact formats:>",
@@ -209,6 +221,19 @@ CLEANING METHOD RULES:
 - Always include: remove_empty_rows, remove_duplicates, remove_infinity
 - Missing values and outliers are handled by fixed rules: do not list them
 - Do NOT drop a Year/temporal column even if its distribution is uniform — it is critical context
+
+READER RULES — think as a person who was handed this file would: what is it, who keeps it, who will read about it?
+- personal: someone's own records (books read, workouts, a household budget, a trip log). level plain, voice friendly,
+  charts simple, theme warm or signature. Never expert: nobody wants p-values about their own bookshelf.
+- business: a shop, café, team or company's records (sales, orders, staff, campaigns). level plain unless the columns
+  are specialist measurements; voice professional; charts simple; theme warm for food, retail and hospitality,
+  classic for finance and property, clean for operations and HR, signature otherwise.
+- public: open or published data about the world (city data, sports results, a public survey). level plain or balanced.
+- research: experiments, clinical or survey data collected to test something. level balanced, or expert only when the
+  columns are measurements a specialist would read; voice formal; charts standard; theme classic.
+- technical: sensor, machine or system logs read by engineers. level balanced or expert; voice professional; theme clean.
+- level plain means the reader has never taken a statistics course. Choose expert only for specialists.
+- charts simple means bars and lines a first-time reader understands in two seconds.
 
 ATTRIBUTE INTERPRETATION RULES:
 - Provide interpretations for ALL keep and key columns (not drop)
@@ -283,6 +308,7 @@ def detect_domain(df: pd.DataFrame, api_keys: Union[Dict[str, str], str], tracke
         cleaning_needed=True,
         cleaning_methods=["remove_empty_rows", "remove_duplicates", "remove_infinity"],
         source="fallback",
+        reading=reading_by_rules("general").to_dict(),
     )
 
     parsed, provider = write_report(messages, api_keys or {}, _domain_reply, tracker=tracker,
@@ -362,8 +388,16 @@ def _result_from(parsed: Dict[str, Any], df: pd.DataFrame) -> DomainResult:
         if text and text.lower() != description.lower() and text.lower() not in (a.lower() for a in alternatives):
             alternatives.append(text)
 
+    domain_name = str(parsed.get("domain") or "general").strip().lower()[:40]
+    # Who the report is for. A classification handed back by the backend
+    # carries it as "reading"; a model's reply calls it "reader".
+    raw_reading = parsed.get("reading") if isinstance(parsed.get("reading"), dict) else parsed.get("reader")
+    reading = (reading_from_dict(raw_reading, domain_name) if isinstance(parsed.get("reading"), dict)
+               else reading_from_model(raw_reading, domain_name))
+
     return DomainResult(
-        domain=str(parsed.get("domain") or "general").strip().lower()[:40],
+        reading=reading.to_dict(),
+        domain=domain_name,
         confidence=confidence,
         is_analyzable=bool(parsed.get("is_analyzable", True)),
         analysis_focus=parsed.get("analysis_focus", []),

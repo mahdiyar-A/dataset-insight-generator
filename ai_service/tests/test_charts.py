@@ -208,33 +208,33 @@ def test_a_weekly_total_is_a_total(drawn):
     fig = chart_generator._line_chart(daily_sales(), titled("Weekly Total Revenue", "date", "revenue", "line"))
     ax = fig.axes[0]
     assert max(ax.lines[0].get_ydata()) == 10.0 * 4 * 7
-    assert ax.get_ylabel() == "revenue (total)"
+    assert ax.get_ylabel() == "Revenue (total)"
 
 
 def test_a_description_promising_totals_gets_totals(drawn):
     # "Weekly Revenue Trend", described as "the weekly total revenue".
     fig = chart_generator._line_chart(daily_sales(), titled("Weekly Revenue Trend", "date", "revenue", "line",
                                                             "Displays the weekly total revenue over the year."))
-    assert fig.axes[0].get_ylabel() == "revenue (total)"
+    assert fig.axes[0].get_ylabel() == "Revenue (total)"
 
 
 def test_a_title_saying_average_is_not_overruled_by_its_description(drawn):
     fig = chart_generator._bar_chart(daily_sales(), titled("Average Revenue by Store", "store", "revenue", "bar",
                                                            "Downtown takes a third of total revenue."))
-    assert fig.axes[0].get_ylabel() == "revenue (average)"
+    assert fig.axes[0].get_ylabel() == "Revenue (average)"
 
 
 def test_a_line_with_no_total_in_its_title_says_it_is_an_average(drawn):
     fig = chart_generator._line_chart(daily_sales(), titled("Revenue over time", "date", "revenue", "line"))
     ax = fig.axes[0]
     assert set(ax.lines[0].get_ydata()) == {10.0}
-    assert ax.get_ylabel() == "revenue (average)"
+    assert ax.get_ylabel() == "Revenue (average)"
 
 
 @pytest.mark.parametrize("title, height, label", [
-    ("Total Revenue by Store", 4000.0, "revenue (total)"),
-    ("Average Revenue by Store", 10.0, "revenue (average)"),
-    ("Subtotals by Store", 10.0, "revenue (average)"),
+    ("Total Revenue by Store", 4000.0, "Revenue (total)"),
+    ("Average Revenue by Store", 10.0, "Revenue (average)"),
+    ("Subtotals by Store", 10.0, "Revenue (average)"),
 ])
 def test_a_bar_shows_what_its_title_says(drawn, title, height, label):
     fig = chart_generator._bar_chart(daily_sales(), titled(title, "store", "revenue", "bar"))
@@ -297,3 +297,14 @@ def test_a_chart_of_numbers_never_falls_back(drawn, monkeypatch):
     monkeypatch.setattr(chart_generator, "_bar_chart", lambda *a: called.append(a) or real(*a))
     generate_charts(regions(), [instruction(chart_type="scatter")])
     assert not called
+
+
+def test_a_line_over_a_year_of_dates_gets_short_flat_date_labels(drawn):
+    days = pd.date_range("2025-01-01", "2025-12-31", freq="D")
+    df = pd.DataFrame({"date": days.strftime("%Y-%m-%d"), "sales": np.arange(len(days), dtype=float)})
+    fig = chart_generator._line_chart(df, instruction(x="date", y="sales", chart_type="line"))
+    ax = fig.axes[0]
+    from matplotlib.dates import ConciseDateFormatter
+    assert isinstance(ax.xaxis.get_major_formatter(), ConciseDateFormatter)
+    assert 4 <= len(ax.get_xticks()) <= 14
+    assert all(label.get_rotation() == 0 for label in ax.get_xticklabels())

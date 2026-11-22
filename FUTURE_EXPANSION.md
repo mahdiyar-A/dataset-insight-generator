@@ -61,13 +61,13 @@ and shared workspaces.
 
 ## Report customization (Pro)
 
-Set before the analysis runs; every option changes the prompt sent to the
-insight model rather than post-processing the output.
+Set before the analysis runs. Tone, audience and occasion change who the
+report is written for; the look, font and page size change how the files are made.
 
 | Control | Options |
 |---|---|
 | Language | English, French, Spanish, German, Chinese, Arabic, Portuguese, Persian |
-| Tone | Professional, technical, casual, storytelling, academic, simplified |
+| Tone | Fits the data (default), professional, technical, casual, storytelling, academic, simplified |
 | Insight count | 3, 5, or 7 |
 | Occasion | General, investor, academic, internal, client |
 | Audience | General, executive, technical, client, student |
@@ -79,6 +79,12 @@ insight model rather than post-processing the output.
 | Methodology section | On / off |
 | Confidence scores | On / off |
 | Output formats | PDF always; Word and PowerPoint on request |
+| Look | Fits the data, or Signature, Clean, Warm, Classic, Midnight |
+| Font | The look's own, or Signature, Modern, Classic serif, Storybook, Technical |
+| Page size | A4 or US Letter |
+
+Without any settings (the free plan), DIG reads who the report is for from
+the data, writes for that reader, and makes the files in its Signature look.
 
 ---
 

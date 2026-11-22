@@ -293,10 +293,10 @@ async def analyze(
     user_confirmed_low:  bool = Form(False),
     # Pro customization — all optional, safe defaults applied in pipeline
     language:            str  = Form("en"),
-    tone:                str  = Form("professional"),
+    tone:                str  = Form("auto"),     # "auto": written for the reader DIG works out
     insights_count:      int  = Form(5),
     occasion:            str  = Form("general"),
-    audience:            str  = Form("general"),
+    audience:            str  = Form("auto"),
     depth:               str  = Form("standard"),
     focus_on:            str  = Form(""),
     comparisons:         str  = Form(""),
@@ -311,6 +311,12 @@ async def analyze(
     avoid:               str  = Form(""),
     questions_json:      str  = Form(""),    # JSON list of {"question", "note"} or strings
     writing_format:      str  = Form("narrative"),
+    # The look of the files (ai_engine/design/looks.py). The server sends the
+    # free plan's look for everyone not on Pro; "auto" picks the one that suits
+    # the data.
+    theme:               str  = Form("signature"),
+    font:                str  = Form("auto"),
+    page_size:           str  = Form("a4"),
     # What the data is: the classification /check made, and the user's own
     # words when DIG was not sure and asked. See pipeline._settle_domain.
     domain_json:         str  = Form(""),
@@ -332,6 +338,7 @@ async def analyze(
       - insights_count: 1-10
       - occasion:       report framing context
       - assumptions, avoid, questions_json, writing_format: the brief
+      - theme, font, page_size: the look of the PDF, Word and PowerPoint files
       - want_word:      generate .docx Word report
       - want_pptx:      generate .pptx PowerPoint
     """
@@ -342,6 +349,7 @@ async def analyze(
     print(f"[Analyze]   cleaning : {user_wants_cleaning}", flush=True)
     print(f"[Analyze]   low_conf : {user_confirmed_low}", flush=True)
     print(f"[Analyze]   lang={language} tone={tone} insights={insights_count} occasion={occasion} word={want_word} pptx={want_pptx}", flush=True)
+    print(f"[Analyze]   look: theme={theme[:20]!r} font={font[:20]!r} page={page_size[:10]!r}", flush=True)
 
     # At least one report-writer key is needed. Without either, every report
     # would silently be the stats-only fallback, so refuse loudly instead.
@@ -384,6 +392,9 @@ async def analyze(
             "avoid":              avoid,
             "questions":          parse_questions(questions_json),
             "writingFormat":      writing_format,
+            "theme":              theme,
+            "font":               font,
+            "pageSize":           page_size,
             "outputFormat": {
                 "pdf":  True,
                 "word": want_word,

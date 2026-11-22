@@ -91,6 +91,30 @@ def split_misleading_scatters(charts: List[ChartInstruction], stats: StatsSummar
             chart.groupColumn = split_by.get(frozenset((chart.xColumn, chart.yColumn)))
 
 
+def fit_charts_to_reader(charts: List[ChartInstruction], level: str) -> List[ChartInstruction]:
+    """
+    Charts a first-time reader takes in at a glance, when the report is for
+    one (Reading.charts == "simple"). The writer is asked for these; this makes
+    sure. A box plot becomes a bar of averages; a heatmap, a histogram and an
+    unsplit scatter go. A scatter split by group stays: it is how a misleading
+    correlation is shown. If nothing would be left, the charts stay as they are,
+    because a harder chart tells a reader more than none.
+    """
+    if level != "simple":
+        return charts
+    kept: List[ChartInstruction] = []
+    for c in charts:
+        kind = c.chartType
+        if kind == "box" and c.yColumn:
+            c.chartType, c.aggregate = "bar", c.aggregate or "mean"
+            kept.append(c)
+        elif kind in ("heatmap", "histogram") or (kind == "scatter" and not c.groupColumn):
+            continue
+        else:
+            kept.append(c)
+    return kept or charts
+
+
 # ── Evidence ─────────────────────────────────────────────────────────────────
 
 def count_evidence(stats: StatsSummary) -> int:

@@ -1,7 +1,7 @@
 # DIG — Project Status
 
 **Branch:** `main`
-**Last updated:** 2026-11-21
+**Last updated:** 2026-11-22
 
 ---
 
@@ -9,10 +9,68 @@
 
 | Suite | Count | Command |
 |---|---|---|
-| C# — unit, integration, edge cases, the real Supabase client against a stand-in server, the chat suggesting changes, teams editing the report | 538 | `dotnet test backend.Tests/backend.Tests.csproj` |
-| Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is, insights' evidence, the editable report, changes the chat suggests and charts DIG draws, combining teammates' saves | 1070 | `cd ai_service && pytest tests/` |
-| Frontend — Vitest, including rendered components, the change card, the live report channel, the two themes and the interactive demo | 356 | `cd frontend && npm test` |
+| C# — unit, integration, edge cases, the real Supabase client against a stand-in server, the chat suggesting changes, teams editing the report, the look of the files | 540 | `dotnet test backend.Tests/backend.Tests.csproj` |
+| Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is, insights' evidence, the editable report, changes the chat suggests and charts DIG draws, combining teammates' saves, reading who the report is for, plain words and the five looks | 1125 | `cd ai_service && pytest tests/` |
+| Frontend — Vitest, including rendered components, the change card, the live report channel, the two themes, the interactive demo and its team stop, and the look picker | 371 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
+
+---
+
+## Reports that fit their reader, and a look to choose, 2026-11-22
+
+Every report was written by "a consultancy for the C-suite" and dressed the
+same (a dark navy PDF in Helvetica). The free plan sends no settings and the
+server's default tone was "professional", so a café's sales came back quoting
+eta-squared and "p < 1e-6" on page 1.
+
+- **DIG reads who the report is for** (`ai_engine/reading.py`). The call that
+  already reads what the file is (no extra model call) now also says who most
+  likely reads it and how to speak to them: setting (personal, business,
+  public, research, technical), level (plain, balanced, expert), voice
+  (friendly, professional, formal), how simple the charts should be, and the
+  look that suits it. Without a model it is worked out from the kind of data.
+  A reading log comes back as "you, tracking your own reading", friendly and
+  plain; a café's sales as plain for the owner; a lab file as expert.
+- **The person's own choices win** (`reading.settle`): casual is really plain
+  and friendly, academic is really formal with statistics, technical is
+  expert with detailed charts. The free plan sends `tone: "auto"` (it sent
+  "professional"); the server's default changed with it.
+- **Plain reports stay plain** (`llm/plain.py`). The writer is told the level;
+  slips it still makes ("(p < 0.001)", "statistically significant") are
+  found, a report with many is sent back once, and the rest are taken out
+  without a model. No figure is changed. Charts are kept to bars and lines for
+  a plain reader (`fit_charts_to_reader`).
+- **The statistics moved, not lost.** Each finding's "Based on" lines go on a
+  last "How we know" page with notes on the data, cleaning and the confidence
+  score.
+- **A new PDF** in the order a reader wants it: a cover with what the data
+  is, the title, three key numbers and the short version; "What we found" (a
+  headline per finding, its figure, how firm it is in a word, its chart);
+  your questions; "What it means"; "How we know". Fonts are embedded.
+- **Word and PowerPoint redesigned** in the same look, with fonts the
+  reader's computer already has, so nothing is swapped silently.
+- **Five looks** (`ai_engine/design/looks.py`): Signature (DIG's paper, ink,
+  cobalt and lime, Bricolage Grotesque and Work Sans), Clean, Warm, Classic
+  and Midnight; five font pairs; A4 or US Letter. The free plan always gets
+  Signature, so a free report looks designed and carries the brand. Pro picks
+  any of them in the panel's new "Look of the files" section, or "Fits the
+  data" (warm for a café, clean for a lab). Charts are drawn in the look's
+  colours, and dates on a line chart get short flat labels.
+- **The demo** has its report written by hand from the coffee file (no
+  statistics before "How we know"; every figure checked by the tests against
+  the CSV), new files made in the Signature look, and a new "Work together"
+  stop: the report open for a team of five (owner, editors, a viewer, one
+  away), live cursors, a teammate typing and saving, a comment and a reply,
+  the activity log and what each role may do. It is view only: a click says
+  so. On the demo's free plan it is marked Pro. In the real app teammates see
+  each save, not each keystroke.
+- **Server:** `AnalyzeRequestDto` gains `Theme`, `Font` and `PageSize`
+  (signature, auto, a4 by default), sent to the AI service as form fields;
+  customization stays Pro-only. Bricolage Grotesque and Work Sans ship in
+  `ai_engine/design/fonts` with their Open Font Licence. No database change.
+
+Not covered: a long academic cover leaves out its list of findings when it
+does not fit on the page (they follow on the next pages as always).
 
 ---
 
@@ -434,7 +492,7 @@ says to run them again.
 Upload → quality check → optional cleaning → statistics → AI-written insights (free open-source models, strongest first: NVIDIA Nemotron via OpenRouter, then Groq) → charts → PDF, Word and PowerPoint. Runs in the background with SignalR status updates; the frontend polls `/api/analyses/active`.
 
 ### Report customization
-Language, tone, insight count, occasion, audience, depth, focus areas, comparisons, must-mention topics, chart style, methodology and confidence toggles. Word and PowerPoint output for Pro.
+Language, tone, insight count, occasion, audience, depth, focus areas, comparisons, must-mention topics, chart style, methodology and confidence toggles; the look of the files (five themes or one that fits the data, five font pairs, A4 or US Letter). Word and PowerPoint output for Pro. Without settings, DIG reads who the report is for from the data and writes for them, in its Signature look.
 
 ### Plans and billing
 Free (2 analyses / 48h, 5 history slots, PDF only) and Pro ($9.99/mo, up to 20 analyses a day, Word + PPTX, chatbot customization, teams, 15 history slots). Stripe checkout, billing portal and webhook handling are wired end to end. No card data is stored server-side.
@@ -565,6 +623,6 @@ The test suites replace Supabase, Stripe, SMTP and the Python service with in-me
 1. Deploy the server, verify it, then push the frontend.
 2. Move from Lightsail to Lambda before the AWS credits end on 2027-04-09. The
    blockers are the background analyses and SignalR.
-3. Bring the dashboard and PDF report up to the Atlas design.
+3. Bring the report page up to the canvas's layout (with Stage B).
 
 See FUTURE_EXPANSION.md for the full inventory and designs.

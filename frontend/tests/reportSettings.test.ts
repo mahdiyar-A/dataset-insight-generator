@@ -21,7 +21,7 @@ describe("applyBrief", () => {
     const current = { ...DEFAULT_SETTINGS };
     applyBrief(current, { tone: "casual", outputFormat: { word: true } });
 
-    expect(current.tone).toBe("professional");
+    expect(current.tone).toBe("auto");
     expect(current.outputFormat.word).toBe(false);
   });
 
@@ -51,6 +51,20 @@ describe("applyBrief", () => {
   it("survives an empty or missing brief", () => {
     expect(applyBrief(DEFAULT_SETTINGS, {})).toEqual(DEFAULT_SETTINGS);
     expect(applyBrief(DEFAULT_SETTINGS, null)).toEqual(DEFAULT_SETTINGS);
+  });
+});
+
+describe("the look in a brief", () => {
+  it("takes a theme, font and page size the panel has", () => {
+    const next = applyBrief(DEFAULT_SETTINGS, { theme: "warm", font: "storybook", pageSize: "letter" });
+
+    expect(next).toMatchObject({ theme: "warm", font: "storybook", pageSize: "letter" });
+  });
+
+  it("ignores one it has no card for", () => {
+    const next = applyBrief(DEFAULT_SETTINGS, { theme: "neon", font: "comic", pageSize: "a3" });
+
+    expect(next).toEqual(DEFAULT_SETTINGS);
   });
 });
 

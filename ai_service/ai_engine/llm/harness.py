@@ -114,13 +114,18 @@ MAX_TOOL_ROUNDS = 2
 
 # The settings panel's choices. The brief may set nothing else.
 SETTING_CHOICES: Dict[str, Tuple[str, ...]] = {
-    "tone": ("professional", "technical", "storytelling", "casual", "academic", "simplified"),
-    "audience": ("general", "executive", "technical", "client", "student"),
+    # "auto": DIG works out who reads it from the data (ai_engine/reading.py).
+    "tone": ("auto", "professional", "technical", "storytelling", "casual", "academic", "simplified"),
+    "audience": ("auto", "general", "executive", "technical", "client", "student"),
     "depth": ("quick", "standard", "deep"),
     "occasion": ("general", "investor", "academic", "internal", "client"),
     "language": ("en", "fr", "es", "de", "zh", "ar", "pt", "fa"),
     "chartStyle": ("mixed", "bar-heavy", "trend", "distribution", "comparison"),
     "writingFormat": ("narrative", "bullets", "mixed"),
+    # How the files look (ai_engine/design/looks.py).
+    "theme": ("auto", "signature", "clean", "warm", "classic", "midnight"),
+    "font": ("auto", "signature", "modern", "classic", "storybook", "technical"),
+    "pageSize": ("a4", "letter"),
 }
 TEXT_SETTINGS = {"focusOn": 300, "comparisons": 200, "assumptions": 500, "avoid": 200}
 MAX_MUST_MENTION = 8

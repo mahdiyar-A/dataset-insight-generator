@@ -18,7 +18,10 @@ public class AnalyzeRequestDto
 
     // ── Standard customization ────────────────────────────────────────────────
     public string Language      { get; set; } = "en";             // en|fr|es|de|zh|ar|pt|fa
-    public string Tone          { get; set; } = "professional";   // professional|technical|casual|storytelling|academic|simplified
+    // "auto": DIG reads who the data is for and writes for them. The free plan
+    // always sends it; it used to send "professional", so a café's sales came
+    // back written like a board paper.
+    public string Tone          { get; set; } = "auto";           // auto|professional|technical|casual|storytelling|academic|simplified
     public int    InsightsCount { get; set; } = 5;                // 1-10 (the panel offers 3|5|7)
     public string Occasion      { get; set; } = "general";        // general|investor|academic|internal|client
 
@@ -41,6 +44,13 @@ public class AnalyzeRequestDto
     // ── Output format ─────────────────────────────────────────────────────────
     public bool   WantWord      { get; set; } = false;
     public bool   WantPptx      { get; set; } = false;
+
+    // ── How the files look (Pro) ──────────────────────────────────────────────
+    // The free plan always gets DIG's own look, Signature, on A4. The AI
+    // service checks each value against its own list.
+    public string Theme         { get; set; } = "signature";      // auto|signature|clean|warm|classic|midnight
+    public string Font          { get; set; } = "auto";           // auto|signature|modern|classic|storybook|technical
+    public string PageSize      { get; set; } = "a4";             // a4|letter
 
     // ── What the data is ──────────────────────────────────────────────────────
     // The classification the AI service made when the file was checked, handed

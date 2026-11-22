@@ -11,8 +11,6 @@ an insight citing nothing real is sent back once and then left out, and the
 import base64
 import io
 import json
-import re
-import zlib
 
 import pytest
 
@@ -332,30 +330,36 @@ def test_word_and_powerpoint_print_the_line_under_the_insight():
     report = _report_with_basis()
     docx = build_word_doc(report, file_name="f.csv", domain="retail", charts=[])
     text = "\n".join(p.text for p in Document(io.BytesIO(docx)).paragraphs)
-    assert "Based on: revenue differs by region" in text
+    # The numbers sit under "How we know", away from the words a reader reads first.
+    assert text.index("revenue differs by region: highest North") > text.index("How we know")
 
     deck = Presentation(io.BytesIO(build_pptx(report, file_name="f.csv", domain="retail", charts=[])))
-    shapes = "\n".join(s.text_frame.text for slide in deck.slides for s in slide.shapes if s.has_text_frame)
-    assert "Based on: revenue differs by region" in shapes
+    slides = ["\n".join(s.text_frame.text for s in slide.shapes if s.has_text_frame) for slide in deck.slides]
+    behind = [t for t in slides if "revenue differs by region: highest North" in t]
+    assert behind and all("How we know" in t for t in behind)
+    # The presenter still has it beside the finding, in the notes.
+    notes = [s.notes_slide.notes_text_frame.text for s in deck.slides if s.has_notes_slide]
+    assert any("Based on: revenue differs by region" in n for n in notes)
 
 
 @pytest.mark.parametrize("language", ["en", "fa"])
-def test_the_pdf_draws_the_line_and_keeps_an_english_report_in_its_own_font(language):
-    from ai_engine.pdf.pdf_builder import _spelled, build_pdf, needs_unicode
+def test_the_pdf_prints_the_line_under_how_we_know_and_keeps_greek_letters(language):
+    from ai_engine.pdf.pdf_builder import build_pdf
+    from tests.pdf_text import pdf_text
     report = _report_with_basis()
     pdf_b64 = build_pdf(report=report, charts=[], stats_summary={"rowCount": 600, "columnCount": 6},
                         was_cleaned=False, file_name="f.csv", domain=_domain(), language=language)
     pdf = base64.b64decode(pdf_b64)
     assert pdf.startswith(b"%PDF")
+    text = pdf_text(pdf)
+    # Shaped right-to-left pages place each letter on its own, and a fallback
+    # font's letters come in separate runs: compare without the spaces.
+    flat = text.replace(" ", "")
+    assert "revenuediffersbyregion" in flat
+    # The report's own fonts lack η; a fallback font draws it, so it is not spelled out.
+    assert "η²=0.0236" in flat
     if language == "en":
-        # Helvetica text sits in the page streams as plain strings.
-        pages = b"".join(zlib.decompress(s) for s in re.findall(rb"stream\r?\n(.*?)\r?\nendstream", pdf, re.S)
-                         if s[:1] == b"x")
-        assert b"(Based on: revenue differs by region" in pages
-        assert b"eta^2 = 0.0236" in pages
-    # η would move a whole English report to the Unicode font; spelled out it does not.
-    assert not needs_unicode(_spelled(report.insights[0]["basedOn"][0]))
-    assert _spelled("η² = 0.1, ρ = 0.2") == "eta² = 0.1, rho = 0.2"
+        assert text.index("revenue differs by region") > text.index("How we know")
 
 
 def test_the_chat_knows_what_each_insight_rests_on():

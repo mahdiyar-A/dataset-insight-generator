@@ -551,6 +551,77 @@ export const DEMO_CSS = `
   .dg-type { flex-wrap: wrap; }
 }
 
+/* ── Work together: the report open for a team ───────────────────────── */
+.dg-live { border: 2px solid var(--rule); box-shadow: 6px 6px 0 var(--rule); background: var(--card); min-width: 0; }
+.dg-live-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 14px; border-bottom: 2px solid var(--rule); background: var(--paper-alt); }
+.dg-live-doc-icon { width: 22px; height: 28px; flex-shrink: 0; background: var(--cobalt); border: 2px solid var(--rule); clip-path: polygon(0 0, 68% 0, 100% 26%, 100% 100%, 0 100%); }
+.dg-live-name { display: flex; flex-direction: column; min-width: 0; flex: 1 1 220px; }
+.dg-live-name strong { font-family: ${DISPLAY}; font-size: 15px; font-weight: 800; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dg-live-name span { font-size: 12px; color: var(--ink-faint); }
+.dg-live-faces { display: flex; align-items: center; }
+.dg-live-faces .dg-mate + .dg-mate { margin-inline-start: -8px; }
+.dg-mate {
+  width: 30px; height: 30px; flex-shrink: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--c); color: var(--on); border: 2px solid var(--card); box-shadow: 0 0 0 1.5px var(--rule);
+  font-size: 11px; font-weight: 800; animation: dgPop .35s ease backwards;
+}
+.dg-mate.small { width: 22px; height: 22px; font-size: 9px; border-width: 1.5px; box-shadow: none; }
+.dg-live-lock { font-size: 12px; font-weight: 700; color: var(--ink-soft); border: 1.5px solid var(--line); padding: 3px 8px; white-space: nowrap; }
+.dg-live-team { list-style: none; margin: 0; padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 8px; border-bottom: 2px solid var(--rule); }
+.dg-live-team li { display: flex; align-items: center; gap: 8px; padding: 5px 10px 5px 5px; border: 1.5px solid var(--line); background: var(--paper); transition: opacity .3s, border-color .3s; }
+.dg-live-team li.live { border-color: var(--rule); }
+.dg-live-team li.out { opacity: .5; }
+.dg-live-team li.away { opacity: .62; }
+.dg-live-who { display: flex; flex-direction: column; line-height: 1.2; }
+.dg-live-who strong { font-size: 13px; }
+.dg-live-team small { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--ink-faint); margin-inline-start: 4px; white-space: nowrap; }
+.dg-live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-faint); flex-shrink: 0; }
+.dg-live-team li.live .dg-live-dot { background: var(--ok); animation: dgLive 1.8s ease infinite; }
+.dg-role { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--cobalt-accent); }
+.dg-live-main { display: grid; grid-template-columns: minmax(0, 1fr) 260px; }
+.dg-live-page { padding: clamp(16px, 3vw, 32px); background: var(--paper); border-inline-end: 2px solid var(--rule); min-width: 0; }
+.dg-live-title { margin: 0 0 10px; font-size: clamp(20px, 2.6vw, 28px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
+.dg-live-summary { margin: 0 0 16px; font-size: 14.5px; line-height: 1.7; color: var(--ink-soft); }
+.dg-sel { background: transparent; color: inherit; transition: background .3s, box-shadow .3s; }
+.dg-sel.on { background: color-mix(in srgb, var(--c) 42%, transparent); box-shadow: inset 0 -3px 0 var(--c); color: var(--ink); }
+.dg-caret { position: relative; display: inline-block; width: 2px; height: 1.25em; margin: 0 1px; vertical-align: text-bottom; }
+.dg-caret::before { content: ""; position: absolute; inset: 0; background: var(--c); box-shadow: 0 0 0 .5px var(--rule); animation: dgCaret 1.1s steps(1) infinite; }
+.dg-caret b {
+  position: absolute; bottom: 100%; left: -1px; z-index: 2; padding: 1px 6px; white-space: nowrap;
+  background: var(--c); color: var(--on); border: 1px solid var(--rule); font-family: ${SANS}; font-size: 10.5px; font-weight: 800; line-height: 1.35; letter-spacing: 0;
+}
+.dg-live-f { padding: 14px 0 12px; border-top: 1.5px solid var(--line); }
+.dg-live-f.flash { animation: dgFlash 1.4s ease; }
+.dg-live-f h4 { margin: 0 0 6px; font-family: ${DISPLAY}; font-size: 17px; font-weight: 800; letter-spacing: -0.015em; line-height: 1.25; }
+.dg-live-f p { margin: 0; font-size: 14px; line-height: 1.65; color: var(--ink-soft); }
+.dg-live-n { color: var(--cobalt-accent); margin-inline-end: 4px; }
+.dg-typed { background: color-mix(in srgb, var(--c) 34%, transparent); color: var(--ink); }
+.dg-live-more { margin: 6px 0 0; font-size: 12.5px; font-weight: 700; color: var(--ink-faint); }
+.dg-live-side { padding: 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; background: var(--card); }
+.dg-live-side .dg-eyebrow { margin: 4px 0 0; }
+.dg-live-empty { margin: 0; font-size: 13px; color: var(--ink-faint); }
+.dg-thread { border: 2px solid var(--rule); background: var(--paper); padding: 10px; display: flex; flex-direction: column; gap: 10px; animation: dgEnter .3s ease backwards; }
+.dg-thread q { font-size: 12px; font-style: italic; color: var(--ink-faint); border-inline-start: 3px solid #7B5EA7; padding-inline-start: 8px; }
+.dg-cmt { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; animation: dgEnter .3s ease backwards; }
+.dg-cmt-text { display: block; margin-top: 2px; line-height: 1.45; color: var(--ink); }
+.dg-live-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow: auto; }
+.dg-live-log li { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; line-height: 1.4; color: var(--ink-soft); animation: dgEnter .3s ease backwards; }
+.dg-live-log small { color: var(--ink-faint); }
+.dg-live-roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-top: 20px; }
+.dg-live-rolecard { display: flex; flex-direction: column; gap: 4px; border: 2px solid var(--rule); background: var(--paper-alt); padding: 10px 12px; font-size: 13px; line-height: 1.45; color: var(--ink-soft); }
+.dg-live-again { margin-top: 14px; }
+@keyframes dgCaret { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
+@keyframes dgLive { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 55%, transparent); } 50% { box-shadow: 0 0 0 5px transparent; } }
+@media (max-width: 860px) {
+  .dg-live-main { grid-template-columns: minmax(0, 1fr); }
+  .dg-live-page { border-inline-end: none; border-bottom: 2px solid var(--rule); }
+}
+@media (max-width: 640px) {
+  .dg-live-team li { flex: 1 1 100%; }
+  .dg-live-team small { margin-inline-start: auto; }
+  .dg-live-name strong { white-space: normal; }
+}
+
 /* Short screens: the header scrolls away so the work has room, and DIG
    sticks near the top instead of under it. */
 .dg-work { scroll-margin-top: 16px; }

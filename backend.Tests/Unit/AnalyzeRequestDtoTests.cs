@@ -24,7 +24,7 @@ public class AnalyzeRequestDtoTests
         var dto = new AnalyzeRequestDto();
 
         dto.Language.Should().Be("en");
-        dto.Tone.Should().Be("professional");
+        dto.Tone.Should().Be("auto");
         dto.InsightsCount.Should().Be(5);
         dto.Occasion.Should().Be("general");
         dto.Audience.Should().Be("general");
@@ -37,6 +37,9 @@ public class AnalyzeRequestDtoTests
         dto.IncludeConfidence.Should().BeTrue();
         dto.WantWord.Should().BeFalse();
         dto.WantPptx.Should().BeFalse();
+        dto.Theme.Should().Be("signature");
+        dto.Font.Should().Be("auto");
+        dto.PageSize.Should().Be("a4");
     }
 
     [Test]
@@ -51,12 +54,15 @@ public class AnalyzeRequestDtoTests
     [Test]
     public void Tone_DefaultValue_MatchesPipelineExpectedKey()
     {
-        // Risk: the Gemini prompt uses tone as a dictionary key for the persona
-        // matrix. A value like "Professional" (capitalized) would miss the lookup
-        // and fall back to a default persona — silently ignoring the user's choice.
+        // Risk: the prompt uses tone as a dictionary key for the persona matrix.
+        // A value like "Professional" (capitalized) would miss the lookup and
+        // fall back to a default persona, silently ignoring the user's choice.
+        // "auto" (the default, and the free plan's) means DIG reads who the
+        // data is for; a fixed "professional" wrote every report like a board paper.
         var dto = new AnalyzeRequestDto();
-        var validTones = new[] { "professional", "technical", "storytelling", "casual", "academic", "simplified" };
+        var validTones = new[] { "auto", "professional", "technical", "storytelling", "casual", "academic", "simplified" };
         validTones.Should().Contain(dto.Tone);
+        dto.Tone.Should().Be("auto");
     }
 
     [Test]

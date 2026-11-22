@@ -26,7 +26,10 @@ from ai_engine.core.cleaner              import clean_dataset, droppable_columns
 from ai_engine.core.stats_analyzer       import build_stats_summary
 from ai_engine.llm.groq_client           import MAX_DESCRIPTION_CHARS, detect_domain, domain_from_dict
 from ai_engine.llm.guard                 import one_line
-from ai_engine.core.confidence          import assess_confidence, split_misleading_scatters, validate_chart_instructions
+from ai_engine.core.confidence          import (assess_confidence, fit_charts_to_reader, split_misleading_scatters,
+                                                 validate_chart_instructions)
+from ai_engine.design.looks              import settle_look
+from ai_engine.reading                   import from_dict as reading_from_dict, settle as settle_reading
 from ai_engine.llm.insight_agent         import generate_report, MAX_INSIGHTS, MIN_INSIGHTS, MAX_QUESTIONS
 from ai_engine.llm.stats_digest          import build_digest
 from ai_engine.llm.user_requests         import cover, for_chat, for_prompt, work_out_requests
@@ -34,7 +37,7 @@ from ai_engine.charts.chart_generator    import generate_charts
 from ai_engine.pdf.pdf_builder           import build_pdf
 from ai_engine.report_labels             import described_line, left_out_line
 from ai_engine                           import report_document
-from ai_engine.report_document           import report_for_chat
+from ai_engine.report_document           import office_details, report_for_chat
 from ai_engine.models.models             import (
     PipelineResult, DomainResult, ChartInstruction, LLMReport
 )
@@ -163,7 +166,9 @@ def run_pipeline(
 
     customization (Pro users only, all optional):
       language       — "en" | "fr" | "es" | "de" | "zh" | "ar" | "pt"
-      tone           — "professional" | "casual" | "simplified" | "technical" | "storytelling"
+      tone           — "auto" (write for the reader DIG works out from the data) |
+                       "professional" | "casual" | "simplified" | "technical" | "storytelling" | "academic"
+      theme, font, pageSize — the look of the files (ai_engine/design/looks.py)
       insightsCount  — 3 | 5 | 7
       occasion       — "general" | "academic" | "business" | "personal" | "industry"
       outputFormat   — { "pdf": bool, "word": bool, "pptx": bool }
@@ -177,10 +182,10 @@ def run_pipeline(
     # Parse customization with safe defaults
     cust         = customization or {}
     language     = cust.get("language",     "en")
-    tone         = cust.get("tone",         "professional")
+    tone         = cust.get("tone")         or "auto"
     insights_count = _int_in(cust.get("insightsCount", 5), MIN_INSIGHTS, MAX_INSIGHTS, 5)
     occasion     = cust.get("occasion",     "general")
-    audience     = cust.get("audience",     "general")
+    audience     = cust.get("audience")     or "auto"
     depth        = cust.get("depth",        "standard")
     focus_on     = cust.get("focusOn",      "").strip()
     comparisons  = cust.get("comparisons",  "").strip()
@@ -245,6 +250,15 @@ def run_pipeline(
 
     if not domain.is_analyzable:
         return _fail("not_workable", f"Dataset rejected: {domain.rejection_reason}")
+
+    # Who the report is for, with the person's own choices on top, and the
+    # look it is made in. See ai_engine/reading.py and design/looks.py.
+    reading = settle_reading(reading_from_dict(domain.reading, domain.domain),
+                             tone=tone, audience=audience, occasion=occasion, chart_style=chart_style)
+    look = settle_look(cust.get("theme"), cust.get("font"), cust.get("pageSize"), fits=reading.theme)
+    print(f"[Pipeline] Reader: {reading.reader or '?'} | {reading.setting}/{reading.level}/{reading.voice} "
+          f"charts={reading.charts} ({reading.source}) | look: {look.theme}/{look.f.id}/{look.page_size} "
+          f"({look.picked})", flush=True)
 
     # Columns Groq said to drop
     suggested    = domain.column_decisions.get("drop", [])
@@ -348,6 +362,7 @@ def run_pipeline(
             writing_format=writing_format,
             avoid=avoid,
             requested=for_prompt(requested),
+            reading=reading,
         )
     except Exception as e:
         # This should not happen, but if it does — build fallback inline
@@ -385,6 +400,7 @@ def run_pipeline(
     llm_report.chartInstructions, chart_issues = validate_chart_instructions(
         llm_report.chartInstructions, list(df_work.columns))
     split_misleading_scatters(llm_report.chartInstructions, stats)
+    llm_report.chartInstructions = fit_charts_to_reader(llm_report.chartInstructions, reading.charts)
     judge = assess_confidence(stats, chart_issues)
     llm_report.confidenceNote = judge.judge_statement
     print(f"[Pipeline] Phase 6 done. Confidence: {judge.confidence_score}/10 ({judge.confidence_level})", flush=True)
@@ -392,7 +408,7 @@ def run_pipeline(
     # ── Phase 7: Chart generation (using validated instructions) ─────────
     print(f"[Pipeline] Phase 7 — Generating {len(llm_report.chartInstructions)} chart(s)...", flush=True)
     try:
-        charts = generate_charts(df_work, llm_report.chartInstructions)
+        charts = generate_charts(df_work, llm_report.chartInstructions, look.chart_style())
     except Exception as e:
         print(f"[Pipeline] Chart generation error: {e}", flush=True)
         charts = []
@@ -419,6 +435,8 @@ def run_pipeline(
             judge_confidence_level=judge.confidence_level if judge else "MEDIUM",
             dropped_columns=dropped_columns,
             language=language,
+            look=look,
+            reading=reading,
         )
     except Exception as e:
         _log(stats, domain, judge, was_cleaned, user_wants_cleaning,
@@ -441,7 +459,9 @@ def run_pipeline(
             try:
                 word_bytes = build_word_doc(llm_report, file_name=file_name, domain=domain.domain,
                                             charts=charts, language=language,
-                                            confidence_score=judge.confidence_score)
+                                            confidence_score=judge.confidence_score, look=look,
+                                            **office_details(domain, stats.__dict__, was_cleaned,
+                                                             dropped_columns))
                 import base64 as _b64
                 word_b64 = _b64.b64encode(word_bytes).decode("utf-8")
                 print(f"[Pipeline] Word report generated ({len(word_bytes):,} bytes)", flush=True)
@@ -458,7 +478,9 @@ def run_pipeline(
             try:
                 pptx_bytes = build_pptx(llm_report, file_name=file_name, domain=domain.domain,
                                         charts=charts, language=language,
-                                        confidence_score=judge.confidence_score)
+                                        confidence_score=judge.confidence_score, look=look,
+                                        **office_details(domain, stats.__dict__, was_cleaned,
+                                                         dropped_columns))
                 import base64 as _b64
                 pptx_b64 = _b64.b64encode(pptx_bytes).decode("utf-8")
                 print(f"[Pipeline] PPTX generated ({len(pptx_bytes):,} bytes)", flush=True)
@@ -501,7 +523,8 @@ def run_pipeline(
         document = report_document.build(
             llm_report, charts, stats=stats, domain=domain, was_cleaned=was_cleaned,
             dropped_columns=dropped_columns, file_name=file_name, language=language,
-            confidence_score=judge.confidence_score, confidence_level=judge.confidence_level)
+            confidence_score=judge.confidence_score, confidence_level=judge.confidence_level,
+            look=look, reading=reading)
     except Exception as e:
         print(f"[Pipeline] Report document failed (ignored): {e}", flush=True)
 

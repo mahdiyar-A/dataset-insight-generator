@@ -23,6 +23,7 @@ export const STOPS = [
   { key: 'what', label: 'What is it?', chapter: 'explore' },
   { key: 'report', label: 'Report', chapter: 'explore' },
   { key: 'ask', label: 'Ask', chapter: 'explore' },
+  { key: 'team', label: 'Work together', chapter: 'explore' },
   { key: 'plans', label: 'Free or Pro', chapter: 'explore' },
   { key: 'files', label: 'Take it home', chapter: 'explore' },
 ] as const;
@@ -44,7 +45,7 @@ export const TIP_COUNT = Object.keys(COLUMNS).length + 3 + EVIDENCE.length + TER
 
 const fmt = (n: number) => n.toLocaleString('en-US');
 
-function StopHead({ stop, title, lead }: { stop: number; title: string; lead: ReactNode }) {
+export function StopHead({ stop, title, lead }: { stop: number; title: string; lead: ReactNode }) {
   const chapter = STOPS[stop].chapter === 'basics' ? `THE BASICS · ${stop + 1} OF ${BASICS}` : 'EXPLORE';
   return (
     <>
@@ -65,7 +66,7 @@ function Coach({ label = 'Press here', above = false }: { label?: string; above?
 }
 
 /** Keeps a timer's callback from speaking for a stop the visitor has left. */
-function useActiveRef(active: boolean) {
+export function useActiveRef(active: boolean) {
   const ref = useRef(active);
   useEffect(() => {
     ref.current = active;
@@ -73,7 +74,7 @@ function useActiveRef(active: boolean) {
   return ref;
 }
 
-function useTimers() {
+export function useTimers() {
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
   return (fn: () => void, ms: number) => {
@@ -382,8 +383,9 @@ const AREAS = [
   { stop: 4, emoji: '🔎', title: 'What is it?', teaser: 'DIG asks what the data is. Then see how Pro lets you steer the report.' },
   { stop: 5, emoji: '📄', title: 'The report', teaser: '5 findings and 5 charts. Click any number to see where it comes from, then edit it.' },
   { stop: 6, emoji: '💬', title: 'Ask DIG', teaser: 'Ask about the report. DIG answers from the file and says no to the rest.' },
-  { stop: 7, emoji: '⚖️', title: 'Free or Pro', teaser: 'Flip between the plans and watch what unlocks.' },
-  { stop: 8, emoji: '📦', title: 'Take it home', teaser: 'The report as PDF, Word or PowerPoint, and the cleaned data.' },
+  { stop: 7, emoji: '👥', title: 'Work together', teaser: 'One report, a whole team on it: who is here, their roles, live edits and comments.' },
+  { stop: 8, emoji: '⚖️', title: 'Free or Pro', teaser: 'Flip between the plans and watch what unlocks.' },
+  { stop: 9, emoji: '📦', title: 'Take it home', teaser: 'The report as PDF, Word or PowerPoint, and the cleaned data.' },
 ];
 
 export function ExploreStop({ visited }: { visited: ReadonlySet<number> }) {
@@ -905,14 +907,14 @@ export function PlansStop() {
   const p = PLANS[tour.plan];
   const pro = tour.plan === 'pro';
 
-  useArrival(7, () => ({
+  useArrival(8, () => ({
     mood: 'point',
     say: 'Free gets you a full report. Pro adds more room, more formats and teammates. Flip the switch and watch what unlocks! 🔓',
   }));
 
   return (
     <div>
-      <StopHead stop={7} title="Free or Pro?" lead="Start free. Upgrade when you need more analyses, Word and PowerPoint, or a team." />
+      <StopHead stop={8} title="Free or Pro?" lead="Start free. Upgrade when you need more analyses, Word and PowerPoint, or a team." />
       <div className="dg-switch" role="group" aria-label="Plan">
         <button type="button" aria-pressed={!pro} onClick={() => tour.setPlan('free')}>Free</button>
         <button type="button" aria-pressed={pro} onClick={() => tour.setPlan('pro')}>Pro</button>
@@ -974,7 +976,7 @@ export function FilesStop() {
   const pro = tour.plan === 'pro';
   const tipsLeft = TIP_COUNT - tour.seen.size;
 
-  useArrival(8, () => ({
+  useArrival(9, () => ({
     mood: 'cheer',
     say: 'That’s the tour! 🎉 Take the files home, or make a free account and I’ll read your own data.',
   }));
@@ -986,7 +988,7 @@ export function FilesStop() {
 
   return (
     <div>
-      <StopHead stop={8} title="Take it home" lead="The report as PDF, Word or PowerPoint, plus the cleaned data. These are the real files from this run." />
+      <StopHead stop={9} title="Take it home" lead="The report as PDF, Word or PowerPoint, plus the cleaned data. These are the real files from this run." />
       <div className="dg-files">
         {FILES.map(f => (
           <a key={f.href} className="dg-filecard" href={f.href} download onClick={() => took(f.ext.toUpperCase())}>

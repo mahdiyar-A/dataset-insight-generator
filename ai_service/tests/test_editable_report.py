@@ -7,8 +7,6 @@ import base64
 import copy
 import io
 import json
-import re
-import zlib
 
 import pytest
 from docx import Document
@@ -17,6 +15,7 @@ from pptx import Presentation
 
 from ai_engine import report_document as rd
 from ai_engine.models.models import DomainResult, LLMReport, StatsSummary
+from tests.pdf_text import pdf_text
 
 # Single white pixel: enough for the builders to place a picture.
 PNG = bytes.fromhex(
@@ -77,8 +76,7 @@ def _original():
 def _pdf_text(pdf_b64: str) -> bytes:
     pdf = base64.b64decode(pdf_b64)
     assert pdf.startswith(b"%PDF")
-    return b"".join(zlib.decompress(s) for s in re.findall(rb"stream\r?\n(.*?)\r?\nendstream", pdf, re.S)
-                    if s[:1] == b"x")
+    return pdf_text(pdf).encode("utf-8")
 
 
 def _word_text(word_b64: str) -> str:
@@ -99,7 +97,7 @@ def test_the_document_holds_every_part_of_the_report_and_the_facts():
     facts = doc["facts"]
     assert (facts["rowCount"], facts["columnCount"], facts["wasCleaned"]) == (600, 6, True)
     assert facts["domain"] == {"domain": "retail", "keyIssues": ["Q4 is short"],
-                               "cleaningMethods": ["remove_duplicates"]}
+                               "cleaningMethods": ["remove_duplicates"], "description": ""}
     assert (facts["confidenceScore"], facts["confidenceLevel"]) == (8, "HIGH")
     assert facts["droppedColumns"] == ["id"] and facts["writerModel"] == "Test model"
     json.dumps(doc)   # it is stored as JSON
@@ -306,7 +304,8 @@ def test_the_basis_lines_and_measured_facts_still_print_after_an_edit():
     edited["insights"][0]["body"] = "Rewritten by the owner."
     files = rd.build_files(rd.apply_edits(_original(), edited), {}, want_word=True)
     text = _word_text(files["word"])
-    assert "Based on: revenue differs by region" in text
+    # The numbers behind a finding are listed under "How we know", at the end.
+    assert text.index("revenue differs by region") > text.index("How we know")
     assert "8/10" in text
     assert b"600" in _pdf_text(files["pdf"])
 

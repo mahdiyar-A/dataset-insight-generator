@@ -212,7 +212,8 @@ def test_a_correlation_that_reverses_inside_groups_reaches_the_writer_the_chart_
     ])
     charted = []
     real_generate = pipeline.generate_charts
-    monkeypatch.setattr(pipeline, "generate_charts", lambda df, charts: charted.extend(charts) or real_generate(df, charts))
+    monkeypatch.setattr(pipeline, "generate_charts",
+                        lambda df, charts, style=None: charted.extend(charts) or real_generate(df, charts, style))
 
     result = run_pipeline(file_bytes=upload, file_name="spend.csv", user_wants_cleaning=False,
                           user_confirmed_low=True, session_id="test")

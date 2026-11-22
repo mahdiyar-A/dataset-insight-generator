@@ -29,7 +29,8 @@ from typing import List, Dict, Any, Optional
 from ai_engine.core.confounding import misleading_pairs
 from ai_engine.models.models import StatsSummary, LLMReport, ChartInstruction, DomainResult
 from ai_engine.llm.report_writer import note_outcome, write_report
-from ai_engine.llm.evidence import based_on, catalog, cited, traced, without_ids
+from ai_engine.llm.evidence import based_on, catalog, cited, strength, traced, without_ids
+from ai_engine.llm.plain import humanize_columns, jargon, soften, soften_title
 from ai_engine.llm.stats_digest import build_digest, digest_json
 from ai_engine.report_labels import labels_for
 from ai_engine.llm.guard import (
@@ -59,6 +60,95 @@ MAX_CHARTS = 5
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Writing for the reader DIG worked out (ai_engine/reading.py)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Used whenever the tone is left to DIG: on the free plan, which sends no
+# settings, and on Pro unless a tone is picked. The report used to be written
+# by "a managing partner at a world-class analytics consultancy" for everyone.
+
+_SETTING_PERSONAS = {
+    "personal": ("You are a friend who is good with numbers. Someone has handed you a file they keep about their "
+                 "own life ({reader}). Write to them as \"you\". Make it warm, personal and a little delightful: "
+                 "it is their year, their habit, their story, never a business document."),
+    "business": ("You are a sharp, practical advisor writing for {reader}. They know their business inside out but "
+                 "have never taken a statistics course. They want to know what is going well, what is not, and "
+                 "what to do about it, in plain words they could repeat to their team."),
+    "public":   ("You are a good explainer writing for {reader}. Make the numbers interesting and easy to follow, "
+                 "like a well-written newspaper piece."),
+    "research": ("You are a careful analyst writing for {reader}, who knows this subject. Be precise and measured; "
+                 "keep method details for the data quality section."),
+    "technical": ("You are an engineer writing for {reader}. Be exact and brief: what changed, where, by how much, "
+                  "and what to check."),
+}
+
+_LEVEL_STANDARDS = {
+    "plain": """Write so that someone who has never studied statistics understands every sentence the first time.
+- Lead each insight with what it means for the reader, then the number that shows it.
+- Round numbers the way people say them: "about a third", "$124,000", "nearly twice as much". Keep an exact
+  figure only where the exact value matters (a price, a total).
+- Call things by their everyday names ("sandwiches", "the Downtown store", "books you finished"), never by
+  column names such as units_sold.
+- Say how sure a finding is in words: "a strong pattern", "a clear difference", "too small to rely on",
+  "could be chance".
+- Titles are headlines of at most 10 words that state the finding: "Sandwiches bring in a third of all sales".
+- One idea per insight. Short sentences. Active voice.""",
+    "balanced": """Write for a smart reader who is not a statistician.
+- Plain words first. A key figure may follow in brackets where it helps, at most one statistic per insight.
+- Explain any technical word in the same sentence.
+- Titles are headlines of at most 12 words that state the finding.""",
+}
+
+_VOICE_NOTES = {
+    "friendly": "Voice: warm and encouraging, speaking to the reader as \"you\"; a little playful where it fits. "
+                "No corporate phrases.",
+    "professional": "Voice: confident and direct, like a trusted advisor's memo. No filler such as "
+                    "\"it is noteworthy that\", \"leverage\" or \"synergies\".",
+    "formal": "Voice: measured and formal, fit for a board paper or a published report.",
+}
+
+_LEVEL_RULES = {
+    "plain": """KEEP THESE OUT OF EVERY TITLE, SUMMARY, INSIGHT AND CONCLUSION — the reader does not know them:
+p-values ("p = 0.23", "p < 0.001"), "statistically significant", correlation coefficients ("r = 0.71", "ρ"),
+eta-squared ("η²"), R², tau ("τ"), variance, standard deviation, regression, Mann-Kendall, Spearman, Pearson,
+Cramér's V, chi-square, confidence intervals, Sen slope, quartiles, "model share", "lift", "multivariate".
+Say what they mean instead: "moves together with", "a strong link", "a clear difference", "accounts for about
+half of the ups and downs in", "too small to rely on", "could be chance".
+DIG prints the statistics behind each finding on a separate "How we know" page, so nothing is lost.
+Charts too: a first-time reader must understand each one in two seconds.""",
+    "balanced": """Keep test names, Greek letters and p-values out of titles, the executive summary and the
+conclusion. In an insight's body, at most one statistic, in brackets, after the plain sentence it supports.""",
+    "expert": "",
+}
+
+SIMPLE_CHART_GUIDANCE = (
+    "Simple charts only: bar for comparing groups, line for change over time (only when dates exist), and "
+    "grouped_bar with at most 4 groups. No scatter, box, heatmap, histogram or multi_line. Fewer, clearer "
+    "charts beat more: a chart a first-time reader cannot read in two seconds does not belong in this report.")
+
+_TITLE_RULE = {
+    "personal": "a friendly title about them, e.g. 'Your reading year, in numbers'",
+    "business": "a plain title that names the business, e.g. 'Coffee sales: what is working, what is not'",
+    "public": "an inviting title that names the subject and period",
+    "research": "a precise title naming the subject, scope and period",
+    "technical": "a precise title naming the system, measure and period",
+}
+
+
+def _auto_persona(reading) -> str:
+    text = _SETTING_PERSONAS.get(reading.setting, _SETTING_PERSONAS["business"])
+    return text.format(reader=reading.reader or "the person who owns this data")
+
+
+def _auto_writing(reading, technical_standard: str, academic_standard: str) -> str:
+    if reading.level == "expert":
+        base = academic_standard if reading.voice == "formal" else technical_standard
+    else:
+        base = _LEVEL_STANDARDS.get(reading.level, _LEVEL_STANDARDS["plain"])
+    return f"{base}\n{_VOICE_NOTES.get(reading.voice, _VOICE_NOTES['professional'])}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Prompt builder
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -69,7 +159,7 @@ def _build_prompt(
     dropped_columns: List[str],
     # ── Standard customization ─────────────────────────────────────────────
     language: str = "en",
-    tone: str = "professional",
+    tone: str = "auto",
     insights_count: int = 5,
     occasion: str = "general",
     # ── Deep customization (new) ───────────────────────────────────────────
@@ -87,6 +177,7 @@ def _build_prompt(
     writing_format: str = "narrative",  # narrative | bullets | mixed
     avoid: str = "",                # free text: what to leave out
     requested: str = "",            # user_requests.for_prompt(): figures computed for the directives
+    reading=None,                   # ai_engine.reading.Reading: who the report is for, choices applied
 ) -> str:
     """
     Build the Gemini prompt. Every customization parameter genuinely reshapes
@@ -276,6 +367,35 @@ Every insight should end with a sentence starting 'In plain terms:' that summari
     }
     writing_std = WRITING_STANDARDS.get(tone_key, WRITING_STANDARDS["professional"])
 
+    # ── Who the report is for ──────────────────────────────────────────────
+    # A tone left to DIG means writing for the reader the data suggests; a
+    # tone someone picked keeps its own persona and standard above. Either way
+    # the level rules below come from the reading with the choices applied, so
+    # "technical" lets statistics in and "casual" keeps them out.
+    from ai_engine.reading import by_rules as _rules, chosen as _chosen
+    reading = reading or _rules(domain.domain)
+    if not _chosen(tone):
+        persona = _auto_persona(reading)
+        writing_std = _auto_writing(reading, WRITING_STANDARDS["technical"], WRITING_STANDARDS["academic"])
+    level_rules = _LEVEL_RULES.get(reading.level, "")
+    if not _chosen(chart_style) or chart_style == "mixed":
+        if reading.charts == "simple":
+            chart_guidance = SIMPLE_CHART_GUIDANCE
+    title_rule = _TITLE_RULE.get(reading.setting, _TITLE_RULE["business"])
+    if reading.level == "plain":
+        figures_rule = ("Use their figures, rounded the way people say them (within a percent or two), never "
+                        "recomputed")
+    else:
+        figures_rule = "Quote their figures exactly rather than recomputing or rounding them"
+    level_block = ""
+    if level_rules:
+        level_block = f"""
+═══════════════════════════════════════════════════
+WORDS FOR THIS READER — {reading.level.upper()}
+═══════════════════════════════════════════════════
+{level_rules}
+"""
+
     # ── Attribute vocabulary block ─────────────────────────────────────────
     interp_block = "\n".join(
         f'  "{col}": "{interp}"'
@@ -388,10 +508,14 @@ An insight built on one of these names its "id" (R1, R2, ...) in rests_on.
         f'      "title": "<Declarative statement of the finding — e.g. \'Sales Peak in October, Not Summer, Across All Three Years\'>",\n'
         f'      "body": "<{insight_body_guidance}>",\n'
         f'      "rests_on": ["<the id of each result this insight stands on, e.g. F3 — 1 to 3 ids>"],\n'
+        f'      "highlight": {{"value": "<the one figure that makes this finding, as a reader would say it, '
+        f'e.g. $124,000 or 31% or 2.4x, from the data above>", '
+        f'"label": "<3-7 words saying what that figure is, e.g. of all sales are sandwiches>"}},\n'
         f'      "insight_index": 1\n    }}{"," if actual_insights_count > 1 else ""}'
     )
     remaining_slots = "\n".join(
         f'    {{\n      "rank": {i+1},\n      "title": "...",\n      "body": "...",\n      "rests_on": ["..."],\n'
+        f'      "highlight": {{"value": "...", "label": "..."}},\n'
         f'      "insight_index": {i+1}\n    }}{"," if i < actual_insights_count - 1 else ""}'
         for i in range(1, actual_insights_count)
     )
@@ -459,12 +583,18 @@ ENRICHED STATISTICAL DATA
 WRITING STANDARD — follow this exactly for every sentence
 ═══════════════════════════════════════════════════
 {writing_std}
-
+{level_block}
 ═══════════════════════════════════════════════════
 YOUR OUTPUT — respond ONLY with valid JSON
 ═══════════════════════════════════════════════════
 {{
-  "report_title": "<Specific title — name the domain, scope, and timeframe where available>",
+  "report_title": "<{title_rule}; name the scope and period where the data shows them>",
+
+  "key_numbers": [
+    {{"value": "<a headline figure from the data above, as a reader would say it: $124,000 or 1,240 or 31%>",
+      "label": "<2-6 words saying what it is: in sales / orders served / of sales on weekends>"}}
+  ],
+  // exactly 3 key_numbers: the three figures someone would quote after reading this report.
 
   "introduction": "<{d["intro_style"]}>",
 
@@ -504,8 +634,7 @@ CHART RULES — structural requirements:
   (whether a few entities drive most activity), trend (direction over time with
   a significance test), group_effect (how much variance a grouping explains,
   as eta-squared). Lead with these where present: they answer what the data is
-  for, where the other blocks only describe its shape. Quote their figures
-  exactly rather than recomputing or rounding them, and respect the
+  for, where the other blocks only describe its shape. {figures_rule}, and respect the
   significance flags — an insignificant trend must not be written as a trend.
 - `findings.key_drivers` ranks what moves with the target, alone (rho or
   eta_squared) and together (model share; model.fit says how much the columns
@@ -804,20 +933,29 @@ def _untraced(report: LLMReport, known: Dict[str, Any]) -> List[str]:
 
 
 def _with_checks(report, provider, write, prompt: str, digest: Dict[str, Any],
-                 known: Dict[str, Any], language: str):
+                 known: Dict[str, Any], language: str, reading=None):
     """
-    One correction, as the chat gets, for figures the data does not support and
-    for insights that rest on no result. A report nobody can fix goes out with
-    the doubtful figures named, because a warning beats a confident wrong number.
+    One correction, as the chat gets, for figures the data does not support,
+    for insights that rest on no result, and for a plain report thick with
+    statistics words. A report nobody can fix goes out with the doubtful
+    figures named, because a warning beats a confident wrong number.
 
-    A rewrite is kept only if it has fewer problems in all and still has an
-    insight that rests on something: a model can clear every problem by
-    writing no insights.
+    A rewrite is kept only if it still has an insight that rests on something
+    (a model can clear every problem by writing no insights) and has fewer
+    problems in all, or as few figure and tracing problems and fewer
+    statistics words. Plain words never cost a figure.
     """
     problems = _figure_problems(report, prompt, digest)
     untraced = _untraced(report, known)
-    if problems or untraced:
+    heavy = _heavy_words(report, reading)
+    heavy = heavy if len(heavy) >= JARGON_LIMIT else []
+    if problems or untraced or heavy:
         notes = []
+        if heavy:
+            print(f"[Insights] statistics words in a plain report: {heavy[:10]}", flush=True)
+            notes.append("The draft used statistics words this reader does not know: "
+                         f"{', '.join(heavy[:10])}. Say what each finding means in plain words instead; DIG prints "
+                         "the statistics on a separate page.")
         if problems:
             print(f"[Insights] figures not matched to the data: {problems[:8]}", flush=True)
             notes.append(f"A draft of this report used these figures, which the data above does not support: "
@@ -833,7 +971,9 @@ def _with_checks(report, provider, write, prompt: str, digest: Dict[str, Any],
         if second is not None:
             left, left_untraced = _figure_problems(second, prompt, digest), _untraced(second, known)
             keeps_one = not known or len(second.insights) > len(left_untraced)
-            if keeps_one and len(left) + len(left_untraced) < len(problems) + len(untraced):
+            before, after = len(problems) + len(untraced), len(left) + len(left_untraced)
+            plainer = bool(heavy) and after <= before and len(_heavy_words(second, reading)) < len(heavy)
+            if keeps_one and (after < before or plainer):
                 report, provider, problems = second, by, left
     if problems:
         line = labels_for(language)["unmatched"].format(figures=", ".join(problems[:8]))
@@ -865,6 +1005,10 @@ def _keep_traced(report: LLMReport, known: Dict[str, Any], language: str) -> Non
         ids = traced(insight.get("restsOn"), known)
         insight["restsOn"] = ids
         insight["basedOn"] = based_on(ids, known, language)
+        if ids:
+            # How firm the finding is, said in a word on the page: the
+            # statistics behind it go to "How we know".
+            insight["strength"] = strength(ids, known)
         (kept if ids else dropped).append(insight)
     if not kept:
         report.dataQualitySection = f"{report.dataQualitySection}\n\n{labels['ev_untraced']}".strip()
@@ -966,8 +1110,12 @@ def _parse_report(text: str, stats: StatsSummary, domain: DomainResult) -> Optio
             idx = int(ins.get("insight_index", rank))
         except (TypeError, ValueError):
             idx = rank
-        insights.append({"rank": rank, "title": title, "body": body, "insight_index": idx,
-                         "restsOn": cited(ins.get("rests_on"))})
+        entry = {"rank": rank, "title": title, "body": body, "insight_index": idx,
+                 "restsOn": cited(ins.get("rests_on"))}
+        mark = _figure(ins.get("highlight"))
+        if mark:
+            entry["highlight"] = mark
+        insights.append(entry)
 
     answers = []
     for qa in parsed.get("question_answers", []) or []:
@@ -989,7 +1137,98 @@ def _parse_report(text: str, stats: StatsSummary, domain: DomainResult) -> Optio
         confidenceNote=parsed.get("confidence_note", ""),
         conclusion=parsed.get("conclusion", ""),
         rawResponse=text,
+        keyNumbers=_key_numbers(parsed.get("key_numbers")),
     )
+
+
+def _key_numbers(raw: Any) -> List[Dict[str, str]]:
+    if not isinstance(raw, list):
+        return []
+    return [f for f in (_figure(k) for k in raw) if f][:MAX_KEY_NUMBERS]
+
+
+MAX_KEY_NUMBERS = 3
+_FIGURE_VALUE, _FIGURE_LABEL = 24, 60
+
+
+def _figure(raw: Any) -> Optional[Dict[str, str]]:
+    """A {"value", "label"} the model gave, short and on one line, or None."""
+    if not isinstance(raw, dict):
+        return None
+    value = re.sub(r"\s+", " ", str(raw.get("value") or "")).strip()
+    label = re.sub(r"\s+", " ", without_ids(str(raw.get("label") or ""))).strip()
+    if not value or not re.search(r"\d", value) or len(value) > _FIGURE_VALUE:
+        return None
+    return {"value": value, "label": label[:_FIGURE_LABEL]}
+
+
+def _grounded_figures(report: LLMReport, prompt: str) -> None:
+    """
+    Keep only the key numbers and highlights the data supports. They are the
+    biggest type on the page, so one the data does not show is dropped rather
+    than flagged.
+    """
+    def ok(fig: Optional[Dict[str, str]]) -> bool:
+        return bool(fig) and not ungrounded_numbers(fig["value"], [prompt])
+    report.keyNumbers = [k for k in report.keyNumbers if ok(k)]
+    for insight in report.insights:
+        if "highlight" in insight and not ok(insight.get("highlight")):
+            insight.pop("highlight", None)
+
+
+# Statistics words that send a plain report back for one rewrite. Fewer are
+# taken out without asking (plain.soften).
+JARGON_LIMIT = 3
+
+
+def _reader_words(report: LLMReport) -> str:
+    """What a reader sees before the "How we know" page."""
+    parts = [report.reportTitle, report.introduction, report.executiveSummary, report.conclusion]
+    for insight in report.insights:
+        parts += [str(insight.get("title") or ""), str(insight.get("body") or "")]
+    for qa in report.questionAnswers or []:
+        parts.append(str(qa.get("answer") or ""))
+    return "\n".join(p for p in parts if p)
+
+
+def _heavy_words(report: LLMReport, reading) -> List[str]:
+    """The statistics words in a report written for someone who does not read them."""
+    if reading is None or getattr(reading, "level", "") != "plain":
+        return []
+    return jargon(_reader_words(report))
+
+
+def _in_plain_words(report: LLMReport, reading, stats: Optional[StatsSummary], language: str) -> None:
+    """
+    The writer's slips taken out for this reader, without asking any model:
+    statistics in brackets, stock phrases, column names written as code.
+    Nothing is added and no figure changes. Expert reports are left alone.
+    """
+    level = getattr(reading, "level", "expert") if reading is not None else "expert"
+    if level == "expert":
+        return
+    english = language == "en"
+    columns = list((stats.columnTypes or {}).keys()) if stats is not None else []
+
+    def words(text: str) -> str:
+        return humanize_columns(text, columns) if text else text
+
+    report.reportTitle = soften_title(words(report.reportTitle), english)
+    report.executiveSummary = soften(words(report.executiveSummary), english)
+    report.conclusion = soften(words(report.conclusion), english)
+    report.introduction = words(report.introduction)
+    for insight in report.insights:
+        insight["title"] = soften_title(words(str(insight.get("title") or "")), english)
+        body = words(str(insight.get("body") or ""))
+        insight["body"] = soften(body, english) if level == "plain" else body
+        if insight.get("highlight"):
+            insight["highlight"]["label"] = words(insight["highlight"].get("label", ""))
+    if level == "plain":
+        report.introduction = soften(report.introduction, english)
+        for qa in report.questionAnswers or []:
+            qa["answer"] = soften(words(str(qa.get("answer") or "")), english)
+    for k in report.keyNumbers:
+        k["label"] = words(k.get("label", ""))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1003,7 +1242,7 @@ def generate_report(
     dropped_columns: List[str],
     api_keys: Dict[str, str],
     language: str = "en",
-    tone: str = "professional",
+    tone: str = "auto",
     insights_count: int = 5,
     occasion: str = "general",
     audience: str = "general",
@@ -1020,6 +1259,7 @@ def generate_report(
     writing_format: str = "narrative",
     avoid: str = "",
     requested: str = "",
+    reading=None,
 ) -> LLMReport:
     """
     Phase 5: insight agent + report writer. Returns a full LLMReport.
@@ -1029,7 +1269,8 @@ def generate_report(
 
     Standard customization:
       language         — en/fr/es/de/zh/ar/pt/fa
-      tone             — professional/technical/casual/storytelling/academic/simplified
+      tone             — auto (write for the reader DIG worked out) or
+                         professional/technical/casual/storytelling/academic/simplified
       insights_count   — 3/5/7
       occasion         — general/investor/academic/internal/client
 
@@ -1049,8 +1290,15 @@ def generate_report(
       avoid            — free text: what to leave out
       requested        — figures computed for the directives (user_requests.for_prompt)
 
+    reading            — who the report is for (ai_engine.reading), the person's
+                         choices already applied. Worked out from the kind of
+                         data when not given.
+
     Never raises — returns a stats-only fallback when every model fails.
     """
+    if reading is None and domain is not None:
+        from ai_engine.reading import by_rules, from_dict
+        reading = from_dict(getattr(domain, "reading", None), domain.domain) if getattr(domain, "reading", None)             else by_rules(domain.domain)
     prompt = _build_prompt(
         stats, domain, was_cleaned, dropped_columns,
         language=language, tone=tone,
@@ -1062,7 +1310,7 @@ def generate_report(
         include_confidence=include_confidence,
         assumptions=assumptions, questions=questions,
         writing_format=writing_format, avoid=avoid,
-        requested=requested,
+        requested=requested, reading=reading,
     )
     print(f"[Insights] prompt is ~{len(prompt) // 4:,} tokens", flush=True)
 
@@ -1083,10 +1331,15 @@ def generate_report(
     try:
         digest = build_digest(stats, domain)
         known = catalog(digest, requested)
-        report, provider = _with_checks(report, provider, write, prompt, digest, known, language)
+        report, provider = _with_checks(report, provider, write, prompt, digest, known, language, reading)
         _keep_traced(report, known, language)
     except Exception as e:   # a check must never cost anyone their report
         print(f"[Insights] report check skipped: {type(e).__name__}: {e}", flush=True)
+    try:
+        _grounded_figures(report, prompt)
+        _in_plain_words(report, reading, stats, language)
+    except Exception as e:   # nor may tidying the words
+        print(f"[Insights] plain words skipped: {type(e).__name__}: {e}", flush=True)
 
     report.writerModel = provider.display_name
     report.assumptions = clean_user_text(assumptions, 600)

@@ -17,6 +17,13 @@ vi.mock("@/app/contexts/SettingsContext", () => ({
   useSettings: () => ({ brightness: 10, setBrightness: () => {} }),
 }));
 
+// The demo's stylesheet is long, and jsdom works out every element's style
+// from it each time a query asks whether something is visible: the file took
+// two minutes and timed vitest's worker out. What these tests check does not
+// depend on it; stops are hidden with the `hidden` attribute, which jsdom
+// honours on its own.
+vi.mock("@/app/demo/demoStyles", () => ({ DEMO_CSS: "" }));
+
 vi.mock("next/image", () => ({
   // A stand-in for the optimised image: a plain <img> is the point here.
   // eslint-disable-next-line @next/next/no-img-element
@@ -30,7 +37,8 @@ vi.mock("next/link", () => ({
 }));
 
 import DemoTour from "@/app/demo/DemoTour";
-import { CHECK, COLUMNS, DIG_QUIPS, EVIDENCE, FILE, FILES, PLAN_FEATURES, PLANS, REVENUE } from "@/app/demo/demoFacts";
+import { CHECK, COLUMNS, DIG_QUIPS, EVIDENCE, FILE, FILES, PLAN_FEATURES, PLANS, REVENUE, ROLES, TEAM } from "@/app/demo/demoFacts";
+import { COMMENT, PHRASE, REPLY, TYPED } from "@/app/demo/TeamStop";
 import sample from "@/app/demo/sample.json";
 import sitemap from "@/app/sitemap";
 
@@ -171,13 +179,59 @@ describe("every figure the demo states comes from the sample files", () => {
   });
 
   it("explains the summary's numbers with sums that hold", () => {
+    const { rows, col } = readCsv("cleaned_coffee_sales.csv");
     const sandwich = REVENUE.byProduct.find(p => p.name === "Sandwich")!;
-    expect(((100 * sandwich.total) / REVENUE.total).toFixed(2)).toBe("31.98");
-    const averageSale = round2(REVENUE.total / FILE.cleanRows);
-    expect(EVIDENCE[1].plain).toContain(`$${averageSale}`);
-    expect((sandwich.average / averageSale).toFixed(2)).toBe("1.63");
+    expect(Math.round((100 * sandwich.total) / REVENUE.total)).toBe(32);
+
+    // One price for each product, the same in every shop; drip coffee is the cheapest.
+    const prices = new Map<string, Set<number>>();
+    for (const r of rows) prices.set(col(r, "product"), (prices.get(col(r, "product")) ?? new Set()).add(Number(col(r, "unit_price"))));
+    for (const [name, price] of Object.entries(REVENUE.prices)) expect([...prices.get(name)!]).toEqual([price]);
+    expect(Math.min(...[...prices.values()].flatMap(p => [...p]))).toBe(REVENUE.prices["Drip coffee"]);
+
     const [downtown, midtown] = [REVENUE.byStore[0], REVENUE.byStore[3]];
-    expect((downtown.average / midtown.average).toFixed(2)).toBe("1.85");
+    expect((downtown.total / midtown.total).toFixed(2)).toBe("1.74");
+    expect(`$${Math.round(downtown.total).toLocaleString("en-US")}`).toBe("$124,277");
+
+    // A day's sales, the four shops together, at weekends and on weekdays.
+    const days = new Map<string, number>();
+    for (const r of rows) days.set(col(r, "date"), (days.get(col(r, "date")) ?? 0) + Number(col(r, "revenue")));
+    const weekend = (d: string) => [0, 6].includes(new Date(`${d.slice(0, 10)}T00:00:00Z`).getUTCDay());
+    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    expect(round2(mean([...days].filter(([d]) => weekend(d)).map(([, v]) => v)))).toBe(REVENUE.perDay.weekend);
+    expect(round2(mean([...days].filter(([d]) => !weekend(d)).map(([, v]) => v)))).toBe(REVENUE.perDay.weekday);
+    expect(Math.round(100 * (REVENUE.perDay.weekend / REVENUE.perDay.weekday - 1))).toBe(15);
+
+    // The best and the quietest month.
+    const months = new Map<number, number>();
+    for (const r of rows) {
+      const m = Number(col(r, "date").slice(5, 7));
+      months.set(m, (months.get(m) ?? 0) + Number(col(r, "revenue")));
+    }
+    const ranked = [...months].sort((a, b) => b[1] - a[1]);
+    expect([ranked[0][0], round2(ranked[0][1])]).toEqual([REVENUE.bestMonth.month, REVENUE.bestMonth.total]);
+    const last = ranked[ranked.length - 1];
+    expect([last[0], round2(last[1])]).toEqual([REVENUE.worstMonth.month, REVENUE.worstMonth.total]);
+    expect(`$${Math.round(REVENUE.bestMonth.total).toLocaleString("en-US")}`).toBe("$37,007");
+  });
+
+  it("says in each evidence note the figures worked out from the file", () => {
+    const notes = EVIDENCE.map(e => e.plain).join(" ");
+    const money = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const sandwich = REVENUE.byProduct.find(p => p.name === "Sandwich")!;
+    for (const n of [sandwich.total, REVENUE.total, REVENUE.byStore[0].total, REVENUE.byStore[3].total,
+      REVENUE.perDay.weekend, REVENUE.perDay.weekday, REVENUE.prices.Sandwich, REVENUE.prices["Drip coffee"]]) {
+      expect(notes).toContain(money(n));
+    }
+    expect(notes).toContain(money(REVENUE.bestMonth.total));
+    expect(notes).toContain(`$${Math.round(REVENUE.worstMonth.total).toLocaleString("en-US")}`);
+  });
+
+  it("is written for the shop's owner: no statistics on the page", () => {
+    // Risk: the report a coffee shop owner reads first talked about p-values.
+    const words = [sample.report.title, sample.report.summary, ...sample.report.insights.flatMap(i => [i.title, i.body]),
+      sample.report.conclusion].join(" ");
+    expect(words).not.toMatch(/p\s*[=<]|η|τ|ρ|\br\s*=|correlat|significan|variance|regression|eta-squared/i);
   });
 
   it("uses only numbers from the report's own summary as evidence", () => {
@@ -351,6 +405,77 @@ describe("the tour", () => {
   });
 });
 
+describe("working together", () => {
+  function openTeam() {
+    startExploring();
+    goTo("Work together");
+    return stage().getByRole("region", { name: "The report, open for the team (view only)" });
+  }
+
+  it("shows the team at the top, each person with a role and whether they are here", () => {
+    openTeam();
+    const team = stage().getByRole("list", { name: "The team" });
+    expect(within(team).getAllByRole("listitem")).toHaveLength(TEAM.length);
+    // Pro teams are up to 5 people, and these are the app's three roles.
+    expect(TEAM.length).toBeLessThanOrEqual(5);
+    expect(new Set(TEAM.map(m => m.role))).toEqual(new Set(ROLES.map(r => r.role)));
+    expect(ROLES.map(r => r.role)).toEqual(["Owner", "Editor", "Viewer"]);
+    for (const m of TEAM) expect(within(team).getByText(m.name, { selector: "strong" }).parentElement).toHaveTextContent(m.role);
+    expect(team).toHaveTextContent("Away · seen 2 h ago");
+    expect(stage().getByText("Reads the report and comments on it.")).toBeInTheDocument();
+  });
+
+  it("plays a live session: people arrive, Sam types, Leo comments, Priya moves a finding", () => {
+    const doc = openTeam();
+    expect(stage().getByLabelText("Here now: You")).toBeInTheDocument();
+    wait(1500);
+    expect(stage().getByLabelText("Here now: You, Sam, Priya, Leo")).toBeInTheDocument();
+    wait(1000);
+    expect(within(doc).getByLabelText("Sam’s cursor")).toBeInTheDocument();
+    expect(within(doc).getByLabelText("Leo’s cursor")).toBeInTheDocument();
+
+    wait(4000);
+    expect(doc).toHaveTextContent(TYPED.trim());
+    expect(stage().getByText(/Version 2 · Saved by Sam/)).toBeInTheDocument();
+    expect(stage().getByText(COMMENT.text)).toBeInTheDocument();
+
+    wait(4000);
+    const titles = within(doc).getAllByRole("heading", { level: 4 }).map(h => h.textContent ?? "");
+    expect(titles[1]).toContain(sample.report.insights[2].title);
+    expect(stage().getByText(/Version 3 · Saved by Priya/)).toBeInTheDocument();
+    expect(stage().getByText(REPLY.text)).toBeInTheDocument();
+    expect(guide()).toContain("Pro teams");
+  });
+
+  it("lets the visitor watch, never write", () => {
+    const doc = openTeam();
+    wait(10000);
+    expect(stage().queryAllByRole("textbox")).toHaveLength(0);
+    expect(document.querySelector(".dg-stage:not([hidden]) [contenteditable]")).toBeNull();
+    const before = doc.textContent;
+    fireEvent.click(doc);
+    expect(stage().getByRole("status")).toHaveTextContent("View only");
+    expect(guide()).toContain("Look, don’t touch");
+    expect(doc.textContent).toBe(before);
+  });
+
+  it("plays the session again from the start", () => {
+    openTeam();
+    expect(stage().getByRole("button", { name: /Play it again/ })).toBeDisabled();
+    wait(10000);
+    fireEvent.click(stage().getByRole("button", { name: /Play it again/ }));
+    expect(stage().getByLabelText("Here now: You")).toBeInTheDocument();
+    expect(stage().getByText(/Version 1 · All changes saved/)).toBeInTheDocument();
+    wait(10000);
+    expect(stage().getByText(/Version 3 · Saved by Priya/)).toBeInTheDocument();
+  });
+
+  it("comments on words that are in the report, and types no figures", () => {
+    expect(sample.report.summary).toContain(PHRASE);
+    expect(TYPED).not.toMatch(/\d/);
+  });
+});
+
 describe("asking DIG", () => {
   it("answers each question from the sample run, and says no to the off-topic one", () => {
     startExploring();
@@ -434,7 +559,7 @@ describe("the plans and the files", () => {
     fireEvent.click(stage().getByRole("button", { name: "Drop it in" }));
     wait(1500);
     fireEvent.click(screen.getByRole("button", { name: /Skip the basics/ }));
-    for (const label of ["What is it?", "Report", "Ask", "Free or Pro", "Take it home"]) {
+    for (const label of ["What is it?", "Report", "Ask", "Work together", "Free or Pro", "Take it home"]) {
       goTo(label);
       stage().queryAllByRole("button").slice(0, 6).forEach(b => fireEvent.click(b));
       wait(3000);
