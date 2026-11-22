@@ -10,7 +10,7 @@
 | Suite | Count | Command |
 |---|---|---|
 | C# — unit, integration, edge cases, the real Supabase client against a stand-in server, the chat suggesting changes, teams editing the report, the look of the files | 540 | `dotnet test backend.Tests/backend.Tests.csproj` |
-| Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is, insights' evidence, the editable report, changes the chat suggests and charts DIG draws, combining teammates' saves, reading who the report is for, plain words and the five looks | 1125 | `cd ai_service && pytest tests/` |
+| Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is, insights' evidence, the editable report, changes the chat suggests and charts DIG draws, combining teammates' saves, reading who the report is for, plain words and the five looks | 1154 | `cd ai_service && pytest tests/` |
 | Frontend — Vitest, including rendered components, the change card, the live report channel, the two themes, the interactive demo and its team stop, and the look picker | 371 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
 
@@ -68,6 +68,12 @@ eta-squared and "p < 1e-6" on page 1.
   (signature, auto, a4 by default), sent to the AI service as form fields;
   customization stays Pro-only. Bricolage Grotesque and Work Sans ship in
   `ai_engine/design/fonts` with their Open Font Licence. No database change.
+- **A brief sets the look only when asked** (fixed the same day, found by the
+  live check): told "a short casual report for my boss", a model chose Clean,
+  Modern and US Letter on its own. The model now sets the look only when the
+  words ask about it and quotes them; DIG keeps it only if a quoted piece is in
+  the text and names the look ("dark theme", "thème sombre", "رنگ تیره").
+  Tone, audience and the rest are read as before.
 
 Not covered: a long academic cover leaves out its list of findings when it
 does not fit on the page (they follow on the next pages as always).
