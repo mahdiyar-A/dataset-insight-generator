@@ -1,0 +1,2361 @@
+date,store,product,units_sold,unit_price,discount_pct,revenue,satisfaction
+2025-01-01,Midtown,Cold brew,24,5.75,0.0,138.0,5.0
+2025-01-01,Downtown,Latte,34,5.25,0.0,178.5,4.7
+2025-01-01,University,Latte,25,5.25,0.0,131.25,4.8
+2025-01-01,Harbour,Sandwich,42,8.9,0.0,373.8,4.8
+2025-01-01,Harbour,Croissant,31,4.2,0.0,130.2,4.7
+2025-01-01,Midtown,Latte,14,5.25,0.0,73.5,3.9
+2025-01-02,Downtown,Sandwich,43,8.9,0.0,382.7,4.6
+2025-01-02,Downtown,Latte,65,5.25,15.0,290.06,3.8
+2025-01-02,Harbour,Latte,36,5.25,0.0,189.0,4.4
+2025-01-02,Downtown,Croissant,43,4.2,0.0,180.6,3.9
+2025-01-02,Midtown,Drip coffee,27,3.1,0.0,83.7,3.9
+2025-01-02,Harbour,Drip coffee,29,3.1,0.0,89.9,4.2
+2025-01-02,University,Croissant,26,4.2,15.0,92.82,3.7
+2025-01-02,Downtown,Drip coffee,44,3.1,0.0,136.4,4.5
+2025-01-02,University,Drip coffee,24,3.1,0.0,74.4,3.5
+2025-01-02,Midtown,Croissant,20,4.2,0.0,84.0,4.4
+2025-01-02,Harbour,Sandwich,36,8.9,0.0,320.4,4.2
+2025-01-03,Downtown,Croissant,37,4.2,0.0,155.4,4.6
+2025-01-03,Downtown,Drip coffee,63,3.1,10.0,175.77,4.3
+2025-01-03,Midtown,Cold brew,17,5.75,0.0,97.75,4.6
+2025-01-03,University,Latte,31,5.25,0.0,162.75,4.6
+2025-01-04,University,Cold brew,24,5.75,0.0,138.0,4.6
+2025-01-04,Downtown,Cold brew,38,5.75,0.0,218.5,4.1
+2025-01-04,Midtown,Cold brew,17,5.75,0.0,97.75,4.0
+2025-01-05,University,Sandwich,24,8.9,0.0,213.6,4.1
+2025-01-05,Harbour,Cold brew,37,5.75,0.0,212.75,3.7
+2025-01-05,University,Cold brew,22,5.75,0.0,126.5,4.3
+2025-01-05,University,Croissant,32,4.2,10.0,120.96,4.3
+2025-01-05,Harbour,Croissant,37,4.2,0.0,155.4,4.2
+2025-01-06,University,Drip coffee,27,3.1,0.0,83.7,3.8
+2025-01-06,Harbour,Latte,43,5.25,10.0,203.18,4.8
+2025-01-06,Midtown,Latte,25,5.25,15.0,111.56,3.7
+2025-01-06,Midtown,Sandwich,19,8.9,0.0,169.1,4.4
+2025-01-07,Harbour,Latte,34,5.25,0.0,178.5,4.0
+2025-01-07,Midtown,Croissant,21,4.2,0.0,88.2,4.6
+2025-01-07,University,Sandwich,33,8.9,10.0,264.33,4.1
+2025-01-07,Harbour,Croissant,34,4.2,0.0,142.8,4.2
+2025-01-07,Downtown,Croissant,36,4.2,10.0,136.08,4.4
+2025-01-08,Midtown,Croissant,23,4.2,0.0,96.6,4.2
+2025-01-08,Downtown,Sandwich,45,8.9,15.0,340.42,4.0
+2025-01-08,Harbour,Drip coffee,39,3.1,10.0,108.81,4.7
+2025-01-08,Downtown,Latte,46,5.25,15.0,205.28,3.5
+2025-01-08,University,Cold brew,18,5.75,0.0,103.5,4.3
+2025-01-08,Midtown,Cold brew,27,5.75,0.0,155.25,4.3
+2025-01-09,Downtown,Sandwich,46,8.9,15.0,347.99,4.0
+2025-01-09,Downtown,Croissant,44,4.2,0.0,184.8,4.1
+2025-01-09,Midtown,Latte,15,5.25,0.0,78.75,3.9
+2025-01-09,Harbour,Drip coffee,42,3.1,10.0,117.18,4.0
+2025-01-09,University,Latte,25,5.25,0.0,131.25,4.6
+2025-01-10,Midtown,Croissant,27,4.2,0.0,113.4,
+2025-01-10,Midtown,Latte,20,5.25,0.0,105.0,4.9
+2025-01-10,Harbour,Drip coffee,22,3.1,0.0,68.2,4.4
+2025-01-10,Midtown,Sandwich,23,8.9,0.0,204.7,3.9
+2025-01-10,University,Sandwich,24,8.9,0.0,213.6,4.7
+2025-01-10,University,Cold brew,14,5.75,0.0,80.5,3.4
+2025-01-11,Downtown,Latte,42,5.25,0.0,220.5,4.3
+2025-01-11,University,Croissant,33,4.2,10.0,124.74,4.1
+2025-01-11,Downtown,Cold brew,40,5.75,0.0,230.0,3.6
+2025-01-11,Harbour,Latte,37,5.25,0.0,194.25,4.7
+2025-01-11,Downtown,Croissant,54,4.2,0.0,226.8,4.0
+2025-01-11,Harbour,Drip coffee,42,3.1,0.0,130.2,4.6
+2025-01-11,University,Cold brew,12,5.75,15.0,58.65,3.3
+2025-01-11,Midtown,Drip coffee,24,3.1,10.0,66.96,4.1
+2025-01-11,Harbour,Sandwich,41,8.9,0.0,364.9,4.8
+2025-01-12,University,Cold brew,29,5.75,0.0,166.75,3.7
+2025-01-12,Harbour,Drip coffee,40,3.1,,124.0,4.3
+2025-01-12,Downtown,Sandwich,49,8.9,0.0,436.1,4.4
+2025-01-12,Midtown,Croissant,22,4.2,0.0,92.4,4.1
+2025-01-12,Downtown,Croissant,59,4.2,0.0,247.8,4.7
+2025-01-12,University,Drip coffee,37,3.1,0.0,114.7,4.0
+2025-01-12,Midtown,Drip coffee,22,3.1,0.0,68.2,4.6
+2025-01-12,Harbour,Croissant,37,4.2,0.0,155.4,4.7
+2025-01-13,Midtown,Latte,22,5.25,0.0,115.5,3.7
+2025-01-13,Downtown,Latte,38,5.25,0.0,199.5,4.3
+2025-01-13,Midtown,Cold brew,15,5.75,0.0,86.25,4.2
+2025-01-13,Harbour,Cold brew,19,5.75,0.0,109.25,4.7
+2025-01-13,Harbour,Drip coffee,34,3.1,0.0,105.4,
+2025-01-13,Downtown,Drip coffee,55,3.1,0.0,170.5,4.4
+2025-01-14,Downtown,Drip coffee,30,3.1,0.0,93.0,
+2025-01-14,University,Croissant,33,4.2,0.0,138.6,4.9
+2025-01-14,Harbour,Sandwich,35,8.9,0.0,311.5,4.5
+2025-01-14,Harbour,Latte,32,5.25,0.0,168.0,4.1
+2025-01-14,Downtown,Croissant,44,4.2,0.0,184.8,4.3
+2025-01-14,Midtown,Sandwich,18,8.9,0.0,160.2,4.7
+2025-01-15,Downtown,Drip coffee,37,3.1,0.0,114.7,4.8
+2025-01-15,University,Cold brew,23,5.75,0.0,132.25,3.9
+2025-01-15,University,Latte,47,5.25,,209.74,4.5
+2025-01-15,Harbour,Latte,46,5.25,0.0,241.5,4.5
+2025-01-15,Midtown,Drip coffee,-1,3.1,0.0,105.4,4.1
+2025-01-16,Midtown,Cold brew,28,5.75,10.0,144.9,4.0
+2025-01-16,Downtown,Croissant,46,4.2,0.0,193.2,3.7
+2025-01-16,University,Cold brew,25,5.75,0.0,143.75,4.0
+2025-01-16,Harbour,Croissant,33,4.2,0.0,138.6,4.4
+2025-01-17,University,Latte,42,5.25,0.0,220.5,4.4
+2025-01-17,Harbour,Croissant,23,4.2,0.0,96.6,4.2
+2025-01-17,Downtown,Cold brew,34,5.75,0.0,195.5,4.5
+2025-01-17,Midtown,Sandwich,38,8.9,10.0,304.38,3.6
+2025-01-17,University,Drip coffee,33,3.1,10.0,92.07,4.2
+2025-01-17,Downtown,Drip coffee,42,3.1,0.0,130.2,3.7
+2025-01-18,Harbour,Sandwich,52,8.9,0.0,462.8,4.0
+2025-01-18,University,Latte,26,5.25,0.0,136.5,3.9
+2025-01-18,Harbour,Drip coffee,37,3.1,0.0,114.7,4.8
+2025-01-19,University,Drip coffee,23,3.1,0.0,71.3,4.2
+2025-01-19,Harbour,Cold brew,33,5.75,15.0,161.29,4.4
+2025-01-19,Harbour,Croissant,43,4.2,10.0,162.54,4.1
+2025-01-19,Midtown,Cold brew,18,5.75,0.0,103.5,4.4
+2025-01-19,Midtown,Latte,20,5.25,0.0,105.0,4.6
+2025-01-19,Midtown,Sandwich,21,8.9,0.0,186.9,4.8
+2025-01-19,University,Croissant,28,4.2,0.0,117.6,4.0
+2025-01-20,Harbour,Croissant,44,4.2,10.0,166.32,4.6
+2025-01-20,Harbour,Drip coffee,38,3.1,0.0,117.8,4.6
+2025-01-20,University,Drip coffee,41,3.1,0.0,127.1,4.4
+2025-01-20,Harbour,Cold brew,24,5.75,0.0,138.0,5.0
+2025-01-20,Harbour,Sandwich,39,8.9,0.0,347.1,4.2
+2025-01-20,Downtown,Latte,49,5.25,0.0,257.25,4.4
+2025-01-21,Downtown,Sandwich,40,8.9,0.0,356.0,4.8
+2025-01-21,Downtown,Latte,50,5.25,10.0,236.25,5.0
+2025-01-21,University,Sandwich,29,8.9,0.0,258.1,3.7
+2025-01-21,Harbour,Drip coffee,31,3.1,0.0,96.1,4.3
+2025-01-21,Midtown,Croissant,21,4.2,0.0,88.2,5.0
+2025-01-22,Harbour,Latte,33,5.25,0.0,173.25,3.9
+2025-01-22,University,Croissant,30,4.2,0.0,126.0,4.7
+2025-01-22,Midtown,Sandwich,25,8.9,15.0,189.12,3.9
+2025-01-22,University,Sandwich,32,8.9,0.0,284.8,4.8
+2025-01-22,Downtown,Latte,33,5.25,0.0,173.25,4.5
+2025-01-22,Downtown,Cold brew,23,5.75,0.0,132.25,4.2
+2025-01-23,University,Sandwich,21,8.9,0.0,186.9,4.6
+2025-01-23,Harbour,Latte,29,5.25,0.0,152.25,4.3
+2025-01-23,Harbour,Cold brew,33,5.75,0.0,189.75,4.5
+2025-01-23,University,Drip coffee,27,3.1,0.0,83.7,3.6
+2025-01-23,Midtown,Drip coffee,32,3.1,10.0,89.28,4.0
+2025-01-23,University,Latte,30,5.25,0.0,157.5,4.4
+2025-01-24,Harbour,Cold brew,21,5.75,0.0,120.75,4.6
+2025-01-24,Downtown,Latte,50,5.25,15.0,223.12,4.2
+2025-01-24,Downtown,Croissant,42,4.2,15.0,149.94,4.3
+2025-01-24,Harbour,Latte,31,5.25,0.0,162.75,4.1
+2025-01-24,University,Drip coffee,28,3.1,0.0,86.8,4.7
+2025-01-24,University,Cold brew,16,5.75,15.0,78.2,4.4
+2025-01-24,Midtown,Croissant,23,4.2,0.0,96.6,5.0
+2025-01-25,Midtown,Croissant,18,4.2,,75.6,4.4
+2025-01-25,University,Cold brew,30,5.75,0.0,172.5,4.8
+2025-01-25,Harbour,Drip coffee,40,3.1,0.0,124.0,4.2
+2025-01-25,University,Drip coffee,38,3.1,0.0,117.8,3.9
+2025-01-25,Downtown,Drip coffee,40,3.1,0.0,124.0,4.0
+2025-01-26,University,Latte,25,5.25,0.0,131.25,
+2025-01-26,Midtown,Latte,14,5.25,0.0,73.5,4.4
+2025-01-26,Midtown,Cold brew,10,5.75,0.0,57.5,4.3
+2025-01-26,University,Croissant,32,4.2,0.0,134.4,4.3
+2025-01-26,Harbour,Drip coffee,41,3.1,0.0,127.1,5.0
+2025-01-26,Midtown,Sandwich,22,8.9,0.0,195.8,4.2
+2025-01-26,Downtown,Latte,53,5.25,10.0,250.42,4.6
+2025-01-26,Harbour,Latte,46,5.25,0.0,241.5,3.9
+2025-01-27,University,Sandwich,37,8.9,0.0,329.3,4.5
+2025-01-27,University,Cold brew,25,5.75,15.0,122.19,4.1
+2025-01-27,Harbour,Sandwich,37,8.9,0.0,329.3,4.5
+2025-01-27,Downtown,Drip coffee,51,3.1,0.0,158.1,4.7
+2025-01-27,University,Drip coffee,24,3.1,0.0,74.4,4.0
+2025-01-27,Midtown,Sandwich,35,8.9,15.0,264.77,4.1
+2025-01-27,Midtown,Croissant,21,4.2,0.0,88.2,4.7
+2025-01-27,Midtown,Cold brew,21,5.75,0.0,120.75,4.9
+2025-01-27,Harbour,Croissant,50,4.2,15.0,178.5,4.0
+2025-01-28,Midtown,Latte,20,5.25,0.0,105.0,4.5
+2025-01-28,University,Latte,34,5.25,0.0,178.5,4.0
+2025-01-28,Downtown,Sandwich,38,8.9,0.0,338.2,4.3
+2025-01-28,University,Sandwich,28,8.9,0.0,249.2,3.9
+2025-01-28,Midtown,Cold brew,21,5.75,0.0,120.75,3.7
+2025-01-28,Harbour,Sandwich,46,8.9,0.0,409.4,3.9
+2025-01-29,Midtown,Latte,23,5.25,0.0,120.75,3.8
+2025-01-29,University,Sandwich,28,8.9,0.0,249.2,4.0
+2025-01-29,Midtown,Cold brew,16,5.75,0.0,92.0,3.8
+2025-01-29,Harbour,Cold brew,28,5.75,0.0,161.0,4.2
+2025-01-29,Harbour,Drip coffee,34,3.1,0.0,105.4,4.1
+2025-01-29,Downtown,Croissant,42,4.2,0.0,176.4,4.8
+2025-01-29,Harbour,Sandwich,35,8.9,0.0,311.5,3.8
+2025-01-29,Downtown,Sandwich,41,8.9,0.0,364.9,3.4
+2025-01-30,University,Latte,29,5.25,0.0,152.25,3.7
+2025-01-30,University,Drip coffee,31,3.1,0.0,96.1,3.8
+2025-01-30,Harbour,Croissant,37,4.2,0.0,155.4,4.5
+2025-01-30,Harbour,Drip coffee,33,3.1,,102.3,4.4
+2025-01-30,Harbour,Cold brew,32,5.75,0.0,184.0,4.6
+2025-01-31,Harbour,Drip coffee,40,3.1,10.0,111.6,4.7
+2025-01-31,University,Latte,23,5.25,0.0,120.75,4.4
+2025-01-31,Downtown,Cold brew,37,5.75,15.0,180.84,3.9
+2025-01-31,Midtown,Cold brew,14,5.75,0.0,80.5,4.5
+2025-01-31,Midtown,Latte,23,5.25,0.0,120.75,4.4
+2025-01-31,University,Drip coffee,28,3.1,0.0,86.8,3.7
+2025-01-31,Downtown,Drip coffee,46,3.1,0.0,142.6,4.8
+2025-02-01,University,Sandwich,37,8.9,10.0,296.37,4.3
+2025-02-01,Harbour,Drip coffee,50,3.1,10.0,139.5,4.3
+2025-02-02,Downtown,Latte,61,5.25,15.0,272.21,4.3
+2025-02-02,University,Sandwich,27,8.9,0.0,240.3,4.7
+2025-02-02,Downtown,Cold brew,40,5.75,0.0,230.0,4.5
+2025-02-02,University,Cold brew,20,5.75,0.0,115.0,4.5
+2025-02-02,Harbour,Sandwich,32,8.9,0.0,284.8,4.5
+2025-02-02,Downtown,Drip coffee,36,3.1,0.0,111.6,3.9
+2025-02-03,Downtown,Latte,59,5.25,10.0,278.78,4.7
+2025-02-03,Midtown,Drip coffee,36,3.1,15.0,94.86,3.9
+2025-02-03,Harbour,Croissant,46,4.2,10.0,173.88,4.0
+2025-02-03,Harbour,Drip coffee,21,3.1,0.0,65.1,4.5
+2025-02-03,University,Drip coffee,27,3.1,0.0,83.7,4.4
+2025-02-03,Harbour,Cold brew,41,5.75,15.0,200.39,4.9
+2025-02-03,University,Latte,26,5.25,0.0,136.5,4.5
+2025-02-04,Harbour,Drip coffee,29,3.1,0.0,89.9,4.4
+2025-02-04,Harbour,Latte,24,5.25,0.0,126.0,4.6
+2025-02-04,Midtown,Drip coffee,22,3.1,0.0,68.2,3.9
+2025-02-04,Midtown,Cold brew,18,5.75,0.0,103.5,3.8
+2025-02-04,Midtown,Latte,25,5.25,0.0,131.25,4.4
+2025-02-04,University,Drip coffee,26,3.1,0.0,80.6,4.5
+2025-02-04,Harbour,Cold brew,33,5.75,0.0,189.75,4.5
+2025-02-05,Downtown,Drip coffee,51,3.1,0.0,158.1,4.0
+2025-02-05,Downtown,Cold brew,28,5.75,15.0,136.85,3.9
+2025-02-05,Midtown,Latte,21,5.25,0.0,110.25,4.4
+2025-02-05,Midtown,Sandwich,27,8.9,0.0,240.3,4.2
+2025-02-05,Downtown,Croissant,52,4.2,15.0,185.64,4.1
+2025-02-05,Midtown,Croissant,26,4.2,0.0,109.2,4.4
+2025-02-06,Harbour,Drip coffee,31,3.1,0.0,96.1,4.7
+2025-02-06,Midtown,Cold brew,18,5.75,0.0,103.5,4.5
+2025-02-06,Midtown,Croissant,14,4.2,0.0,58.8,4.6
+2025-02-06,University,Drip coffee,18,3.1,0.0,55.8,4.2
+2025-02-07,Harbour,Sandwich,39,8.9,10.0,312.39,4.6
+2025-02-07,Harbour,Cold brew,26,5.75,0.0,149.5,4.6
+2025-02-07,University,Drip coffee,43,3.1,15.0,113.3,3.3
+2025-02-07,Downtown,Croissant,37,4.2,0.0,155.4,
+2025-02-07,Harbour,Croissant,34,4.2,0.0,142.8,5.0
+2025-02-07,Downtown,Drip coffee,42,3.1,10.0,117.18,4.8
+2025-02-07,Downtown,Latte,37,5.25,10.0,174.82,4.4
+2025-02-08,Downtown,Drip coffee,49,3.1,0.0,151.9,4.1
+2025-02-08,Downtown,Latte,73,5.25,15.0,325.76,4.2
+2025-02-08,University,Drip coffee,27,3.1,0.0,83.7,4.7
+2025-02-08,Downtown,Cold brew,39,5.75,0.0,224.25,4.3
+2025-02-08,Downtown,Croissant,54,4.2,0.0,226.8,4.5
+2025-02-08,Midtown,Cold brew,14,5.75,0.0,80.5,4.0
+2025-02-08,Midtown,Sandwich,40,8.9,10.0,320.4,4.6
+2025-02-08,Midtown,Croissant,30,4.2,0.0,126.0,4.7
+2025-02-08,Harbour,Croissant,36,4.2,0.0,151.2,4.5
+2025-02-09,University,Croissant,-1,4.2,0.0,121.8,3.9
+2025-02-09,Downtown,Croissant,55,4.2,0.0,231.0,4.2
+2025-02-09,University,Latte,35,5.25,0.0,183.75,4.6
+2025-02-09,Midtown,Drip coffee,35,3.1,15.0,92.22,4.2
+2025-02-09,Downtown,Drip coffee,48,3.1,0.0,148.8,4.0
+2025-02-10,Harbour,Croissant,32,4.2,0.0,134.4,3.9
+2025-02-10,University,Sandwich,25,8.9,0.0,222.5,4.3
+2025-02-10,Harbour,Cold brew,30,5.75,0.0,172.5,4.9
+2025-02-10,University,Cold brew,17,5.75,0.0,97.75,4.2
+2025-02-10,Harbour,Sandwich,34,8.9,0.0,302.6,4.1
+2025-02-10,Downtown,Latte,40,5.25,0.0,210.0,4.6
+2025-02-11,Downtown,Drip coffee,40,3.1,0.0,124.0,4.7
+2025-02-11,University,Cold brew,25,5.75,15.0,122.19,4.1
+2025-02-11,Downtown,Latte,36,5.25,0.0,189.0,4.4
+2025-02-11,Midtown,Drip coffee,22,3.1,0.0,68.2,4.0
+2025-02-11,Midtown,Croissant,22,4.2,0.0,92.4,4.1
+2025-02-11,Midtown,Cold brew,17,5.75,0.0,97.75,4.5
+2025-02-11,Midtown,Sandwich,31,8.9,0.0,275.9,3.5
+2025-02-11,Downtown,Cold brew,31,5.75,0.0,178.25,4.9
+2025-02-12,University,Latte,29,5.25,0.0,152.25,4.2
+2025-02-12,Harbour,Sandwich,28,8.9,0.0,249.2,5.0
+2025-02-12,Harbour,Croissant,38,4.2,10.0,143.64,3.8
+2025-02-12,Midtown,Sandwich,25,8.9,0.0,222.5,4.3
+2025-02-12,University,Croissant,34,4.2,0.0,142.8,3.8
+2025-02-13,Downtown,Cold brew,23,5.75,0.0,132.25,4.3
+2025-02-13,Midtown,Drip coffee,23,3.1,0.0,71.3,4.1
+2025-02-13,University,Croissant,36,4.2,15.0,128.52,
+2025-02-13,Midtown,Sandwich,25,8.9,0.0,222.5,4.2
+2025-02-14,University,Sandwich,24,8.9,0.0,213.6,4.3
+2025-02-14,Midtown,Latte,17,5.25,0.0,89.25,4.3
+2025-02-14,Downtown,Sandwich,30,8.9,10.0,240.3,4.2
+2025-02-14,Downtown,Latte,35,5.25,0.0,183.75,4.1
+2025-02-14,Midtown,Croissant,36,4.2,0.0,151.2,5.0
+2025-02-14,Harbour,Latte,39,5.25,0.0,204.75,4.8
+2025-02-14,University,Drip coffee,27,3.1,0.0,83.7,3.8
+2025-02-14,University,Croissant,26,4.2,0.0,109.2,3.7
+2025-02-14,Midtown,Sandwich,24,8.9,0.0,213.6,3.6
+2025-02-15,Downtown,Cold brew,33,5.75,0.0,189.75,3.5
+2025-02-15,Midtown,Drip coffee,26,3.1,0.0,80.6,4.0
+2025-02-15,Downtown,Sandwich,46,8.9,0.0,409.4,4.7
+2025-02-15,Harbour,Latte,44,5.25,0.0,231.0,5.0
+2025-02-15,University,Sandwich,28,8.9,10.0,224.28,4.2
+2025-02-15,Midtown,Latte,28,5.25,15.0,124.95,3.9
+2025-02-16,Downtown,Latte,60,5.25,0.0,315.0,4.5
+2025-02-16,Downtown,Cold brew,43,5.75,0.0,247.25,3.9
+2025-02-16,Harbour,Sandwich,36,8.9,0.0,320.4,
+2025-02-16,Midtown,Sandwich,18,8.9,0.0,160.2,4.1
+2025-02-16,Downtown,Sandwich,55,8.9,0.0,489.5,3.4
+2025-02-16,University,Croissant,36,4.2,10.0,136.08,4.0
+2025-02-16,University,Sandwich,34,8.9,0.0,302.6,4.1
+2025-02-17,Midtown,Cold brew,26,5.75,15.0,127.08,4.1
+2025-02-17,University,Croissant,47,4.2,0.0,197.4,4.5
+2025-02-17,Midtown,Croissant,34,4.2,0.0,142.8,3.8
+2025-02-17,Midtown,Latte,19,5.25,10.0,89.78,4.3
+2025-02-17,Downtown,Latte,45,5.25,0.0,236.25,3.9
+2025-02-17,Downtown,Sandwich,39,8.9,0.0,347.1,4.8
+2025-02-17,Harbour,Latte,26,5.25,0.0,136.5,5.0
+2025-02-17,Harbour,Croissant,31,4.2,0.0,130.2,4.9
+2025-02-18,Harbour,Drip coffee,31,3.1,15.0,81.68,4.6
+2025-02-18,Downtown,Croissant,39,4.2,0.0,163.8,4.4
+2025-02-18,Downtown,Drip coffee,46,3.1,0.0,142.6,4.0
+2025-02-18,Midtown,Sandwich,22,8.9,0.0,195.8,4.0
+2025-02-18,Harbour,Cold brew,28,5.75,,161.0,3.7
+2025-02-18,Midtown,Cold brew,18,5.75,0.0,103.5,4.6
+2025-02-18,Midtown,Drip coffee,20,3.1,0.0,62.0,4.7
+2025-02-18,University,Drip coffee,30,3.1,0.0,93.0,4.5
+2025-02-19,University,Croissant,30,4.2,0.0,126.0,
+2025-02-19,University,Sandwich,42,8.9,15.0,317.73,4.5
+2025-02-19,Midtown,Cold brew,20,5.75,0.0,115.0,4.0
+2025-02-19,Downtown,Croissant,41,4.2,0.0,172.2,3.9
+2025-02-19,Midtown,Sandwich,22,8.9,0.0,195.8,4.3
+2025-02-19,Downtown,Drip coffee,47,3.1,0.0,145.7,4.5
+2025-02-19,University,Drip coffee,41,3.1,0.0,127.1,3.9
+2025-02-20,Harbour,Croissant,30,4.2,0.0,126.0,4.6
+2025-02-20,University,Drip coffee,33,3.1,0.0,102.3,4.0
+2025-02-20,University,Cold brew,30,5.75,0.0,172.5,4.4
+2025-02-20,University,Croissant,25,4.2,0.0,105.0,4.2
+2025-02-20,Harbour,Sandwich,33,8.9,0.0,293.7,4.4
+2025-02-21,Downtown,Drip coffee,47,3.1,10.0,131.13,4.1
+2025-02-21,University,Latte,35,5.25,15.0,156.19,4.2
+2025-02-21,Midtown,Drip coffee,29,3.1,0.0,89.9,4.6
+2025-02-21,Harbour,Croissant,27,4.2,0.0,113.4,4.1
+2025-02-21,University,Cold brew,28,5.75,10.0,144.9,4.5
+2025-02-21,Midtown,Cold brew,12,5.75,0.0,69.0,4.9
+2025-02-22,Midtown,Cold brew,16,5.75,15.0,78.2,3.9
+2025-02-22,University,Drip coffee,24,3.1,0.0,74.4,4.9
+2025-02-22,Downtown,Drip coffee,38,3.1,0.0,117.8,4.0
+2025-02-22,University,Sandwich,25,8.9,0.0,222.5,4.2
+2025-02-22,Harbour,Croissant,39,4.2,0.0,163.8,4.8
+2025-02-22,Harbour,Drip coffee,34,3.1,0.0,105.4,4.5
+2025-02-22,Midtown,Drip coffee,19,3.1,0.0,58.9,4.1
+2025-02-22,Downtown,Sandwich,38,8.9,0.0,338.2,4.5
+2025-02-22,Midtown,Sandwich,24,8.9,0.0,213.6,3.8
+2025-02-22,University,Croissant,28,4.2,0.0,117.6,4.5
+2025-02-23,Harbour,Latte,39,5.25,0.0,204.75,4.7
+2025-02-23,Midtown,Latte,28,5.25,10.0,132.3,3.8
+2025-02-23,University,Drip coffee,34,3.1,0.0,105.4,4.5
+2025-02-23,University,Croissant,16,4.2,0.0,67.2,4.3
+2025-02-23,Downtown,Sandwich,49,8.9,0.0,436.1,4.8
+2025-02-23,University,Sandwich,23,8.9,0.0,204.7,3.9
+2025-02-23,Midtown,Sandwich,27,8.9,15.0,204.26,3.9
+2025-02-23,University,Cold brew,32,5.75,10.0,165.6,5.0
+2025-02-24,Harbour,Sandwich,38,8.9,10.0,304.38,4.2
+2025-02-24,Downtown,Drip coffee,-1,3.1,0.0,127.1,4.8
+2025-02-24,Harbour,Cold brew,22,5.75,10.0,113.85,4.2
+2025-02-24,Harbour,Croissant,50,4.2,15.0,178.5,4.4
+2025-02-24,University,Drip coffee,32,3.1,0.0,99.2,3.3
+2025-02-24,University,Sandwich,22,8.9,0.0,195.8,4.1
+2025-02-25,University,Drip coffee,29,3.1,0.0,89.9,4.8
+2025-02-25,Midtown,Sandwich,33,8.9,0.0,293.7,4.3
+2025-02-25,Downtown,Cold brew,32,5.75,0.0,184.0,4.7
+2025-02-25,Downtown,Croissant,43,4.2,0.0,180.6,4.3
+2025-02-25,Downtown,Latte,50,5.25,15.0,223.12,4.8
+2025-02-25,Midtown,Cold brew,19,5.75,10.0,98.32,4.0
+2025-02-26,Harbour,Cold brew,27,5.75,0.0,155.25,4.6
+2025-02-26,Downtown,Sandwich,41,8.9,0.0,364.9,4.2
+2025-02-26,University,Sandwich,41,8.9,15.0,310.17,4.4
+2025-02-26,Midtown,Cold brew,10,5.75,0.0,57.5,4.2
+2025-02-26,Downtown,Croissant,31,4.2,0.0,130.2,4.5
+2025-02-26,Midtown,Drip coffee,20,3.1,0.0,62.0,4.3
+2025-02-26,Harbour,Latte,44,5.25,10.0,207.9,4.3
+2025-02-26,Harbour,Sandwich,36,8.9,0.0,320.4,5.0
+2025-02-26,Downtown,Latte,38,5.25,0.0,199.5,4.4
+2025-02-26,Harbour,Drip coffee,31,3.1,0.0,96.1,4.9
+2025-02-26,University,Cold brew,28,5.75,0.0,161.0,4.3
+2025-02-26,Harbour,Croissant,29,4.2,0.0,121.8,4.7
+2025-02-26,Midtown,Sandwich,25,8.9,0.0,222.5,3.9
+2025-02-27,Downtown,Cold brew,32,5.75,10.0,165.6,4.2
+2025-02-27,Downtown,Latte,41,5.25,0.0,215.25,5.0
+2025-02-27,Midtown,Latte,21,5.25,0.0,110.25,4.5
+2025-02-27,Downtown,Croissant,44,4.2,0.0,184.8,4.7
+2025-02-27,Downtown,Sandwich,34,8.9,0.0,302.6,4.3
+2025-02-28,Midtown,Drip coffee,23,3.1,0.0,71.3,3.9
+2025-02-28,Harbour,Drip coffee,40,3.1,0.0,124.0,4.6
+2025-02-28,University,Croissant,37,4.2,10.0,139.86,3.8
+2025-02-28,University,Drip coffee,37,3.1,0.0,114.7,4.3
+2025-02-28,Harbour,Latte,38,5.25,10.0,179.55,3.9
+2025-02-28,Harbour,Sandwich,33,8.9,0.0,293.7,3.9
+2025-02-28,Harbour,Cold brew,23,5.75,0.0,132.25,3.9
+2025-02-28,Harbour,Croissant,35,4.2,15.0,124.95,4.1
+2025-02-28,Downtown,Cold brew,33,5.75,10.0,170.78,4.4
+2025-02-28,Downtown,Drip coffee,34,3.1,0.0,105.4,4.5
+2025-03-01,University,Cold brew,22,5.75,0.0,126.5,5.0
+2025-03-01,Harbour,Cold brew,32,5.75,10.0,165.6,4.3
+2025-03-01,Midtown,Cold brew,14,5.75,0.0,80.5,3.5
+2025-03-01,Harbour,Latte,38,5.25,0.0,199.5,3.7
+2025-03-01,University,Latte,42,5.25,15.0,187.42,4.2
+2025-03-01,Downtown,Cold brew,35,5.75,0.0,201.25,4.1
+2025-03-01,Downtown,Drip coffee,46,3.1,0.0,142.6,4.4
+2025-03-01,Midtown,Drip coffee,23,3.1,0.0,71.3,4.2
+2025-03-01,Harbour,Croissant,30,4.2,0.0,126.0,4.4
+2025-03-02,Downtown,Sandwich,39,8.9,0.0,347.1,3.8
+2025-03-02,Midtown,Latte,20,5.25,0.0,105.0,4.3
+2025-03-02,Harbour,Cold brew,38,5.75,0.0,218.5,4.7
+2025-03-02,Midtown,Cold brew,19,5.75,0.0,109.25,4.6
+2025-03-02,Harbour,Drip coffee,36,3.1,0.0,111.6,5.0
+2025-03-02,Downtown,Drip coffee,44,3.1,10.0,122.76,4.5
+2025-03-02,Midtown,Croissant,32,4.2,0.0,134.4,
+2025-03-02,Downtown,Croissant,60,4.2,0.0,252.0,5.0
+2025-03-02,University,Cold brew,24,5.75,0.0,138.0,4.4
+2025-03-03,Harbour,Croissant,28,4.2,10.0,105.84,4.2
+2025-03-03,Midtown,Latte,33,5.25,0.0,173.25,4.1
+2025-03-03,University,Croissant,24,4.2,0.0,100.8,4.2
+2025-03-03,Harbour,Cold brew,30,5.75,10.0,155.25,4.4
+2025-03-03,Harbour,Sandwich,38,8.9,0.0,338.2,4.8
+2025-03-03,Downtown,Sandwich,28,8.9,0.0,249.2,4.1
+2025-03-03,University,Drip coffee,30,3.1,0.0,93.0,4.5
+2025-03-04,Midtown,Latte,25,5.25,0.0,131.25,4.2
+2025-03-04,University,Croissant,31,4.2,0.0,130.2,3.4
+2025-03-04,Midtown,Drip coffee,32,3.1,0.0,99.2,3.0
+2025-03-04,Downtown,Drip coffee,36,3.1,0.0,111.6,4.4
+2025-03-04,Downtown,Croissant,37,4.2,0.0,155.4,4.7
+2025-03-04,Midtown,Cold brew,22,5.75,0.0,126.5,4.2
+2025-03-04,University,Drip coffee,23,3.1,10.0,64.17,3.9
+2025-03-04,University,Cold brew,25,5.75,10.0,129.38,4.4
+2025-03-04,Downtown,Latte,57,5.25,0.0,299.25,3.8
+2025-03-05,University,Latte,32,5.25,10.0,151.2,
+2025-03-05,Midtown,Cold brew,28,5.75,15.0,136.85,
+2025-03-05,Downtown,Croissant,32,4.2,0.0,134.4,4.1
+2025-03-05,University,Sandwich,23,8.9,0.0,204.7,4.3
+2025-03-05,Midtown,Croissant,18,4.2,0.0,75.6,5.0
+2025-03-05,University,Cold brew,22,5.75,0.0,126.5,4.4
+2025-03-05,Downtown,Latte,49,5.25,0.0,257.25,4.1
+2025-03-05,Midtown,Latte,24,5.25,0.0,126.0,3.7
+2025-03-05,Harbour,Sandwich,36,8.9,0.0,320.4,4.7
+2025-03-06,University,Sandwich,33,8.9,0.0,293.7,4.4
+2025-03-06,Midtown,Latte,22,5.25,0.0,115.5,4.5
+2025-03-06,Downtown,Cold brew,38,5.75,0.0,218.5,3.9
+2025-03-06,Midtown,Cold brew,21,5.75,0.0,120.75,3.7
+2025-03-06,Harbour,Latte,35,5.25,15.0,156.19,3.8
+2025-03-06,University,Drip coffee,24,3.1,10.0,66.96,3.9
+2025-03-06,University,Cold brew,19,5.75,0.0,109.25,3.8
+2025-03-07,Midtown,Drip coffee,25,3.1,0.0,77.5,4.6
+2025-03-07,Midtown,Sandwich,18,8.9,0.0,160.2,4.0
+2025-03-07,Downtown,Latte,40,5.25,0.0,210.0,4.7
+2025-03-07,Downtown,Croissant,37,4.2,10.0,139.86,4.0
+2025-03-07,Midtown,Latte,23,5.25,0.0,120.75,4.2
+2025-03-07,Harbour,Cold brew,32,5.75,0.0,184.0,4.5
+2025-03-08,University,Croissant,32,4.2,10.0,120.96,4.0
+2025-03-08,Midtown,Croissant,28,4.2,0.0,117.6,4.1
+2025-03-09,University,Cold brew,32,5.75,0.0,184.0,4.2
+2025-03-09,Midtown,Cold brew,13,5.75,0.0,74.75,3.6
+2025-03-09,Downtown,Latte,53,5.25,0.0,278.25,4.3
+2025-03-09,Harbour,Sandwich,49,8.9,0.0,436.1,4.3
+2025-03-09,Downtown,Sandwich,57,8.9,0.0,507.3,3.6
+2025-03-09,Harbour,Croissant,35,4.2,0.0,147.0,4.7
+2025-03-09,Midtown,Croissant,26,4.2,0.0,109.2,4.4
+2025-03-10,Midtown,Drip coffee,30,3.1,0.0,93.0,3.9
+2025-03-10,Downtown,Latte,35,5.25,0.0,183.75,3.8
+2025-03-10,University,Drip coffee,23,3.1,0.0,71.3,4.4
+2025-03-10,University,Croissant,32,4.2,0.0,134.4,4.0
+2025-03-10,Midtown,Cold brew,14,5.75,0.0,80.5,4.3
+2025-03-10,University,Latte,38,5.25,10.0,179.55,3.3
+2025-03-10,Downtown,Sandwich,38,8.9,0.0,338.2,4.0
+2025-03-10,Downtown,Drip coffee,34,3.1,0.0,105.4,4.9
+2025-03-11,Harbour,Croissant,30,4.2,10.0,113.4,4.0
+2025-03-11,Midtown,Cold brew,15,5.75,10.0,77.62,4.4
+2025-03-11,University,Drip coffee,28,3.1,0.0,86.8,4.4
+2025-03-11,Midtown,Latte,31,5.25,10.0,146.48,4.0
+2025-03-11,University,Sandwich,25,8.9,0.0,222.5,4.5
+2025-03-11,Harbour,Drip coffee,19,3.1,0.0,58.9,3.8
+2025-03-12,University,Sandwich,34,8.9,0.0,302.6,3.6
+2025-03-12,Downtown,Sandwich,38,8.9,0.0,338.2,4.5
+2025-03-12,University,Latte,22,5.25,0.0,115.5,3.9
+2025-03-12,Downtown,Latte,41,5.25,0.0,215.25,3.7
+2025-03-12,Downtown,Cold brew,27,5.75,0.0,155.25,4.6
+2025-03-12,Harbour,Sandwich,36,8.9,0.0,320.4,4.3
+2025-03-12,Harbour,Drip coffee,24,3.1,0.0,74.4,4.8
+2025-03-12,Downtown,Croissant,45,4.2,0.0,189.0,4.3
+2025-03-12,University,Cold brew,28,5.75,0.0,161.0,4.3
+2025-03-13,Harbour,Sandwich,25,8.9,0.0,222.5,4.9
+2025-03-13,University,Cold brew,33,5.75,0.0,189.75,4.3
+2025-03-13,Downtown,Latte,48,5.25,0.0,252.0,4.5
+2025-03-13,Downtown,Croissant,29,4.2,0.0,121.8,3.6
+2025-03-14,Midtown,Drip coffee,19,3.1,0.0,58.9,4.2
+2025-03-14,Downtown,Sandwich,39,8.9,0.0,347.1,4.0
+2025-03-14,University,Croissant,31,4.2,15.0,110.67,3.8
+2025-03-14,Downtown,Latte,37,5.25,0.0,194.25,4.4
+2025-03-14,Harbour,Croissant,39,4.2,0.0,163.8,4.6
+2025-03-14,University,Cold brew,25,5.75,0.0,143.75,3.9
+2025-03-14,University,Latte,24,5.25,,126.0,3.8
+2025-03-14,Downtown,Croissant,31,4.2,0.0,130.2,4.6
+2025-03-15,University,Latte,17,5.25,0.0,89.25,4.6
+2025-03-15,Downtown,Cold brew,47,5.75,0.0,270.25,4.3
+2025-03-15,Harbour,Latte,47,5.25,0.0,246.75,3.9
+2025-03-15,Downtown,Latte,49,5.25,0.0,257.25,4.0
+2025-03-15,Downtown,Croissant,62,4.2,0.0,260.4,4.7
+2025-03-15,Harbour,Drip coffee,44,3.1,0.0,136.4,4.5
+2025-03-15,Midtown,Drip coffee,17,3.1,0.0,52.7,4.8
+2025-03-16,University,Drip coffee,28,3.1,0.0,86.8,4.7
+2025-03-16,Midtown,Drip coffee,26,3.1,0.0,80.6,4.9
+2025-03-16,Midtown,Cold brew,15,5.75,0.0,86.25,
+2025-03-16,Downtown,Drip coffee,61,3.1,15.0,160.73,4.2
+2025-03-16,University,Croissant,24,4.2,0.0,100.8,4.0
+2025-03-17,Downtown,Latte,49,5.25,0.0,257.25,4.3
+2025-03-17,Harbour,Cold brew,28,5.75,0.0,161.0,4.3
+2025-03-17,University,Latte,33,5.25,0.0,173.25,4.4
+2025-03-17,Midtown,Croissant,23,4.2,0.0,96.6,4.1
+2025-03-17,Harbour,Drip coffee,34,3.1,0.0,105.4,4.2
+2025-03-17,Downtown,Cold brew,39,5.75,10.0,201.82,4.5
+2025-03-17,Harbour,Sandwich,28,8.9,0.0,249.2,
+2025-03-17,Downtown,Croissant,52,4.2,0.0,218.4,3.8
+2025-03-17,University,Croissant,26,4.2,0.0,109.2,3.4
+2025-03-17,Downtown,Sandwich,38,8.9,15.0,287.47,4.4
+2025-03-18,Downtown,Sandwich,20,8.9,0.0,178.0,3.9
+2025-03-18,Harbour,Sandwich,37,8.9,0.0,329.3,4.5
+2025-03-18,University,Latte,37,5.25,0.0,194.25,
+2025-03-18,Harbour,Drip coffee,26,3.1,0.0,80.6,4.4
+2025-03-19,Harbour,Croissant,32,4.2,0.0,134.4,4.4
+2025-03-19,Downtown,Cold brew,21,5.75,0.0,120.75,4.2
+2025-03-19,Downtown,Sandwich,39,8.9,0.0,347.1,4.9
+2025-03-19,Harbour,Latte,30,5.25,10.0,141.75,4.5
+2025-03-19,Downtown,Latte,40,5.25,10.0,189.0,4.3
+2025-03-19,Harbour,Drip coffee,38,3.1,0.0,117.8,3.9
+2025-03-19,Midtown,Latte,19,5.25,0.0,99.75,4.0
+2025-03-19,Downtown,Drip coffee,39,3.1,0.0,120.9,3.8
+2025-03-19,University,Croissant,31,4.2,0.0,130.2,4.5
+2025-03-20,University,Drip coffee,32,3.1,0.0,99.2,4.4
+2025-03-20,Harbour,Sandwich,38,8.9,0.0,338.2,
+2025-03-20,Downtown,Sandwich,37,8.9,10.0,296.37,4.6
+2025-03-20,Downtown,Croissant,35,4.2,0.0,147.0,3.9
+2025-03-20,Midtown,Cold brew,27,5.75,0.0,155.25,3.4
+2025-03-20,Harbour,Cold brew,25,5.75,0.0,143.75,4.4
+2025-03-20,Downtown,Drip coffee,37,3.1,0.0,114.7,4.2
+2025-03-21,Midtown,Croissant,20,4.2,0.0,84.0,4.1
+2025-03-21,Harbour,Latte,33,5.25,0.0,173.25,4.5
+2025-03-21,Downtown,Croissant,36,4.2,0.0,151.2,4.5
+2025-03-21,University,Sandwich,28,8.9,0.0,249.2,3.9
+2025-03-21,University,Croissant,33,4.2,0.0,138.6,4.6
+2025-03-21,University,Cold brew,17,5.75,0.0,97.75,4.0
+2025-03-21,Downtown,Sandwich,47,8.9,10.0,376.47,3.4
+2025-03-21,Harbour,Drip coffee,23,3.1,0.0,71.3,4.2
+2025-03-22,University,Sandwich,36,8.9,10.0,288.36,2.7
+2025-03-22,Midtown,Sandwich,20,8.9,0.0,178.0,4.5
+2025-03-22,Downtown,Cold brew,42,5.75,0.0,241.5,4.6
+2025-03-23,Downtown,Cold brew,49,5.75,0.0,281.75,4.2
+2025-03-23,Midtown,Croissant,17,4.2,0.0,71.4,4.3
+2025-03-23,Downtown,Latte,52,5.25,0.0,273.0,4.1
+2025-03-23,Downtown,Drip coffee,64,3.1,10.0,178.56,4.5
+2025-03-23,Downtown,Croissant,41,4.2,0.0,172.2,4.5
+2025-03-23,Harbour,Cold brew,31,5.75,0.0,178.25,4.1
+2025-03-23,Harbour,Latte,45,5.25,0.0,236.25,4.4
+2025-03-23,Downtown,Sandwich,51,8.9,0.0,453.9,4.4
+2025-03-23,Midtown,Drip coffee,31,3.1,15.0,81.68,4.0
+2025-03-24,Harbour,Drip coffee,21,3.1,0.0,65.1,4.2
+2025-03-24,University,Drip coffee,24,3.1,0.0,74.4,4.1
+2025-03-24,Midtown,Latte,23,5.25,0.0,120.75,3.7
+2025-03-24,University,Latte,23,5.25,10.0,108.68,4.2
+2025-03-24,Midtown,Drip coffee,21,3.1,0.0,65.1,4.4
+2025-03-25,Midtown,Latte,25,5.25,0.0,131.25,4.5
+2025-03-25,Downtown,Croissant,42,4.2,0.0,176.4,4.6
+2025-03-25,University,Latte,25,5.25,0.0,131.25,4.4
+2025-03-25,University,Sandwich,23,8.9,0.0,204.7,4.1
+2025-03-25,University,Cold brew,28,5.75,15.0,136.85,4.3
+2025-03-25,University,Croissant,38,4.2,15.0,135.66,4.5
+2025-03-26,Harbour,Drip coffee,25,3.1,0.0,77.5,
+2025-03-26,Downtown,Latte,25,5.25,0.0,131.25,3.6
+2025-03-26,Downtown,Drip coffee,49,3.1,0.0,151.9,4.4
+2025-03-26,Downtown,Cold brew,34,5.75,0.0,195.5,3.9
+2025-03-26,Harbour,Latte,30,5.25,15.0,133.88,
+2025-03-27,University,Latte,23,5.25,0.0,120.75,3.7
+2025-03-27,Downtown,Sandwich,32,8.9,0.0,284.8,3.9
+2025-03-27,University,Drip coffee,26,3.1,15.0,68.51,4.1
+2025-03-27,Harbour,Croissant,22,4.2,0.0,92.4,4.6
+2025-03-27,Downtown,Croissant,34,4.2,0.0,142.8,4.6
+2025-03-27,Midtown,Cold brew,10,5.75,0.0,57.5,4.3
+2025-03-28,Harbour,Sandwich,41,8.9,15.0,310.17,4.3
+2025-03-28,Harbour,Cold brew,28,5.75,0.0,161.0,4.5
+2025-03-28,University,Croissant,24,4.2,0.0,100.8,3.8
+2025-03-28,Downtown,Drip coffee,36,3.1,0.0,111.6,4.4
+2025-03-28,Midtown,Latte,22,5.25,0.0,115.5,3.9
+2025-03-28,Midtown,Drip coffee,35,3.1,0.0,108.5,4.1
+2025-03-28,University,Sandwich,35,8.9,10.0,280.35,3.8
+2025-03-28,Downtown,Cold brew,23,5.75,0.0,132.25,3.9
+2025-03-28,Harbour,Drip coffee,24,3.1,0.0,74.4,4.2
+2025-03-28,Downtown,Croissant,30,4.2,0.0,126.0,4.2
+2025-03-28,Harbour,Croissant,37,4.2,15.0,132.09,4.6
+2025-03-29,Midtown,Latte,22,5.25,0.0,115.5,3.8
+2025-03-29,Harbour,Latte,47,5.25,0.0,246.75,4.2
+2025-03-29,Harbour,Drip coffee,33,3.1,0.0,102.3,4.4
+2025-03-29,Downtown,Croissant,46,4.2,0.0,193.2,4.3
+2025-03-29,Midtown,Cold brew,17,5.75,0.0,97.75,4.7
+2025-03-29,Downtown,Latte,60,5.25,0.0,315.0,4.3
+2025-03-29,Harbour,Sandwich,36,8.9,,320.4,3.9
+2025-03-30,Downtown,Cold brew,48,5.75,15.0,234.6,3.6
+2025-03-30,University,Croissant,25,4.2,0.0,105.0,4.6
+2025-03-30,Harbour,Cold brew,24,5.75,0.0,138.0,4.7
+2025-03-30,Downtown,Croissant,42,4.2,0.0,176.4,4.0
+2025-03-30,Midtown,Drip coffee,25,3.1,0.0,77.5,4.3
+2025-03-30,Midtown,Cold brew,17,5.75,0.0,97.75,4.5
+2025-03-30,University,Drip coffee,28,3.1,0.0,86.8,4.3
+2025-03-31,Midtown,Latte,21,5.25,0.0,110.25,4.3
+2025-03-31,Downtown,Sandwich,48,8.9,0.0,427.2,4.2
+2025-03-31,Midtown,Drip coffee,26,3.1,0.0,80.6,4.6
+2025-03-31,Downtown,Croissant,28,4.2,0.0,117.6,4.1
+2025-03-31,Harbour,Drip coffee,24,3.1,0.0,74.4,3.7
+2025-03-31,University,Sandwich,36,8.9,10.0,288.36,4.3
+2025-04-01,Midtown,Croissant,21,4.2,0.0,88.2,4.6
+2025-04-01,Downtown,Drip coffee,61,3.1,15.0,160.73,3.7
+2025-04-01,Downtown,Cold brew,49,5.75,0.0,281.75,4.6
+2025-04-01,Harbour,Cold brew,26,5.75,0.0,149.5,4.6
+2025-04-02,Downtown,Latte,47,5.25,0.0,246.75,4.1
+2025-04-02,University,Sandwich,23,8.9,0.0,204.7,4.4
+2025-04-02,Midtown,Sandwich,34,8.9,0.0,302.6,4.5
+2025-04-02,Harbour,Latte,28,5.25,0.0,147.0,4.6
+2025-04-02,Harbour,Drip coffee,30,3.1,0.0,93.0,4.7
+2025-04-02,University,Cold brew,32,5.75,10.0,165.6,4.6
+2025-04-02,University,Drip coffee,22,3.1,0.0,68.2,3.5
+2025-04-02,Downtown,Cold brew,39,5.75,10.0,201.82,3.9
+2025-04-03,Midtown,Sandwich,17,8.9,0.0,151.3,4.4
+2025-04-03,Downtown,Croissant,37,4.2,0.0,155.4,4.7
+2025-04-04,University,Croissant,29,4.2,0.0,121.8,4.9
+2025-04-04,University,Drip coffee,32,3.1,15.0,84.32,4.4
+2025-04-04,Downtown,Latte,55,5.25,15.0,245.44,4.3
+2025-04-04,Harbour,Drip coffee,35,3.1,0.0,108.5,
+2025-04-04,Midtown,Croissant,16,4.2,0.0,67.2,4.5
+2025-04-04,Downtown,Cold brew,31,5.75,0.0,178.25,4.1
+2025-04-04,Downtown,Croissant,39,4.2,0.0,163.8,4.3
+2025-04-04,Midtown,Latte,16,5.25,0.0,84.0,4.1
+2025-04-04,Harbour,Cold brew,30,5.75,0.0,172.5,4.9
+2025-04-04,Midtown,Sandwich,25,8.9,0.0,222.5,
+2025-04-05,Harbour,Drip coffee,45,3.1,10.0,125.55,4.8
+2025-04-05,Midtown,Cold brew,18,5.75,10.0,93.15,4.2
+2025-04-05,University,Drip coffee,43,3.1,0.0,133.3,3.8
+2025-04-05,Harbour,Croissant,33,4.2,,138.6,5.0
+2025-04-05,University,Latte,28,5.25,0.0,147.0,4.5
+2025-04-06,Midtown,Latte,23,5.25,10.0,108.68,4.2
+2025-04-06,Harbour,Latte,43,5.25,10.0,203.18,4.5
+2025-04-06,University,Cold brew,25,5.75,0.0,143.75,4.7
+2025-04-06,Downtown,Cold brew,40,5.75,10.0,207.0,4.0
+2025-04-06,Midtown,Croissant,15,4.2,0.0,63.0,4.5
+2025-04-06,Harbour,Cold brew,27,5.75,0.0,155.25,5.0
+2025-04-06,Downtown,Drip coffee,41,3.1,0.0,127.1,4.3
+2025-04-07,Harbour,Croissant,22,4.2,0.0,92.4,4.4
+2025-04-07,University,Sandwich,20,8.9,0.0,178.0,4.4
+2025-04-07,University,Drip coffee,23,3.1,0.0,71.3,4.3
+2025-04-07,Downtown,Drip coffee,31,3.1,15.0,81.68,3.9
+2025-04-07,Downtown,Sandwich,46,8.9,15.0,347.99,3.3
+2025-04-07,Midtown,Latte,14,5.25,0.0,73.5,4.1
+2025-04-08,Downtown,Cold brew,31,5.75,0.0,178.25,4.4
+2025-04-08,Harbour,Croissant,36,4.2,0.0,151.2,4.0
+2025-04-08,Midtown,Sandwich,19,8.9,10.0,152.19,4.2
+2025-04-08,Midtown,Croissant,18,4.2,0.0,75.6,
+2025-04-08,Harbour,Cold brew,45,5.75,10.0,232.88,4.9
+2025-04-08,Downtown,Sandwich,42,8.9,0.0,373.8,4.1
+2025-04-09,Harbour,Drip coffee,30,3.1,0.0,93.0,4.4
+2025-04-09,Midtown,Latte,26,5.25,0.0,136.5,4.0
+2025-04-09,Midtown,Drip coffee,24,3.1,0.0,74.4,4.2
+2025-04-09,University,Latte,30,5.25,0.0,157.5,4.2
+2025-04-09,Harbour,Croissant,27,4.2,0.0,113.4,4.5
+2025-04-09,Downtown,Sandwich,33,8.9,0.0,293.7,4.8
+2025-04-09,Downtown,Drip coffee,36,3.1,0.0,111.6,5.0
+2025-04-09,University,Cold brew,25,5.75,0.0,143.75,4.1
+2025-04-09,Harbour,Latte,24,5.25,10.0,113.4,4.2
+2025-04-10,Midtown,Croissant,28,4.2,0.0,117.6,4.5
+2025-04-10,Harbour,Cold brew,32,5.75,0.0,184.0,3.9
+2025-04-10,University,Croissant,25,4.2,0.0,105.0,5.0
+2025-04-10,Downtown,Cold brew,53,5.75,0.0,304.75,3.9
+2025-04-10,Harbour,Drip coffee,28,3.1,0.0,86.8,4.7
+2025-04-11,Harbour,Latte,37,5.25,15.0,165.11,4.9
+2025-04-11,Harbour,Sandwich,39,8.9,0.0,347.1,3.9
+2025-04-11,University,Sandwich,37,8.9,15.0,279.91,4.2
+2025-04-11,University,Cold brew,23,5.75,0.0,132.25,3.7
+2025-04-11,University,Drip coffee,23,3.1,0.0,71.3,
+2025-04-12,Downtown,Drip coffee,45,3.1,0.0,139.5,3.8
+2025-04-12,Midtown,Drip coffee,29,3.1,0.0,89.9,4.9
+2025-04-12,Midtown,Cold brew,24,5.75,0.0,138.0,3.9
+2025-04-12,Downtown,Croissant,38,4.2,0.0,159.6,
+2025-04-12,University,Cold brew,23,5.75,0.0,132.25,4.1
+2025-04-13,University,Sandwich,29,8.9,0.0,258.1,4.4
+2025-04-13,Downtown,Cold brew,43,5.75,0.0,247.25,4.0
+2025-04-13,Downtown,Croissant,46,4.2,0.0,193.2,4.7
+2025-04-13,Downtown,Latte,30,5.25,0.0,157.5,4.4
+2025-04-13,Harbour,Cold brew,37,5.75,0.0,212.75,4.2
+2025-04-13,University,Croissant,22,4.2,0.0,92.4,4.3
+2025-04-13,Midtown,Latte,25,5.25,10.0,118.12,3.7
+2025-04-13,Midtown,Croissant,29,4.2,10.0,109.62,4.6
+2025-04-13,Harbour,Sandwich,36,8.9,0.0,320.4,4.4
+2025-04-14,Midtown,Sandwich,12,8.9,0.0,106.8,3.5
+2025-04-14,University,Cold brew,21,5.75,0.0,120.75,4.4
+2025-04-14,Downtown,Croissant,53,4.2,0.0,222.6,4.6
+2025-04-14,Midtown,Latte,22,5.25,0.0,115.5,5.0
+2025-04-14,Downtown,Sandwich,33,8.9,0.0,293.7,4.4
+2025-04-14,Midtown,Croissant,21,4.2,0.0,88.2,4.6
+2025-04-15,Midtown,Drip coffee,21,3.1,0.0,65.1,4.4
+2025-04-15,Downtown,Sandwich,28,8.9,0.0,249.2,3.9
+2025-04-15,Midtown,Croissant,35,4.2,15.0,124.95,4.1
+2025-04-15,Midtown,Sandwich,16,8.9,0.0,142.4,4.4
+2025-04-15,Harbour,Drip coffee,35,3.1,10.0,97.65,4.3
+2025-04-15,Harbour,Croissant,22,4.2,10.0,83.16,4.8
+2025-04-16,Downtown,Latte,40,5.25,10.0,189.0,4.1
+2025-04-16,Harbour,Sandwich,30,8.9,10.0,240.3,4.5
+2025-04-16,Midtown,Sandwich,21,8.9,0.0,186.9,4.5
+2025-04-16,Midtown,Latte,27,5.25,0.0,141.75,4.9
+2025-04-16,Midtown,Drip coffee,20,3.1,0.0,62.0,4.0
+2025-04-16,Harbour,Cold brew,38,5.75,15.0,185.72,3.5
+2025-04-16,Harbour,Latte,25,5.25,0.0,131.25,3.8
+2025-04-16,Downtown,Croissant,31,4.2,0.0,130.2,4.1
+2025-04-17,Harbour,Latte,28,5.25,0.0,147.0,5.0
+2025-04-17,University,Sandwich,22,8.9,0.0,195.8,3.8
+2025-04-17,Midtown,Sandwich,21,8.9,0.0,186.9,4.9
+2025-04-17,Midtown,Latte,19,5.25,0.0,99.75,4.2
+2025-04-18,Midtown,Cold brew,22,5.75,0.0,126.5,4.3
+2025-04-18,University,Latte,35,5.25,0.0,183.75,4.0
+2025-04-18,Midtown,Sandwich,15,8.9,0.0,133.5,4.5
+2025-04-18,Downtown,Croissant,34,4.2,0.0,142.8,4.5
+2025-04-18,University,Cold brew,26,5.75,0.0,149.5,4.6
+2025-04-18,Harbour,Latte,29,5.25,0.0,152.25,4.2
+2025-04-18,University,Drip coffee,17,3.1,0.0,52.7,4.1
+2025-04-19,Downtown,Croissant,43,4.2,0.0,180.6,3.7
+2025-04-19,Midtown,Drip coffee,22,3.1,0.0,68.2,4.2
+2025-04-19,University,Sandwich,23,8.9,0.0,204.7,4.4
+2025-04-19,University,Latte,18,5.25,0.0,94.5,4.2
+2025-04-19,University,Cold brew,24,5.75,0.0,138.0,3.9
+2025-04-19,Harbour,Latte,47,5.25,15.0,209.74,4.1
+2025-04-20,Midtown,Sandwich,18,8.9,0.0,160.2,4.3
+2025-04-20,Midtown,Croissant,38,4.2,15.0,135.66,4.9
+2025-04-20,Midtown,Latte,22,5.25,15.0,98.18,3.6
+2025-04-20,University,Croissant,16,4.2,0.0,67.2,4.2
+2025-04-21,Downtown,Drip coffee,29,3.1,0.0,89.9,4.2
+2025-04-21,Harbour,Cold brew,25,5.75,0.0,143.75,4.4
+2025-04-21,Midtown,Drip coffee,28,3.1,0.0,86.8,4.6
+2025-04-21,Harbour,Latte,22,5.25,0.0,115.5,
+2025-04-21,Midtown,Sandwich,13,8.9,0.0,115.7,4.1
+2025-04-21,Midtown,Latte,32,5.25,15.0,142.8,3.9
+2025-04-21,Harbour,Sandwich,32,8.9,10.0,256.32,4.5
+2025-04-21,Harbour,Croissant,36,4.2,0.0,151.2,4.8
+2025-04-22,Midtown,Latte,13,5.25,0.0,68.25,3.9
+2025-04-22,Harbour,Drip coffee,21,3.1,0.0,65.1,4.5
+2025-04-22,Midtown,Cold brew,22,5.75,0.0,126.5,4.3
+2025-04-22,University,Latte,40,5.25,0.0,210.0,4.5
+2025-04-22,Harbour,Cold brew,28,5.75,0.0,161.0,4.6
+2025-04-23,Midtown,Drip coffee,25,3.1,0.0,77.5,4.2
+2025-04-23,Midtown,Croissant,17,4.2,0.0,71.4,
+2025-04-23,Downtown,Sandwich,38,8.9,0.0,338.2,4.3
+2025-04-23,Harbour,Drip coffee,21,3.1,0.0,65.1,4.5
+2025-04-23,Harbour,Latte,22,5.25,0.0,115.5,4.9
+2025-04-23,Harbour,Sandwich,42,8.9,0.0,373.8,4.7
+2025-04-23,Midtown,Cold brew,14,5.75,0.0,80.5,3.8
+2025-04-23,Downtown,Drip coffee,38,3.1,0.0,117.8,3.9
+2025-04-23,University,Drip coffee,32,3.1,10.0,89.28,4.4
+2025-04-24,Midtown,Latte,19,5.25,0.0,99.75,4.0
+2025-04-24,Downtown,Drip coffee,37,3.1,0.0,114.7,4.1
+2025-04-24,University,Croissant,23,4.2,0.0,96.6,3.6
+2025-04-24,Midtown,Croissant,16,4.2,0.0,67.2,4.4
+2025-04-25,Harbour,Drip coffee,38,3.1,0.0,117.8,
+2025-04-25,Downtown,Sandwich,30,8.9,0.0,267.0,4.3
+2025-04-25,University,Cold brew,29,5.75,0.0,166.75,4.5
+2025-04-25,Midtown,Drip coffee,18,3.1,0.0,55.8,4.2
+2025-04-25,Harbour,Sandwich,29,8.9,10.0,232.29,4.4
+2025-04-26,Harbour,Croissant,36,4.2,0.0,151.2,4.4
+2025-04-26,Midtown,Drip coffee,27,3.1,15.0,71.14,4.3
+2025-04-26,University,Sandwich,36,8.9,0.0,320.4,3.7
+2025-04-26,Harbour,Cold brew,34,5.75,0.0,195.5,4.7
+2025-04-26,Downtown,Croissant,49,4.2,0.0,205.8,4.6
+2025-04-27,Downtown,Latte,39,5.25,0.0,204.75,4.3
+2025-04-27,University,Croissant,36,4.2,0.0,151.2,4.2
+2025-04-27,Harbour,Latte,42,5.25,10.0,198.45,4.6
+2025-04-27,University,Cold brew,24,5.75,10.0,124.2,4.5
+2025-04-27,Downtown,Croissant,67,4.2,15.0,239.19,3.9
+2025-04-27,University,Drip coffee,26,3.1,0.0,80.6,4.1
+2025-04-27,Harbour,Drip coffee,50,3.1,10.0,139.5,4.5
+2025-04-27,Midtown,Latte,21,5.25,15.0,93.71,5.0
+2025-04-27,Midtown,Cold brew,25,5.75,0.0,143.75,4.6
+2025-04-28,Midtown,Cold brew,25,5.75,0.0,143.75,4.6
+2025-04-28,Harbour,Latte,25,5.25,0.0,131.25,4.4
+2025-04-28,Downtown,Croissant,33,4.2,10.0,124.74,4.0
+2025-04-29,Harbour,Drip coffee,28,3.1,0.0,86.8,4.0
+2025-04-29,University,Cold brew,27,5.75,0.0,155.25,4.4
+2025-04-29,Midtown,Sandwich,32,8.9,15.0,242.08,3.8
+2025-04-29,University,Latte,22,5.25,0.0,115.5,4.5
+2025-04-29,Midtown,Latte,21,5.25,0.0,110.25,4.2
+2025-04-29,Harbour,Cold brew,36,5.75,10.0,186.3,
+2025-04-29,Downtown,Sandwich,27,8.9,0.0,240.3,3.9
+2025-04-29,Midtown,Cold brew,18,5.75,0.0,103.5,4.6
+2025-04-30,Midtown,Cold brew,19,5.75,0.0,109.25,4.7
+2025-04-30,University,Drip coffee,27,3.1,15.0,71.14,4.1
+2025-04-30,University,Cold brew,25,5.75,0.0,143.75,3.8
+2025-04-30,Midtown,Latte,17,5.25,0.0,89.25,4.5
+2025-04-30,Harbour,Cold brew,36,5.75,0.0,207.0,4.3
+2025-04-30,Downtown,Cold brew,27,5.75,0.0,155.25,4.7
+2025-04-30,Downtown,Latte,42,5.25,0.0,220.5,4.2
+2025-05-01,Downtown,Sandwich,47,8.9,15.0,355.56,4.4
+2025-05-01,Midtown,Drip coffee,18,3.1,15.0,47.43,3.5
+2025-05-01,Harbour,Croissant,39,4.2,0.0,163.8,3.9
+2025-05-01,Downtown,Drip coffee,31,3.1,0.0,96.1,4.4
+2025-05-01,University,Latte,28,5.25,15.0,124.95,4.5
+2025-05-01,Downtown,Croissant,37,4.2,0.0,155.4,4.4
+2025-05-01,Midtown,Croissant,13,4.2,0.0,54.6,4.3
+2025-05-01,Midtown,Latte,26,5.25,0.0,136.5,4.5
+2025-05-02,Midtown,Sandwich,21,8.9,0.0,186.9,3.8
+2025-05-02,Downtown,Cold brew,39,5.75,0.0,224.25,4.7
+2025-05-02,Harbour,Sandwich,42,8.9,0.0,373.8,4.9
+2025-05-02,Midtown,Croissant,17,4.2,0.0,71.4,4.2
+2025-05-02,Downtown,Sandwich,43,8.9,0.0,382.7,4.0
+2025-05-03,Harbour,Latte,46,5.25,10.0,217.35,4.2
+2025-05-03,Midtown,Cold brew,16,5.75,0.0,92.0,4.1
+2025-05-03,University,Croissant,17,4.2,0.0,71.4,4.5
+2025-05-03,Midtown,Latte,26,5.25,0.0,136.5,4.0
+2025-05-03,Midtown,Drip coffee,14,3.1,0.0,43.4,3.8
+2025-05-04,Midtown,Sandwich,27,8.9,0.0,240.3,4.1
+2025-05-04,Midtown,Latte,23,5.25,0.0,120.75,4.2
+2025-05-04,University,Cold brew,34,5.75,0.0,195.5,4.4
+2025-05-04,Harbour,Drip coffee,35,3.1,0.0,108.5,4.6
+2025-05-04,Downtown,Croissant,49,4.2,0.0,205.8,4.0
+2025-05-04,Downtown,Cold brew,46,5.75,0.0,264.5,4.6
+2025-05-04,University,Drip coffee,20,3.1,0.0,62.0,4.9
+2025-05-04,Harbour,Latte,40,5.25,0.0,210.0,4.2
+2025-05-04,Midtown,Cold brew,36,5.75,0.0,207.0,4.5
+2025-05-05,University,Croissant,18,4.2,0.0,75.6,4.5
+2025-05-05,Harbour,Cold brew,27,5.75,0.0,155.25,4.3
+2025-05-05,Downtown,Latte,40,5.25,,210.0,3.9
+2025-05-05,Harbour,Latte,28,5.25,0.0,147.0,4.5
+2025-05-05,Midtown,Sandwich,17,8.9,0.0,151.3,4.3
+2025-05-05,Harbour,Croissant,35,4.2,0.0,147.0,4.4
+2025-05-05,Midtown,Latte,21,5.25,0.0,110.25,4.2
+2025-05-06,Midtown,Cold brew,19,5.75,0.0,109.25,4.3
+2025-05-06,Downtown,Cold brew,37,5.75,0.0,212.75,4.4
+2025-05-06,Harbour,Sandwich,26,8.9,15.0,196.69,3.8
+2025-05-06,Downtown,Sandwich,30,8.9,0.0,267.0,4.6
+2025-05-06,Midtown,Drip coffee,21,3.1,15.0,55.34,4.1
+2025-05-06,University,Latte,20,5.25,0.0,105.0,4.4
+2025-05-07,Midtown,Cold brew,17,5.75,0.0,97.75,4.2
+2025-05-07,Harbour,Cold brew,28,5.75,0.0,161.0,4.1
+2025-05-08,Downtown,Croissant,32,4.2,0.0,134.4,5.0
+2025-05-08,Midtown,Drip coffee,24,3.1,0.0,74.4,4.5
+2025-05-08,Harbour,Sandwich,32,8.9,0.0,284.8,5.0
+2025-05-08,Midtown,Cold brew,26,5.75,10.0,134.55,3.8
+2025-05-08,Midtown,Sandwich,28,8.9,10.0,224.28,4.1
+2025-05-08,University,Sandwich,27,8.9,0.0,240.3,4.4
+2025-05-08,Downtown,Drip coffee,36,3.1,0.0,111.6,4.8
+2025-05-08,Harbour,Cold brew,30,5.75,0.0,172.5,4.4
+2025-05-08,Downtown,Latte,34,5.25,0.0,178.5,4.7
+2025-05-09,Midtown,Sandwich,20,8.9,0.0,178.0,4.2
+2025-05-09,Midtown,Cold brew,24,5.75,0.0,138.0,3.9
+2025-05-09,Downtown,Drip coffee,32,3.1,15.0,84.32,3.8
+2025-05-09,University,Sandwich,29,8.9,0.0,258.1,4.5
+2025-05-10,Midtown,Cold brew,25,5.75,10.0,129.38,
+2025-05-10,Harbour,Drip coffee,44,3.1,10.0,122.76,4.8
+2025-05-10,University,Drip coffee,22,3.1,0.0,68.2,4.8
+2025-05-10,Harbour,Cold brew,47,5.75,15.0,229.71,3.9
+2025-05-10,Downtown,Cold brew,57,5.75,15.0,278.59,4.6
+2025-05-10,Harbour,Sandwich,34,8.9,0.0,302.6,4.6
+2025-05-10,Downtown,Drip coffee,44,3.1,0.0,136.4,4.6
+2025-05-11,Downtown,Latte,41,5.25,0.0,215.25,4.0
+2025-05-11,Midtown,Drip coffee,26,3.1,0.0,80.6,3.9
+2025-05-11,Harbour,Latte,37,5.25,0.0,194.25,4.2
+2025-05-11,Midtown,Cold brew,31,5.75,0.0,178.25,4.2
+2025-05-12,Harbour,Sandwich,27,8.9,0.0,240.3,4.9
+2025-05-12,Midtown,Sandwich,16,8.9,15.0,121.04,4.7
+2025-05-12,Midtown,Croissant,28,4.2,0.0,117.6,4.1
+2025-05-12,Downtown,Latte,32,5.25,10.0,151.2,3.7
+2025-05-12,University,Cold brew,25,5.75,0.0,143.75,4.4
+2025-05-12,Harbour,Latte,28,5.25,0.0,147.0,4.8
+2025-05-12,Downtown,Drip coffee,33,3.1,0.0,102.3,4.3
+2025-05-12,University,Croissant,25,4.2,10.0,94.5,4.1
+2025-05-12,Downtown,Sandwich,26,8.9,0.0,231.4,4.3
+2025-05-13,Midtown,Sandwich,22,8.9,0.0,195.8,4.5
+2025-05-13,University,Sandwich,27,8.9,0.0,240.3,4.9
+2025-05-13,Downtown,Sandwich,54,8.9,10.0,432.54,4.0
+2025-05-13,Midtown,Cold brew,26,5.75,0.0,149.5,4.3
+2025-05-13,Midtown,Croissant,14,4.2,0.0,58.8,4.2
+2025-05-13,University,Latte,37,5.25,10.0,174.82,3.8
+2025-05-13,Midtown,Drip coffee,19,3.1,0.0,58.9,4.5
+2025-05-14,University,Sandwich,25,8.9,0.0,222.5,3.9
+2025-05-14,Harbour,Croissant,21,4.2,0.0,88.2,4.6
+2025-05-14,Harbour,Sandwich,19,8.9,0.0,169.1,4.2
+2025-05-14,Downtown,Drip coffee,41,3.1,15.0,108.04,3.6
+2025-05-14,University,Cold brew,31,5.75,0.0,178.25,4.3
+2025-05-14,Harbour,Latte,26,5.25,0.0,136.5,3.9
+2025-05-14,Downtown,Sandwich,43,8.9,0.0,382.7,3.9
+2025-05-14,Harbour,Drip coffee,28,3.1,0.0,86.8,4.8
+2025-05-14,Midtown,Croissant,32,4.2,10.0,120.96,3.9
+2025-05-15,Midtown,Croissant,23,4.2,0.0,96.6,4.3
+2025-05-15,University,Croissant,21,4.2,10.0,79.38,5.0
+2025-05-15,University,Sandwich,27,8.9,0.0,240.3,4.4
+2025-05-15,Midtown,Cold brew,17,5.75,0.0,97.75,4.2
+2025-05-15,Downtown,Croissant,26,4.2,0.0,109.2,3.9
+2025-05-15,Downtown,Sandwich,26,8.9,0.0,231.4,4.6
+2025-05-16,Harbour,Croissant,33,4.2,0.0,138.6,4.3
+2025-05-16,University,Cold brew,19,5.75,0.0,109.25,4.8
+2025-05-16,Midtown,Cold brew,23,5.75,0.0,132.25,4.4
+2025-05-16,Harbour,Latte,35,5.25,0.0,183.75,4.0
+2025-05-17,Harbour,Drip coffee,27,3.1,0.0,83.7,4.6
+2025-05-17,Harbour,Cold brew,42,5.75,0.0,241.5,4.2
+2025-05-17,Downtown,Croissant,50,4.2,0.0,210.0,5.0
+2025-05-17,University,Drip coffee,25,3.1,10.0,69.75,4.3
+2025-05-17,Downtown,Sandwich,51,8.9,15.0,385.82,4.5
+2025-05-17,University,Croissant,16,4.2,0.0,67.2,4.0
+2025-05-18,University,Cold brew,21,5.75,0.0,120.75,4.3
+2025-05-18,University,Croissant,26,4.2,0.0,109.2,4.4
+2025-05-18,Harbour,Cold brew,43,5.75,0.0,247.25,4.9
+2025-05-18,Midtown,Sandwich,20,8.9,0.0,178.0,4.0
+2025-05-18,Downtown,Cold brew,40,5.75,0.0,230.0,4.4
+2025-05-18,Downtown,Latte,37,5.25,0.0,194.25,3.7
+2025-05-19,Midtown,Cold brew,23,5.75,0.0,132.25,4.3
+2025-05-19,Harbour,Latte,30,5.25,10.0,141.75,3.9
+2025-05-19,University,Latte,26,5.25,0.0,136.5,4.0
+2025-05-19,Downtown,Latte,42,5.25,0.0,220.5,4.8
+2025-05-19,University,Croissant,20,4.2,0.0,84.0,4.7
+2025-05-19,Downtown,Sandwich,45,8.9,10.0,360.45,3.9
+2025-05-20,Midtown,Latte,16,5.25,15.0,71.4,3.7
+2025-05-20,University,Croissant,31,4.2,15.0,110.67,4.4
+2025-05-20,Harbour,Drip coffee,39,3.1,0.0,120.9,4.6
+2025-05-20,University,Cold brew,24,5.75,0.0,138.0,4.2
+2025-05-20,Downtown,Cold brew,36,5.75,0.0,207.0,4.7
+2025-05-21,Harbour,Latte,26,5.25,,136.5,4.5
+2025-05-21,University,Cold brew,25,5.75,0.0,143.75,4.5
+2025-05-21,University,Croissant,35,4.2,0.0,147.0,3.8
+2025-05-21,Midtown,Latte,16,5.25,0.0,84.0,4.5
+2025-05-21,Downtown,Latte,33,5.25,0.0,173.25,4.9
+2025-05-21,Midtown,Croissant,16,4.2,0.0,67.2,4.4
+2025-05-21,Harbour,Sandwich,20,8.9,0.0,178.0,5.0
+2025-05-22,Downtown,Sandwich,33,8.9,0.0,293.7,
+2025-05-22,Downtown,Croissant,38,4.2,0.0,159.6,3.9
+2025-05-22,University,Cold brew,22,5.75,0.0,126.5,4.2
+2025-05-22,Downtown,Drip coffee,32,3.1,0.0,99.2,4.8
+2025-05-22,Harbour,Sandwich,14,8.9,0.0,124.6,4.4
+2025-05-22,University,Drip coffee,13,3.1,0.0,40.3,4.0
+2025-05-22,Midtown,Sandwich,13,8.9,0.0,115.7,3.9
+2025-05-22,Midtown,Drip coffee,16,3.1,0.0,49.6,4.4
+2025-05-22,Downtown,Cold brew,32,5.75,0.0,184.0,3.9
+2025-05-23,Harbour,Latte,24,5.25,0.0,126.0,4.4
+2025-05-23,University,Cold brew,23,5.75,0.0,132.25,4.5
+2025-05-23,University,Latte,21,5.25,0.0,110.25,3.8
+2025-05-23,Harbour,Drip coffee,40,3.1,15.0,105.4,4.1
+2025-05-23,Downtown,Drip coffee,23,3.1,0.0,71.3,4.1
+2025-05-24,Downtown,Croissant,47,4.2,10.0,177.66,3.5
+2025-05-24,Harbour,Drip coffee,29,3.1,0.0,89.9,4.3
+2025-05-24,University,Drip coffee,24,3.1,10.0,66.96,4.2
+2025-05-24,University,Latte,22,5.25,0.0,115.5,4.0
+2025-05-24,Harbour,Latte,27,5.25,0.0,141.75,
+2025-05-24,University,Croissant,26,4.2,0.0,109.2,3.8
+2025-05-24,Downtown,Drip coffee,44,3.1,0.0,136.4,4.5
+2025-05-24,Downtown,Sandwich,33,8.9,0.0,293.7,4.4
+2025-05-25,Midtown,Sandwich,19,8.9,10.0,152.19,3.8
+2025-05-25,Midtown,Drip coffee,18,3.1,0.0,55.8,4.4
+2025-05-25,Midtown,Cold brew,17,5.75,0.0,97.75,4.0
+2025-05-25,Harbour,Sandwich,35,8.9,0.0,311.5,4.5
+2025-05-25,University,Sandwich,18,8.9,0.0,160.2,4.3
+2025-05-25,Midtown,Latte,28,5.25,10.0,132.3,4.1
+2025-05-25,University,Latte,25,5.25,0.0,131.25,4.2
+2025-05-25,Downtown,Croissant,40,4.2,0.0,168.0,4.4
+2025-05-25,Downtown,Cold brew,34,5.75,0.0,195.5,4.5
+2025-05-25,Downtown,Sandwich,37,8.9,0.0,329.3,4.2
+2025-05-26,Downtown,Cold brew,40,5.75,0.0,230.0,4.2
+2025-05-26,Downtown,Drip coffee,26,3.1,0.0,80.6,4.6
+2025-05-26,University,Cold brew,22,5.75,0.0,126.5,4.5
+2025-05-26,Harbour,Sandwich,25,8.9,10.0,200.25,4.5
+2025-05-26,Midtown,Latte,27,5.25,0.0,141.75,4.5
+2025-05-26,Midtown,Drip coffee,14,3.1,0.0,43.4,4.2
+2025-05-26,Midtown,Croissant,16,4.2,0.0,67.2,4.8
+2025-05-26,Harbour,Croissant,25,4.2,0.0,105.0,4.1
+2025-05-26,Midtown,Sandwich,17,8.9,0.0,151.3,4.8
+2025-05-27,Midtown,Cold brew,25,5.75,0.0,143.75,4.1
+2025-05-27,Harbour,Sandwich,28,8.9,0.0,249.2,4.3
+2025-05-27,University,Sandwich,15,8.9,0.0,133.5,3.8
+2025-05-27,Midtown,Drip coffee,31,3.1,15.0,81.68,4.0
+2025-05-27,Downtown,Cold brew,40,5.75,0.0,230.0,4.5
+2025-05-28,Midtown,Sandwich,21,8.9,0.0,186.9,4.5
+2025-05-28,Downtown,Cold brew,60,5.75,0.0,345.0,4.6
+2025-05-28,University,Drip coffee,27,3.1,0.0,83.7,4.4
+2025-05-28,Harbour,Cold brew,27,5.75,0.0,155.25,4.3
+2025-05-28,Midtown,Drip coffee,20,3.1,0.0,62.0,4.6
+2025-05-28,Midtown,Croissant,19,4.2,0.0,79.8,4.2
+2025-05-28,Downtown,Latte,34,5.25,0.0,178.5,3.5
+2025-05-28,Harbour,Latte,19,5.25,0.0,99.75,4.4
+2025-05-28,Midtown,Cold brew,29,5.75,0.0,166.75,4.1
+2025-05-28,University,Cold brew,16,5.75,0.0,92.0,4.5
+2025-05-29,Downtown,Drip coffee,29,3.1,0.0,89.9,4.1
+2025-05-29,Midtown,Latte,27,5.25,15.0,120.49,4.3
+2025-05-29,Harbour,Drip coffee,27,3.1,0.0,83.7,4.1
+2025-05-29,University,Drip coffee,31,3.1,0.0,96.1,3.6
+2025-05-29,Downtown,Sandwich,44,8.9,0.0,391.6,
+2025-05-30,University,Drip coffee,20,3.1,0.0,62.0,4.6
+2025-05-30,Downtown,Drip coffee,35,3.1,0.0,108.5,4.9
+2025-05-30,Harbour,Latte,20,5.25,0.0,105.0,3.9
+2025-05-30,Downtown,Croissant,33,4.2,0.0,138.6,4.4
+2025-05-30,Midtown,Croissant,14,4.2,0.0,58.8,4.3
+2025-05-31,Harbour,Cold brew,39,5.75,0.0,224.25,4.7
+2025-05-31,Downtown,Cold brew,50,5.75,0.0,287.5,4.4
+2025-05-31,University,Latte,22,5.25,0.0,115.5,4.6
+2025-05-31,Harbour,Drip coffee,41,3.1,0.0,127.1,4.5
+2025-05-31,University,Drip coffee,16,3.1,0.0,49.6,5.0
+2025-05-31,University,Cold brew,25,5.75,0.0,143.75,4.2
+2025-05-31,Midtown,Sandwich,18,8.9,0.0,160.2,4.0
+2025-06-01,University,Cold brew,22,5.75,0.0,126.5,4.9
+2025-06-01,Harbour,Latte,35,5.25,0.0,183.75,4.4
+2025-06-01,University,Latte,32,5.25,10.0,151.2,4.0
+2025-06-01,Midtown,Cold brew,25,5.75,0.0,143.75,4.2
+2025-06-01,University,Drip coffee,30,3.1,0.0,93.0,4.1
+2025-06-01,Harbour,Croissant,33,4.2,0.0,138.6,4.1
+2025-06-02,Downtown,Croissant,38,4.2,,159.6,4.4
+2025-06-02,Harbour,Latte,25,5.25,10.0,118.12,4.7
+2025-06-02,Downtown,Cold brew,33,5.75,0.0,189.75,5.0
+2025-06-02,Midtown,Sandwich,15,8.9,0.0,133.5,4.4
+2025-06-02,Midtown,Cold brew,21,5.75,0.0,120.75,4.2
+2025-06-03,University,Latte,31,5.25,0.0,162.75,4.5
+2025-06-03,Downtown,Croissant,29,4.2,0.0,121.8,4.1
+2025-06-03,University,Drip coffee,19,3.1,0.0,58.9,4.5
+2025-06-03,Harbour,Croissant,17,4.2,0.0,71.4,4.3
+2025-06-03,Harbour,Drip coffee,35,3.1,10.0,97.65,4.0
+2025-06-03,Midtown,Latte,13,5.25,0.0,68.25,4.6
+2025-06-03,Midtown,Sandwich,13,8.9,0.0,115.7,4.0
+2025-06-03,Midtown,Drip coffee,18,3.1,0.0,55.8,4.5
+2025-06-03,Downtown,Sandwich,29,8.9,0.0,258.1,4.7
+2025-06-03,Midtown,Cold brew,31,5.75,10.0,160.43,4.2
+2025-06-03,University,Cold brew,26,5.75,0.0,149.5,4.3
+2025-06-04,Midtown,Latte,19,5.25,0.0,99.75,4.3
+2025-06-04,Downtown,Drip coffee,29,3.1,0.0,89.9,4.0
+2025-06-04,Harbour,Sandwich,30,8.9,0.0,267.0,
+2025-06-04,Downtown,Sandwich,27,8.9,0.0,240.3,4.0
+2025-06-04,University,Croissant,23,4.2,10.0,86.94,4.0
+2025-06-04,Harbour,Latte,31,5.25,0.0,162.75,4.1
+2025-06-04,University,Drip coffee,27,3.1,0.0,83.7,4.3
+2025-06-05,Downtown,Cold brew,37,5.75,0.0,212.75,4.6
+2025-06-05,Downtown,Sandwich,26,8.9,10.0,208.26,4.3
+2025-06-05,University,Cold brew,21,5.75,0.0,120.75,3.8
+2025-06-05,Harbour,Cold brew,34,5.75,0.0,195.5,4.7
+2025-06-05,Downtown,Latte,45,5.25,15.0,200.81,4.0
+2025-06-05,Midtown,Cold brew,23,5.75,0.0,132.25,4.5
+2025-06-06,University,Sandwich,21,8.9,10.0,168.21,3.9
+2025-06-06,Midtown,Sandwich,20,8.9,15.0,151.3,4.4
+2025-06-06,Harbour,Croissant,25,4.2,0.0,105.0,3.9
+2025-06-06,Harbour,Sandwich,23,8.9,0.0,204.7,4.6
+2025-06-06,Downtown,Croissant,25,4.2,10.0,94.5,4.1
+2025-06-07,Midtown,Croissant,8,4.2,0.0,33.6,4.0
+2025-06-07,Downtown,Latte,33,5.25,10.0,155.93,4.6
+2025-06-07,University,Croissant,24,4.2,0.0,100.8,4.1
+2025-06-07,University,Drip coffee,28,3.1,0.0,86.8,4.2
+2025-06-07,Harbour,Croissant,28,4.2,10.0,105.84,4.5
+2025-06-08,Midtown,Croissant,32,4.2,15.0,114.24,3.6
+2025-06-08,University,Drip coffee,19,3.1,0.0,58.9,4.4
+2025-06-08,Harbour,Cold brew,40,5.75,0.0,230.0,5.0
+2025-06-08,Harbour,Drip coffee,33,3.1,0.0,102.3,4.0
+2025-06-08,Midtown,Cold brew,24,5.75,0.0,138.0,4.8
+2025-06-08,Harbour,Croissant,29,4.2,10.0,109.62,4.8
+2025-06-08,Downtown,Cold brew,55,5.75,0.0,316.25,4.1
+2025-06-08,University,Latte,13,5.25,0.0,68.25,4.3
+2025-06-08,Midtown,Drip coffee,27,3.1,0.0,83.7,3.9
+2025-06-09,University,Cold brew,18,5.75,0.0,103.5,4.0
+2025-06-09,University,Drip coffee,21,3.1,0.0,65.1,3.8
+2025-06-09,Harbour,Sandwich,17,8.9,0.0,151.3,
+2025-06-10,Harbour,Sandwich,29,8.9,10.0,232.29,4.4
+2025-06-10,Downtown,Cold brew,32,5.75,0.0,184.0,4.3
+2025-06-10,Midtown,Sandwich,22,8.9,0.0,195.8,3.9
+2025-06-10,Downtown,Sandwich,30,8.9,0.0,267.0,4.5
+2025-06-10,Midtown,Croissant,19,4.2,0.0,79.8,4.2
+2025-06-10,Downtown,Latte,20,5.25,0.0,105.0,3.8
+2025-06-10,University,Latte,25,5.25,0.0,131.25,4.0
+2025-06-10,Downtown,Drip coffee,27,3.1,0.0,83.7,3.9
+2025-06-11,Harbour,Drip coffee,20,3.1,0.0,62.0,3.7
+2025-06-11,Harbour,Cold brew,34,5.75,0.0,195.5,4.7
+2025-06-11,University,Croissant,16,4.2,15.0,57.12,4.6
+2025-06-11,Midtown,Drip coffee,21,3.1,0.0,65.1,4.6
+2025-06-11,Midtown,Sandwich,16,8.9,0.0,142.4,4.4
+2025-06-11,University,Cold brew,36,5.75,10.0,186.3,4.1
+2025-06-12,University,Sandwich,41,8.9,15.0,310.17,3.6
+2025-06-12,Midtown,Latte,21,5.25,0.0,110.25,4.4
+2025-06-12,University,Drip coffee,21,3.1,0.0,65.1,3.9
+2025-06-12,Harbour,Sandwich,26,8.9,0.0,231.4,3.7
+2025-06-12,Midtown,Drip coffee,27,3.1,0.0,83.7,4.2
+2025-06-12,Downtown,Drip coffee,23,3.1,0.0,71.3,4.0
+2025-06-12,Harbour,Latte,22,5.25,0.0,115.5,4.7
+2025-06-12,University,Cold brew,27,5.75,0.0,155.25,4.6
+2025-06-13,University,Sandwich,18,8.9,15.0,136.17,4.2
+2025-06-13,Harbour,Croissant,38,4.2,0.0,159.6,4.1
+2025-06-13,Midtown,Sandwich,24,8.9,10.0,192.24,4.8
+2025-06-13,Midtown,Latte,20,5.25,0.0,105.0,4.4
+2025-06-13,Downtown,Latte,42,5.25,10.0,198.45,3.8
+2025-06-14,University,Croissant,33,4.2,10.0,124.74,3.8
+2025-06-14,Downtown,Croissant,41,4.2,0.0,172.2,3.8
+2025-06-14,Downtown,Drip coffee,46,3.1,15.0,121.21,4.1
+2025-06-14,Downtown,Cold brew,54,5.75,0.0,310.5,3.9
+2025-06-15,Downtown,Drip coffee,32,3.1,0.0,99.2,3.6
+2025-06-15,University,Croissant,17,4.2,0.0,71.4,4.1
+2025-06-15,Midtown,Latte,18,5.25,0.0,94.5,4.1
+2025-06-15,Downtown,Sandwich,43,8.9,0.0,382.7,3.7
+2025-06-15,Midtown,Drip coffee,19,3.1,0.0,58.9,4.9
+2025-06-15,Harbour,Sandwich,37,8.9,0.0,329.3,
+2025-06-15,University,Cold brew,32,5.75,0.0,184.0,3.9
+2025-06-16,Harbour,Latte,21,5.25,0.0,110.25,4.2
+2025-06-16,Midtown,Sandwich,25,8.9,15.0,189.12,4.0
+2025-06-16,Midtown,Drip coffee,15,3.1,0.0,46.5,4.6
+2025-06-16,University,Sandwich,17,8.9,0.0,151.3,4.0
+2025-06-16,University,Croissant,35,4.2,15.0,124.95,4.6
+2025-06-17,Midtown,Croissant,17,4.2,0.0,71.4,4.7
+2025-06-17,Downtown,Sandwich,32,8.9,10.0,256.32,3.9
+2025-06-17,Harbour,Latte,33,5.25,10.0,155.93,4.2
+2025-06-17,University,Drip coffee,28,3.1,0.0,86.8,3.9
+2025-06-17,Midtown,Drip coffee,18,3.1,0.0,55.8,4.2
+2025-06-17,Harbour,Cold brew,37,5.75,0.0,212.75,4.3
+2025-06-17,Harbour,Croissant,20,4.2,0.0,84.0,4.4
+2025-06-17,Midtown,Sandwich,18,8.9,10.0,144.18,4.2
+2025-06-18,Harbour,Croissant,36,4.2,15.0,128.52,4.2
+2025-06-18,Downtown,Latte,38,5.25,0.0,199.5,4.0
+2025-06-18,Downtown,Sandwich,49,8.9,0.0,436.1,4.2
+2025-06-18,Harbour,Drip coffee,23,3.1,10.0,64.17,4.2
+2025-06-18,University,Sandwich,23,8.9,0.0,204.7,4.7
+2025-06-18,University,Latte,18,5.25,0.0,94.5,4.2
+2025-06-19,University,Latte,21,5.25,0.0,110.25,4.5
+2025-06-19,Harbour,Sandwich,23,8.9,0.0,204.7,4.0
+2025-06-19,University,Cold brew,33,5.75,10.0,170.78,4.5
+2025-06-19,Midtown,Drip coffee,26,3.1,15.0,68.51,4.0
+2025-06-19,Midtown,Sandwich,25,8.9,0.0,222.5,
+2025-06-20,Harbour,Cold brew,39,5.75,0.0,224.25,5.0
+2025-06-20,Downtown,Sandwich,36,8.9,10.0,288.36,4.5
+2025-06-20,Downtown,Croissant,24,4.2,0.0,100.8,4.4
+2025-06-20,Midtown,Croissant,21,4.2,0.0,88.2,4.5
+2025-06-20,University,Croissant,24,4.2,10.0,90.72,4.1
+2025-06-20,Downtown,Drip coffee,34,3.1,0.0,105.4,4.6
+2025-06-20,Harbour,Sandwich,12,8.9,0.0,106.8,4.0
+2025-06-20,Harbour,Latte,30,5.25,0.0,157.5,4.5
+2025-06-21,Midtown,Drip coffee,15,3.1,0.0,46.5,3.9
+2025-06-21,Downtown,Cold brew,42,5.75,0.0,241.5,4.1
+2025-06-21,Harbour,Drip coffee,23,3.1,0.0,71.3,4.1
+2025-06-21,Downtown,Latte,26,5.25,0.0,136.5,4.0
+2025-06-21,University,Latte,16,5.25,0.0,84.0,4.4
+2025-06-21,Midtown,Croissant,17,4.2,0.0,71.4,4.8
+2025-06-21,Midtown,Sandwich,23,8.9,10.0,184.23,3.4
+2025-06-22,Midtown,Sandwich,15,8.9,0.0,133.5,4.2
+2025-06-22,Harbour,Drip coffee,35,3.1,0.0,108.5,4.8
+2025-06-22,Harbour,Sandwich,31,8.9,0.0,275.9,4.5
+2025-06-22,Harbour,Cold brew,53,5.75,10.0,274.28,4.3
+2025-06-22,Midtown,Latte,31,5.25,10.0,146.48,4.4
+2025-06-22,University,Latte,17,5.25,0.0,89.25,4.3
+2025-06-22,Downtown,Drip coffee,40,3.1,0.0,124.0,4.5
+2025-06-22,Midtown,Croissant,14,4.2,0.0,58.8,4.5
+2025-06-22,Downtown,Sandwich,34,8.9,0.0,302.6,3.8
+2025-06-23,Downtown,Cold brew,45,5.75,0.0,258.75,4.3
+2025-06-23,Downtown,Croissant,23,4.2,0.0,96.6,3.7
+2025-06-23,Midtown,Drip coffee,18,3.1,0.0,55.8,4.6
+2025-06-23,Downtown,Drip coffee,29,3.1,0.0,89.9,
+2025-06-23,Midtown,Sandwich,14,8.9,0.0,124.6,4.1
+2025-06-23,University,Latte,19,5.25,10.0,89.78,4.6
+2025-06-24,Midtown,Latte,19,5.25,0.0,99.75,4.1
+2025-06-24,University,Drip coffee,26,3.1,0.0,80.6,4.1
+2025-06-24,Harbour,Croissant,26,4.2,0.0,109.2,3.8
+2025-06-24,University,Latte,16,5.25,0.0,84.0,4.3
+2025-06-25,University,Latte,21,5.25,15.0,93.71,3.8
+2025-06-25,University,Sandwich,23,8.9,0.0,204.7,4.5
+2025-06-25,Harbour,Croissant,28,4.2,0.0,117.6,4.7
+2025-06-25,Midtown,Croissant,16,4.2,0.0,67.2,4.5
+2025-06-25,Midtown,Latte,21,5.25,10.0,99.22,4.4
+2025-06-26,Midtown,Sandwich,19,8.9,0.0,169.1,4.6
+2025-06-26,Downtown,Croissant,27,4.2,0.0,113.4,4.2
+2025-06-26,Downtown,Latte,22,5.25,0.0,115.5,4.6
+2025-06-26,University,Latte,23,5.25,0.0,120.75,4.1
+2025-06-26,Midtown,Cold brew,25,5.75,0.0,143.75,3.9
+2025-06-27,University,Latte,30,5.25,0.0,157.5,4.1
+2025-06-27,University,Cold brew,38,5.75,0.0,218.5,4.6
+2025-06-27,Downtown,Latte,20,5.25,0.0,105.0,3.4
+2025-06-28,University,Drip coffee,25,3.1,0.0,77.5,4.3
+2025-06-28,Harbour,Sandwich,31,8.9,0.0,275.9,4.6
+2025-06-28,Downtown,Drip coffee,53,3.1,10.0,147.87,5.0
+2025-06-28,Downtown,Latte,35,5.25,10.0,165.38,4.2
+2025-06-28,Downtown,Croissant,40,4.2,15.0,142.8,4.9
+2025-06-28,Harbour,Latte,30,5.25,0.0,157.5,4.1
+2025-06-28,Harbour,Cold brew,46,5.75,0.0,264.5,4.2
+2025-06-28,Midtown,Croissant,22,4.2,15.0,78.54,3.4
+2025-06-29,Midtown,Latte,17,5.25,0.0,89.25,4.5
+2025-06-29,Midtown,Sandwich,17,8.9,0.0,151.3,4.2
+2025-06-29,University,Sandwich,29,8.9,10.0,232.29,
+2025-06-29,Midtown,Cold brew,20,5.75,0.0,115.0,4.7
+2025-06-29,Downtown,Sandwich,38,8.9,0.0,338.2,4.8
+2025-06-30,Harbour,Latte,22,5.25,0.0,115.5,4.4
+2025-06-30,Midtown,Cold brew,28,5.75,0.0,161.0,4.2
+2025-06-30,University,Drip coffee,16,3.1,10.0,44.64,3.9
+2025-06-30,Downtown,Sandwich,24,8.9,10.0,192.24,4.2
+2025-07-01,Harbour,Latte,28,5.25,0.0,147.0,4.2
+2025-07-01,Downtown,Croissant,33,4.2,0.0,138.6,4.0
+2025-07-01,University,Sandwich,32,8.9,0.0,284.8,4.4
+2025-07-01,Midtown,Sandwich,21,8.9,0.0,186.9,3.8
+2025-07-01,Downtown,Latte,28,5.25,0.0,147.0,4.3
+2025-07-01,Midtown,Croissant,18,4.2,0.0,75.6,4.2
+2025-07-01,Midtown,Cold brew,33,5.75,0.0,189.75,4.1
+2025-07-01,Harbour,Sandwich,20,8.9,0.0,178.0,4.4
+2025-07-02,University,Croissant,19,4.2,0.0,79.8,4.5
+2025-07-02,Harbour,Drip coffee,31,3.1,0.0,96.1,4.3
+2025-07-02,University,Sandwich,23,8.9,0.0,204.7,4.5
+2025-07-02,Harbour,Cold brew,48,5.75,0.0,276.0,4.0
+2025-07-02,Harbour,Latte,33,5.25,15.0,147.26,4.2
+2025-07-02,Harbour,Croissant,26,4.2,0.0,109.2,4.5
+2025-07-02,Midtown,Cold brew,21,5.75,0.0,120.75,4.1
+2025-07-02,Midtown,Sandwich,15,8.9,0.0,133.5,4.5
+2025-07-03,Harbour,Latte,39,5.25,0.0,204.75,4.3
+2025-07-03,Midtown,Sandwich,20,8.9,0.0,178.0,4.7
+2025-07-03,Harbour,Croissant,36,4.2,0.0,151.2,4.0
+2025-07-03,University,Sandwich,18,8.9,0.0,160.2,5.0
+2025-07-04,Harbour,Sandwich,23,8.9,0.0,204.7,4.6
+2025-07-04,Harbour,Latte,34,5.25,0.0,178.5,4.5
+2025-07-04,Midtown,Croissant,19,4.2,0.0,79.8,4.0
+2025-07-04,University,Drip coffee,27,3.1,0.0,83.7,4.0
+2025-07-04,Midtown,Latte,16,5.25,0.0,84.0,3.3
+2025-07-04,University,Latte,27,5.25,0.0,141.75,4.2
+2025-07-04,Downtown,Drip coffee,31,3.1,0.0,96.1,4.6
+2025-07-05,University,Croissant,30,4.2,15.0,107.1,4.1
+2025-07-05,Harbour,Latte,23,5.25,0.0,120.75,4.5
+2025-07-05,Harbour,Drip coffee,29,3.1,0.0,89.9,4.2
+2025-07-05,Midtown,Sandwich,27,8.9,0.0,240.3,4.1
+2025-07-06,Downtown,Drip coffee,51,3.1,15.0,134.38,4.1
+2025-07-06,Midtown,Sandwich,14,8.9,0.0,124.6,4.3
+2025-07-06,Downtown,Sandwich,45,8.9,15.0,340.42,4.0
+2025-07-06,Midtown,Drip coffee,19,3.1,0.0,58.9,4.2
+2025-07-07,Downtown,Croissant,42,4.2,10.0,158.76,4.5
+2025-07-07,Midtown,Latte,22,5.25,0.0,115.5,4.8
+2025-07-08,Downtown,Cold brew,43,5.75,0.0,247.25,4.0
+2025-07-08,Midtown,Drip coffee,15,3.1,0.0,46.5,4.5
+2025-07-08,Midtown,Latte,21,5.25,0.0,110.25,3.8
+2025-07-08,Harbour,Croissant,25,4.2,0.0,105.0,4.8
+2025-07-08,University,Drip coffee,24,3.1,10.0,66.96,4.3
+2025-07-09,University,Latte,32,5.25,0.0,168.0,3.6
+2025-07-09,Midtown,Sandwich,15,8.9,0.0,133.5,4.6
+2025-07-09,Harbour,Latte,29,5.25,0.0,152.25,4.4
+2025-07-09,Midtown,Croissant,17,4.2,0.0,71.4,4.1
+2025-07-09,Downtown,Cold brew,40,5.75,0.0,230.0,3.7
+2025-07-10,University,Sandwich,22,8.9,0.0,195.8,3.9
+2025-07-10,University,Croissant,26,4.2,0.0,109.2,
+2025-07-10,Midtown,Sandwich,20,8.9,0.0,178.0,4.3
+2025-07-10,Midtown,Croissant,18,4.2,0.0,75.6,4.6
+2025-07-10,Harbour,Latte,30,5.25,10.0,141.75,4.0
+2025-07-10,Midtown,Cold brew,22,5.75,0.0,126.5,4.1
+2025-07-10,Harbour,Sandwich,27,8.9,0.0,240.3,4.2
+2025-07-11,Midtown,Sandwich,15,8.9,0.0,133.5,4.2
+2025-07-11,Downtown,Sandwich,31,8.9,0.0,275.9,4.7
+2025-07-11,Harbour,Croissant,23,4.2,0.0,96.6,4.3
+2025-07-11,University,Cold brew,27,5.75,0.0,155.25,4.1
+2025-07-11,Harbour,Cold brew,24,5.75,0.0,138.0,4.9
+2025-07-11,University,Latte,24,5.25,0.0,126.0,4.5
+2025-07-12,Harbour,Drip coffee,28,3.1,0.0,86.8,4.1
+2025-07-12,Harbour,Croissant,31,4.2,0.0,130.2,4.6
+2025-07-12,University,Croissant,29,4.2,0.0,121.8,3.5
+2025-07-12,University,Latte,20,5.25,0.0,105.0,4.7
+2025-07-12,Harbour,Cold brew,41,5.75,0.0,235.75,3.8
+2025-07-12,University,Sandwich,25,8.9,10.0,200.25,4.3
+2025-07-13,Downtown,Cold brew,54,5.75,0.0,310.5,4.4
+2025-07-13,Harbour,Sandwich,43,8.9,15.0,325.29,
+2025-07-13,Midtown,Croissant,18,4.2,15.0,64.26,4.7
+2025-07-13,Midtown,Drip coffee,16,3.1,0.0,49.6,4.5
+2025-07-14,Downtown,Sandwich,35,8.9,10.0,280.35,4.4
+2025-07-14,University,Drip coffee,21,3.1,10.0,58.59,4.1
+2025-07-14,University,Croissant,30,4.2,15.0,107.1,4.6
+2025-07-14,University,Sandwich,29,8.9,10.0,232.29,4.2
+2025-07-14,Downtown,Drip coffee,30,3.1,0.0,93.0,4.3
+2025-07-14,University,Latte,10,5.25,0.0,52.5,3.8
+2025-07-14,Harbour,Cold brew,36,5.75,0.0,207.0,4.4
+2025-07-14,Harbour,Drip coffee,29,3.1,0.0,89.9,4.3
+2025-07-14,University,Cold brew,30,5.75,0.0,172.5,4.3
+2025-07-15,Downtown,Cold brew,47,5.75,0.0,270.25,4.4
+2025-07-15,Midtown,Drip coffee,32,3.1,15.0,84.32,3.5
+2025-07-15,Midtown,Cold brew,26,5.75,0.0,149.5,3.9
+2025-07-15,Downtown,Latte,38,5.25,0.0,199.5,4.3
+2025-07-15,Harbour,Cold brew,32,5.75,0.0,184.0,4.8
+2025-07-15,Harbour,Croissant,24,4.2,0.0,100.8,4.6
+2025-07-15,University,Cold brew,34,5.75,0.0,195.5,4.3
+2025-07-15,University,Croissant,18,4.2,0.0,75.6,4.4
+2025-07-15,University,Sandwich,18,8.9,0.0,160.2,4.6
+2025-07-15,Midtown,Latte,23,5.25,10.0,108.68,4.1
+2025-07-16,Downtown,Cold brew,51,5.75,0.0,293.25,4.3
+2025-07-16,University,Latte,30,5.25,0.0,157.5,4.7
+2025-07-16,University,Sandwich,21,8.9,0.0,186.9,4.4
+2025-07-16,Midtown,Croissant,25,4.2,15.0,89.25,4.1
+2025-07-16,University,Croissant,28,4.2,0.0,117.6,4.1
+2025-07-16,Harbour,Latte,32,5.25,0.0,168.0,4.3
+2025-07-16,Harbour,Croissant,17,4.2,0.0,71.4,4.8
+2025-07-16,Downtown,Drip coffee,38,3.1,0.0,117.8,4.5
+2025-07-16,University,Drip coffee,18,3.1,0.0,55.8,4.0
+2025-07-17,Downtown,Croissant,28,4.2,0.0,117.6,4.0
+2025-07-17,Harbour,Croissant,28,4.2,0.0,117.6,4.4
+2025-07-17,Midtown,Croissant,14,4.2,0.0,58.8,4.8
+2025-07-17,Downtown,Cold brew,51,5.75,0.0,293.25,4.4
+2025-07-17,Harbour,Cold brew,35,5.75,0.0,201.25,4.0
+2025-07-17,Harbour,Latte,30,5.25,0.0,157.5,4.6
+2025-07-18,Midtown,Latte,23,5.25,0.0,120.75,4.2
+2025-07-18,Midtown,Croissant,21,4.2,10.0,79.38,4.4
+2025-07-18,Downtown,Sandwich,34,8.9,0.0,302.6,4.6
+2025-07-18,University,Cold brew,39,5.75,0.0,224.25,4.6
+2025-07-18,Harbour,Sandwich,27,8.9,0.0,240.3,3.8
+2025-07-18,Harbour,Croissant,33,4.2,0.0,138.6,4.6
+2025-07-19,Harbour,Cold brew,45,5.75,0.0,258.75,4.5
+2025-07-19,Midtown,Latte,26,5.25,0.0,136.5,4.3
+2025-07-19,Downtown,Croissant,37,4.2,0.0,155.4,3.9
+2025-07-19,Midtown,Drip coffee,12,3.1,0.0,37.2,4.4
+2025-07-20,Harbour,Latte,38,5.25,0.0,199.5,4.8
+2025-07-20,Downtown,Cold brew,59,5.75,0.0,339.25,4.1
+2025-07-20,Downtown,Drip coffee,50,3.1,0.0,155.0,4.1
+2025-07-20,Downtown,Latte,44,5.25,0.0,231.0,4.7
+2025-07-21,Downtown,Croissant,38,4.2,0.0,159.6,4.2
+2025-07-21,Midtown,Cold brew,37,5.75,0.0,212.75,4.1
+2025-07-21,Harbour,Croissant,20,4.2,0.0,84.0,4.4
+2025-07-21,Downtown,Sandwich,32,8.9,0.0,284.8,4.3
+2025-07-21,University,Drip coffee,31,3.1,0.0,96.1,4.0
+2025-07-21,Harbour,Sandwich,21,8.9,0.0,186.9,4.4
+2025-07-21,Downtown,Latte,40,5.25,15.0,178.5,4.3
+2025-07-21,Harbour,Drip coffee,28,3.1,0.0,86.8,4.3
+2025-07-22,Harbour,Sandwich,28,8.9,0.0,249.2,4.4
+2025-07-22,Downtown,Cold brew,39,5.75,0.0,224.25,4.0
+2025-07-23,Harbour,Sandwich,26,8.9,0.0,231.4,4.2
+2025-07-23,Downtown,Cold brew,48,5.75,15.0,234.6,4.5
+2025-07-23,Harbour,Croissant,25,4.2,0.0,105.0,4.2
+2025-07-23,University,Croissant,27,4.2,0.0,113.4,4.3
+2025-07-23,Harbour,Drip coffee,23,3.1,0.0,71.3,
+2025-07-23,University,Latte,22,5.25,10.0,103.95,3.7
+2025-07-23,Midtown,Latte,22,5.25,0.0,115.5,4.2
+2025-07-24,Midtown,Drip coffee,26,3.1,15.0,68.51,3.6
+2025-07-24,Harbour,Cold brew,32,5.75,0.0,184.0,5.0
+2025-07-24,Midtown,Cold brew,27,5.75,0.0,155.25,4.6
+2025-07-24,Downtown,Sandwich,37,8.9,0.0,329.3,4.5
+2025-07-24,University,Cold brew,27,5.75,0.0,155.25,3.9
+2025-07-24,University,Drip coffee,28,3.1,15.0,73.78,4.3
+2025-07-24,Midtown,Sandwich,26,8.9,10.0,208.26,4.1
+2025-07-24,Harbour,Latte,18,5.25,0.0,94.5,4.0
+2025-07-25,Harbour,Sandwich,24,8.9,0.0,213.6,4.7
+2025-07-25,Midtown,Drip coffee,13,3.1,0.0,40.3,4.4
+2025-07-25,Midtown,Sandwich,24,8.9,0.0,213.6,3.8
+2025-07-25,University,Cold brew,36,5.75,0.0,207.0,3.6
+2025-07-25,Harbour,Cold brew,39,5.75,0.0,224.25,
+2025-07-25,Downtown,Cold brew,39,5.75,10.0,201.82,4.4
+2025-07-26,Midtown,Cold brew,30,5.75,0.0,172.5,3.8
+2025-07-26,University,Latte,19,5.25,0.0,99.75,4.4
+2025-07-26,Harbour,Cold brew,44,5.75,0.0,253.0,4.5
+2025-07-26,University,Sandwich,23,8.9,0.0,204.7,4.0
+2025-07-26,Downtown,Sandwich,54,8.9,0.0,480.6,4.0
+2025-07-26,University,Croissant,20,4.2,0.0,84.0,4.1
+2025-07-26,Harbour,Sandwich,43,8.9,0.0,382.7,5.0
+2025-07-26,Midtown,Drip coffee,17,3.1,0.0,52.7,4.2
+2025-07-27,Midtown,Cold brew,26,5.75,0.0,149.5,4.2
+2025-07-27,University,Croissant,17,4.2,0.0,71.4,4.2
+2025-07-27,University,Sandwich,24,8.9,0.0,213.6,4.1
+2025-07-27,Midtown,Drip coffee,21,3.1,0.0,65.1,3.9
+2025-07-27,University,Drip coffee,30,3.1,15.0,79.05,4.4
+2025-07-27,Midtown,Latte,23,5.25,0.0,120.75,5.0
+2025-07-27,Downtown,Sandwich,51,8.9,10.0,408.51,4.1
+2025-07-27,University,Cold brew,21,5.75,0.0,120.75,4.4
+2025-07-28,Downtown,Sandwich,27,8.9,0.0,240.3,4.2
+2025-07-28,Downtown,Drip coffee,28,3.1,0.0,86.8,4.0
+2025-07-28,University,Latte,17,5.25,0.0,89.25,3.6
+2025-07-28,Midtown,Croissant,18,4.2,0.0,75.6,5.0
+2025-07-28,University,Cold brew,24,5.75,,138.0,4.2
+2025-07-28,Midtown,Latte,14,5.25,0.0,73.5,
+2025-07-28,Harbour,Sandwich,16,8.9,0.0,142.4,4.3
+2025-07-28,Harbour,Croissant,26,4.2,0.0,109.2,4.0
+2025-07-28,Harbour,Drip coffee,26,3.1,0.0,80.6,4.3
+2025-07-29,Downtown,Latte,30,5.25,0.0,157.5,4.4
+2025-07-29,Downtown,Cold brew,59,5.75,0.0,339.25,4.0
+2025-07-29,University,Croissant,22,4.2,0.0,92.4,3.9
+2025-07-29,University,Sandwich,20,8.9,0.0,178.0,4.5
+2025-07-30,Downtown,Sandwich,25,8.9,0.0,222.5,4.8
+2025-07-30,Harbour,Croissant,23,4.2,0.0,96.6,3.9
+2025-07-30,Midtown,Sandwich,20,8.9,0.0,178.0,4.5
+2025-07-30,Midtown,Drip coffee,23,3.1,0.0,71.3,4.1
+2025-07-31,Harbour,Cold brew,45,5.75,15.0,219.94,3.9
+2025-07-31,University,Latte,24,5.25,10.0,113.4,4.1
+2025-07-31,University,Croissant,22,4.2,0.0,92.4,4.3
+2025-07-31,Downtown,Latte,35,5.25,0.0,183.75,4.0
+2025-07-31,Midtown,Croissant,20,4.2,0.0,84.0,4.6
+2025-07-31,Harbour,Latte,31,5.25,0.0,162.75,4.3
+2025-07-31,Downtown,Sandwich,31,8.9,0.0,275.9,4.7
+2025-07-31,Downtown,Cold brew,49,5.75,,253.58,4.5
+2025-07-31,Midtown,Drip coffee,19,3.1,0.0,58.9,4.0
+2025-08-01,University,Cold brew,36,5.75,0.0,207.0,3.6
+2025-08-01,Downtown,Croissant,32,4.2,0.0,134.4,4.5
+2025-08-01,Midtown,Drip coffee,23,3.1,0.0,71.3,4.0
+2025-08-01,Harbour,Drip coffee,27,3.1,0.0,83.7,5.0
+2025-08-01,University,Croissant,14,4.2,0.0,58.8,3.7
+2025-08-02,Harbour,Croissant,33,4.2,10.0,124.74,4.0
+2025-08-02,Downtown,Latte,36,5.25,0.0,189.0,3.6
+2025-08-02,Downtown,Cold brew,56,5.75,0.0,322.0,4.3
+2025-08-02,Downtown,Sandwich,47,8.9,0.0,418.3,4.6
+2025-08-02,Midtown,Croissant,31,4.2,15.0,110.67,4.0
+2025-08-02,Harbour,Latte,47,5.25,10.0,222.08,3.9
+2025-08-02,University,Drip coffee,27,3.1,0.0,83.7,3.7
+2025-08-03,Downtown,Cold brew,46,5.75,0.0,264.5,3.9
+2025-08-03,University,Croissant,22,4.2,0.0,92.4,4.4
+2025-08-03,Midtown,Cold brew,32,5.75,0.0,184.0,4.5
+2025-08-03,Harbour,Croissant,42,4.2,0.0,176.4,5.0
+2025-08-03,University,Drip coffee,21,3.1,0.0,65.1,4.5
+2025-08-03,University,Sandwich,25,8.9,0.0,222.5,4.0
+2025-08-03,Midtown,Croissant,14,4.2,0.0,58.8,4.2
+2025-08-03,Midtown,Latte,18,5.25,0.0,94.5,4.5
+2025-08-04,University,Drip coffee,26,3.1,0.0,80.6,3.7
+2025-08-04,Downtown,Sandwich,25,8.9,0.0,222.5,4.1
+2025-08-04,Downtown,Cold brew,40,5.75,0.0,230.0,4.4
+2025-08-04,Midtown,Drip coffee,17,3.1,0.0,52.7,
+2025-08-04,Midtown,Croissant,13,4.2,0.0,54.6,4.2
+2025-08-04,Harbour,Latte,33,5.25,10.0,155.93,4.3
+2025-08-04,Midtown,Cold brew,19,5.75,0.0,109.25,4.5
+2025-08-05,Harbour,Latte,30,5.25,15.0,133.88,3.8
+2025-08-05,University,Croissant,24,4.2,0.0,100.8,4.1
+2025-08-05,Harbour,Sandwich,23,8.9,0.0,204.7,4.8
+2025-08-05,Midtown,Drip coffee,26,3.1,0.0,80.6,4.3
+2025-08-05,Harbour,Croissant,25,4.2,0.0,105.0,4.3
+2025-08-05,University,Cold brew,31,5.75,0.0,178.25,4.4
+2025-08-05,Harbour,Cold brew,32,5.75,0.0,184.0,4.0
+2025-08-05,Downtown,Sandwich,32,8.9,0.0,284.8,4.3
+2025-08-05,Midtown,Croissant,16,4.2,0.0,67.2,4.3
+2025-08-06,Harbour,Latte,19,5.25,0.0,99.75,5.0
+2025-08-06,Midtown,Cold brew,30,5.75,15.0,146.62,4.1
+2025-08-06,University,Sandwich,28,8.9,0.0,249.2,4.3
+2025-08-06,University,Drip coffee,23,3.1,0.0,71.3,4.2
+2025-08-06,Midtown,Drip coffee,12,3.1,0.0,37.2,3.7
+2025-08-06,Midtown,Croissant,19,4.2,0.0,79.8,3.7
+2025-08-07,University,Drip coffee,22,3.1,0.0,68.2,3.8
+2025-08-07,Harbour,Croissant,25,4.2,0.0,105.0,4.4
+2025-08-07,Harbour,Sandwich,17,8.9,0.0,151.3,3.9
+2025-08-07,Harbour,Cold brew,49,5.75,0.0,281.75,5.0
+2025-08-07,Downtown,Cold brew,35,5.75,0.0,201.25,3.4
+2025-08-07,Harbour,Drip coffee,27,3.1,0.0,83.7,4.4
+2025-08-07,Downtown,Latte,41,5.25,0.0,215.25,3.9
+2025-08-07,Midtown,Latte,25,5.25,0.0,131.25,3.9
+2025-08-08,University,Croissant,28,4.2,0.0,117.6,4.0
+2025-08-08,Harbour,Latte,37,5.25,0.0,194.25,4.8
+2025-08-08,Midtown,Drip coffee,21,3.1,0.0,65.1,4.4
+2025-08-08,Midtown,Croissant,22,4.2,10.0,83.16,4.6
+2025-08-08,Midtown,Cold brew,32,5.75,10.0,165.6,5.0
+2025-08-08,University,Sandwich,32,8.9,15.0,242.08,
+2025-08-08,University,Drip coffee,26,3.1,10.0,72.54,4.2
+2025-08-09,University,Croissant,23,4.2,0.0,96.6,4.7
+2025-08-09,University,Latte,25,5.25,10.0,118.12,4.2
+2025-08-09,Midtown,Cold brew,24,5.75,0.0,138.0,4.7
+2025-08-09,Midtown,Sandwich,27,8.9,0.0,240.3,4.6
+2025-08-09,Midtown,Drip coffee,17,3.1,0.0,52.7,4.2
+2025-08-09,Downtown,Drip coffee,54,3.1,0.0,167.4,4.9
+2025-08-09,Downtown,Croissant,39,4.2,0.0,163.8,3.8
+2025-08-09,Midtown,Latte,15,5.25,0.0,78.75,4.1
+2025-08-09,Harbour,Drip coffee,38,3.1,0.0,117.8,4.7
+2025-08-10,Harbour,Drip coffee,21,3.1,0.0,65.1,5.0
+2025-08-10,Downtown,Drip coffee,34,3.1,0.0,105.4,4.1
+2025-08-10,Midtown,Drip coffee,21,3.1,0.0,65.1,4.4
+2025-08-10,University,Drip coffee,25,3.1,15.0,65.88,3.9
+2025-08-10,Midtown,Sandwich,22,8.9,0.0,195.8,4.0
+2025-08-10,Midtown,Croissant,22,4.2,10.0,83.16,4.7
+2025-08-10,Harbour,Croissant,44,4.2,0.0,184.8,4.7
+2025-08-11,Harbour,Cold brew,28,5.75,0.0,161.0,4.0
+2025-08-11,University,Sandwich,24,8.9,0.0,213.6,4.6
+2025-08-11,University,Croissant,14,4.2,0.0,58.8,4.4
+2025-08-11,Harbour,Croissant,16,4.2,0.0,67.2,4.8
+2025-08-11,Downtown,Croissant,36,4.2,0.0,151.2,4.4
+2025-08-11,Midtown,Latte,21,5.25,10.0,99.22,
+2025-08-11,University,Drip coffee,18,3.1,0.0,55.8,4.1
+2025-08-11,Harbour,Latte,28,5.25,0.0,147.0,4.4
+2025-08-12,Harbour,Sandwich,35,8.9,15.0,264.77,4.1
+2025-08-12,Midtown,Croissant,21,4.2,0.0,88.2,4.1
+2025-08-12,Harbour,Drip coffee,25,3.1,15.0,65.88,4.7
+2025-08-12,Harbour,Cold brew,42,5.75,0.0,241.5,5.0
+2025-08-12,University,Sandwich,37,8.9,10.0,296.37,4.1
+2025-08-12,Midtown,Cold brew,30,5.75,0.0,172.5,3.9
+2025-08-12,Harbour,Croissant,31,4.2,10.0,117.18,4.2
+2025-08-13,Midtown,Croissant,28,4.2,0.0,117.6,4.6
+2025-08-13,Midtown,Latte,19,5.25,10.0,89.78,3.8
+2025-08-13,Downtown,Croissant,30,4.2,0.0,126.0,
+2025-08-13,University,Sandwich,18,8.9,0.0,160.2,4.3
+2025-08-13,Downtown,Latte,32,5.25,0.0,168.0,4.6
+2025-08-13,Harbour,Sandwich,19,8.9,0.0,169.1,4.7
+2025-08-14,Harbour,Cold brew,38,5.75,0.0,218.5,4.7
+2025-08-14,Harbour,Sandwich,32,8.9,15.0,242.08,4.9
+2025-08-14,Downtown,Cold brew,53,5.75,10.0,274.28,4.1
+2025-08-14,University,Latte,26,5.25,0.0,136.5,4.6
+2025-08-14,Downtown,Croissant,37,4.2,0.0,155.4,
+2025-08-14,Harbour,Croissant,30,4.2,0.0,126.0,4.9
+2025-08-14,Harbour,Drip coffee,26,3.1,0.0,80.6,4.9
+2025-08-15,University,Drip coffee,25,3.1,0.0,77.5,4.6
+2025-08-15,University,Croissant,29,4.2,0.0,121.8,4.6
+2025-08-15,Midtown,Latte,13,5.25,0.0,68.25,4.6
+2025-08-15,University,Cold brew,23,5.75,0.0,132.25,4.2
+2025-08-15,Harbour,Sandwich,21,8.9,0.0,186.9,4.6
+2025-08-15,Midtown,Sandwich,20,8.9,0.0,178.0,4.0
+2025-08-16,Downtown,Drip coffee,48,3.1,0.0,148.8,3.6
+2025-08-16,Harbour,Croissant,37,4.2,0.0,155.4,4.7
+2025-08-16,Downtown,Croissant,40,4.2,0.0,168.0,4.2
+2025-08-16,Harbour,Latte,46,5.25,15.0,205.28,4.5
+2025-08-17,Downtown,Sandwich,37,8.9,0.0,329.3,4.8
+2025-08-17,University,Sandwich,26,8.9,0.0,231.4,4.5
+2025-08-17,Harbour,Cold brew,45,5.75,0.0,258.75,4.5
+2025-08-17,University,Drip coffee,23,3.1,0.0,71.3,4.5
+2025-08-17,Midtown,Latte,19,5.25,0.0,99.75,4.0
+2025-08-17,Downtown,Latte,47,5.25,0.0,246.75,3.9
+2025-08-18,University,Croissant,20,4.2,0.0,84.0,3.8
+2025-08-18,Harbour,Latte,30,5.25,0.0,157.5,4.6
+2025-08-18,Harbour,Sandwich,31,8.9,10.0,248.31,4.3
+2025-08-18,Harbour,Drip coffee,24,3.1,0.0,74.4,4.6
+2025-08-18,Midtown,Drip coffee,17,3.1,0.0,52.7,3.8
+2025-08-18,Downtown,Sandwich,34,8.9,0.0,302.6,4.1
+2025-08-18,Downtown,Drip coffee,40,3.1,0.0,124.0,4.0
+2025-08-18,Downtown,Latte,43,5.25,0.0,225.75,4.4
+2025-08-19,Harbour,Drip coffee,29,3.1,10.0,80.91,5.0
+2025-08-19,University,Cold brew,40,5.75,10.0,207.0,3.8
+2025-08-19,Midtown,Latte,22,5.25,0.0,115.5,3.6
+2025-08-19,Downtown,Croissant,34,4.2,0.0,142.8,4.9
+2025-08-19,Harbour,Croissant,27,4.2,0.0,113.4,4.8
+2025-08-19,University,Croissant,30,4.2,0.0,126.0,4.6
+2025-08-19,Midtown,Cold brew,32,5.75,15.0,156.4,3.9
+2025-08-20,Downtown,Sandwich,38,8.9,0.0,338.2,3.9
+2025-08-20,Harbour,Croissant,30,4.2,0.0,126.0,4.5
+2025-08-20,Midtown,Croissant,25,4.2,0.0,105.0,4.3
+2025-08-20,Harbour,Sandwich,33,8.9,10.0,264.33,3.9
+2025-08-20,Harbour,Drip coffee,19,3.1,0.0,58.9,4.4
+2025-08-20,University,Croissant,18,4.2,0.0,75.6,4.3
+2025-08-21,Midtown,Sandwich,15,8.9,0.0,133.5,4.1
+2025-08-21,University,Croissant,25,4.2,0.0,105.0,4.3
+2025-08-21,Harbour,Cold brew,32,5.75,0.0,184.0,
+2025-08-21,Downtown,Latte,44,5.25,10.0,207.9,4.2
+2025-08-21,Harbour,Latte,27,5.25,15.0,120.49,4.8
+2025-08-22,Downtown,Drip coffee,30,3.1,10.0,83.7,4.6
+2025-08-22,Midtown,Cold brew,28,5.75,0.0,161.0,3.9
+2025-08-22,Midtown,Sandwich,20,8.9,0.0,178.0,3.7
+2025-08-22,Downtown,Croissant,33,4.2,0.0,138.6,3.8
+2025-08-22,Downtown,Cold brew,56,5.75,0.0,322.0,4.7
+2025-08-23,Harbour,Cold brew,47,5.75,15.0,229.71,4.5
+2025-08-23,Midtown,Drip coffee,30,3.1,0.0,93.0,4.6
+2025-08-23,Midtown,Croissant,12,4.2,0.0,50.4,5.0
+2025-08-23,Harbour,Croissant,23,4.2,0.0,96.6,4.8
+2025-08-23,Midtown,Sandwich,15,8.9,0.0,133.5,4.7
+2025-08-23,Downtown,Cold brew,57,5.75,0.0,327.75,4.3
+2025-08-24,University,Drip coffee,20,3.1,0.0,62.0,4.3
+2025-08-24,University,Croissant,22,4.2,,92.4,4.6
+2025-08-24,Harbour,Cold brew,43,5.75,0.0,247.25,4.1
+2025-08-24,Midtown,Drip coffee,15,3.1,0.0,46.5,4.4
+2025-08-24,Midtown,Sandwich,11,8.9,0.0,97.9,3.8
+2025-08-25,Harbour,Drip coffee,30,3.1,0.0,93.0,3.7
+2025-08-25,Midtown,Drip coffee,15,3.1,0.0,46.5,4.6
+2025-08-25,Midtown,Latte,15,5.25,0.0,78.75,3.9
+2025-08-25,University,Croissant,28,4.2,15.0,99.96,4.8
+2025-08-25,Downtown,Sandwich,18,8.9,0.0,160.2,4.4
+2025-08-25,Downtown,Croissant,36,4.2,0.0,151.2,4.1
+2025-08-25,Harbour,Sandwich,40,8.9,15.0,302.6,4.5
+2025-08-25,University,Cold brew,43,5.75,0.0,247.25,4.2
+2025-08-25,University,Sandwich,21,8.9,0.0,186.9,4.2
+2025-08-26,Downtown,Drip coffee,36,3.1,10.0,100.44,4.6
+2025-08-26,Midtown,Sandwich,21,8.9,0.0,186.9,3.8
+2025-08-26,Midtown,Croissant,29,4.2,0.0,121.8,3.3
+2025-08-26,University,Drip coffee,30,3.1,0.0,93.0,4.6
+2025-08-26,University,Cold brew,24,5.75,10.0,124.2,4.2
+2025-08-26,University,Croissant,28,4.2,10.0,105.84,4.2
+2025-08-26,Harbour,Croissant,38,4.2,0.0,159.6,4.5
+2025-08-26,Midtown,Cold brew,24,5.75,0.0,138.0,4.2
+2025-08-26,University,Latte,32,5.25,0.0,168.0,4.3
+2025-08-27,Midtown,Croissant,21,4.2,0.0,88.2,4.5
+2025-08-27,Harbour,Latte,39,5.25,0.0,204.75,4.1
+2025-08-27,University,Drip coffee,26,3.1,0.0,80.6,4.1
+2025-08-27,University,Latte,24,5.25,0.0,126.0,4.6
+2025-08-27,Harbour,Drip coffee,34,3.1,0.0,105.4,4.1
+2025-08-28,University,Drip coffee,28,3.1,15.0,73.78,4.2
+2025-08-28,Midtown,Cold brew,25,5.75,10.0,129.38,3.7
+2025-08-28,Downtown,Cold brew,45,5.75,0.0,258.75,3.9
+2025-08-28,Harbour,Croissant,35,4.2,0.0,147.0,4.0
+2025-08-28,Harbour,Cold brew,38,5.75,0.0,218.5,4.6
+2025-08-28,Harbour,Sandwich,27,8.9,0.0,240.3,4.4
+2025-08-28,Midtown,Latte,14,5.25,0.0,73.5,4.4
+2025-08-28,Downtown,Drip coffee,31,3.1,0.0,96.1,4.6
+2025-08-29,Harbour,Sandwich,27,8.9,0.0,240.3,4.3
+2025-08-29,Harbour,Croissant,23,4.2,0.0,96.6,
+2025-08-29,Harbour,Latte,33,5.25,0.0,173.25,4.8
+2025-08-29,University,Drip coffee,27,3.1,0.0,83.7,4.1
+2025-08-29,Midtown,Latte,22,5.25,0.0,115.5,3.9
+2025-08-30,University,Cold brew,44,5.75,10.0,227.7,3.8
+2025-08-30,Harbour,Sandwich,36,8.9,10.0,288.36,4.2
+2025-08-30,University,Latte,23,5.25,10.0,108.68,4.3
+2025-08-30,Downtown,Latte,59,5.25,10.0,278.78,4.2
+2025-08-30,Downtown,Croissant,45,4.2,0.0,189.0,4.5
+2025-08-30,Midtown,Cold brew,20,5.75,0.0,115.0,4.5
+2025-08-30,Harbour,Latte,32,5.25,0.0,168.0,4.3
+2025-08-30,University,Drip coffee,25,3.1,10.0,69.75,3.8
+2025-08-31,Downtown,Latte,51,5.25,10.0,240.98,3.6
+2025-08-31,Downtown,Drip coffee,31,3.1,0.0,96.1,3.5
+2025-08-31,Harbour,Latte,38,5.25,15.0,169.58,4.7
+2025-08-31,Midtown,Drip coffee,19,3.1,0.0,58.9,4.5
+2025-08-31,University,Drip coffee,23,3.1,10.0,64.17,3.9
+2025-08-31,Midtown,Latte,11,5.25,0.0,57.75,4.0
+2025-08-31,University,Croissant,24,4.2,0.0,100.8,4.6
+2025-09-01,Downtown,Cold brew,56,5.75,0.0,322.0,4.4
+2025-09-01,Downtown,Sandwich,27,8.9,0.0,240.3,4.2
+2025-09-01,Midtown,Cold brew,20,5.75,0.0,115.0,4.8
+2025-09-02,Harbour,Cold brew,44,5.75,0.0,253.0,4.2
+2025-09-02,Midtown,Drip coffee,19,3.1,0.0,58.9,4.0
+2025-09-03,Downtown,Sandwich,56,8.9,15.0,423.64,3.8
+2025-09-03,Midtown,Sandwich,16,8.9,0.0,142.4,4.8
+2025-09-03,Downtown,Drip coffee,33,3.1,0.0,102.3,4.3
+2025-09-03,Midtown,Croissant,38,4.2,10.0,143.64,3.3
+2025-09-03,University,Croissant,14,4.2,0.0,58.8,4.8
+2025-09-03,Midtown,Cold brew,28,5.75,0.0,161.0,4.3
+2025-09-03,Midtown,Drip coffee,32,3.1,0.0,99.2,4.6
+2025-09-03,Harbour,Sandwich,33,8.9,0.0,293.7,4.4
+2025-09-03,University,Sandwich,21,8.9,0.0,186.9,4.6
+2025-09-03,Harbour,Drip coffee,37,3.1,0.0,114.7,3.8
+2025-09-04,Harbour,Cold brew,45,5.75,10.0,232.88,4.1
+2025-09-04,University,Sandwich,21,8.9,0.0,186.9,4.9
+2025-09-04,Midtown,Drip coffee,21,3.1,0.0,65.1,3.6
+2025-09-04,Midtown,Sandwich,24,8.9,10.0,192.24,4.1
+2025-09-04,Midtown,Croissant,20,4.2,0.0,84.0,4.1
+2025-09-04,University,Croissant,29,4.2,0.0,121.8,4.6
+2025-09-04,Downtown,Croissant,31,4.2,0.0,130.2,4.4
+2025-09-04,Midtown,Cold brew,27,5.75,0.0,155.25,4.4
+2025-09-05,Midtown,Latte,18,5.25,0.0,94.5,4.4
+2025-09-05,Harbour,Croissant,31,4.2,15.0,110.67,4.0
+2025-09-05,Harbour,Latte,25,5.25,0.0,131.25,4.6
+2025-09-05,Midtown,Croissant,25,4.2,15.0,89.25,4.4
+2025-09-05,Downtown,Latte,38,5.25,0.0,199.5,4.8
+2025-09-05,University,Croissant,34,4.2,0.0,142.8,4.2
+2025-09-06,Downtown,Cold brew,55,5.75,0.0,316.25,4.6
+2025-09-06,Downtown,Croissant,51,4.2,10.0,192.78,4.0
+2025-09-06,University,Croissant,27,4.2,0.0,113.4,4.3
+2025-09-06,Midtown,Latte,25,5.25,,131.25,4.2
+2025-09-06,University,Latte,27,5.25,15.0,120.49,4.1
+2025-09-06,University,Cold brew,29,5.75,0.0,166.75,3.8
+2025-09-06,Harbour,Latte,31,5.25,0.0,162.75,5.0
+2025-09-06,Midtown,Sandwich,25,8.9,15.0,189.12,4.1
+2025-09-06,Harbour,Croissant,33,4.2,0.0,138.6,3.9
+2025-09-06,Harbour,Drip coffee,39,3.1,0.0,120.9,4.7
+2025-09-07,Midtown,Latte,18,5.25,0.0,94.5,4.2
+2025-09-07,Midtown,Croissant,35,4.2,10.0,132.3,4.0
+2025-09-07,Downtown,Drip coffee,43,3.1,0.0,133.3,4.4
+2025-09-07,University,Sandwich,19,8.9,0.0,169.1,4.0
+2025-09-07,University,Latte,18,5.25,0.0,94.5,4.8
+2025-09-07,Harbour,Sandwich,41,8.9,0.0,364.9,4.6
+2025-09-07,Harbour,Drip coffee,43,3.1,0.0,133.3,4.9
+2025-09-07,Harbour,Latte,30,5.25,10.0,141.75,4.6
+2025-09-07,Downtown,Sandwich,40,8.9,0.0,356.0,4.7
+2025-09-07,Midtown,Cold brew,30,5.75,0.0,172.5,4.4
+2025-09-08,Midtown,Drip coffee,19,3.1,0.0,58.9,3.5
+2025-09-08,Harbour,Croissant,33,4.2,0.0,138.6,4.6
+2025-09-08,Downtown,Croissant,35,4.2,0.0,147.0,4.6
+2025-09-08,University,Latte,27,5.25,0.0,141.75,
+2025-09-08,Harbour,Latte,38,5.25,0.0,199.5,4.1
+2025-09-09,University,Cold brew,29,5.75,0.0,166.75,
+2025-09-09,Midtown,Drip coffee,14,3.1,0.0,43.4,3.9
+2025-09-09,Downtown,Sandwich,33,8.9,0.0,293.7,3.8
+2025-09-09,Downtown,Drip coffee,31,3.1,0.0,96.1,4.2
+2025-09-09,Downtown,Croissant,29,4.2,0.0,121.8,4.3
+2025-09-10,Midtown,Sandwich,31,8.9,15.0,234.52,4.5
+2025-09-11,University,Cold brew,40,5.75,15.0,195.5,4.7
+2025-09-11,Midtown,Croissant,19,4.2,0.0,79.8,4.3
+2025-09-11,Harbour,Croissant,32,4.2,0.0,134.4,4.3
+2025-09-11,University,Croissant,31,4.2,0.0,130.2,3.8
+2025-09-12,Midtown,Cold brew,32,5.75,0.0,184.0,4.3
+2025-09-12,Midtown,Drip coffee,22,3.1,0.0,68.2,4.3
+2025-09-12,Harbour,Drip coffee,39,3.1,10.0,108.81,4.2
+2025-09-12,Harbour,Cold brew,32,5.75,0.0,184.0,4.5
+2025-09-13,Midtown,Drip coffee,20,3.1,15.0,52.7,4.2
+2025-09-13,Downtown,Croissant,61,4.2,10.0,230.58,4.4
+2025-09-13,University,Sandwich,40,8.9,0.0,356.0,4.3
+2025-09-13,Midtown,Sandwich,17,8.9,0.0,151.3,3.5
+2025-09-13,Downtown,Latte,47,5.25,0.0,246.75,4.7
+2025-09-13,University,Latte,26,5.25,0.0,136.5,4.4
+2025-09-13,Harbour,Sandwich,37,8.9,15.0,279.91,4.2
+2025-09-13,Midtown,Latte,20,5.25,0.0,105.0,3.6
+2025-09-13,University,Drip coffee,18,3.1,15.0,47.43,4.1
+2025-09-14,Downtown,Croissant,39,4.2,0.0,163.8,4.2
+2025-09-14,Downtown,Sandwich,41,8.9,0.0,364.9,4.6
+2025-09-14,Downtown,Cold brew,61,5.75,10.0,315.68,4.4
+2025-09-14,University,Sandwich,17,8.9,0.0,151.3,4.2
+2025-09-14,Downtown,Latte,44,5.25,0.0,231.0,4.1
+2025-09-14,University,Drip coffee,22,3.1,0.0,68.2,4.3
+2025-09-14,University,Latte,28,5.25,0.0,147.0,4.5
+2025-09-14,Midtown,Cold brew,28,5.75,0.0,161.0,4.7
+2025-09-15,Harbour,Cold brew,31,5.75,0.0,178.25,4.9
+2025-09-15,University,Drip coffee,24,3.1,0.0,74.4,4.7
+2025-09-15,Midtown,Drip coffee,25,3.1,10.0,69.75,4.0
+2025-09-15,Downtown,Drip coffee,37,3.1,15.0,97.5,3.9
+2025-09-15,Midtown,Latte,23,5.25,0.0,120.75,5.0
+2025-09-15,Downtown,Cold brew,49,5.75,0.0,281.75,4.3
+2025-09-15,Harbour,Latte,17,5.25,0.0,89.25,4.6
+2025-09-15,Harbour,Sandwich,36,8.9,0.0,320.4,4.3
+2025-09-15,Harbour,Drip coffee,20,3.1,0.0,62.0,4.7
+2025-09-15,Midtown,Cold brew,25,5.75,0.0,143.75,4.4
+2025-09-16,Harbour,Croissant,36,4.2,10.0,136.08,4.7
+2025-09-16,Harbour,Latte,37,5.25,10.0,174.82,4.2
+2025-09-16,Midtown,Cold brew,18,5.75,0.0,103.5,4.6
+2025-09-16,Downtown,Drip coffee,33,3.1,0.0,102.3,4.2
+2025-09-16,Midtown,Croissant,15,4.2,0.0,63.0,4.1
+2025-09-17,Midtown,Latte,19,5.25,0.0,99.75,3.6
+2025-09-17,Downtown,Drip coffee,38,3.1,0.0,117.8,4.5
+2025-09-17,Midtown,Croissant,19,4.2,0.0,79.8,3.7
+2025-09-17,Harbour,Cold brew,34,5.75,0.0,195.5,4.6
+2025-09-17,University,Sandwich,31,8.9,0.0,275.9,4.2
+2025-09-17,Harbour,Sandwich,17,8.9,0.0,151.3,4.9
+2025-09-17,University,Latte,32,5.25,0.0,168.0,3.8
+2025-09-18,Midtown,Sandwich,24,8.9,0.0,213.6,3.9
+2025-09-18,Downtown,Croissant,53,4.2,15.0,189.21,3.9
+2025-09-18,Harbour,Sandwich,35,8.9,15.0,264.77,3.7
+2025-09-18,University,Drip coffee,20,3.1,0.0,62.0,4.1
+2025-09-18,Harbour,Latte,35,5.25,15.0,156.19,4.5
+2025-09-18,Midtown,Croissant,26,4.2,0.0,109.2,4.6
+2025-09-19,Harbour,Cold brew,37,5.75,0.0,212.75,4.3
+2025-09-19,Midtown,Croissant,14,4.2,0.0,58.8,4.4
+2025-09-19,Harbour,Croissant,31,4.2,0.0,130.2,4.4
+2025-09-19,Harbour,Drip coffee,26,3.1,0.0,80.6,4.1
+2025-09-19,Downtown,Cold brew,46,5.75,0.0,264.5,4.1
+2025-09-19,Downtown,Drip coffee,33,3.1,0.0,102.3,3.9
+2025-09-19,Harbour,Sandwich,32,8.9,0.0,284.8,4.7
+2025-09-20,Downtown,Drip coffee,42,3.1,0.0,130.2,4.3
+2025-09-20,University,Drip coffee,23,3.1,10.0,64.17,4.1
+2025-09-20,University,Croissant,20,4.2,0.0,84.0,4.7
+2025-09-20,Harbour,Cold brew,51,5.75,0.0,293.25,4.4
+2025-09-20,Harbour,Sandwich,37,8.9,0.0,329.3,4.5
+2025-09-20,University,Cold brew,34,5.75,0.0,195.5,4.2
+2025-09-20,Downtown,Cold brew,59,5.75,0.0,339.25,4.2
+2025-09-20,University,Latte,28,5.25,0.0,147.0,4.1
+2025-09-20,Harbour,Croissant,46,4.2,10.0,173.88,4.0
+2025-09-20,Harbour,Drip coffee,37,3.1,0.0,114.7,4.4
+2025-09-21,Downtown,Drip coffee,40,3.1,0.0,124.0,4.1
+2025-09-21,Midtown,Cold brew,22,5.75,0.0,126.5,4.4
+2025-09-21,Midtown,Latte,21,5.25,10.0,99.22,4.3
+2025-09-21,Harbour,Drip coffee,37,3.1,10.0,103.23,4.4
+2025-09-21,Midtown,Sandwich,29,8.9,0.0,258.1,3.9
+2025-09-21,Downtown,Sandwich,49,8.9,0.0,436.1,4.0
+2025-09-21,Midtown,Croissant,28,4.2,0.0,117.6,4.2
+2025-09-21,Harbour,Croissant,44,4.2,0.0,184.8,3.7
+2025-09-22,University,Drip coffee,23,3.1,0.0,71.3,4.0
+2025-09-22,Midtown,Drip coffee,14,3.1,0.0,43.4,3.9
+2025-09-22,University,Latte,33,5.25,0.0,173.25,3.7
+2025-09-23,Harbour,Croissant,29,4.2,10.0,109.62,4.4
+2025-09-23,Midtown,Sandwich,20,8.9,0.0,178.0,3.4
+2025-09-23,Harbour,Latte,33,5.25,10.0,155.93,4.1
+2025-09-23,Midtown,Cold brew,23,5.75,0.0,132.25,4.4
+2025-09-23,Downtown,Drip coffee,33,3.1,10.0,92.07,4.0
+2025-09-23,Downtown,Latte,31,5.25,0.0,162.75,4.1
+2025-09-24,Harbour,Croissant,21,4.2,0.0,88.2,4.5
+2025-09-24,Harbour,Sandwich,25,8.9,0.0,222.5,5.0
+2025-09-24,Harbour,Cold brew,30,5.75,0.0,172.5,4.7
+2025-09-24,Midtown,Drip coffee,16,3.1,0.0,49.6,4.1
+2025-09-24,University,Drip coffee,23,3.1,0.0,71.3,4.5
+2025-09-24,Midtown,Latte,17,5.25,0.0,89.25,4.5
+2025-09-24,University,Latte,23,5.25,0.0,120.75,4.1
+2025-09-25,Midtown,Drip coffee,26,3.1,0.0,80.6,4.2
+2025-09-25,Midtown,Latte,35,5.25,15.0,156.19,3.9
+2025-09-25,Downtown,Latte,35,5.25,10.0,165.38,4.3
+2025-09-25,Downtown,Drip coffee,33,3.1,0.0,102.3,4.7
+2025-09-26,University,Drip coffee,28,3.1,0.0,86.8,4.3
+2025-09-26,Midtown,Croissant,22,4.2,0.0,92.4,4.3
+2025-09-26,University,Croissant,24,4.2,0.0,100.8,4.6
+2025-09-26,Harbour,Cold brew,38,5.75,0.0,218.5,
+2025-09-27,Harbour,Sandwich,41,8.9,0.0,364.9,4.6
+2025-09-27,University,Cold brew,42,5.75,0.0,241.5,4.3
+2025-09-27,University,Sandwich,20,8.9,0.0,178.0,3.8
+2025-09-27,Downtown,Croissant,54,4.2,,226.8,4.5
+2025-09-28,Harbour,Drip coffee,49,3.1,0.0,151.9,4.3
+2025-09-28,University,Sandwich,26,8.9,10.0,208.26,3.7
+2025-09-28,University,Croissant,28,4.2,0.0,117.6,4.3
+2025-09-28,Midtown,Croissant,23,4.2,0.0,96.6,3.9
+2025-09-28,Harbour,Cold brew,39,5.75,0.0,224.25,4.3
+2025-09-29,Downtown,Croissant,30,4.2,0.0,126.0,4.5
+2025-09-29,Downtown,Drip coffee,37,3.1,0.0,114.7,5.0
+2025-09-29,Midtown,Cold brew,28,5.75,10.0,144.9,4.6
+2025-09-29,Downtown,Sandwich,41,8.9,0.0,364.9,4.3
+2025-09-29,University,Croissant,29,4.2,0.0,121.8,4.2
+2025-09-29,Harbour,Drip coffee,31,3.1,0.0,96.1,4.0
+2025-09-29,University,Latte,26,5.25,0.0,136.5,4.3
+2025-09-30,Midtown,Drip coffee,12,3.1,0.0,37.2,3.9
+2025-09-30,Harbour,Latte,20,5.25,0.0,105.0,4.3
+2025-09-30,Downtown,Drip coffee,39,3.1,0.0,120.9,4.0
+2025-09-30,Harbour,Croissant,35,4.2,0.0,147.0,4.4
+2025-10-01,Harbour,Drip coffee,35,3.1,0.0,108.5,4.3
+2025-10-01,Midtown,Croissant,20,4.2,0.0,84.0,4.1
+2025-10-01,University,Latte,21,5.25,0.0,110.25,3.7
+2025-10-01,Midtown,Sandwich,24,8.9,0.0,213.6,3.5
+2025-10-01,University,Sandwich,20,8.9,0.0,178.0,4.6
+2025-10-01,Downtown,Sandwich,40,8.9,0.0,356.0,4.1
+2025-10-01,University,Cold brew,31,5.75,0.0,178.25,4.4
+2025-10-02,Harbour,Sandwich,33,8.9,0.0,293.7,4.2
+2025-10-02,University,Sandwich,15,8.9,0.0,133.5,4.4
+2025-10-02,Harbour,Drip coffee,26,3.1,0.0,80.6,4.6
+2025-10-02,Midtown,Sandwich,22,8.9,10.0,176.22,4.4
+2025-10-02,Midtown,Latte,24,5.25,0.0,126.0,4.4
+2025-10-02,Midtown,Croissant,19,4.2,0.0,79.8,4.5
+2025-10-03,Downtown,Croissant,34,4.2,0.0,142.8,4.1
+2025-10-03,Midtown,Drip coffee,22,3.1,0.0,68.2,4.1
+2025-10-03,Harbour,Drip coffee,38,3.1,15.0,100.13,4.4
+2025-10-03,Midtown,Croissant,15,4.2,,63.0,5.0
+2025-10-03,Downtown,Drip coffee,35,3.1,0.0,108.5,3.9
+2025-10-03,Harbour,Cold brew,28,5.75,10.0,144.9,4.6
+2025-10-03,Harbour,Latte,36,5.25,10.0,170.1,3.9
+2025-10-03,Midtown,Sandwich,26,8.9,0.0,231.4,3.9
+2025-10-04,Midtown,Croissant,13,4.2,0.0,54.6,4.8
+2025-10-04,University,Croissant,21,4.2,0.0,88.2,3.1
+2025-10-04,Harbour,Drip coffee,30,3.1,0.0,93.0,5.0
+2025-10-04,University,Sandwich,22,8.9,0.0,195.8,4.5
+2025-10-04,Harbour,Sandwich,39,8.9,0.0,347.1,
+2025-10-05,University,Cold brew,38,5.75,0.0,218.5,4.0
+2025-10-05,Midtown,Drip coffee,17,3.1,0.0,52.7,4.2
+2025-10-05,Harbour,Cold brew,26,5.75,0.0,149.5,4.3
+2025-10-05,Harbour,Drip coffee,35,3.1,0.0,108.5,4.9
+2025-10-06,Midtown,Croissant,26,4.2,0.0,109.2,4.6
+2025-10-06,Downtown,Latte,46,5.25,0.0,241.5,4.7
+2025-10-06,Downtown,Drip coffee,40,3.1,0.0,124.0,4.6
+2025-10-06,Downtown,Croissant,33,4.2,0.0,138.6,4.1
+2025-10-06,University,Cold brew,33,5.75,0.0,189.75,4.3
+2025-10-06,Harbour,Cold brew,34,5.75,0.0,195.5,4.7
+2025-10-06,University,Drip coffee,26,3.1,0.0,80.6,3.7
+2025-10-07,Downtown,Sandwich,42,8.9,0.0,373.8,4.8
+2025-10-07,University,Cold brew,34,5.75,0.0,195.5,4.4
+2025-10-07,Harbour,Croissant,23,4.2,0.0,96.6,4.8
+2025-10-07,University,Latte,29,5.25,0.0,152.25,4.4
+2025-10-07,University,Sandwich,25,8.9,10.0,200.25,4.0
+2025-10-07,Midtown,Croissant,27,4.2,0.0,113.4,4.4
+2025-10-07,Midtown,Sandwich,20,8.9,0.0,178.0,4.5
+2025-10-07,Downtown,Drip coffee,39,3.1,0.0,120.9,4.4
+2025-10-08,Midtown,Sandwich,20,8.9,0.0,178.0,4.5
+2025-10-08,Midtown,Croissant,25,4.2,0.0,105.0,4.5
+2025-10-08,Downtown,Sandwich,37,8.9,0.0,329.3,3.8
+2025-10-08,Downtown,Latte,35,5.25,0.0,183.75,4.2
+2025-10-09,Downtown,Croissant,23,4.2,0.0,96.6,3.9
+2025-10-09,Midtown,Sandwich,22,8.9,0.0,195.8,4.0
+2025-10-09,University,Drip coffee,13,3.1,0.0,40.3,4.2
+2025-10-10,University,Croissant,35,4.2,0.0,147.0,4.0
+2025-10-10,Downtown,Croissant,53,4.2,0.0,222.6,4.6
+2025-10-10,Downtown,Cold brew,49,5.75,0.0,281.75,4.4
+2025-10-10,Harbour,Croissant,38,4.2,0.0,159.6,3.8
+2025-10-10,Downtown,Drip coffee,39,3.1,0.0,120.9,4.2
+2025-10-10,Midtown,Sandwich,23,8.9,10.0,184.23,4.4
+2025-10-10,Harbour,Latte,44,5.25,0.0,231.0,4.2
+2025-10-11,Midtown,Cold brew,27,5.75,0.0,155.25,4.4
+2025-10-11,University,Latte,23,5.25,0.0,120.75,4.5
+2025-10-11,Downtown,Sandwich,54,8.9,0.0,480.6,4.3
+2025-10-11,University,Cold brew,32,5.75,0.0,184.0,4.0
+2025-10-11,Harbour,Drip coffee,45,3.1,0.0,139.5,4.4
+2025-10-11,Midtown,Drip coffee,20,3.1,0.0,62.0,4.0
+2025-10-11,Downtown,Croissant,43,4.2,0.0,180.6,4.1
+2025-10-12,Midtown,Cold brew,23,5.75,0.0,132.25,4.3
+2025-10-12,University,Latte,30,5.25,0.0,157.5,4.7
+2025-10-12,Downtown,Drip coffee,61,3.1,15.0,160.73,4.1
+2025-10-13,Midtown,Drip coffee,24,3.1,0.0,74.4,
+2025-10-13,University,Drip coffee,28,3.1,0.0,86.8,3.8
+2025-10-13,Harbour,Croissant,36,4.2,0.0,151.2,3.8
+2025-10-13,Harbour,Latte,28,5.25,0.0,147.0,4.4
+2025-10-13,Harbour,Sandwich,31,8.9,0.0,275.9,4.1
+2025-10-13,Downtown,Sandwich,38,8.9,10.0,304.38,4.3
+2025-10-13,Downtown,Drip coffee,37,3.1,0.0,114.7,4.2
+2025-10-13,Harbour,Cold brew,34,5.75,0.0,195.5,4.4
+2025-10-13,Midtown,Cold brew,31,5.75,0.0,178.25,4.1
+2025-10-14,University,Drip coffee,33,3.1,10.0,92.07,3.7
+2025-10-14,Harbour,Croissant,35,4.2,10.0,132.3,4.1
+2025-10-14,Harbour,Cold brew,34,5.75,0.0,195.5,4.6
+2025-10-14,Downtown,Drip coffee,41,3.1,0.0,127.1,4.2
+2025-10-14,Downtown,Latte,41,5.25,0.0,215.25,4.2
+2025-10-15,Harbour,Croissant,37,4.2,,155.4,4.3
+2025-10-15,University,Croissant,30,4.2,0.0,126.0,3.5
+2025-10-15,Midtown,Drip coffee,23,3.1,0.0,71.3,4.1
+2025-10-15,Midtown,Croissant,20,4.2,0.0,84.0,3.9
+2025-10-15,Downtown,Sandwich,38,8.9,0.0,338.2,4.6
+2025-10-15,Downtown,Drip coffee,40,3.1,0.0,124.0,4.1
+2025-10-16,University,Cold brew,33,5.75,0.0,189.75,4.2
+2025-10-16,Harbour,Cold brew,33,5.75,0.0,189.75,3.6
+2025-10-16,Downtown,Drip coffee,30,3.1,0.0,93.0,4.9
+2025-10-16,Harbour,Croissant,32,4.2,0.0,134.4,4.0
+2025-10-16,Midtown,Latte,23,5.25,10.0,108.68,4.4
+2025-10-16,Midtown,Sandwich,16,8.9,0.0,142.4,4.8
+2025-10-16,University,Croissant,29,4.2,0.0,121.8,3.8
+2025-10-16,Downtown,Cold brew,47,5.75,15.0,229.71,3.5
+2025-10-16,University,Latte,28,5.25,0.0,147.0,4.8
+2025-10-17,Midtown,Croissant,21,4.2,0.0,88.2,3.8
+2025-10-17,Harbour,Drip coffee,27,3.1,0.0,83.7,4.1
+2025-10-17,Midtown,Drip coffee,25,3.1,0.0,77.5,4.0
+2025-10-17,Harbour,Sandwich,23,8.9,0.0,204.7,3.9
+2025-10-17,University,Sandwich,26,8.9,0.0,231.4,3.9
+2025-10-17,Midtown,Sandwich,24,8.9,0.0,213.6,4.0
+2025-10-18,Downtown,Croissant,72,4.2,15.0,257.04,4.2
+2025-10-18,University,Sandwich,22,8.9,0.0,195.8,4.3
+2025-10-18,Harbour,Drip coffee,43,3.1,0.0,133.3,4.8
+2025-10-18,Harbour,Latte,37,5.25,10.0,174.82,4.1
+2025-10-18,Downtown,Sandwich,48,8.9,0.0,427.2,3.9
+2025-10-18,Midtown,Cold brew,24,5.75,0.0,138.0,5.0
+2025-10-18,Midtown,Latte,31,5.25,0.0,162.75,4.0
+2025-10-18,Downtown,Cold brew,59,5.75,0.0,339.25,3.6
+2025-10-18,University,Latte,20,5.25,0.0,105.0,4.4
+2025-10-18,Harbour,Cold brew,45,5.75,0.0,258.75,4.5
+2025-10-18,Midtown,Sandwich,23,8.9,0.0,204.7,4.7
+2025-10-19,Midtown,Cold brew,24,5.75,0.0,138.0,3.8
+2025-10-19,University,Cold brew,22,5.75,0.0,126.5,4.6
+2025-10-19,University,Latte,25,5.25,0.0,131.25,4.2
+2025-10-19,Harbour,Cold brew,39,5.75,0.0,224.25,4.4
+2025-10-19,Midtown,Drip coffee,14,3.1,0.0,43.4,3.7
+2025-10-19,Downtown,Sandwich,52,8.9,0.0,462.8,4.3
+2025-10-19,Midtown,Latte,18,5.25,0.0,94.5,4.6
+2025-10-19,University,Croissant,23,4.2,0.0,96.6,4.7
+2025-10-20,Downtown,Croissant,39,4.2,0.0,163.8,4.2
+2025-10-20,Midtown,Cold brew,22,5.75,0.0,126.5,5.0
+2025-10-20,University,Croissant,40,4.2,0.0,168.0,4.7
+2025-10-20,University,Latte,40,5.25,0.0,210.0,4.6
+2025-10-20,Downtown,Drip coffee,52,3.1,0.0,161.2,4.3
+2025-10-20,Harbour,Sandwich,37,8.9,0.0,329.3,4.1
+2025-10-20,Harbour,Drip coffee,33,3.1,0.0,102.3,4.7
+2025-10-20,University,Drip coffee,25,3.1,0.0,77.5,4.8
+2025-10-20,University,Cold brew,26,5.75,0.0,149.5,4.9
+2025-10-21,Harbour,Croissant,44,4.2,0.0,184.8,4.3
+2025-10-21,Harbour,Cold brew,30,5.75,10.0,155.25,4.3
+2025-10-21,Harbour,Drip coffee,39,3.1,0.0,120.9,4.6
+2025-10-21,Downtown,Sandwich,39,8.9,0.0,347.1,3.9
+2025-10-21,University,Latte,33,5.25,0.0,173.25,4.2
+2025-10-21,University,Drip coffee,29,3.1,0.0,89.9,4.1
+2025-10-21,Midtown,Latte,24,5.25,0.0,126.0,3.8
+2025-10-21,Harbour,Latte,37,5.25,0.0,194.25,4.0
+2025-10-21,Downtown,Latte,41,5.25,0.0,215.25,4.7
+2025-10-22,Harbour,Sandwich,37,8.9,0.0,329.3,4.4
+2025-10-22,University,Cold brew,37,5.75,0.0,212.75,4.3
+2025-10-22,Harbour,Drip coffee,20,3.1,0.0,62.0,3.9
+2025-10-22,Downtown,Latte,31,5.25,0.0,162.75,5.0
+2025-10-23,Midtown,Drip coffee,14,3.1,0.0,43.4,4.3
+2025-10-23,Harbour,Latte,36,5.25,0.0,189.0,4.0
+2025-10-23,University,Sandwich,30,8.9,0.0,267.0,
+2025-10-23,University,Cold brew,32,5.75,0.0,184.0,4.0
+2025-10-23,University,Latte,37,5.25,0.0,194.25,4.4
+2025-10-23,Downtown,Sandwich,45,8.9,0.0,400.5,4.8
+2025-10-23,Harbour,Croissant,30,4.2,0.0,126.0,4.8
+2025-10-24,Midtown,Drip coffee,20,3.1,0.0,62.0,3.4
+2025-10-24,Harbour,Sandwich,34,8.9,0.0,302.6,4.4
+2025-10-24,University,Latte,22,5.25,0.0,115.5,3.6
+2025-10-24,Downtown,Croissant,44,4.2,0.0,184.8,4.5
+2025-10-24,Harbour,Drip coffee,34,3.1,0.0,105.4,4.2
+2025-10-24,University,Sandwich,24,8.9,0.0,213.6,3.9
+2025-10-24,Midtown,Sandwich,28,8.9,15.0,211.82,3.5
+2025-10-24,Harbour,Croissant,28,4.2,0.0,117.6,4.8
+2025-10-24,Downtown,Cold brew,35,5.75,0.0,201.25,3.9
+2025-10-24,University,Drip coffee,29,3.1,0.0,89.9,4.3
+2025-10-25,Downtown,Croissant,58,4.2,0.0,243.6,4.7
+2025-10-25,Midtown,Drip coffee,19,3.1,0.0,58.9,4.3
+2025-10-25,University,Sandwich,27,8.9,0.0,240.3,4.3
+2025-10-25,Downtown,Cold brew,48,5.75,0.0,276.0,4.7
+2025-10-25,Downtown,Latte,51,5.25,0.0,267.75,4.8
+2025-10-25,Harbour,Latte,57,5.25,0.0,299.25,
+2025-10-25,University,Croissant,26,4.2,0.0,109.2,5.0
+2025-10-26,Harbour,Croissant,44,4.2,0.0,184.8,4.0
+2025-10-26,Downtown,Cold brew,50,5.75,0.0,287.5,4.4
+2025-10-26,Downtown,Croissant,46,4.2,0.0,193.2,4.2
+2025-10-26,Downtown,Drip coffee,41,3.1,0.0,127.1,3.8
+2025-10-26,University,Croissant,21,4.2,10.0,79.38,3.9
+2025-10-26,Downtown,Sandwich,48,8.9,0.0,427.2,4.2
+2025-10-26,Midtown,Latte,17,5.25,0.0,89.25,4.2
+2025-10-26,Midtown,Drip coffee,24,3.1,0.0,74.4,4.3
+2025-10-27,Midtown,Sandwich,17,8.9,0.0,151.3,3.9
+2025-10-27,Harbour,Croissant,31,4.2,10.0,117.18,4.1
+2025-10-27,Harbour,Sandwich,28,8.9,0.0,249.2,4.6
+2025-10-27,Downtown,Sandwich,42,8.9,0.0,373.8,4.1
+2025-10-27,Midtown,Cold brew,20,5.75,0.0,115.0,3.1
+2025-10-27,Midtown,Croissant,48,4.2,15.0,171.36,5.0
+2025-10-27,University,Cold brew,31,5.75,0.0,178.25,4.5
+2025-10-28,Midtown,Drip coffee,30,3.1,0.0,93.0,4.4
+2025-10-28,Harbour,Cold brew,35,5.75,0.0,201.25,4.1
+2025-10-29,Harbour,Cold brew,36,5.75,15.0,175.95,4.6
+2025-10-29,Midtown,Cold brew,36,5.75,0.0,207.0,3.8
+2025-10-29,Downtown,Sandwich,42,8.9,15.0,317.73,3.7
+2025-10-29,Harbour,Sandwich,24,8.9,0.0,213.6,4.0
+2025-10-29,University,Latte,33,5.25,10.0,155.93,4.3
+2025-10-29,University,Croissant,29,4.2,0.0,121.8,4.1
+2025-10-29,Downtown,Croissant,39,4.2,0.0,163.8,3.9
+2025-10-29,Downtown,Latte,66,5.25,15.0,294.52,3.8
+2025-10-29,University,Sandwich,22,8.9,0.0,195.8,3.9
+2025-10-30,Midtown,Drip coffee,23,3.1,0.0,71.3,4.1
+2025-10-30,Downtown,Cold brew,53,5.75,10.0,274.28,4.2
+2025-10-30,Harbour,Croissant,32,4.2,0.0,134.4,3.9
+2025-10-30,University,Cold brew,24,5.75,0.0,138.0,3.8
+2025-10-30,Downtown,Sandwich,35,8.9,0.0,311.5,4.5
+2025-10-30,Midtown,Cold brew,24,5.75,0.0,138.0,4.4
+2025-10-31,Downtown,Cold brew,45,5.75,15.0,219.94,4.2
+2025-10-31,University,Croissant,18,4.2,0.0,75.6,3.9
+2025-10-31,University,Drip coffee,26,3.1,0.0,80.6,4.3
+2025-10-31,Downtown,Croissant,39,4.2,0.0,163.8,3.9
+2025-11-01,Harbour,Sandwich,40,8.9,0.0,356.0,5.0
+2025-11-01,Midtown,Latte,18,5.25,,94.5,4.1
+2025-11-01,Midtown,Cold brew,32,5.75,10.0,165.6,4.0
+2025-11-01,Harbour,Latte,43,5.25,0.0,225.75,4.7
+2025-11-01,Harbour,Drip coffee,42,3.1,0.0,130.2,4.4
+2025-11-01,Midtown,Croissant,24,4.2,10.0,90.72,3.4
+2025-11-02,Harbour,Croissant,41,4.2,0.0,172.2,4.2
+2025-11-02,University,Sandwich,28,8.9,15.0,211.82,3.7
+2025-11-02,Harbour,Drip coffee,42,3.1,0.0,130.2,4.9
+2025-11-02,Downtown,Sandwich,51,8.9,0.0,453.9,4.6
+2025-11-02,Harbour,Sandwich,45,8.9,10.0,360.45,4.1
+2025-11-02,University,Latte,28,5.25,0.0,147.0,4.3
+2025-11-02,Downtown,Cold brew,45,5.75,10.0,232.88,4.1
+2025-11-02,Harbour,Latte,53,5.25,0.0,278.25,4.3
+2025-11-03,University,Latte,31,5.25,10.0,146.48,3.4
+2025-11-03,Downtown,Drip coffee,37,3.1,0.0,114.7,4.1
+2025-11-03,Midtown,Latte,23,5.25,10.0,108.68,3.7
+2025-11-03,University,Drip coffee,23,3.1,0.0,71.3,4.0
+2025-11-03,University,Cold brew,27,5.75,0.0,155.25,4.0
+2025-11-03,Harbour,Drip coffee,29,3.1,0.0,89.9,4.9
+2025-11-03,Midtown,Drip coffee,25,3.1,0.0,77.5,
+2025-11-03,Midtown,Sandwich,24,8.9,0.0,213.6,4.3
+2025-11-04,Harbour,Latte,25,5.25,0.0,131.25,4.5
+2025-11-04,University,Croissant,36,4.2,0.0,151.2,4.1
+2025-11-04,Midtown,Croissant,27,4.2,0.0,113.4,3.7
+2025-11-05,Downtown,Croissant,44,4.2,0.0,184.8,3.9
+2025-11-05,University,Drip coffee,41,3.1,0.0,127.1,5.0
+2025-11-05,University,Latte,35,5.25,0.0,183.75,4.2
+2025-11-05,Harbour,Sandwich,40,8.9,15.0,302.6,4.7
+2025-11-05,Midtown,Latte,16,5.25,0.0,84.0,4.5
+2025-11-06,Midtown,Croissant,33,4.2,0.0,138.6,4.6
+2025-11-06,Harbour,Drip coffee,38,3.1,0.0,117.8,4.7
+2025-11-06,Harbour,Sandwich,42,8.9,0.0,373.8,4.4
+2025-11-06,Downtown,Sandwich,44,8.9,0.0,391.6,4.3
+2025-11-06,University,Cold brew,28,5.75,0.0,161.0,4.5
+2025-11-06,Midtown,Cold brew,26,5.75,10.0,134.55,4.1
+2025-11-06,Midtown,Sandwich,28,8.9,15.0,211.82,4.1
+2025-11-07,Midtown,Cold brew,23,5.75,0.0,132.25,4.4
+2025-11-07,University,Croissant,49,4.2,10.0,185.22,4.5
+2025-11-07,Harbour,Latte,30,5.25,0.0,157.5,4.5
+2025-11-07,Midtown,Drip coffee,22,3.1,0.0,68.2,4.0
+2025-11-07,Downtown,Croissant,41,4.2,0.0,172.2,4.2
+2025-11-07,Harbour,Croissant,42,4.2,0.0,176.4,
+2025-11-07,Downtown,Cold brew,29,5.75,0.0,166.75,4.8
+2025-11-07,Harbour,Drip coffee,23,3.1,0.0,71.3,5.0
+2025-11-08,Midtown,Drip coffee,19,3.1,10.0,53.01,
+2025-11-08,Midtown,Sandwich,24,8.9,0.0,213.6,4.3
+2025-11-08,University,Croissant,32,4.2,0.0,134.4,4.3
+2025-11-08,Downtown,Drip coffee,53,3.1,0.0,164.3,4.5
+2025-11-08,Harbour,Sandwich,44,8.9,10.0,352.44,4.0
+2025-11-08,University,Drip coffee,27,3.1,0.0,83.7,4.3
+2025-11-08,Downtown,Latte,63,5.25,0.0,330.75,4.1
+2025-11-08,Midtown,Croissant,16,4.2,0.0,67.2,3.9
+2025-11-09,Downtown,Latte,57,5.25,0.0,299.25,4.1
+2025-11-09,Midtown,Cold brew,26,5.75,0.0,149.5,4.6
+2025-11-09,Midtown,Croissant,24,4.2,10.0,90.72,4.2
+2025-11-09,Downtown,Croissant,58,4.2,0.0,243.6,4.5
+2025-11-09,Downtown,Cold brew,51,5.75,0.0,293.25,4.6
+2025-11-09,University,Sandwich,40,8.9,10.0,320.4,3.4
+2025-11-09,Midtown,Latte,31,5.25,10.0,146.48,4.3
+2025-11-10,University,Drip coffee,31,3.1,0.0,96.1,4.3
+2025-11-10,Harbour,Latte,38,5.25,10.0,179.55,3.7
+2025-11-10,Harbour,Croissant,28,4.2,0.0,117.6,3.9
+2025-11-10,Downtown,Croissant,66,4.2,10.0,249.48,4.1
+2025-11-10,University,Sandwich,36,8.9,15.0,272.34,4.8
+2025-11-10,Harbour,Sandwich,38,8.9,0.0,338.2,4.2
+2025-11-10,Midtown,Latte,19,5.25,0.0,99.75,3.7
+2025-11-10,Downtown,Latte,42,5.25,0.0,220.5,4.0
+2025-11-11,Harbour,Cold brew,38,5.75,0.0,218.5,3.6
+2025-11-11,Downtown,Drip coffee,37,3.1,0.0,114.7,4.0
+2025-11-11,University,Sandwich,33,8.9,10.0,264.33,4.2
+2025-11-11,University,Cold brew,28,5.75,0.0,161.0,4.6
+2025-11-11,Downtown,Cold brew,48,5.75,0.0,276.0,4.2
+2025-11-11,Midtown,Latte,31,5.25,0.0,162.75,4.1
+2025-11-12,Harbour,Cold brew,26,5.75,0.0,149.5,4.0
+2025-11-12,Downtown,Cold brew,35,5.75,0.0,201.25,4.0
+2025-11-12,Downtown,Latte,38,5.25,0.0,199.5,4.2
+2025-11-12,Midtown,Sandwich,21,8.9,,186.9,4.0
+2025-11-12,University,Croissant,51,4.2,15.0,182.07,4.4
+2025-11-13,Downtown,Sandwich,33,8.9,0.0,293.7,4.1
+2025-11-13,Harbour,Drip coffee,36,3.1,0.0,111.6,4.2
+2025-11-13,Harbour,Sandwich,30,8.9,0.0,267.0,4.8
+2025-11-13,Downtown,Cold brew,36,5.75,0.0,207.0,4.0
+2025-11-13,Harbour,Croissant,43,4.2,0.0,180.6,4.5
+2025-11-13,University,Croissant,31,4.2,0.0,130.2,4.1
+2025-11-13,Downtown,Drip coffee,44,3.1,0.0,136.4,4.5
+2025-11-14,Harbour,Cold brew,25,5.75,0.0,143.75,4.4
+2025-11-14,University,Croissant,40,4.2,15.0,142.8,3.3
+2025-11-14,Downtown,Latte,53,5.25,10.0,250.42,5.0
+2025-11-14,Downtown,Cold brew,49,5.75,0.0,281.75,
+2025-11-14,Midtown,Cold brew,17,5.75,0.0,97.75,4.3
+2025-11-15,University,Drip coffee,24,3.1,0.0,74.4,4.6
+2025-11-15,Midtown,Sandwich,30,8.9,10.0,240.3,4.0
+2025-11-15,Midtown,Croissant,32,4.2,0.0,134.4,4.6
+2025-11-16,Downtown,Croissant,71,4.2,0.0,298.2,3.7
+2025-11-16,University,Cold brew,21,5.75,0.0,120.75,4.5
+2025-11-16,Midtown,Latte,35,5.25,0.0,183.75,4.0
+2025-11-16,University,Croissant,25,4.2,0.0,105.0,4.6
+2025-11-16,Downtown,Drip coffee,59,3.1,0.0,182.9,3.8
+2025-11-16,Midtown,Croissant,24,4.2,10.0,90.72,3.8
+2025-11-16,Downtown,Cold brew,46,5.75,0.0,264.5,4.4
+2025-11-17,University,Cold brew,25,5.75,10.0,129.38,4.2
+2025-11-17,University,Sandwich,35,8.9,0.0,311.5,4.1
+2025-11-17,Downtown,Croissant,44,4.2,0.0,184.8,3.8
+2025-11-17,Harbour,Sandwich,30,8.9,0.0,267.0,4.5
+2025-11-17,Harbour,Cold brew,33,5.75,10.0,170.78,4.2
+2025-11-18,Downtown,Drip coffee,49,3.1,10.0,136.71,4.7
+2025-11-18,University,Cold brew,43,5.75,15.0,210.16,4.2
+2025-11-18,Midtown,Croissant,32,4.2,0.0,134.4,4.3
+2025-11-18,Downtown,Croissant,41,4.2,0.0,172.2,4.0
+2025-11-18,Midtown,Latte,34,5.25,0.0,178.5,3.9
+2025-11-18,University,Sandwich,39,8.9,0.0,347.1,4.0
+2025-11-18,Downtown,Cold brew,37,5.75,0.0,212.75,4.7
+2025-11-19,Downtown,Latte,38,5.25,0.0,199.5,4.1
+2025-11-19,University,Sandwich,34,8.9,0.0,302.6,
+2025-11-19,Midtown,Cold brew,21,5.75,15.0,102.64,4.0
+2025-11-19,Harbour,Latte,33,5.25,0.0,173.25,4.5
+2025-11-20,University,Sandwich,25,8.9,10.0,200.25,3.7
+2025-11-20,University,Cold brew,30,5.75,0.0,172.5,5.0
+2025-11-20,Downtown,Cold brew,40,5.75,0.0,230.0,4.1
+2025-11-20,Midtown,Latte,35,5.25,0.0,183.75,3.8
+2025-11-20,University,Croissant,31,4.2,10.0,117.18,4.0
+2025-11-20,Harbour,Drip coffee,32,3.1,0.0,99.2,
+2025-11-20,Harbour,Latte,37,5.25,0.0,194.25,4.4
+2025-11-20,Midtown,Cold brew,19,5.75,0.0,109.25,4.6
+2025-11-20,Midtown,Croissant,35,4.2,0.0,147.0,4.3
+2025-11-21,Downtown,Drip coffee,50,3.1,15.0,131.75,4.1
+2025-11-21,Midtown,Cold brew,25,5.75,0.0,143.75,4.2
+2025-11-21,Midtown,Croissant,18,4.2,0.0,75.6,4.8
+2025-11-21,University,Drip coffee,25,3.1,0.0,77.5,4.1
+2025-11-21,University,Sandwich,19,8.9,0.0,169.1,5.0
+2025-11-22,Downtown,Sandwich,61,8.9,0.0,542.9,4.5
+2025-11-22,University,Sandwich,37,8.9,0.0,329.3,3.7
+2025-11-22,Midtown,Cold brew,23,5.75,0.0,132.25,4.3
+2025-11-22,University,Latte,33,5.25,0.0,173.25,3.8
+2025-11-22,Harbour,Latte,50,5.25,10.0,236.25,4.5
+2025-11-22,Midtown,Croissant,17,4.2,0.0,71.4,3.5
+2025-11-23,Harbour,Drip coffee,44,3.1,0.0,136.4,4.8
+2025-11-23,Downtown,Cold brew,27,5.75,0.0,155.25,4.7
+2025-11-23,Harbour,Sandwich,41,8.9,0.0,364.9,4.4
+2025-11-23,Harbour,Croissant,50,4.2,15.0,178.5,4.5
+2025-11-23,Midtown,Latte,46,5.25,15.0,205.28,4.0
+2025-11-23,Midtown,Sandwich,19,8.9,0.0,169.1,4.9
+2025-11-23,Downtown,Latte,50,5.25,0.0,262.5,3.7
+2025-11-23,University,Latte,35,5.25,0.0,183.75,3.9
+2025-11-23,University,Drip coffee,30,3.1,10.0,83.7,4.4
+2025-11-23,University,Croissant,33,4.2,10.0,124.74,3.8
+2025-11-24,Downtown,Latte,38,5.25,0.0,199.5,3.6
+2025-11-24,University,Drip coffee,32,3.1,0.0,99.2,3.8
+2025-11-24,Downtown,Sandwich,37,8.9,0.0,329.3,4.6
+2025-11-24,Midtown,Sandwich,29,8.9,10.0,232.29,3.9
+2025-11-25,Harbour,Cold brew,30,5.75,0.0,172.5,4.4
+2025-11-25,Downtown,Sandwich,39,8.9,0.0,347.1,4.8
+2025-11-25,Downtown,Latte,38,5.25,0.0,199.5,3.8
+2025-11-25,University,Latte,30,5.25,0.0,157.5,4.1
+2025-11-25,Midtown,Latte,27,5.25,0.0,141.75,3.9
+2025-11-26,Harbour,Croissant,38,4.2,10.0,143.64,4.5
+2025-11-26,Harbour,Latte,29,5.25,0.0,152.25,
+2025-11-26,Harbour,Drip coffee,33,3.1,0.0,102.3,4.4
+2025-11-26,Midtown,Latte,19,5.25,0.0,99.75,4.3
+2025-11-26,Harbour,Cold brew,37,5.75,0.0,212.75,
+2025-11-26,Midtown,Sandwich,26,8.9,,231.4,4.2
+2025-11-26,Downtown,Sandwich,44,8.9,0.0,391.6,3.7
+2025-11-26,Downtown,Cold brew,23,5.75,0.0,132.25,4.2
+2025-11-26,Harbour,Sandwich,27,8.9,0.0,240.3,5.0
+2025-11-26,University,Latte,-1,5.25,10.0,137.02,3.4
+2025-11-27,University,Sandwich,35,8.9,10.0,280.35,3.8
+2025-11-27,University,Latte,27,5.25,15.0,120.49,4.5
+2025-11-27,Harbour,Latte,34,5.25,0.0,178.5,4.4
+2025-11-27,University,Drip coffee,23,3.1,0.0,71.3,4.7
+2025-11-27,University,Croissant,28,4.2,0.0,117.6,4.0
+2025-11-27,Downtown,Croissant,34,4.2,0.0,142.8,4.2
+2025-11-27,Downtown,Latte,39,5.25,0.0,204.75,4.7
+2025-11-27,Harbour,Drip coffee,34,3.1,0.0,105.4,4.6
+2025-11-28,University,Sandwich,37,8.9,0.0,329.3,4.2
+2025-11-28,Harbour,Croissant,34,4.2,0.0,142.8,4.2
+2025-11-28,Harbour,Drip coffee,35,3.1,0.0,108.5,4.0
+2025-11-28,Midtown,Latte,31,5.25,0.0,162.75,4.0
+2025-11-28,Downtown,Latte,53,5.25,0.0,278.25,4.7
+2025-11-28,University,Cold brew,28,5.75,0.0,161.0,3.6
+2025-11-28,Downtown,Drip coffee,44,3.1,10.0,122.76,4.1
+2025-11-28,Harbour,Sandwich,45,8.9,10.0,360.45,4.8
+2025-11-28,Midtown,Cold brew,23,5.75,0.0,132.25,4.1
+2025-11-29,University,Croissant,-1,4.2,0.0,142.8,4.4
+2025-11-29,University,Cold brew,29,5.75,,166.75,4.2
+2025-11-29,Midtown,Drip coffee,21,3.1,0.0,65.1,4.5
+2025-11-29,Harbour,Croissant,46,4.2,10.0,173.88,4.4
+2025-11-30,Downtown,Drip coffee,61,3.1,0.0,189.1,4.1
+2025-11-30,University,Cold brew,31,5.75,0.0,178.25,3.9
+2025-11-30,Midtown,Croissant,20,4.2,0.0,84.0,4.8
+2025-11-30,Harbour,Croissant,51,4.2,0.0,214.2,4.6
+2025-12-01,Downtown,Drip coffee,36,3.1,0.0,111.6,4.0
+2025-12-01,University,Sandwich,36,8.9,0.0,320.4,3.8
+2025-12-01,University,Croissant,32,4.2,10.0,120.96,4.2
+2025-12-01,Midtown,Cold brew,22,5.75,0.0,126.5,4.3
+2025-12-01,Midtown,Croissant,28,4.2,0.0,117.6,3.9
+2025-12-01,Downtown,Cold brew,43,5.75,0.0,247.25,4.2
+2025-12-02,Harbour,Sandwich,31,8.9,0.0,275.9,4.5
+2025-12-02,University,Latte,29,5.25,0.0,152.25,4.0
+2025-12-02,University,Sandwich,37,8.9,0.0,329.3,3.7
+2025-12-02,Midtown,Cold brew,19,5.75,0.0,109.25,4.7
+2025-12-02,Harbour,Latte,36,5.25,0.0,189.0,4.0
+2025-12-02,Downtown,Sandwich,47,8.9,0.0,418.3,4.2
+2025-12-02,University,Cold brew,32,5.75,10.0,165.6,4.0
+2025-12-03,Downtown,Cold brew,53,5.75,10.0,274.28,4.0
+2025-12-03,University,Croissant,31,4.2,10.0,117.18,3.8
+2025-12-03,Harbour,Croissant,29,4.2,0.0,121.8,4.7
+2025-12-04,Harbour,Latte,34,5.25,0.0,178.5,4.0
+2025-12-04,Midtown,Croissant,18,4.2,0.0,75.6,4.8
+2025-12-04,Downtown,Cold brew,28,5.75,0.0,161.0,4.3
+2025-12-04,Harbour,Croissant,36,4.2,0.0,151.2,4.3
+2025-12-04,Harbour,Cold brew,23,5.75,0.0,132.25,4.3
+2025-12-05,University,Croissant,30,4.2,0.0,126.0,3.9
+2025-12-05,Harbour,Croissant,35,4.2,0.0,147.0,4.9
+2025-12-05,University,Latte,31,5.25,0.0,162.75,4.5
+2025-12-05,Harbour,Sandwich,31,8.9,0.0,275.9,4.8
+2025-12-06,Midtown,Cold brew,31,5.75,0.0,178.25,4.6
+2025-12-06,University,Croissant,41,4.2,15.0,146.37,3.6
+2025-12-06,Harbour,Latte,52,5.25,15.0,232.05,3.2
+2025-12-06,Downtown,Cold brew,51,5.75,0.0,293.25,4.7
+2025-12-06,Harbour,Croissant,46,4.2,0.0,193.2,4.4
+2025-12-06,Downtown,Drip coffee,78,3.1,15.0,205.53,4.4
+2025-12-06,University,Sandwich,26,8.9,0.0,231.4,3.9
+2025-12-07,Downtown,Cold brew,45,5.75,0.0,258.75,4.0
+2025-12-07,University,Latte,42,5.25,15.0,187.42,3.6
+2025-12-07,University,Cold brew,28,5.75,10.0,144.9,4.0
+2025-12-07,University,Croissant,33,4.2,15.0,117.81,3.4
+2025-12-07,Midtown,Drip coffee,38,3.1,10.0,106.02,4.0
+2025-12-08,University,Latte,32,5.25,10.0,151.2,4.4
+2025-12-08,Midtown,Cold brew,24,5.75,0.0,138.0,4.4
+2025-12-08,Midtown,Croissant,23,4.2,0.0,96.6,4.3
+2025-12-08,Downtown,Sandwich,60,8.9,15.0,453.9,3.8
+2025-12-08,Downtown,Latte,40,5.25,0.0,210.0,4.0
+2025-12-08,Harbour,Latte,32,5.25,0.0,168.0,4.0
+2025-12-09,University,Cold brew,29,5.75,0.0,166.75,4.0
+2025-12-09,Downtown,Cold brew,33,5.75,0.0,189.75,3.9
+2025-12-09,University,Sandwich,37,8.9,0.0,329.3,4.4
+2025-12-09,Downtown,Sandwich,29,8.9,0.0,258.1,4.2
+2025-12-09,Harbour,Croissant,49,4.2,0.0,205.8,4.8
+2025-12-09,Midtown,Cold brew,24,5.75,0.0,138.0,4.0
+2025-12-09,University,Latte,30,5.25,0.0,157.5,4.2
+2025-12-09,Midtown,Croissant,26,4.2,0.0,109.2,4.9
+2025-12-09,Midtown,Drip coffee,39,3.1,10.0,108.81,4.2
+2025-12-09,Harbour,Latte,26,5.25,0.0,136.5,4.1
+2025-12-10,Downtown,Drip coffee,46,3.1,0.0,142.6,4.4
+2025-12-10,Harbour,Drip coffee,23,3.1,0.0,71.3,4.2
+2025-12-10,Downtown,Cold brew,27,5.75,0.0,155.25,4.1
+2025-12-10,Midtown,Cold brew,19,5.75,10.0,98.32,4.2
+2025-12-11,Downtown,Cold brew,42,5.75,0.0,241.5,
+2025-12-11,Downtown,Drip coffee,41,3.1,0.0,127.1,4.2
+2025-12-11,Midtown,Drip coffee,39,3.1,0.0,120.9,4.4
+2025-12-11,Downtown,Croissant,57,4.2,0.0,239.4,4.4
+2025-12-11,Harbour,Sandwich,33,8.9,0.0,293.7,4.0
+2025-12-12,University,Drip coffee,42,3.1,10.0,117.18,4.4
+2025-12-12,Midtown,Croissant,19,4.2,0.0,79.8,4.1
+2025-12-12,Harbour,Latte,33,5.25,0.0,173.25,
+2025-12-12,University,Cold brew,19,5.75,0.0,109.25,3.6
+2025-12-13,Midtown,Croissant,35,4.2,0.0,147.0,4.1
+2025-12-13,Midtown,Sandwich,23,8.9,0.0,204.7,4.5
+2025-12-13,Harbour,Drip coffee,51,3.1,0.0,158.1,4.6
+2025-12-13,Midtown,Drip coffee,20,3.1,0.0,62.0,4.2
+2025-12-13,Midtown,Cold brew,21,5.75,0.0,120.75,4.1
+2025-12-13,Downtown,Drip coffee,51,3.1,0.0,158.1,3.9
+2025-12-13,Harbour,Sandwich,50,8.9,0.0,445.0,5.0
+2025-12-13,University,Drip coffee,37,3.1,0.0,114.7,3.6
+2025-12-14,Midtown,Sandwich,25,8.9,0.0,222.5,4.7
+2025-12-14,Harbour,Latte,32,5.25,0.0,168.0,4.1
+2025-12-14,Harbour,Cold brew,31,5.75,0.0,178.25,4.4
+2025-12-14,University,Drip coffee,26,3.1,0.0,80.6,4.3
+2025-12-14,Harbour,Sandwich,65,8.9,10.0,520.65,4.5
+2025-12-14,Harbour,Croissant,41,4.2,0.0,172.2,4.1
+2025-12-14,University,Croissant,34,4.2,0.0,142.8,4.4
+2025-12-15,Midtown,Croissant,21,4.2,0.0,88.2,4.1
+2025-12-15,Harbour,Drip coffee,28,3.1,0.0,86.8,4.4
+2025-12-15,Downtown,Latte,37,5.25,0.0,194.25,3.6
+2025-12-15,University,Drip coffee,31,3.1,0.0,96.1,4.5
+2025-12-15,University,Sandwich,39,8.9,10.0,312.39,3.4
+2025-12-15,Downtown,Croissant,48,4.2,0.0,201.6,4.2
+2025-12-15,Harbour,Sandwich,33,8.9,0.0,293.7,5.0
+2025-12-15,Midtown,Drip coffee,30,3.1,10.0,83.7,4.4
+2025-12-15,Harbour,Cold brew,24,5.75,0.0,138.0,4.4
+2025-12-16,Midtown,Latte,32,5.25,0.0,168.0,4.0
+2025-12-16,Midtown,Cold brew,26,5.75,0.0,149.5,4.7
+2025-12-16,University,Croissant,32,4.2,0.0,134.4,4.2
+2025-12-16,University,Latte,38,5.25,0.0,199.5,4.4
+2025-12-16,Harbour,Sandwich,-1,8.9,0.0,311.5,4.3
+2025-12-16,Harbour,Latte,32,5.25,15.0,142.8,4.7
+2025-12-16,Downtown,Drip coffee,58,3.1,10.0,161.82,3.6
+2025-12-17,Midtown,Croissant,26,4.2,10.0,98.28,4.9
+2025-12-17,Harbour,Latte,37,5.25,0.0,194.25,4.3
+2025-12-17,University,Croissant,23,4.2,0.0,96.6,4.4
+2025-12-17,Downtown,Cold brew,35,5.75,15.0,171.06,3.8
+2025-12-17,Harbour,Cold brew,35,5.75,10.0,181.12,4.5
+2025-12-18,Downtown,Croissant,31,4.2,0.0,130.2,3.9
+2025-12-18,Harbour,Croissant,34,4.2,0.0,142.8,4.6
+2025-12-18,Harbour,Drip coffee,32,3.1,15.0,84.32,4.3
+2025-12-18,Downtown,Sandwich,66,8.9,15.0,499.29,3.8
+2025-12-18,Harbour,Cold brew,31,5.75,0.0,178.25,4.9
+2025-12-18,University,Croissant,39,4.2,0.0,163.8,4.0
+2025-12-18,Midtown,Latte,26,5.25,15.0,116.02,
+2025-12-19,Downtown,Sandwich,45,8.9,0.0,400.5,4.5
+2025-12-19,Midtown,Latte,33,5.25,0.0,173.25,4.3
+2025-12-19,Downtown,Croissant,51,4.2,0.0,214.2,4.2
+2025-12-19,University,Cold brew,26,5.75,0.0,149.5,4.2
+2025-12-19,Harbour,Latte,49,5.25,0.0,257.25,5.0
+2025-12-19,Harbour,Drip coffee,33,3.1,,102.3,4.4
+2025-12-20,University,Latte,32,5.25,10.0,151.2,4.6
+2025-12-20,Downtown,Croissant,40,4.2,0.0,168.0,4.4
+2025-12-20,University,Drip coffee,35,3.1,0.0,108.5,3.8
+2025-12-20,Downtown,Latte,59,5.25,0.0,309.75,4.1
+2025-12-20,University,Cold brew,34,5.75,0.0,195.5,
+2025-12-20,Midtown,Latte,29,5.25,0.0,152.25,4.2
+2025-12-20,Midtown,Drip coffee,30,3.1,0.0,93.0,4.4
+2025-12-20,Harbour,Latte,43,5.25,0.0,225.75,4.3
+2025-12-21,University,Sandwich,32,8.9,0.0,284.8,4.2
+2025-12-21,Midtown,Croissant,33,4.2,0.0,138.6,4.4
+2025-12-21,Downtown,Latte,55,5.25,0.0,288.75,4.2
+2025-12-21,Midtown,Latte,29,5.25,0.0,152.25,4.2
+2025-12-21,Downtown,Sandwich,57,8.9,0.0,507.3,4.3
+2025-12-21,Harbour,Cold brew,25,5.75,0.0,143.75,4.1
+2025-12-21,Midtown,Cold brew,24,5.75,0.0,138.0,4.6
+2025-12-22,Harbour,Drip coffee,33,3.1,0.0,102.3,3.9
+2025-12-22,Harbour,Croissant,41,4.2,15.0,146.37,4.0
+2025-12-22,University,Croissant,34,4.2,0.0,142.8,4.7
+2025-12-22,Harbour,Sandwich,42,8.9,0.0,373.8,4.1
+2025-12-23,Downtown,Latte,61,5.25,15.0,272.21,4.0
+2025-12-23,Harbour,Latte,39,5.25,0.0,204.75,4.2
+2025-12-23,Harbour,Cold brew,18,5.75,0.0,103.5,4.2
+2025-12-23,Midtown,Drip coffee,28,3.1,10.0,78.12,4.0
+2025-12-23,Downtown,Cold brew,31,5.75,0.0,178.25,4.8
+2025-12-24,Midtown,Drip coffee,26,3.1,0.0,80.6,4.3
+2025-12-24,University,Cold brew,16,5.75,0.0,92.0,4.7
+2025-12-24,Downtown,Cold brew,40,5.75,0.0,230.0,3.9
+2025-12-24,Midtown,Sandwich,30,8.9,0.0,267.0,4.6
+2025-12-24,University,Sandwich,30,8.9,0.0,267.0,4.3
+2025-12-24,Harbour,Drip coffee,43,3.1,15.0,113.3,4.4
+2025-12-24,Downtown,Croissant,51,4.2,0.0,214.2,4.1
+2025-12-24,Downtown,Sandwich,47,8.9,0.0,418.3,4.5
+2025-12-25,University,Cold brew,21,5.75,10.0,108.68,4.3
+2025-12-25,Harbour,Croissant,51,4.2,0.0,214.2,4.1
+2025-12-25,Harbour,Drip coffee,41,3.1,0.0,127.1,4.5
+2025-12-25,University,Latte,30,5.25,0.0,157.5,5.0
+2025-12-25,Harbour,Latte,31,5.25,0.0,162.75,3.7
+2025-12-25,Midtown,Latte,19,5.25,0.0,99.75,4.2
+2025-12-25,Midtown,Sandwich,32,8.9,0.0,284.8,4.9
+2025-12-26,Downtown,Drip coffee,44,3.1,10.0,122.76,3.2
+2025-12-26,Midtown,Cold brew,22,5.75,0.0,126.5,4.4
+2025-12-26,Midtown,Sandwich,25,8.9,0.0,222.5,4.0
+2025-12-27,Downtown,Latte,54,5.25,0.0,283.5,3.9
+2025-12-27,University,Drip coffee,33,3.1,0.0,102.3,4.4
+2025-12-27,University,Latte,32,5.25,0.0,168.0,4.8
+2025-12-27,Downtown,Sandwich,59,8.9,0.0,525.1,3.3
+2025-12-27,Downtown,Cold brew,47,5.75,0.0,270.25,4.1
+2025-12-27,Harbour,Sandwich,39,8.9,0.0,347.1,4.5
+2025-12-27,Harbour,Latte,45,5.25,0.0,236.25,4.7
+2025-12-28,University,Croissant,26,4.2,0.0,109.2,4.0
+2025-12-28,Harbour,Cold brew,32,5.75,0.0,184.0,4.5
+2025-12-28,Downtown,Cold brew,51,5.75,0.0,293.25,4.4
+2025-12-28,Downtown,Latte,65,5.25,0.0,341.25,3.3
+2025-12-28,Harbour,Croissant,48,4.2,0.0,201.6,4.4
+2025-12-28,Downtown,Sandwich,64,8.9,0.0,569.6,
+2025-12-28,Midtown,Drip coffee,28,3.1,0.0,86.8,4.1
+2025-12-28,University,Latte,35,5.25,0.0,183.75,3.8
+2025-12-29,Harbour,Latte,30,5.25,0.0,157.5,5.0
+2025-12-29,Downtown,Latte,56,5.25,0.0,294.0,4.2
+2025-12-29,Midtown,Drip coffee,27,3.1,0.0,83.7,4.1
+2025-12-29,University,Cold brew,27,5.75,0.0,155.25,4.4
+2025-12-29,University,Drip coffee,39,3.1,0.0,120.9,3.8
+2025-12-29,Midtown,Croissant,23,4.2,0.0,96.6,4.4
+2025-12-29,University,Sandwich,34,8.9,0.0,302.6,4.8
+2025-12-29,Downtown,Sandwich,36,8.9,0.0,320.4,4.3
+2025-12-30,Midtown,Croissant,36,4.2,0.0,151.2,4.4
+2025-12-30,University,Sandwich,30,8.9,0.0,267.0,4.5
+2025-12-30,Harbour,Croissant,33,4.2,0.0,138.6,4.9
+2025-12-30,Harbour,Sandwich,32,8.9,0.0,284.8,4.7
+2025-12-30,University,Cold brew,28,5.75,0.0,161.0,5.0
+2025-12-30,Downtown,Latte,42,5.25,0.0,220.5,
+2025-12-30,University,Drip coffee,24,3.1,0.0,74.4,4.1
+2025-12-31,Downtown,Drip coffee,50,3.1,0.0,155.0,4.7
+2025-12-31,Downtown,Latte,43,5.25,0.0,225.75,4.3
+2025-12-31,Harbour,Latte,29,5.25,0.0,152.25,4.8
+2025-12-31,Midtown,Sandwich,43,8.9,0.0,382.7,
+2025-12-31,Downtown,Sandwich,41,8.9,0.0,364.9,4.0
+2025-12-31,Midtown,Latte,34,5.25,0.0,178.5,4.3
+2025-09-11,Harbour,Croissant,32,4.2,0.0,134.4,4.3
+2025-09-19,Harbour,Cold brew,37,5.75,0.0,212.75,4.3
+2025-04-07,Downtown,Drip coffee,31,3.1,15.0,81.68,3.9
+2025-10-29,Downtown,Latte,66,5.25,15.0,294.52,3.8
+2025-01-01,University,Latte,25,5.25,0.0,131.25,4.8
+2025-06-23,Downtown,Croissant,23,4.2,0.0,96.6,3.7
+2025-11-29,Harbour,Croissant,46,4.2,10.0,173.88,4.4
+2025-04-24,Downtown,Drip coffee,37,3.1,0.0,114.7,4.1
+2025-05-10,Midtown,Cold brew,25,5.75,10.0,129.38,
+2025-02-04,Midtown,Drip coffee,22,3.1,0.0,68.2,3.9
+2025-12-09,Midtown,Croissant,26,4.2,0.0,109.2,4.9
+2025-03-03,Downtown,Sandwich,28,8.9,0.0,249.2,4.1
+2025-08-19,University,Croissant,30,4.2,0.0,126.0,4.6
+2025-07-26,Midtown,Cold brew,30,5.75,0.0,172.5,3.8
+2025-09-06,Harbour,Latte,31,5.25,0.0,162.75,5.0
+2025-03-25,University,Sandwich,23,8.9,0.0,204.7,4.1
+2025-07-01,Midtown,Cold brew,33,5.75,0.0,189.75,4.1
+2025-06-28,Downtown,Croissant,40,4.2,15.0,142.8,4.9
+2025-07-09,Harbour,Latte,29,5.25,0.0,152.25,4.4
+2025-12-09,University,Cold brew,29,5.75,0.0,166.75,4.0
+2025-10-02,Harbour,Sandwich,33,8.9,0.0,293.7,4.2
+2025-04-21,Harbour,Cold brew,25,5.75,0.0,143.75,4.4
+2025-11-06,University,Cold brew,28,5.75,0.0,161.0,4.5
+2025-01-07,Midtown,Croissant,21,4.2,0.0,88.2,4.6

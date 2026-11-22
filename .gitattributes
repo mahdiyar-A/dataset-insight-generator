@@ -2,3 +2,7 @@
 # checkout turns them CRLF, and bash then fails on "\r" characters.
 *.sh             text eol=lf
 deploy/Caddyfile text eol=lf
+
+# The demo's sample CSVs are downloads whose sizes the demo states; keep them
+# byte for byte the same on every checkout, Windows included.
+frontend/public/demo/*.csv text eol=lf
