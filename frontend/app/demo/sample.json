@@ -1,0 +1,160 @@
+{
+  "focus": "What drives revenue across stores and products",
+  "file": {
+    "name": "coffee_sales.csv",
+    "rows": "2,360",
+    "columns": 8,
+    "headers": [
+      "date",
+      "store",
+      "product",
+      "units_sold",
+      "unit_price",
+      "discount_pct",
+      "revenue",
+      "satisfaction"
+    ],
+    "preview": [
+      [
+        "2025-01-01",
+        "Midtown",
+        "Cold brew",
+        "24",
+        "5.75",
+        "0.0",
+        "138.0",
+        "5.0"
+      ],
+      [
+        "2025-01-01",
+        "Downtown",
+        "Latte",
+        "34",
+        "5.25",
+        "0.0",
+        "178.5",
+        "4.7"
+      ],
+      [
+        "2025-01-01",
+        "University",
+        "Latte",
+        "25",
+        "5.25",
+        "0.0",
+        "131.25",
+        "4.8"
+      ],
+      [
+        "2025-01-01",
+        "Harbour",
+        "Sandwich",
+        "42",
+        "8.9",
+        "0.0",
+        "373.8",
+        "4.8"
+      ],
+      [
+        "2025-01-01",
+        "Harbour",
+        "Croissant",
+        "31",
+        "4.2",
+        "0.0",
+        "130.2",
+        "4.7"
+      ]
+    ]
+  },
+  "steps": {
+    "upload": "CSV, Excel, JSON, XML, Parquet, SPSS, Stata, SAS, SQLite and more, up to 50 MB.",
+    "check": "Here it found 24 repeated rows, blanks in two columns and a few impossible values.",
+    "clean": "It asks first. Here, cleaning removed the repeats, filled the blanks and pulled in the extremes.",
+    "report": "5 findings and 5 charts, each figure taken from the statistics."
+  },
+  "report": {
+    "title": "Retail Revenue Drivers Analysis – 2025 Annual Transaction Data",
+    "summary": "Revenue is overwhelmingly concentrated in the Sandwich product line, which alone accounts for 31.98% of total dollars and exhibits a lift of 1.63 over the overall average. Downtown store outperforms all locations, generating $219.57 average daily revenue—1.85 times Midtown’s $118.54. Both units_sold (ρ=0.661) and unit_price (ρ=0.714) move strongly with revenue, confirming volume and pricing as the chief levers. Discounting shows a negligible positive link to units_sold and a slight negative association with satisfaction, suggesting limited effectiveness of price cuts. The weekly revenue series is statistically flat (Mann‑Kendall τ=0.115, p=0.232), indicating that seasonal spikes are modest and not a reliable growth engine.",
+    "insights": [
+      {
+        "rank": 1,
+        "title": "Sandwich Product Dominates Revenue Share",
+        "body": "Product-level analysis reveals that Sandwiches generate a mean revenue of $265.88 per transaction, representing 31.98% of the total $381,667.1 and delivering a lift of 1.63 relative to the overall average. The eta‑squared of 0.5086 confirms that product category explains over half of the variance in revenue, a large and statistically significant effect (p < 1e‑6). This concentration implies that any strategic initiative—pricing, promotion, or assortment expansion—should prioritize the Sandwich line to move the revenue needle.",
+        "chart": {
+          "src": "/demo/chart_1.png",
+          "label": "Average Revenue by Product Type",
+          "desc": "Illustrates the dominant revenue contribution of Sandwiches versus other products, supporting Insight 1."
+        }
+      },
+      {
+        "rank": 2,
+        "title": "Downtown Store Leads in Daily Revenue Generation",
+        "body": "Store‑level comparison shows Downtown achieving the highest average daily revenue of $219.57, 1.85 times the lowest performer Midtown at $118.54. The store effect is large (eta‑squared = 0.2137, p < 1e‑6) and aligns with the highest mean units_sold of 41.30, indicating that footfall and conversion are both superior at this location. Consequently, best‑practice operational insights from Downtown merit replication across the network.",
+        "chart": {
+          "src": "/demo/chart_2.png",
+          "label": "Average Daily Revenue by Store Location",
+          "desc": "Compares revenue performance across the four stores, highlighting Downtown’s lead (Insight 2)."
+        }
+      },
+      {
+        "rank": 3,
+        "title": "Units Sold and Unit Price Both Strongly Associated with Revenue",
+        "body": "Correlation analysis identifies a strong positive relationship between unit_price and revenue (r = 0.713) and a moderate positive relationship between units_sold and revenue (r = 0.648). Both associations are highly significant (p < 1e‑6). In the multivariate driver model, units_sold contributes a model share of 0.472 and unit_price 0.003, together accounting for the majority of explained variance (R² = 0.996). These metrics confirm that volume growth and price optimization are the twin pillars of revenue enhancement.",
+        "chart": {
+          "src": "/demo/chart_3.png",
+          "label": "Units Sold vs. Revenue",
+          "desc": "Displays the moderate positive association between volume and revenue, underpinning Insight 3."
+        }
+      },
+      {
+        "rank": 4,
+        "title": "Discounts Have Minimal Impact on Sales Volume and Satisfaction",
+        "body": "Discount percentage exhibits a negligible correlation with units_sold (r = 0.194) and a slight negative correlation with satisfaction (r = ‑0.148), both statistically insignificant for practical decision‑making. The mean discount applied across all transactions is only 2.35%, with 80.4% of sales receiving no discount at all. This pattern suggests that discounting is not a primary driver of revenue or customer sentiment in this portfolio.",
+        "chart": {
+          "src": "/demo/chart_4.png",
+          "label": "Discount Percentage vs. Customer Satisfaction",
+          "desc": "Shows the slight negative link between discounting and satisfaction, confirming Insight 4."
+        }
+      },
+      {
+        "rank": 5,
+        "title": "Revenue Trend Is Flat Over the Year",
+        "body": "A Mann‑Kendall test on weekly aggregated revenue shows a non‑significant upward direction (τ = 0.115, p = 0.232) with a Sen slope of $13.25 per week, translating to a modest 3.86% increase in the second half of the year. The low R² of 0.0268 confirms that temporal variation explains little of the overall revenue pattern, reinforcing the view that structural factors—product mix and store performance— dominate.",
+        "chart": {
+          "src": "/demo/chart_5.png",
+          "label": "Weekly Total Revenue Over 2025",
+          "desc": "Tracks the flat weekly revenue trajectory and the non‑significant rise noted in Insight 5."
+        }
+      }
+    ],
+    "conclusion": "Revenue in the 2025 retail portfolio is principally shaped by product mix—particularly the high-revenue Sandwich line—and by the superior performance of the Downtown store. Volume and price both move in tandem with revenue, whereas discounting offers little upside. The flat yearly trend underscores that incremental growth must arise from strategic adjustments to product assortment and store operations rather than seasonal timing. We recommend a focused pricing and promotion program for Sandwiches at under‑performing stores to replicate Downtown’s success."
+  },
+  "answers": [
+    {
+      "q": "Which store made the most revenue, and how much was it?",
+      "a": "Downtown store made the most revenue, with a total of $124,276.64.",
+      "source": "data"
+    },
+    {
+      "q": "Did discounts make customers less satisfied?",
+      "a": "The data show a slight negative correlation between discount percentage and satisfaction (r = ‑0.148), which is classified as negligible. This means discounts are associated with a very small decrease in satisfaction, but the effect is minimal and not practically significant.",
+      "source": "analysis"
+    },
+    {
+      "q": "Which product brought in the most revenue?",
+      "a": "The Sandwich product generated the most revenue, with a total of $122,040.59 across all transactions.",
+      "source": "data"
+    },
+    {
+      "q": "What was the total revenue for the whole period?",
+      "a": "The total revenue for the entire period is $381,667.10.",
+      "source": "data"
+    },
+    {
+      "q": "What is the capital of France?",
+      "a": "I can only help with questions about this retail dataset and its report.",
+      "source": "refused"
+    }
+  ]
+}

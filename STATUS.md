@@ -11,8 +11,33 @@
 |---|---|---|
 | C# — unit, integration, edge cases, the real Supabase client against a stand-in server, the chat suggesting changes, teams editing the report | 538 | `dotnet test backend.Tests/backend.Tests.csproj` |
 | Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is, insights' evidence, the editable report, changes the chat suggests and charts DIG draws, combining teammates' saves | 1070 | `cd ai_service && pytest tests/` |
-| Frontend — Vitest, including rendered components, the change card, the live report channel and the two themes | 328 | `cd frontend && npm test` |
+| Frontend — Vitest, including rendered components, the change card, the live report channel, the two themes and the interactive demo | 356 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
+
+---
+
+## The interactive demo, 2026-11-21
+
+`/demo`, opened from a new "Try the interactive demo" button on the landing
+page (English, French and Persian labels) and listed in the sitemap. DIG
+welcomes the visitor, asks what brings them, and walks them through a real
+saved run on a coffee chain's sales file.
+
+- **A journey, then a map.** Three basics in order (drop the file in, see what
+  the check found, decide on cleaning), then every stop opens to explore in
+  any order: what the file is, the report, asking DIG, Free or Pro, and the
+  files. Later stops say why they are locked; "Skip the basics" opens them.
+- **DIG is there throughout**: a guide bubble on every stop, a "Done!" note
+  after each action, "Press here" tips, eyes that follow the pointer, a nap
+  after 45 seconds, a secret spin after five quick pokes.
+- **Free and Pro side by side.** A switch in the header shows the demo as
+  either plan: Word and PowerPoint, steering the report and team editing
+  (with a teammate "Sam" moving a finding live) are marked Pro on Free.
+- **Everything shown is real**: the report, charts, answers and files are
+  DIG's saved output from one run, and every figure the demo adds is worked
+  out again from the two CSVs by the tests. Nothing is uploaded and no AI
+  runs, so the page never calls the server.
+- English only, like the sample report. No server or database change.
 
 ---
 

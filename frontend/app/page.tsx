@@ -16,7 +16,7 @@ const T = {
     hero: {
       title: 'Your Data Has a Story. We Help You Read It.',
       subtitle: 'Drop in a CSV, Excel, JSON, Parquet or SPSS file and get back a full AI-powered analysis — visualizations, patterns, anomalies, and a professional PDF report. No coding. No setup. Just an insightful report.',
-      login: 'Login', register: 'Register', guest: 'Continue as Guest',
+      login: 'Login', register: 'Register', guest: 'Continue as Guest', demo: 'Try the interactive demo',
       note: 'No account needed for a one-time report. Create an account to save your results.',
       howTitle: 'How it works?',
       step1: 'Upload your dataset — CSV, Excel, JSON, Parquet, SPSS and more, up to 50MB.',
@@ -65,7 +65,7 @@ const T = {
     hero: {
       title: 'Vos données ont une histoire. Nous vous aidons à la lire.',
       subtitle: "Importez un fichier CSV, Excel, JSON, Parquet ou SPSS et obtenez une analyse complète par IA — visualisations, patterns, anomalies et un rapport PDF professionnel. Sans code. Sans configuration. Juste des insights.",
-      login: 'Connexion', register: "S'inscrire", guest: 'Continuer en invité',
+      login: 'Connexion', register: "S'inscrire", guest: 'Continuer en invité', demo: 'Essayer la démo interactive',
       note: 'Aucun compte requis pour un rapport ponctuel. Créez un compte pour sauvegarder vos résultats.',
       howTitle: 'Comment ça marche ?',
       step1: "Importez votre dataset — CSV, Excel, JSON, Parquet, SPSS et plus, jusqu'à 50 Mo.",
@@ -114,7 +114,7 @@ const T = {
     hero: {
       title: 'داده‌های شما یک داستان دارند. ما کمک می‌کنیم آن را بخوانید.',
       subtitle: 'یک فایل CSV، اکسل، JSON، Parquet یا SPSS را آپلود کنید و تحلیل کامل مبتنی بر هوش مصنوعی دریافت کنید — تصویرسازی، الگوها، ناهنجاری‌ها و یک گزارش PDF حرفه‌ای. بدون کدنویسی. بدون راه‌اندازی.',
-      login: 'ورود', register: 'ثبت‌نام', guest: 'ادامه به عنوان مهمان',
+      login: 'ورود', register: 'ثبت‌نام', guest: 'ادامه به عنوان مهمان', demo: 'امتحان دموی تعاملی',
       note: 'برای یک گزارش یکبار مصرف نیازی به حساب نیست. برای ذخیره نتایج حساب بسازید.',
       howTitle: 'چطور کار می‌کند؟',
       step1: 'دیتاست خود را آپلود کنید — CSV، اکسل، JSON، Parquet، SPSS و بیشتر، حداکثر ۵۰ مگابایت.',
@@ -779,6 +779,21 @@ export default function HomePage() {
                 fontFamily: DISPLAY, fontSize: '15px', fontWeight: 700,
               }}>
                 {t.hero.guest}
+              </Link>
+              <Link href="/demo" className="atlas-btn" style={{
+                padding: '15px 22px', background: '#ffffff', color: '#12121a',
+                border: '2px solid #12121a', textDecoration: 'none',
+                fontFamily: DISPLAY, fontSize: '15px', fontWeight: 700,
+                display: 'inline-flex', alignItems: 'center', gap: '10px',
+              }}>
+                <span aria-hidden="true" style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  width: '22px', height: '22px', background: c.lime, border: '2px solid #12121a',
+                  fontSize: '9px', lineHeight: 1,
+                }}>
+                  ▶
+                </span>
+                {t.hero.demo}
               </Link>
               <Link href="/login" className="atlas-btn" style={{
                 padding: '15px 26px', background: 'transparent', color: '#ffffff',
