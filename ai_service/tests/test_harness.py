@@ -731,3 +731,90 @@ def test_a_question_about_something_else_stays_refused(model):
 
 def test_the_weakest_model_answers_last():
     assert harness.CHAT_PROVIDERS[-1].model == "openai/gpt-oss-20b"
+
+
+# ── A brief sets the look only when asked ─────────────────────────────────────
+
+BOSS = ("A short casual report for my boss, three points about revenue by region, as bullets, "
+        "plus a PowerPoint. Ignore 2023.")
+
+
+def test_a_brief_that_says_nothing_about_the_look_leaves_it_alone(model):
+    # The live server's case: the model chose Clean, Modern and US Letter for
+    # "my boss", over the person's own "Fits the data" and A4.
+    model({"settings": {"tone": "casual", "audience": "executive", "insightsCount": 3,
+                        "theme": "clean", "font": "modern", "pageSize": "letter"},
+           "lookWords": "for my boss", "summary": "A short casual report on revenue by region.",
+           "notPossible": []})
+    s = build_brief(BOSS)["settings"]
+    assert s["tone"] == "casual" and s["audience"] == "executive" and s["insightsCount"] == 3
+    assert not set(harness.LOOK_SETTINGS) & set(s)
+
+
+def test_a_look_with_no_words_quoted_is_dropped(model):
+    model({"settings": {"theme": "midnight", "focusOn": "revenue"}, "summary": "Revenue.", "notPossible": []})
+    s = build_brief("Revenue by region please")["settings"]
+    assert s == {"focusOn": "revenue"}
+
+
+def test_words_the_text_does_not_hold_do_not_count(model):
+    model({"settings": {"theme": "midnight"}, "lookWords": "in a dark theme",
+           "summary": "Revenue.", "notPossible": []})
+    assert "theme" not in build_brief("Revenue by region, short")["settings"]
+
+
+def test_a_brief_that_asks_for_the_look_gets_it(model):
+    model({"settings": {"theme": "midnight", "pageSize": "letter", "tone": "casual"},
+           "lookWords": "Dark theme, on US Letter", "summary": "A dark report on Letter.", "notPossible": []})
+    s = build_brief("Casual, about revenue. Dark theme, on US Letter please.")["settings"]
+    assert s["theme"] == "midnight" and s["pageSize"] == "letter" and s["tone"] == "casual"
+
+
+def test_the_quote_may_sit_inside_the_settings_and_differ_in_case_and_spacing(model):
+    model({"settings": {"font": "storybook", "lookWords": "a  STORYBOOK font"},
+           "summary": "x", "notPossible": []})
+    assert build_brief("For my kids: a storybook font and big charts")["settings"] == {"font": "storybook"}
+
+
+@pytest.mark.parametrize("quote, text", [
+    ("en thème sombre", "Un rapport sur les ventes, en thème sombre."),
+    ("رنگ تیره", "گزارش فروش با رنگ تیره"),
+    ("Seitengröße A4", "Kurzer Bericht, Seitengröße A4"),
+    ("深色", "请用深色的报告"),
+    ("on A4 paper", "Print it on A4 paper"),
+    ("make it look like a magazine", "Revenue story, make it look like a magazine"),
+    # A real reply quoted two parts of the sentence joined by a comma.
+    ("dark theme, US Letter pages", "Casual report on revenue. Use a dark theme and US Letter pages."),
+    (["dark theme", "US Letter pages"], "Use a dark theme and US Letter pages."),
+    ("for my boss, in a dark theme", "For my boss, in a dark theme"),
+])
+def test_asking_for_the_look_in_any_language_counts(quote, text):
+    assert harness.asked_for_look(quote, text)
+
+
+@pytest.mark.parametrize("quote, text", [
+    ("for my boss", BOSS),
+    ("casual", BOSS),
+    ("look at revenue", "Look at revenue by region"),        # "look at" is not the look
+    ("a 10-page report", "Give me a 10-page report"),       # a bare "page" is length
+    ("newsletter", "Sales from the newsletter campaign"),
+    ("plus a PowerPoint", BOSS),
+    ("for my boss, as bullets", BOSS),                         # real pieces, none about the look
+    ("for my boss, dark theme", BOSS),                        # the look piece is not in the text
+    (["casual", 3], BOSS),
+    ("un rapport clair", "Un rapport clair sur les ventes"),  # clair: clear, not light
+    ("fuente de datos", "Usa la fuente de datos de 2024"),    # fuente: source
+    ("dark theme " * 20, "dark theme " * 20),                # longer than any real ask
+    ("", BOSS),
+    (None, BOSS),
+])
+def test_words_that_do_not_ask_for_the_look_do_not_count(quote, text):
+    assert not harness.asked_for_look(quote, text)
+
+
+def test_the_brief_prompt_keeps_the_look_for_when_it_is_asked():
+    prompt = harness._brief_system()
+    assert "lookWords" in prompt
+    assert "Never choose a look from who reads the report" in prompt
+    for key in harness.LOOK_SETTINGS:
+        assert prompt.count(f"- {key}: one of") == 1
