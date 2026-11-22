@@ -300,7 +300,7 @@ export default function AnalysisQA({ analysisId, plan = "free" }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:"8px", marginTop:"4px" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", gap:"10px", flexWrap:"wrap" }}>
-        <h3 style={{ margin:0, fontSize:"0.85rem", fontWeight:700, color:"#e5e7eb" }}>{t.title}</h3>
+        <h3 style={{ margin:0, fontSize:"0.85rem", fontWeight:700, color:"var(--ink)" }}>{t.title}</h3>
         {remaining !== null && !closed && (
           <span className="muted-small">{t.left(remaining)}</span>
         )}
@@ -317,7 +317,7 @@ export default function AnalysisQA({ analysisId, plan = "free" }) {
                   <p className="muted-small" style={{ margin:"6px 0 0" }}>{t.fromData}</p>
                 )}
                 {turn.unverified?.length > 0 && (
-                  <p style={{ margin:"6px 0 0", fontSize:"0.72rem", color:"#fbbf24" }}>
+                  <p style={{ margin:"6px 0 0", fontSize:"0.72rem", color:"var(--warn-text)" }}>
                     ⚠ {t.unverified(turn.unverified.join(", "))}
                   </p>
                 )}
@@ -339,11 +339,11 @@ export default function AnalysisQA({ analysisId, plan = "free" }) {
       )}
 
       {closed ? (
-        <p role="status" style={{ margin:0, padding:"9px 12px", borderRadius:"10px", fontSize:"0.78rem", lineHeight:1.5,
-          color:"#fde68a", background:"rgba(120,53,15,0.2)", border:"1px solid rgba(180,83,9,0.3)" }}>
+        <p role="status" style={{ margin:0, padding:"9px 12px", borderRadius:"0", fontSize:"0.78rem", lineHeight:1.5,
+          color:"var(--warn-text)", background:"color-mix(in srgb, var(--warn) 20%, transparent)", border:"1px solid color-mix(in srgb, var(--warn) 35%, transparent)" }}>
           {closed}
           {!isPro && closed === t.limitFree && (
-            <> <a href="/plans" style={{ color:"#fbbf24", fontWeight:700 }}>Pro →</a></>
+            <> <a href="/plans" style={{ color:"var(--warn-text)", fontWeight:700 }}>Pro →</a></>
           )}
         </p>
       ) : (
@@ -383,9 +383,9 @@ export default function AnalysisQA({ analysisId, plan = "free" }) {
               maxLength={MAX_ASK_CHARS}
               onChange={(e) => setDraft(e.target.value)}
               placeholder={t.placeholder}
-              style={{ flex:1, minWidth:0, padding:"8px 12px", borderRadius:"8px", outline:"none",
-                border:"1px solid rgba(55,65,81,0.8)", background:"rgba(15,23,42,0.9)",
-                color:"#e2e8f0", fontSize:"0.82rem" }}
+              style={{ flex:1, minWidth:0, padding:"8px 12px", borderRadius:"0", outline:"none",
+                border:"1px solid var(--line)", background:"var(--card)",
+                color:"var(--ink)", fontSize:"0.82rem" }}
             />
             <button type="submit" className="primary-btn" disabled={sending || !draft.trim()}
               style={{ padding:"8px 16px", fontSize:"0.8rem", opacity:(sending || !draft.trim()) ? 0.5 : 1,
@@ -394,7 +394,7 @@ export default function AnalysisQA({ analysisId, plan = "free" }) {
             </button>
           </form>
           {notice && (
-            <p role="alert" style={{ margin:0, fontSize:"0.74rem", color:"#f97373" }}>{notice}</p>
+            <p role="alert" style={{ margin:0, fontSize:"0.74rem", color:"var(--danger-text)" }}>{notice}</p>
           )}
         </>
       )}

@@ -14,80 +14,173 @@ import ChartsCard      from "@/components/chartsCard";
 import DownloadsCard   from "@/components/downloadCard";
 import ReportEditor    from "@/components/ReportEditor";
 import InfoCards       from "@/components/infoCards";
-import PlanBadge       from "@/components/PlanBadge";
+
+// What each plan keeps and allows. The server holds the real limits
+// (AnalysisGate, ChatQuota); these only label them.
+const KEPT      = { free: 5,  pro: 15 };
+const QUESTIONS = { free: 10, pro: 100 };
 
 // ── Translations ──────────────────────────────────────────────────────────────
 const DASH_T = {
   en: {
-    title: "Dashboard",
-    subtitle: "Upload a dataset or load from history to get started.",
+    eyebrow: (plan: string) => `${plan} · Dashboard`,
+    planName: { free: "Free plan", pro: "Pro plan", admin: "Admin" },
+    greeting: (part: "morning" | "afternoon" | "evening", name: string) =>
+      `Good ${part}${name ? `, ${name}` : ""}.`,
+    subtitle: "Upload a file to get a report, or open one from your analyses.",
     subtitleActive: (name: string, rows?: number | null) => `${name} · ${rows?.toLocaleString() ?? "?"} rows`,
     nav: {
-      dashboard: "Dashboard", upload: "Upload", history: "History",
-      charts: "AI Insights", report: "Report", help: "Help",
+      home: "Home", upload: "New analysis", charts: "Charts", report: "Report",
+      history: "Your analyses", help: "Help",
       settings: "Settings", signOut: "Sign out",
-      team: "Team", admin: "Admin",
+      team: "Team", admin: "Admin", pro: "PRO",
     },
     profile: {
-      view: "View profile", account: "Account settings",
+      view: "View profile", account: "Account settings", billing: "Plan and billing",
       memberSince: (d: string) => `Member since ${d}`,
     },
-    bannerDone:    "Analysis complete — report, charts, and cleaned dataset are ready.",
-    bannerRunning: "Analysis running — results will appear when done…",
-    bannerFailed:  "Analysis failed. Please try uploading your dataset again.",
-    bannerLost:    "We lost track of this analysis. It may still finish: refresh in a minute and look in your history.",
-    viewReport:    "View Report →",
-    newSession:    "Start new analysis",
+    meters: {
+      label: "What you have used",
+      kept: "Analyses kept",
+      of: (n: number) => `of ${n}`,
+      keptNote: (n: number) => `Analysis ${n + 1} replaces the oldest.`,
+      questions: "Questions a day",
+      questionsNote: "About your report, in the chat. Starts again each day at midnight UTC.",
+      team: "Team editing",
+      teamFree: "On Pro",
+      teamFreeNote: "Up to 5 people edit one report together and see each other's saves.",
+      teamPro: "Included",
+      teamProNote: "Share an analysis with your team and edit the report together.",
+      openTeam: "Open your team",
+    },
+    plan: {
+      freeNote: "5 analyses kept, 10 questions a day.",
+      freeCta: "See what Pro adds",
+      proNote: "15 analyses kept, 100 questions a day, team editing.",
+      proCta: "Plan and billing",
+    },
+    band: {
+      eyebrow: "PRO · $9.99 CAD A MONTH",
+      title: "Keep 15 analyses, ask 100 questions a day, and edit reports with your team.",
+      cta: "See Pro",
+    },
+    bannerDone:    "Analysis complete. The report, charts and cleaned data are ready.",
+    bannerRunning: "Analysis running. Results appear here when it finishes.",
+    bannerFailed:  "The analysis failed. Please upload your file again.",
+    bannerLost:    "We lost track of this analysis. It may still finish: refresh in a minute and look in your analyses.",
+    viewReport:    "Open the report",
+    newSession:    "New analysis",
   },
   fr: {
-    title: "Tableau de bord",
-    subtitle: "Importez un dataset ou chargez depuis l'historique.",
+    eyebrow: (plan: string) => `${plan} · Tableau de bord`,
+    planName: { free: "Offre gratuite", pro: "Offre Pro", admin: "Admin" },
+    greeting: (_part: "morning" | "afternoon" | "evening", name: string) =>
+      `Bonjour${name ? `, ${name}` : ""}.`,
+    subtitle: "Importez un fichier pour obtenir un rapport, ou ouvrez une de vos analyses.",
     subtitleActive: (name: string, rows?: number | null) => `${name} · ${rows?.toLocaleString() ?? "?"} lignes`,
     nav: {
-      dashboard: "Tableau de bord", upload: "Import", history: "Historique",
-      charts: "Insights IA", report: "Rapport", help: "Aide",
+      home: "Accueil", upload: "Nouvelle analyse", charts: "Graphiques", report: "Rapport",
+      history: "Vos analyses", help: "Aide",
       settings: "Paramètres", signOut: "Déconnexion",
-      team: "Équipe", admin: "Admin",
+      team: "Équipe", admin: "Admin", pro: "PRO",
     },
     profile: {
-      view: "Voir le profil", account: "Paramètres du compte",
+      view: "Voir le profil", account: "Paramètres du compte", billing: "Offre et facturation",
       memberSince: (d: string) => `Membre depuis ${d}`,
     },
-    bannerDone:    "Analyse terminée — rapport, graphiques et CSV nettoyé disponibles.",
-    bannerRunning: "Analyse en cours — les résultats apparaîtront bientôt…",
-    bannerFailed:  "Analyse échouée. Veuillez réimporter votre dataset.",
-    bannerLost:    "Nous avons perdu le suivi de cette analyse. Elle peut encore se terminer : actualisez dans une minute et regardez votre historique.",
-    viewReport:    "Voir le rapport →",
+    meters: {
+      label: "Votre utilisation",
+      kept: "Analyses conservées",
+      of: (n: number) => `sur ${n}`,
+      keptNote: (n: number) => `L'analyse ${n + 1} remplace la plus ancienne.`,
+      questions: "Questions par jour",
+      questionsNote: "Sur votre rapport, dans le chat. Repart chaque jour à minuit UTC.",
+      team: "Édition en équipe",
+      teamFree: "Avec Pro",
+      teamFreeNote: "Jusqu'à 5 personnes modifient un rapport ensemble et voient les enregistrements des autres.",
+      teamPro: "Incluse",
+      teamProNote: "Partagez une analyse avec votre équipe et modifiez le rapport ensemble.",
+      openTeam: "Ouvrir votre équipe",
+    },
+    plan: {
+      freeNote: "5 analyses conservées, 10 questions par jour.",
+      freeCta: "Ce que Pro ajoute",
+      proNote: "15 analyses conservées, 100 questions par jour, édition en équipe.",
+      proCta: "Offre et facturation",
+    },
+    band: {
+      eyebrow: "PRO · 9,99 $ CA PAR MOIS",
+      title: "Conservez 15 analyses, posez 100 questions par jour et modifiez vos rapports en équipe.",
+      cta: "Voir Pro",
+    },
+    bannerDone:    "Analyse terminée. Le rapport, les graphiques et les données nettoyées sont prêts.",
+    bannerRunning: "Analyse en cours. Les résultats apparaîtront ici à la fin.",
+    bannerFailed:  "L'analyse a échoué. Veuillez réimporter votre fichier.",
+    bannerLost:    "Nous avons perdu le suivi de cette analyse. Elle peut encore se terminer : actualisez dans une minute et regardez vos analyses.",
+    viewReport:    "Ouvrir le rapport",
     newSession:    "Nouvelle analyse",
   },
   fa: {
-    title: "داشبورد",
-    subtitle: "یک دیتاست آپلود کنید یا از تاریخچه بارگذاری کنید.",
+    eyebrow: (plan: string) => `${plan} · داشبورد`,
+    planName: { free: "طرح رایگان", pro: "طرح پرو", admin: "مدیر" },
+    greeting: (_part: "morning" | "afternoon" | "evening", name: string) =>
+      `سلام${name ? `، ${name}` : ""}.`,
+    subtitle: "یک فایل آپلود کنید تا گزارش بگیرید، یا یکی از تحلیل‌هایتان را باز کنید.",
     subtitleActive: (name: string, rows?: number | null) => `${name} · ${rows?.toLocaleString() ?? "?"} ردیف`,
     nav: {
-      dashboard: "داشبورد", upload: "آپلود", history: "تاریخچه",
-      charts: "تحلیل‌های AI", report: "گزارش", help: "راهنما",
+      home: "خانه", upload: "تحلیل جدید", charts: "نمودارها", report: "گزارش",
+      history: "تحلیل‌های شما", help: "راهنما",
       settings: "تنظیمات", signOut: "خروج",
-      team: "تیم", admin: "مدیریت",
+      team: "تیم", admin: "مدیریت", pro: "پرو",
     },
     profile: {
-      view: "مشاهده پروفایل", account: "تنظیمات حساب",
+      view: "مشاهده پروفایل", account: "تنظیمات حساب", billing: "طرح و پرداخت",
       memberSince: (d: string) => `عضو از ${d}`,
     },
-    bannerDone:    "تحلیل کامل شد — گزارش، نمودارها و CSV پاکسازی‌شده آماده‌اند.",
-    bannerRunning: "تحلیل در حال اجرا — نتایج به زودی نمایش می‌یابند…",
-    bannerFailed:  "تحلیل ناموفق بود. لطفاً دیتاست خود را دوباره آپلود کنید.",
-    bannerLost:    "پیگیری این تحلیل قطع شد. ممکن است هنوز کامل شود: یک دقیقه دیگر صفحه را تازه کنید و تاریخچه را ببینید.",
-    viewReport:    "← مشاهده گزارش",
+    meters: {
+      label: "میزان استفاده شما",
+      kept: "تحلیل‌های نگه‌داشته",
+      of: (n: number) => `از ${n}`,
+      keptNote: (n: number) => `تحلیل ${n + 1} جای قدیمی‌ترین را می‌گیرد.`,
+      questions: "پرسش در روز",
+      questionsNote: "درباره گزارش، در گفتگو. هر روز نیمه‌شب UTC از نو شروع می‌شود.",
+      team: "ویرایش تیمی",
+      teamFree: "در طرح پرو",
+      teamFreeNote: "تا ۵ نفر با هم یک گزارش را ویرایش می‌کنند و ذخیره‌های یکدیگر را می‌بینند.",
+      teamPro: "فعال",
+      teamProNote: "یک تحلیل را با تیمتان به اشتراک بگذارید و گزارش را با هم ویرایش کنید.",
+      openTeam: "باز کردن تیم",
+    },
+    plan: {
+      freeNote: "۵ تحلیل نگه‌داشته، ۱۰ پرسش در روز.",
+      freeCta: "امکانات پرو",
+      proNote: "۱۵ تحلیل نگه‌داشته، ۱۰۰ پرسش در روز، ویرایش تیمی.",
+      proCta: "طرح و پرداخت",
+    },
+    band: {
+      eyebrow: "پرو · ۹٫۹۹ دلار کانادا در ماه",
+      title: "۱۵ تحلیل نگه دارید، روزی ۱۰۰ پرسش بپرسید و گزارش‌ها را با تیمتان ویرایش کنید.",
+      cta: "دیدن پرو",
+    },
+    bannerDone:    "تحلیل کامل شد. گزارش، نمودارها و داده‌های پاکسازی‌شده آماده‌اند.",
+    bannerRunning: "تحلیل در حال اجراست. نتایج پس از پایان اینجا نمایش داده می‌شوند.",
+    bannerFailed:  "تحلیل ناموفق بود. لطفاً فایل خود را دوباره آپلود کنید.",
+    bannerLost:    "پیگیری این تحلیل قطع شد. ممکن است هنوز کامل شود: یک دقیقه دیگر صفحه را تازه کنید و تحلیل‌هایتان را ببینید.",
+    viewReport:    "باز کردن گزارش",
     newSession:    "تحلیل جدید",
   },
 };
+
+function partOfDay(): "morning" | "afternoon" | "evening" {
+  const h = new Date().getHours();
+  return h < 12 ? "morning" : h < 18 ? "afternoon" : "evening";
+}
 
 /*
   DASHBOARD FLOW — v2 (clean-slate model):
 
   1. Login         → dashboard loads EMPTY. No auto-loaded previous session.
-  2. History tab   → user sees last 5 (free) or 15 (pro) completed analyses.
+  2. Your analyses → user sees last 5 (free) or 15 (pro) completed analyses.
   3. Load history  → user clicks an item → that analysis fills all cards.
   4. New upload    → resets everything → new session starts → chatbot is idle.
   5. Start analy   → chatbot sends "start_analysis" → pipeline runs → polling starts.
@@ -98,10 +191,9 @@ const DASH_T = {
 export default function DashboardPage() {
   const router  = useRouter();
   const { logout, user, token, refreshUser, isLoading } = useAuth();
-  const { lang, brightness } = useSettings();
+  const { lang } = useSettings();
   const t = DASH_T[lang] || DASH_T.en;
 
-  const isLight = brightness > 65;
   const rtl     = lang === "fa";
   const plan    = user?.plan ?? "free";
   const isAdmin = plan === "admin";
@@ -148,6 +240,7 @@ export default function DashboardPage() {
   const chartsRef   = useRef<HTMLElement | null>(null);
   const downloadRef = useRef<HTMLElement | null>(null);
   const helpRef     = useRef<HTMLElement | null>(null);
+  const historyRef  = useRef<HTMLElement | null>(null);
   const pollRef     = useRef<(() => void) | null>(null);
 
   // Read when used. A callback kept from the first render holds the first
@@ -324,6 +417,7 @@ export default function DashboardPage() {
       { id: "section-upload",   ref: uploadRef },
       { id: "section-charts",   ref: chartsRef },
       { id: "section-download", ref: downloadRef },
+      { id: "section-history",  ref: historyRef },
       { id: "section-help",     ref: helpRef },
     ];
     const obs = new IntersectionObserver(
@@ -355,12 +449,19 @@ export default function DashboardPage() {
     && !reportReady && !!analysis;
   const showFailed     = analysisStatus === "failed";
 
+  const isPro     = plan === "pro" || isAdmin;
+  const tier      = isPro ? "pro" : "free";
+  const planName  = isAdmin ? t.planName.admin : t.planName[tier];
+  const kept      = KEPT[tier];
+  const keptShare = Math.min(100, Math.round((history.length / kept) * 100));
+
   const navItems = [
-    { id: "top",              label: t.nav.dashboard, icon: <IconGrid />,    ref: topRef },
-    { id: "section-upload",   label: t.nav.upload,    icon: <IconUpload />,  ref: uploadRef },
-    { id: "section-charts",   label: t.nav.charts,    icon: <IconChart />,   ref: chartsRef },
-    { id: "section-download", label: t.nav.report,    icon: <IconReport />,  ref: downloadRef },
-    { id: "section-help",     label: t.nav.help,      icon: <IconHelp />,    ref: helpRef },
+    { id: "top",              label: t.nav.home,    icon: <IconGrid />,    ref: topRef },
+    { id: "section-upload",   label: t.nav.upload,  icon: <IconUpload />,  ref: uploadRef },
+    { id: "section-charts",   label: t.nav.charts,  icon: <IconChart />,   ref: chartsRef },
+    { id: "section-download", label: t.nav.report,  icon: <IconReport />,  ref: downloadRef },
+    { id: "section-history",  label: t.nav.history, icon: <IconHistory />, ref: historyRef },
+    { id: "section-help",     label: t.nav.help,    icon: <IconHelp />,    ref: helpRef },
   ];
 
   if (isLoading) return null;
@@ -374,15 +475,16 @@ export default function DashboardPage() {
       {/* ── SIDEBAR ── */}
       <aside className="dig-sidebar">
         <div className="sidebar-logo-wrap">
-          <img src="/d_dig.svg" alt="DIG" className="sidebar-logo-img" />
+          <img src="/d_dig.svg" alt="" className="sidebar-logo-img" />
           <span className="sidebar-logo-text">DIG</span>
         </div>
 
-        <nav className="sidebar-nav">
+        <nav className="sidebar-nav" aria-label="Dashboard">
           {navItems.map(item => (
             <button key={item.id}
               className={`sidebar-link ${activeSection === item.id ? "active" : ""}`}
-              onClick={() => scrollTo(item.id, item.ref)} title={item.label}>
+              aria-current={activeSection === item.id ? "location" : undefined}
+              onClick={() => scrollTo(item.id, item.ref)}>
               <span className="sidebar-icon">{item.icon}</span>
               <span className="sidebar-label">{item.label}</span>
             </button>
@@ -390,41 +492,35 @@ export default function DashboardPage() {
         </nav>
 
         <div className="sidebar-bottom">
-          {/* Plan badge */}
-          <div style={{ padding: "0 8px", marginBottom: "8px" }}>
-            <PlanBadge
-              plan={plan}
-              reportsUsed={user?.reportsUsed ?? 0}
-            />
+          <div className={`atlas-plan-card ${isPro ? "pro" : ""}`}>
+            <p className="atlas-plan-name">{planName.toUpperCase()}</p>
+            <p>{isPro ? t.plan.proNote : t.plan.freeNote}</p>
+            <button className="atlas-btn"
+              onClick={() => router.push(isPro ? "/dashboard/plan" : "/plans")}>
+              {isPro ? t.plan.proCta : t.plan.freeCta}
+            </button>
           </div>
 
-          {/* Team link (pro+) */}
-          {(plan === "pro" || plan === "admin") && (
-            <button className="sidebar-link"
-              onClick={() => router.push("/dashboard/team")}
-              title={t.nav.team}>
-              <span className="sidebar-icon"><IconTeam /></span>
-              <span className="sidebar-label">{t.nav.team}</span>
-            </button>
-          )}
+          {/* Anyone can be in a team: a free account can be invited to one. */}
+          <button className="sidebar-link" onClick={() => router.push("/dashboard/team")}>
+            <span className="sidebar-icon"><IconTeam /></span>
+            <span className="sidebar-label">{t.nav.team}</span>
+            {!isPro && <span className="atlas-pro-tag">{t.nav.pro}</span>}
+          </button>
 
-          {/* Admin link */}
           {isAdmin && (
-            <button className="sidebar-link"
-              onClick={() => router.push("/admin")} title={t.nav.admin}>
+            <button className="sidebar-link" onClick={() => router.push("/admin")}>
               <span className="sidebar-icon"><IconAdmin /></span>
               <span className="sidebar-label">{t.nav.admin}</span>
             </button>
           )}
 
-          <button className="sidebar-link"
-            onClick={() => router.push("/dashboard/settings")} title={t.nav.settings}>
+          <button className="sidebar-link" onClick={() => router.push("/dashboard/settings")}>
             <span className="sidebar-icon"><IconSettings /></span>
             <span className="sidebar-label">{t.nav.settings}</span>
           </button>
 
-          <button className="sidebar-link"
-            onClick={() => { logout(); router.push("/"); }} title={t.nav.signOut}>
+          <button className="sidebar-link" onClick={() => { logout(); router.push("/"); }}>
             <span className="sidebar-icon"><IconSignOut /></span>
             <span className="sidebar-label">{t.nav.signOut}</span>
           </button>
@@ -432,12 +528,12 @@ export default function DashboardPage() {
       </aside>
 
       {/* ── MAIN ── */}
-      <div className="dig-main">
+      <main className="dig-main">
 
-        {/* Topbar */}
         <header className="dig-topbar" id="top" ref={topRef}>
-          <div>
-            <h1>{t.title}</h1>
+          <div style={{ flex: "1 1 360px", minWidth: 0 }}>
+            <p className="atlas-eyebrow">{t.eyebrow(planName)}</p>
+            <h1>{t.greeting(partOfDay(), firstName)}</h1>
             <p className="subtitle">
               {analysis && !analysis.isPending
                 ? t.subtitleActive(analysis.fileName, analysis.rowCount ?? undefined)
@@ -445,112 +541,101 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <div className="topbar-right">
-            {/* Start new session button (shown when an analysis is loaded) */}
-            {analysis && (
-              <button onClick={handleNewSession}
-                style={{ padding: "7px 14px", borderRadius: "8px",
-                  border: "1px solid rgba(30,41,59,0.7)", background: "transparent",
-                  color: "#64748b", fontSize: "0.78rem", cursor: "pointer",
-                  marginRight: "12px", fontWeight: 500 }}>
-                + {t.newSession}
-              </button>
-            )}
+          <div className="topbar-right" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "12px" }}>
+            <button className="atlas-btn lime" onClick={handleNewSession}
+              style={{ minHeight: "52px", padding: "0 22px", fontSize: "1rem" }}>
+              <IconPlus /> {t.newSession}
+            </button>
 
-            {/* Profile */}
             <div className="profile-wrapper">
-              <div className="avatar"
-                style={{ ...(avatarUrl ? { padding: 0, overflow: "hidden" } : {}), cursor: "pointer" }}
+              <button className="avatar" aria-label={t.profile.view}
+                style={{ ...(avatarUrl ? { padding: 0, overflow: "hidden" } : {}), cursor: "pointer", border: "none" }}
                 onClick={() => router.push("/dashboard/profileView")}>
                 {avatarUrl
-                  ? <img src={avatarUrl} alt={displayName}
+                  ? <img src={avatarUrl} alt=""
                       style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   : avatarLetter}
-              </div>
+              </button>
               <div className="profile-text" style={{ cursor: "pointer" }}
                 onClick={() => router.push("/dashboard/profileView")}>
                 <span className="profile-name">{displayName}</span>
                 <span className="profile-role">
-                  {memberSince ? t.profile.memberSince(memberSince) : "Member"}
+                  {memberSince ? t.profile.memberSince(memberSince) : planName}
                 </span>
               </div>
-              <div className="profile-dropdown-icon">▾</div>
+              <div className="profile-dropdown-icon" aria-hidden="true">▾</div>
               <div className="profile-dropdown">
-                <a onClick={e => { e.preventDefault(); router.push("/dashboard/profileView"); }}>
+                <a href="/dashboard/profileView" onClick={e => { e.preventDefault(); router.push("/dashboard/profileView"); }}>
                   {t.profile.view}
                 </a>
-                <a onClick={e => { e.preventDefault(); router.push("/dashboard/editProfile"); }}>
+                <a href="/dashboard/editProfile" onClick={e => { e.preventDefault(); router.push("/dashboard/editProfile"); }}>
                   {t.profile.account}
                 </a>
-                <a onClick={e => { e.preventDefault(); router.push("/dashboard/plan"); }}>
-                  Plan &amp; Billing
+                <a href="/dashboard/plan" onClick={e => { e.preventDefault(); router.push("/dashboard/plan"); }}>
+                  {t.profile.billing}
                 </a>
               </div>
             </div>
           </div>
         </header>
 
-        {/* ── Banners ── */}
+        {/* ── Notices ── */}
         {reportReady && (
-          <div style={{ padding: "12px 24px",
-            background: isLight ? "rgba(22,163,74,0.08)"
-              : "linear-gradient(90deg,rgba(22,163,74,0.12),rgba(22,163,74,0.06))",
-            borderBottom: "1px solid rgba(34,197,94,0.3)",
-            display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span>✅</span>
-              <span style={{ fontSize: "0.85rem",
-                color: isLight ? "#15803d" : "#bbf7d0", fontWeight: 600 }}>
-                {t.bannerDone}
-              </span>
-            </div>
-            <button onClick={scrollToReport}
-              style={{ padding: "7px 16px", borderRadius: "999px",
-                border: isLight ? "1px solid rgba(22,163,74,0.5)"
-                  : "1px solid rgba(34,197,94,0.4)",
-                background: isLight ? "rgba(22,163,74,0.1)" : "rgba(22,163,74,0.15)",
-                color: isLight ? "#15803d" : "#86efac",
-                fontSize: "0.78rem", fontWeight: 700, cursor: "pointer" }}>
-              {t.viewReport}
-            </button>
+          <div className="atlas-notice ok" role="status">
+            <span>{t.bannerDone}</span>
+            <button className="atlas-btn" onClick={scrollToReport}>{t.viewReport}</button>
           </div>
         )}
 
         {showProcessing && (
-          <div style={{ padding: "12px 24px",
-            background: isLight ? "rgba(37,99,235,0.06)" : "rgba(37,99,235,0.08)",
-            borderBottom: "1px solid rgba(37,99,235,0.2)",
-            display: "flex", alignItems: "center", gap: "10px" }}>
-            <span>⏳</span>
-            <span style={{ fontSize: "0.85rem", color: isLight ? "#1d4ed8" : "#93c5fd" }}>
-              {t.bannerRunning}
-            </span>
+          <div className="atlas-notice info" role="status">
+            <span>{t.bannerRunning}</span>
           </div>
         )}
 
         {showFailed && (
-          <div style={{ padding: "12px 24px",
-            background: isLight ? "rgba(220,38,38,0.06)" : "rgba(127,29,29,0.12)",
-            borderBottom: "1px solid rgba(249,115,115,0.2)",
-            display: "flex", alignItems: "center", gap: "10px" }}>
-            <span>❌</span>
-            <span style={{ fontSize: "0.85rem", color: isLight ? "#b91c1c" : "#fca5a5" }}>
-              {t.bannerFailed}
-            </span>
+          <div className="atlas-notice bad" role="alert">
+            <span>{t.bannerFailed}</span>
           </div>
         )}
 
         {runLost && (
-          <div style={{ padding: "12px 24px",
-            background: isLight ? "rgba(217,119,6,0.08)" : "rgba(217,119,6,0.1)",
-            borderBottom: "1px solid rgba(245,158,11,0.3)",
-            display: "flex", alignItems: "center", gap: "10px" }}>
-            <span>⚠️</span>
-            <span style={{ fontSize: "0.85rem", color: isLight ? "#b45309" : "#fcd34d" }}>
-              {t.bannerLost}
-            </span>
+          <div className="atlas-notice warn" role="status">
+            <span>{t.bannerLost}</span>
           </div>
         )}
+
+        {/* ── What you have used ── */}
+        <section className="atlas-meters" aria-label={t.meters.label}>
+          <div className="atlas-meter">
+            <p className="atlas-meter-label">{t.meters.kept}</p>
+            <p className="atlas-meter-value">{history.length} <span>{t.meters.of(kept)}</span></p>
+            <div className="atlas-meter-track" aria-hidden="true"><div style={{ width: `${keptShare}%` }} /></div>
+            <p className="atlas-meter-note">{t.meters.keptNote(kept)}</p>
+          </div>
+
+          <div className="atlas-meter">
+            <p className="atlas-meter-label">{t.meters.questions}</p>
+            <p className="atlas-meter-value">{QUESTIONS[tier]}</p>
+            <p className="atlas-meter-note">{t.meters.questionsNote}</p>
+          </div>
+
+          {isPro ? (
+            <a className="atlas-meter" href="/dashboard/team"
+              onClick={e => { e.preventDefault(); router.push("/dashboard/team"); }}>
+              <p className="atlas-meter-label">{t.meters.team}</p>
+              <p className="atlas-meter-value" style={{ fontSize: "1.5rem" }}>{t.meters.teamPro}</p>
+              <p className="atlas-meter-note">{t.meters.teamProNote}</p>
+              <p className="atlas-meter-note" style={{ color: "var(--cobalt-accent)", fontWeight: 600 }}>{t.meters.openTeam} →</p>
+            </a>
+          ) : (
+            <div className="atlas-meter muted-box">
+              <p className="atlas-meter-label">{t.meters.team}</p>
+              <p className="atlas-meter-value" style={{ fontSize: "1.5rem" }}>{t.meters.teamFree}</p>
+              <p className="atlas-meter-note">{t.meters.teamFreeNote}</p>
+            </div>
+          )}
+        </section>
 
         {/* 1. Upload + Chatbot */}
         <section className="upper-grid" id="section-upload" ref={uploadRef}>
@@ -567,13 +652,12 @@ export default function DashboardPage() {
           />
         </section>
 
-
-        {/* 3. Charts */}
+        {/* 2. Charts */}
         <section id="section-charts" ref={chartsRef}>
           <ChartsCard dataset={analysis} />
         </section>
 
-        {/* 4. Report: edit it, then download it */}
+        {/* 3. Report: edit it, then download it */}
         <section id="section-download" ref={downloadRef}>
           <ReportEditor key={`edit-${analysisKey}`} analysis={analysis} ready={reportReady && hasPdfReport} />
           <DownloadsCard dataset={analysis
@@ -582,37 +666,49 @@ export default function DashboardPage() {
           />
         </section>
 
+        {/* 4. Your analyses. A finished analysis lands here rather than
+            replacing what is on screen; opening one loads it above. */}
+        <section id="section-history" ref={historyRef}>
+          <HistoryTape
+            history={history}
+            activeId={analysis?.id ?? null}
+            plan={plan}
+            busy={analysisStatus === "processing" || analysisStatus === "pending"}
+            lang={lang}
+            onLoad={handleLoadHistory}
+            onDelete={handleDeleteFromTape}
+            onUpgrade={() => router.push("/plans")}
+          />
+        </section>
+
+        {!isPro && (
+          <section className="atlas-band" aria-label={t.band.cta}>
+            <div>
+              <p>{t.band.eyebrow}</p>
+              <h2>{t.band.title}</h2>
+            </div>
+            <button className="atlas-btn" onClick={() => router.push("/plans")}>{t.band.cta}</button>
+          </section>
+        )}
+
         {/* 5. Help */}
         <section id="section-help" ref={helpRef}>
           <InfoCards />
         </section>
-      </div>
-
-      {/* History tape — pinned outside the scrolling content so it stays
-          reachable. A finished analysis lands here rather than replacing what
-          is on screen; clicking a card loads it into the dashboard above. */}
-      <HistoryTape
-        history={history}
-        activeId={analysis?.id ?? null}
-        plan={plan}
-        busy={analysisStatus === "processing" || analysisStatus === "pending"}
-        lang={lang}
-        onLoad={handleLoadHistory}
-        onDelete={handleDeleteFromTape}
-        onUpgrade={() => router.push("/plans")}
-      />
+      </main>
     </div>
   );
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
-function IconGrid()     { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>; }
-function IconUpload()   { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>; }
-function IconHistory()  { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>; }
-function IconChart()    { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>; }
-function IconReport()   { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>; }
-function IconHelp()     { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>; }
-function IconSettings() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>; }
-function IconSignOut()  { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>; }
-function IconTeam()     { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>; }
-function IconAdmin()    { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>; }
+function IconGrid()     { return <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>; }
+function IconUpload()   { return <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>; }
+function IconHistory()  { return <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>; }
+function IconChart()    { return <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>; }
+function IconReport()   { return <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>; }
+function IconHelp()     { return <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>; }
+function IconSettings() { return <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>; }
+function IconSignOut()  { return <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>; }
+function IconTeam()     { return <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>; }
+function IconAdmin()    { return <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>; }
+function IconPlus()     { return <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M12 5v14M5 12h14"/></svg>; }

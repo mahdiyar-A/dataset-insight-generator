@@ -121,11 +121,11 @@ const T = {
 
 function PDFModal({ reportFileName, pdfUrl, onClose, livePreview, previewFallback }) {
   return (
-    <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(2,6,23,0.8)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:"20px" }}>
-      <div onClick={e => e.stopPropagation()} style={{ background:"#020617", border:"1px solid rgba(31,41,55,0.9)", borderRadius:"18px", padding:"16px", width:"min(1000px, 95vw)", height:"min(85vh, 900px)", display:"flex", flexDirection:"column", gap:"12px", boxShadow:"0 24px 60px rgba(0,0,0,0.6)", overflow:"hidden" }}>
+    <div onClick={onClose} style={{ position:"fixed", inset:0, background:"color-mix(in srgb, var(--card) 80%, transparent)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:"20px" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:"var(--card)", border:"1px solid var(--line)", borderRadius:"0", padding:"16px", width:"min(1000px, 95vw)", height:"min(85vh, 900px)", display:"flex", flexDirection:"column", gap:"12px", boxShadow:"0 24px 60px rgba(0,0,0,0.6)", overflow:"hidden" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
-            <div style={{ width:"38px", height:"38px", borderRadius:"8px", background:"rgba(239,68,68,0.15)", border:"1px solid rgba(239,68,68,0.3)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <div style={{ width:"38px", height:"38px", borderRadius:"0", background:"color-mix(in srgb, var(--danger) 15%, transparent)", border:"1px solid color-mix(in srgb, var(--danger) 35%, transparent)", display:"flex", alignItems:"center", justifyContent:"center" }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="1.6">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                 <polyline points="14 2 14 8 20 8"/>
@@ -134,18 +134,18 @@ function PDFModal({ reportFileName, pdfUrl, onClose, livePreview, previewFallbac
               </svg>
             </div>
             <div>
-              <h3 style={{ margin:0, fontSize:"0.95rem", fontWeight:700, color:"#e5e7eb" }}>{reportFileName}</h3>
+              <h3 style={{ margin:0, fontSize:"0.95rem", fontWeight:700, color:"var(--ink)" }}>{reportFileName}</h3>
               <p className="muted-small" style={{ marginTop:"2px" }}>{livePreview}</p>
             </div>
           </div>
-          <button onClick={onClose} style={{ background:"rgba(15,23,42,0.9)", border:"1px solid rgba(55,65,81,0.8)", borderRadius:"8px", padding:"7px", color:"#6b7280", cursor:"pointer", display:"flex" }}>
+          <button onClick={onClose} style={{ background:"var(--card)", border:"1px solid var(--line)", borderRadius:"0", padding:"7px", color:"var(--ink-faint)", cursor:"pointer", display:"flex" }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </button>
         </div>
-        <div style={{ flex:1, borderRadius:"12px", overflow:"hidden", border:"1px solid rgba(31,41,55,0.8)" }}>
-          <iframe title="PDF preview" src={pdfUrl} style={{ width:"100%", height:"100%", border:0, background:"#fff" }}/>
+        <div style={{ flex:1, borderRadius:"0", overflow:"hidden", border:"1px solid var(--line)" }}>
+          <iframe title="PDF preview" src={pdfUrl} style={{ width:"100%", height:"100%", border:0, background:"var(--card)" }}/>
         </div>
         <p className="muted-small" style={{ textAlign:"center", margin:0 }}>{previewFallback}</p>
       </div>
@@ -222,7 +222,7 @@ export default function DownloadCard({ dataset }) {
       <div className="card analysis-report-card">
         <div className="card-header">
           <h2>{t.title}</h2>
-          <span className="pill" style={reportReady ? { borderColor:"rgba(34,197,94,0.5)", color:"#bbf7d0", background:"rgba(22,163,74,0.1)" } : {}}>
+          <span className="pill" style={reportReady ? { borderColor:"var(--ok-text)", color:"var(--ok-text)", background:"color-mix(in srgb, var(--ok) 10%, transparent)" } : {}}>
             {reportReady ? t.pillReady : dataset ? t.pillNotStarted : t.pillNoDataset}
           </span>
         </div>
@@ -234,19 +234,19 @@ export default function DownloadCard({ dataset }) {
         </p>
 
         {/* PDF file row */}
-        <div style={{ display:"flex", alignItems:"center", gap:"12px", padding:"12px 14px", borderRadius:"12px", background:"rgba(15,23,42,0.9)", border:"1px solid rgba(31,41,55,0.9)" }}>
-          <div style={{ width:"38px", height:"38px", borderRadius:"8px", background: reportReady ? "rgba(239,68,68,0.15)" : "rgba(31,41,55,0.8)", border:`1px solid ${reportReady ? "rgba(239,68,68,0.3)" : "rgba(55,65,81,0.8)"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:"12px", padding:"12px 14px", borderRadius:"0", background:"var(--card)", border:"1px solid var(--line)" }}>
+          <div style={{ width:"38px", height:"38px", borderRadius:"0", background: reportReady ? "color-mix(in srgb, var(--danger) 15%, transparent)" : "color-mix(in srgb, var(--card) 80%, transparent)", border:`1px solid ${reportReady ? "color-mix(in srgb, var(--danger) 35%, transparent)" : "var(--line)"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={reportReady ? "#f87171" : "#4b5563"} strokeWidth="1.6">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
               <polyline points="14 2 14 8 20 8"/>
             </svg>
           </div>
           <div style={{ flex:1 }}>
-            <p style={{ margin:0, fontSize:"0.82rem", fontWeight:600, color: reportReady ? "#e5e7eb" : "#4b5563" }}>{reportFileName}</p>
+            <p style={{ margin:0, fontSize:"0.82rem", fontWeight:600, color: reportReady ? "var(--ink)" : "var(--ink-faint)" }}>{reportFileName}</p>
             <p className="muted-small">{reportReady ? t.fileReady : t.filePending}</p>
           </div>
           <button disabled={!reportReady || pdfLoading} onClick={() => reportReady && handleViewPdf()}
-            style={{ background:"rgba(37,99,235,0.12)", border:"1px solid rgba(37,99,235,0.3)", borderRadius:"8px", padding:"6px 12px", color:(!reportReady||pdfLoading) ? "#374151" : "#93c5fd", fontSize:"0.75rem", fontWeight:600, cursor:(!reportReady||pdfLoading) ? "not-allowed" : "pointer", opacity:(!reportReady||pdfLoading) ? 0.45 : 1 }}>
+            style={{ background:"color-mix(in srgb, var(--cobalt) 12%, transparent)", border:"1px solid color-mix(in srgb, var(--cobalt) 35%, transparent)", borderRadius:"0", padding:"6px 12px", color:(!reportReady||pdfLoading) ? "var(--ink-faint)" : "var(--cobalt-accent)", fontSize:"0.75rem", fontWeight:600, cursor:(!reportReady||pdfLoading) ? "not-allowed" : "pointer", opacity:(!reportReady||pdfLoading) ? 0.45 : 1 }}>
             {pdfLoading ? t.loadingPdf : t.viewPdf}
           </button>
         </div>
@@ -278,12 +278,12 @@ export default function DownloadCard({ dataset }) {
               {t.downloadCsv}
             </button>
           ) : (
-            <div style={{ padding:"10px 14px", borderRadius:"10px", background:"rgba(15,23,42,0.6)", border:"1px solid rgba(31,41,55,0.8)", fontSize:"0.78rem", color:"#4b5563", fontStyle:"italic" }}>
+            <div style={{ padding:"10px 14px", borderRadius:"0", background:"color-mix(in srgb, var(--card) 60%, transparent)", border:"1px solid var(--line)", fontSize:"0.78rem", color:"var(--ink-faint)", fontStyle:"italic" }}>
               {t.csvNA}
             </div>
           )}
           <button className="secondary-btn" disabled={!reportReady || emailSending}
-            style={{ opacity:(!reportReady||emailSending) ? 0.45 : 1, cursor:(!reportReady||emailSending) ? "not-allowed" : "pointer", color: emailSent ? "#bbf7d0" : undefined, borderColor: emailSent ? "rgba(34,197,94,0.4)" : undefined }}
+            style={{ opacity:(!reportReady||emailSending) ? 0.45 : 1, cursor:(!reportReady||emailSending) ? "not-allowed" : "pointer", color: emailSent ? "var(--ok-text)" : undefined, borderColor: emailSent ? "color-mix(in srgb, var(--ok) 40%, transparent)" : undefined }}
             onClick={() => reportReady && handleEmail()}>
             {emailSending ? t.emailSending : emailSent ? t.emailSent : t.emailBtn}
           </button>
@@ -296,15 +296,15 @@ export default function DownloadCard({ dataset }) {
 
         {/* What's included — always shown so users know what they're getting */}
         <div style={{ marginTop:"8px" }}>
-          <h3 style={{ fontSize:"0.78rem", color:"#6b7280", marginBottom:"10px", letterSpacing:"0.05em", textTransform:"uppercase", margin:"0 0 10px 0" }}>
+          <h3 style={{ fontSize:"0.78rem", color:"var(--ink-faint)", marginBottom:"10px", letterSpacing:"0.05em", textTransform:"uppercase", margin:"0 0 10px 0" }}>
             {t.whatsIncluded}
           </h3>
           <div style={{ display:"flex", flexDirection:"column", gap:"7px" }}>
             {t.sections.map((s,i) => (
-              <div key={i} style={{ display:"flex", gap:"10px", alignItems:"flex-start", padding:"9px 12px", borderRadius:"10px", background:"rgba(15,23,42,0.9)", border:"1px solid rgba(31,41,55,0.8)" }}>
+              <div key={i} style={{ display:"flex", gap:"10px", alignItems:"flex-start", padding:"9px 12px", borderRadius:"0", background:"var(--card)", border:"1px solid var(--line)" }}>
                 <span style={{ fontSize:"15px", flexShrink:0, marginTop:"1px" }}>{s.emoji}</span>
                 <div>
-                  <p style={{ margin:0, fontSize:"0.8rem", fontWeight:600, color:"#d1d5db" }}>{s.title}</p>
+                  <p style={{ margin:0, fontSize:"0.8rem", fontWeight:600, color:"var(--ink)" }}>{s.title}</p>
                   <p className="muted-small" style={{ marginTop:"2px", lineHeight:"1.5" }}>{s.desc}</p>
                 </div>
               </div>

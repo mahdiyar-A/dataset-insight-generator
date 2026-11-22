@@ -327,7 +327,7 @@ function DocModal({ doc, onClose, stillNeedHelp }) {
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(2,6,23,0.75)",
+        background: "color-mix(in srgb, var(--card) 75%, transparent)",
         backdropFilter: "blur(6px)",
         display: "flex",
         alignItems: "center",
@@ -354,16 +354,16 @@ function DocModal({ doc, onClose, stillNeedHelp }) {
           right: "14px",
           zIndex: 10,
           pointerEvents: "none",
-          filter: "drop-shadow(0 4px 14px rgba(37,99,235,0.4))",
+          filter: "drop-shadow(0 4px 14px color-mix(in srgb, var(--cobalt) 35%, transparent))",
         }}>
           <DigWave />
         </div>
 
         {/* Actual modal card */}
         <div style={{
-          background: "#020617",
-          border: "1px solid rgba(31,41,55,0.9)",
-          borderRadius: "18px",
+          background: "var(--card)",
+          border: "1px solid var(--line)",
+          borderRadius: "0",
           padding: "28px",
           display: "flex",
           flexDirection: "column",
@@ -378,9 +378,9 @@ function DocModal({ doc, onClose, stillNeedHelp }) {
             style={{
               width: "44px",
               height: "44px",
-              borderRadius: "10px",
-              background: "rgba(37,99,235,0.12)",
-              border: "1px solid rgba(37,99,235,0.3)",
+              borderRadius: "0",
+              background: "color-mix(in srgb, var(--cobalt) 12%, transparent)",
+              border: "1px solid color-mix(in srgb, var(--cobalt) 35%, transparent)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -391,17 +391,17 @@ function DocModal({ doc, onClose, stillNeedHelp }) {
             {doc.icon}
           </div>
           <div style={{ flex: 1 }}>
-            <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "#e5e7eb" }}>{doc.title}</h3>
+            <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "var(--ink)" }}>{doc.title}</h3>
             <p className="muted-small" style={{ marginTop: "4px", lineHeight: "1.55" }}>{doc.summary}</p>
           </div>
           <button
             onClick={onClose}
             style={{
-              background: "rgba(15,23,42,0.9)",
-              border: "1px solid rgba(55,65,81,0.8)",
-              borderRadius: "8px",
+              background: "var(--card)",
+              border: "1px solid var(--line)",
+              borderRadius: "0",
               padding: "7px",
-              color: "#6b7280",
+              color: "var(--ink-faint)",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -424,9 +424,9 @@ function DocModal({ doc, onClose, stillNeedHelp }) {
                 gap: "12px",
                 alignItems: "flex-start",
                 padding: "10px 12px",
-                borderRadius: "10px",
-                background: "rgba(15,23,42,0.9)",
-                border: "1px solid rgba(31,41,55,0.8)",
+                borderRadius: "0",
+                background: "var(--card)",
+                border: "1px solid var(--line)",
               }}
             >
               <div
@@ -434,9 +434,9 @@ function DocModal({ doc, onClose, stillNeedHelp }) {
                   width: "22px",
                   height: "22px",
                   borderRadius: "50%",
-                  background: "rgba(37,99,235,0.15)",
-                  border: "1px solid rgba(37,99,235,0.35)",
-                  color: "#bfdbfe",
+                  background: "color-mix(in srgb, var(--cobalt) 15%, transparent)",
+                  border: "1px solid color-mix(in srgb, var(--cobalt) 35%, transparent)",
+                  color: "var(--cobalt-accent)",
                   fontSize: "0.72rem",
                   fontWeight: 700,
                   display: "flex",
@@ -450,7 +450,7 @@ function DocModal({ doc, onClose, stillNeedHelp }) {
               </div>
               <p
                 className="muted-small"
-                style={{ margin: 0, lineHeight: "1.6", color: "#d1d5db" }}
+                style={{ margin: 0, lineHeight: "1.6", color: "var(--ink)" }}
               >
                 {step}
               </p>
@@ -459,10 +459,10 @@ function DocModal({ doc, onClose, stillNeedHelp }) {
         </div>
 
         {/* Footer */}
-        <div style={{ borderTop: "1px solid rgba(31,41,55,0.8)", paddingTop: "14px" }}>
+        <div style={{ borderTop: "1px solid var(--line)", paddingTop: "14px" }}>
           <p className="muted-small">
             {stillNeedHelp}{" "}
-            <a href="mailto:dataset_insight_generator.ai@proton.me" style={{ color: "#93c5fd", textDecoration: "none" }}>
+            <a href="mailto:dataset_insight_generator.ai@proton.me" style={{ color: "var(--cobalt-accent)", textDecoration: "none" }}>
               dataset_insight_generator.ai@proton.me
             </a>
           </p>
@@ -507,22 +507,22 @@ export default function InfoCards() {
                   alignItems: "center",
                   gap: "10px",
                   padding: "10px 12px",
-                  background: "rgba(15,23,42,0.9)",
-                  border: "1px solid rgba(31,41,55,0.9)",
-                  borderRadius: "10px",
+                  background: "var(--card)",
+                  border: "1px solid var(--line)",
+                  borderRadius: "0",
                   cursor: "pointer",
                   textAlign: "left",
-                  color: "#d1d5db",
+                  color: "var(--ink)",
                   fontSize: "0.82rem",
                   transition: "border-color 0.15s, background 0.15s",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(37,99,235,0.45)";
-                  e.currentTarget.style.background = "rgba(37,99,235,0.08)";
+                  e.currentTarget.style.borderColor = "color-mix(in srgb, var(--cobalt) 45%, transparent)";
+                  e.currentTarget.style.background = "color-mix(in srgb, var(--cobalt) 8%, transparent)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(31,41,55,0.9)";
-                  e.currentTarget.style.background = "rgba(15,23,42,0.9)";
+                  e.currentTarget.style.borderColor = "var(--line)";
+                  e.currentTarget.style.background = "var(--card)";
                 }}
               >
                 <span style={{ fontSize: "15px" }}>{doc.icon}</span>
@@ -550,10 +550,10 @@ export default function InfoCards() {
               alignItems: "center",
               gap: "10px",
               padding: "12px 14px",
-              background: "rgba(22,163,74,0.1)",
-              border: "1px solid rgba(34,197,94,0.35)",
-              borderRadius: "10px",
-              color: "#bbf7d0",
+              background: "color-mix(in srgb, var(--ok) 10%, transparent)",
+              border: "1px solid color-mix(in srgb, var(--ok) 35%, transparent)",
+              borderRadius: "0",
+              color: "var(--ok-text)",
               textDecoration: "none",
               fontSize: "0.88rem",
               fontWeight: 600,

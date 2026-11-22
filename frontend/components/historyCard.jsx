@@ -130,11 +130,11 @@ export default function HistoryCard({
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <span className="pill">{history.length} / {limit}</span>
           <span style={{
-            padding: "3px 10px", borderRadius: "999px", fontSize: "0.72rem",
+            padding: "3px 10px", borderRadius: "0", fontSize: "0.72rem",
             fontWeight: 700,
-            background: isPro ? "rgba(37,99,235,0.15)" : "rgba(30,41,59,0.5)",
-            border:     isPro ? "1px solid rgba(37,99,235,0.35)" : "1px solid rgba(30,41,59,0.7)",
-            color:      isPro ? "#93c5fd" : "#64748b",
+            background: isPro ? "color-mix(in srgb, var(--cobalt) 15%, transparent)" : "color-mix(in srgb, var(--card) 50%, transparent)",
+            border:     isPro ? "1px solid color-mix(in srgb, var(--cobalt) 35%, transparent)" : "1px solid var(--line)",
+            color:      isPro ? "var(--cobalt-accent)" : "var(--ink-faint)",
           }}>
             {isPro ? t.pro : t.free}
           </span>
@@ -147,10 +147,10 @@ export default function HistoryCard({
           onClick={onUpgrade}
           style={{
             display:    "block", width: "100%", textAlign: "left",
-            padding:    "10px 14px", borderRadius: "8px", marginBottom: "12px",
-            background: "rgba(234,179,8,0.06)",
-            border:     "1px solid rgba(234,179,8,0.18)",
-            color:      "#fde68a", fontSize: "0.78rem", cursor: "pointer",
+            padding:    "10px 14px", borderRadius: "0", marginBottom: "12px",
+            background: "color-mix(in srgb, var(--warn) 6%, transparent)",
+            border:     "1px solid color-mix(in srgb, var(--warn) 35%, transparent)",
+            color:      "var(--warn-text)", fontSize: "0.78rem", cursor: "pointer",
           }}>
           ⚡ {t.upgradeHint}
         </button>
@@ -160,11 +160,11 @@ export default function HistoryCard({
       {history.length === 0 ? (
         <div style={{
           padding:    "32px 16px", textAlign: "center",
-          color:      "#4b5563",
+          color:      "var(--ink-faint)",
         }}>
           <div style={{ fontSize: "2rem", marginBottom: "8px", opacity: 0.4 }}>📂</div>
           <p style={{ margin: "0 0 4px", fontSize: "0.88rem" }}>{t.empty}</p>
-          <p style={{ margin: 0, fontSize: "0.78rem", color: "#374151" }}>{t.emptyHint}</p>
+          <p style={{ margin: 0, fontSize: "0.78rem", color: "var(--ink-faint)" }}>{t.emptyHint}</p>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -178,13 +178,13 @@ export default function HistoryCard({
                 onClick={() => !isDeleting && onLoad?.(analysis)}
                 style={{
                   padding:    "14px 16px",
-                  borderRadius: "10px",
+                  borderRadius: "0",
                   border:     isActive
-                    ? "1px solid rgba(37,99,235,0.5)"
-                    : "1px solid rgba(30,41,59,0.6)",
+                    ? "1px solid var(--cobalt-accent)"
+                    : "1px solid var(--line)",
                   background: isActive
-                    ? "rgba(37,99,235,0.08)"
-                    : "rgba(15,23,42,0.6)",
+                    ? "color-mix(in srgb, var(--cobalt) 8%, transparent)"
+                    : "color-mix(in srgb, var(--card) 60%, transparent)",
                   cursor:     isDeleting ? "not-allowed" : "pointer",
                   opacity:    isDeleting ? 0.5 : 1,
                   transition: "border-color 0.15s, background 0.15s",
@@ -195,8 +195,8 @@ export default function HistoryCard({
                 <span style={{
                   display: "inline-flex", padding: "6px",
                   background: isActive
-                    ? "rgba(37,99,235,0.15)" : "rgba(31,41,55,0.6)",
-                  borderRadius: "6px", flexShrink: 0,
+                    ? "color-mix(in srgb, var(--cobalt) 15%, transparent)" : "color-mix(in srgb, var(--card) 60%, transparent)",
+                  borderRadius: "0", flexShrink: 0,
                 }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
                     stroke={isActive ? "#60a5fa" : "#4b5563"} strokeWidth="2">
@@ -209,17 +209,17 @@ export default function HistoryCard({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{
                     margin: "0 0 3px", fontWeight: 600, fontSize: "0.88rem",
-                    color: isActive ? "#bfdbfe" : "#e5e7eb",
+                    color: isActive ? "var(--cobalt-accent)" : "var(--ink)",
                     overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                   }}>
                     {analysis.fileName ?? "—"}
                   </p>
-                  <p style={{ margin: 0, color: "#4b5563", fontSize: "0.75rem" }}>
+                  <p style={{ margin: 0, color: "var(--ink-faint)", fontSize: "0.75rem" }}>
                     {analysis.rowCount?.toLocaleString() ?? "—"} {t.rows} ·{" "}
                     {analysis.columnCount ?? "—"} {t.cols} ·{" "}
                     {fmt(analysis.fileSizeBytes)}
                   </p>
-                  <p style={{ margin: "2px 0 0", color: "#374151", fontSize: "0.72rem" }}>
+                  <p style={{ margin: "2px 0 0", color: "var(--ink-faint)", fontSize: "0.72rem" }}>
                     {fmtDate(analysis.completedAt || analysis.createdAt)}
                   </p>
                 </div>
@@ -230,10 +230,10 @@ export default function HistoryCard({
 
                   {isActive && (
                     <span style={{
-                      padding: "2px 8px", borderRadius: "999px", fontSize: "0.68rem",
+                      padding: "2px 8px", borderRadius: "0", fontSize: "0.68rem",
                       fontWeight: 700,
-                      background: "rgba(37,99,235,0.15)",
-                      border: "1px solid rgba(37,99,235,0.35)", color: "#93c5fd",
+                      background: "color-mix(in srgb, var(--cobalt) 15%, transparent)",
+                      border: "1px solid color-mix(in srgb, var(--cobalt) 35%, transparent)", color: "var(--cobalt-accent)",
                     }}>
                       Active
                     </span>
@@ -255,7 +255,7 @@ export default function HistoryCard({
                   title="Delete"
                   style={{
                     background: "none", border: "none", cursor: "pointer",
-                    color: "#374151", padding: "4px", borderRadius: "4px",
+                    color: "var(--ink-faint)", padding: "4px", borderRadius: "0",
                     flexShrink: 0, lineHeight: 1,
                   }}>
                   {isDeleting ? "…" : (
@@ -277,14 +277,14 @@ export default function HistoryCard({
 
 function Badge({ label, color = "gray" }) {
   const styles = {
-    gray:   { bg: "rgba(30,41,59,0.5)",    border: "rgba(30,41,59,0.7)",    color: "#475569" },
-    blue:   { bg: "rgba(37,99,235,0.12)",  border: "rgba(37,99,235,0.25)",  color: "#60a5fa" },
-    green:  { bg: "rgba(16,185,129,0.1)",  border: "rgba(16,185,129,0.2)",  color: "#6ee7b7" },
-    orange: { bg: "rgba(249,115,22,0.1)",  border: "rgba(249,115,22,0.2)",  color: "#fb923c" },
+    gray:   { bg: "color-mix(in srgb, var(--card) 50%, transparent)",    border: "var(--line)",    color: "var(--ink-faint)" },
+    blue:   { bg: "color-mix(in srgb, var(--cobalt) 12%, transparent)",  border: "color-mix(in srgb, var(--cobalt) 35%, transparent)",  color: "var(--cobalt-accent)" },
+    green:  { bg: "color-mix(in srgb, var(--ok) 10%, transparent)",  border: "color-mix(in srgb, var(--ok) 35%, transparent)",  color: "var(--ok-text)" },
+    orange: { bg: "color-mix(in srgb, var(--warn) 10%, transparent)",  border: "color-mix(in srgb, var(--warn) 35%, transparent)",  color: "var(--warn-text)" },
   }[color] ?? {};
   return (
     <span style={{
-      padding: "1px 5px", borderRadius: "4px", fontSize: "0.62rem", fontWeight: 700,
+      padding: "1px 5px", borderRadius: "0", fontSize: "0.62rem", fontWeight: 700,
       background: styles.bg, border: `1px solid ${styles.border}`, color: styles.color,
     }}>
       {label}

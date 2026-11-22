@@ -5,7 +5,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/app/contexts/AuthContext';
-import './login.css';
 import { errorMessage } from "@/lib/types";
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
@@ -46,7 +45,7 @@ export default function LoginPage() {
     <div className="auth-body">
       <div className="auth-container">
         <button onClick={() => router.push('/')}
-          style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '0.85rem', alignSelf: 'flex-start', marginBottom: '8px', padding: '0' }}>
+          style={{ background: 'none', border: 'none', color: 'var(--ink-faint)', cursor: 'pointer', fontSize: '0.85rem', alignSelf: 'flex-start', marginBottom: '8px', padding: '0' }}>
           ← Back
         </button>
         <h2>Login</h2>

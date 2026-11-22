@@ -53,41 +53,21 @@ export function useSettings(): SettingsCtx {
   return useContext(SettingsContext);
 }
 
-// ── CSS variable applicator (theme) ────────────────────────────────────────────
+// ── Theme ──────────────────────────────────────────────────────────────────────
+// The app has two looks, light and dark, both the landing page's (globals.css,
+// "ATLAS"). Brightness above 65 is light, as on the landing page; the rest is
+// dark. The colours themselves live in the stylesheet, keyed on data-theme.
+export const LIGHT_ABOVE = 65;
+/** What Settings sets for each look. */
+export const DARK_BRIGHTNESS = 10;
+export const LIGHT_BRIGHTNESS = 90;
+
 function applyTheme(brightness: number) {
   const root = document.documentElement;
-  const isLight = brightness > 65;
-  const isDark  = brightness < 35;
-
-  if (isLight) {
-    root.style.setProperty('--bg',           `hsl(220,20%,${88 + brightness * 0.1}%)`);
-    root.style.setProperty('--bg-elevated',  `hsl(220,18%,94%)`);
-    root.style.setProperty('--panel',        `rgba(255,255,255,0.9)`);
-    root.style.setProperty('--panel2',       `hsl(220,20%,${88 + brightness * 0.1}%)`);
-    root.style.setProperty('--text',         '#111827');
-    root.style.setProperty('--text-soft',    '#4b5563');
-    root.style.setProperty('--border',       '#d1d5db');
-    root.style.setProperty('--shadow-soft',  '0 4px 20px rgba(0,0,0,0.08)');
-  } else if (isDark) {
-    const d = (35 - brightness) / 35;
-    root.style.setProperty('--bg',           `hsl(222,${30 + d * 8}%,${3 + brightness * 0.15}%)`);
-    root.style.setProperty('--bg-elevated',  `hsl(222,26%,${5 + brightness * 0.2}%)`);
-    root.style.setProperty('--panel',        `hsl(220,22%,${8 + brightness * 0.3}%)`);
-    root.style.setProperty('--panel2',       `hsl(222,30%,${3 + brightness * 0.15}%)`);
-    root.style.setProperty('--text',         '#e5e7eb');
-    root.style.setProperty('--text-soft',    '#9ca3af');
-    root.style.setProperty('--border',       `hsl(220,20%,${10 + brightness * 0.25}%)`);
-    root.style.setProperty('--shadow-soft',  `0 18px 45px rgba(0,0,0,${0.9 - brightness * 0.01})`);
-  } else {
-    const pct = (brightness - 35) / 30;
-    root.style.setProperty('--bg',           `hsl(222,22%,${10 + brightness * 0.35}%)`);
-    root.style.setProperty('--bg-elevated',  `hsl(222,18%,${13 + brightness * 0.35}%)`);
-    root.style.setProperty('--panel',        `hsl(220,16%,${18 + brightness * 0.45}%)`);
-    root.style.setProperty('--panel2',       `hsl(222,22%,${10 + brightness * 0.35}%)`);
-    root.style.setProperty('--text',         pct > 0.6 ? '#1f2937' : '#e5e7eb');
-    root.style.setProperty('--text-soft',    pct > 0.6 ? '#4b5563' : '#9ca3af');
-    root.style.setProperty('--border',       `hsl(220,14%,${22 + brightness * 0.38}%)`);
-    root.style.setProperty('--shadow-soft',  '0 10px 32px rgba(0,0,0,0.45)');
+  root.dataset.theme = brightness > LIGHT_ABOVE ? 'light' : 'dark';
+  // Older versions set these inline, which would win over the stylesheet.
+  for (const name of ['--bg', '--bg-elevated', '--panel', '--panel2', '--text', '--text-soft', '--border', '--shadow-soft']) {
+    root.style.removeProperty(name);
   }
 }
 

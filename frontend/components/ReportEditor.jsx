@@ -199,10 +199,10 @@ const T = {
   },
 };
 
-const box = { padding: "12px 14px", borderRadius: "12px", background: "rgba(15,23,42,0.9)", border: "1px solid rgba(31,41,55,0.9)", display: "flex", flexDirection: "column", gap: "8px" };
-const inputStyle = { width: "100%", boxSizing: "border-box", background: "rgba(2,6,23,0.85)", border: "1px solid rgba(55,65,81,0.9)", borderRadius: "8px", padding: "8px 10px", color: "#e5e7eb", fontSize: "0.82rem", fontFamily: "inherit", lineHeight: 1.5, resize: "vertical" };
-const labelStyle = { fontSize: "0.72rem", color: "#9ca3af", fontWeight: 600, letterSpacing: "0.02em" };
-const smallBtn = { background: "rgba(15,23,42,0.95)", border: "1px solid rgba(55,65,81,0.9)", borderRadius: "999px", padding: "4px 10px", color: "#9ca3af", fontSize: "0.72rem", cursor: "pointer" };
+const box = { padding: "12px 14px", borderRadius: "0", background: "var(--card)", border: "1px solid var(--line)", display: "flex", flexDirection: "column", gap: "8px" };
+const inputStyle = { width: "100%", boxSizing: "border-box", background: "var(--card)", border: "1px solid var(--line)", borderRadius: "0", padding: "8px 10px", color: "var(--ink)", fontSize: "0.82rem", fontFamily: "inherit", lineHeight: 1.5, resize: "vertical" };
+const labelStyle = { fontSize: "0.72rem", color: "var(--ink-soft)", fontWeight: 600, letterSpacing: "0.02em" };
+const smallBtn = { background: "var(--card)", border: "1px solid var(--line)", borderRadius: "0", padding: "4px 10px", color: "var(--ink-soft)", fontSize: "0.72rem", cursor: "pointer" };
 
 const TEXT_SECTIONS = new Set(["reportTitle", "introduction", "executiveSummary", "conclusion",
                                "dataQualitySection", "assumptions"]);
@@ -249,7 +249,7 @@ function rowsFor(text) {
 function Warning({ numbers, t }) {
   if (!numbers?.length) return null;
   return (
-    <p role="note" style={{ margin: 0, fontSize: "0.74rem", color: "#fcd34d" }}>⚠ {t.figure(numbers)}</p>
+    <p role="note" style={{ margin: 0, fontSize: "0.74rem", color: "var(--warn-text)" }}>⚠ {t.figure(numbers)}</p>
   );
 }
 
@@ -269,11 +269,11 @@ function Field({ label, value, onChange, multiline = true, dir, numbers, t, read
 
 function ChartRow({ chart, url, doc, dir, warnings, t, onChange, readOnly = false }) {
   return (
-    <div style={{ ...box, background: "rgba(2,6,23,0.6)" }}>
+    <div style={{ ...box, background: "color-mix(in srgb, var(--card) 60%, transparent)" }}>
       <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", flexWrap: "wrap" }}>
         {url
-          ? <img src={url} alt={chart.label || t.chart} style={{ width: "140px", maxWidth: "100%", borderRadius: "8px", background: "#fff" }} />
-          : <div style={{ width: "140px", height: "80px", borderRadius: "8px", background: "rgba(31,41,55,0.6)" }} />}
+          ? <img src={url} alt={chart.label || t.chart} style={{ width: "140px", maxWidth: "100%", borderRadius: "0", background: "var(--card)" }} />
+          : <div style={{ width: "140px", height: "80px", borderRadius: "0", background: "color-mix(in srgb, var(--card) 60%, transparent)" }} />}
         <div style={{ flex: 1, minWidth: "200px", display: "flex", flexDirection: "column", gap: "6px" }}>
           <Field label={t.chartTitle} value={chart.label} multiline={false} dir={dir} t={t} readOnly={readOnly}
             numbers={warningsAt(warnings, { section: "chart", file: chart.file, field: "label" })}
@@ -532,7 +532,7 @@ export default function ReportEditor({ analysis, ready, startOpen = false }) {
           {doc.insights.map((ins, i) => (
             <div key={ins.id} style={box}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                <strong style={{ fontSize: "0.8rem", color: "#e5e7eb" }}>{t.insight(i + 1)}</strong>
+                <strong style={{ fontSize: "0.8rem", color: "var(--ink)" }}>{t.insight(i + 1)}</strong>
                 {!readOnly && <div style={{ display: "flex", gap: "6px" }}>
                   <button type="button" style={smallBtn} disabled={i === 0}
                     aria-label={`${t.up}: ${t.insight(i + 1)}`}
@@ -569,7 +569,7 @@ export default function ReportEditor({ analysis, ready, startOpen = false }) {
 
           {chartsUnder(doc, null).length > 0 && (
             <div style={box}>
-              <strong style={{ fontSize: "0.8rem", color: "#e5e7eb" }}>{t.otherChartsHeading}</strong>
+              <strong style={{ fontSize: "0.8rem", color: "var(--ink)" }}>{t.otherChartsHeading}</strong>
               {chartsUnder(doc, null).map(chart => (
                 <ChartRow key={chart.file} chart={chart} url={chartUrls[chart.file]} doc={doc} dir={dir}
                   warnings={warnings} t={t} onChange={setDraft} readOnly={readOnly} />
@@ -579,7 +579,7 @@ export default function ReportEditor({ analysis, ready, startOpen = false }) {
 
           {doc.questionAnswers?.length > 0 && (
             <div style={box}>
-              <strong style={{ fontSize: "0.8rem", color: "#e5e7eb" }}>{t.answers}</strong>
+              <strong style={{ fontSize: "0.8rem", color: "var(--ink)" }}>{t.answers}</strong>
               {doc.questionAnswers.map(qa => (
                 <Field key={qa.id} label={t.answerTo(qa.question)} value={qa.answer} dir={dir} t={t} readOnly={readOnly}
                   numbers={warningsAt(warnings, { section: "answer", id: qa.id })}
@@ -599,10 +599,10 @@ export default function ReportEditor({ analysis, ready, startOpen = false }) {
           </p>
 
           {/* Save bar: stays in view while a long report is edited. */}
-          <div style={{ position: "sticky", bottom: 0, display: "flex", flexDirection: "column", gap: "8px", padding: "10px 0 4px", background: "rgba(15,23,42,0.98)" }}>
+          <div style={{ position: "sticky", bottom: 0, display: "flex", flexDirection: "column", gap: "8px", padding: "10px 0 4px", background: "var(--card)" }}>
             {notice && (
               <div role={notice.kind === "ok" || notice.kind === "info" ? "status" : "alert"}
-                style={{ fontSize: "0.78rem", color: notice.kind === "ok" ? "#bbf7d0" : notice.kind === "info" ? "#bfdbfe" : "#fca5a5", display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                style={{ fontSize: "0.78rem", color: notice.kind === "ok" ? "var(--ok-text)" : notice.kind === "info" ? "var(--cobalt-accent)" : "var(--danger-text)", display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
                 <span>{notice.text}</span>
                 {notice.kind === "conflict" && (
                   <button type="button" style={smallBtn} onClick={() => void load()}>{t.reload}</button>
@@ -632,7 +632,7 @@ export default function ReportEditor({ analysis, ready, startOpen = false }) {
             {showVersions && (
               <ul aria-label={t.versions} style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "6px", maxHeight: "220px", overflowY: "auto" }}>
                 {versions.map(v => (
-                  <li key={v.version} style={{ display: "flex", gap: "8px", alignItems: "center", fontSize: "0.76rem", color: "#d1d5db", flexWrap: "wrap" }}>
+                  <li key={v.version} style={{ display: "flex", gap: "8px", alignItems: "center", fontSize: "0.76rem", color: "var(--ink)", flexWrap: "wrap" }}>
                     <strong>{t.version(v.version)}</strong>
                     <span className="muted-small">
                       {savedBy(v)}

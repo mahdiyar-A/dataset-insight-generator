@@ -133,13 +133,13 @@ export default function ShareWithTeam({ analysisId }) {
 
   return (
     <div role="group" aria-label={t.title}
-      style={{ padding:"12px 14px", borderRadius:"12px",
-        background:"rgba(15,23,42,0.9)", border:"1px solid rgba(37,99,235,0.3)",
+      style={{ padding:"12px 14px", borderRadius:"0",
+        background:"var(--card)", border:"1px solid color-mix(in srgb, var(--cobalt) 35%, transparent)",
         display:"flex", flexDirection:"column", gap:"8px" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", gap:"10px" }}>
-        <h3 style={{ margin:0, fontSize:"0.85rem", fontWeight:700, color:"#e5e7eb" }}>{t.title}</h3>
+        <h3 style={{ margin:0, fontSize:"0.85rem", fontWeight:700, color:"var(--ink)" }}>{t.title}</h3>
         <button type="button" onClick={() => setOpen(false)}
-          style={{ background:"none", border:"none", color:"#64748b", fontSize:"0.75rem", cursor:"pointer", padding:0 }}>
+          style={{ background:"none", border:"none", color:"var(--ink-faint)", fontSize:"0.75rem", cursor:"pointer", padding:0 }}>
           {t.close}
         </button>
       </div>
@@ -150,7 +150,7 @@ export default function ShareWithTeam({ analysisId }) {
       {teams !== null && teams.length === 0 && !error && (
         <p className="muted-small" style={{ margin:0 }}>
           {t.noTeams}{" "}
-          <a href="/dashboard/team" style={{ color:"#93c5fd", fontWeight:600 }}>{t.createTeam}</a>
+          <a href="/dashboard/team" style={{ color:"var(--cobalt-accent)", fontWeight:600 }}>{t.createTeam}</a>
         </p>
       )}
 
@@ -161,9 +161,9 @@ export default function ShareWithTeam({ analysisId }) {
       {shareable.length > 0 && !done && (
         <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
           <select aria-label={t.title} value={teamId} onChange={(e) => setTeamId(e.target.value)}
-            style={{ flex:"1 1 180px", minWidth:0, padding:"8px 10px", borderRadius:"8px",
-              border:"1px solid rgba(55,65,81,0.8)", background:"rgba(2,6,23,0.7)",
-              color:"#e2e8f0", fontSize:"0.82rem" }}>
+            style={{ flex:"1 1 180px", minWidth:0, padding:"8px 10px", borderRadius:"0",
+              border:"1px solid var(--line)", background:"color-mix(in srgb, var(--card) 70%, transparent)",
+              color:"var(--ink)", fontSize:"0.82rem" }}>
             {teams.map((team) => (
               <option key={team.id} value={team.id} disabled={!canShareInto(team)}>
                 {team.name}{canShareInto(team) ? "" : ` (${t.viewer})`}
@@ -179,15 +179,15 @@ export default function ShareWithTeam({ analysisId }) {
       )}
 
       {done && (
-        <p role="status" style={{ margin:0, fontSize:"0.8rem", color:"#bbf7d0" }}>
+        <p role="status" style={{ margin:0, fontSize:"0.8rem", color:"var(--ok-text)" }}>
           ✓ {t.shared(done.teamName)}{" "}
-          <a href={`/workspace/${done.workspaceId}`} style={{ color:"#93c5fd", fontWeight:600 }}>
+          <a href={`/workspace/${done.workspaceId}`} style={{ color:"var(--cobalt-accent)", fontWeight:600 }}>
             {t.openWorkspace}
           </a>
         </p>
       )}
 
-      {error && <p role="alert" style={{ margin:0, fontSize:"0.76rem", color:"#f97373" }}>{error}</p>}
+      {error && <p role="alert" style={{ margin:0, fontSize:"0.76rem", color:"var(--danger-text)" }}>{error}</p>}
     </div>
   );
 }

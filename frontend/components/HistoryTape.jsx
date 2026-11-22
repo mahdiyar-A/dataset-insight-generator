@@ -3,7 +3,7 @@
 import React, { useMemo, useRef, useState } from "react";
 
 /**
- * Horizontal filmstrip of past analyses, pinned to the bottom of the dashboard.
+ * Horizontal filmstrip of past analyses: "Your analyses" on the dashboard.
  *
  * Replaces the scrolling history list as the primary way to reach an analysis.
  * The dashboard above stays put; clicking a card loads that analysis into it.
@@ -67,35 +67,22 @@ export default function HistoryTape({
   return (
     <section
       aria-label={t.title}
-      style={{
-        position: "sticky", bottom: 0, zIndex: 20,
-        background: "rgba(8,13,26,0.94)",
-        backdropFilter: "blur(14px)",
-        borderTop: "1px solid rgba(30,41,59,0.9)",
-        padding: "10px 16px 12px",
-      }}
+      className="card"
+      style={{ padding: "18px 20px 20px" }}
     >
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
-        <h2 style={{
-          margin: 0, fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.07em",
-          textTransform: "uppercase", color: "#64748b",
-        }}>
-          {t.title}
-        </h2>
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "10px 14px", marginBottom: "14px" }}>
+        <h2 style={{ margin: 0 }}>{t.title}</h2>
 
-        <span style={{ fontSize: "0.72rem", color: "#475569" }}>
+        <span style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }} title={t.keptTitle}>
           {history.length} / {limit}
         </span>
 
         {!isPro && history.length >= limit && (
           <button
             onClick={onUpgrade}
-            style={{
-              background: "rgba(37,99,235,0.15)", border: "1px solid rgba(37,99,235,0.3)",
-              color: "#93c5fd", fontSize: "0.68rem", fontWeight: 600,
-              padding: "2px 9px", borderRadius: "999px", cursor: "pointer",
-            }}
+            className="chip-btn"
+            style={{ minHeight: "34px", fontSize: "0.8rem", fontWeight: 600 }}
           >
             {t.upgrade}
           </button>
@@ -114,15 +101,15 @@ export default function HistoryTape({
         tabIndex={0}
         onKeyDown={onKeyDown}
         style={{
-          display: "flex", gap: "10px", overflowX: "auto", overflowY: "hidden",
-          paddingBottom: "4px", scrollbarWidth: "thin", outline: "none",
+          display: "flex", gap: "14px", overflowX: "auto", overflowY: "hidden",
+          padding: "2px 2px 8px", scrollbarWidth: "thin",
           scrollSnapType: "x proximity",
         }}
       >
         {busy && <SkeletonCard />}
 
         {ordered.length === 0 && !busy && (
-          <p style={{ color: "#334155", fontSize: "0.8rem", padding: "18px 4px", margin: 0 }}>
+          <p style={{ color: "var(--ink-soft)", fontSize: "0.92rem", padding: "18px 4px", margin: 0 }}>
             {t.empty}
           </p>
         )}
@@ -171,13 +158,11 @@ function TapeCard({
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
-        position: "relative", flex: "0 0 178px", scrollSnapAlign: "start",
-        background: active ? "rgba(37,99,235,0.12)" : "rgba(15,23,42,0.75)",
-        border: active
-          ? "1px solid rgba(59,130,246,0.55)"
-          : "1px solid rgba(30,41,59,0.75)",
-        borderRadius: "10px", overflow: "hidden",
-        transition: "border-color 0.15s, background 0.15s",
+        position: "relative", flex: "0 0 200px", scrollSnapAlign: "start",
+        background: active ? "color-mix(in srgb, var(--cobalt) 14%, var(--card))" : "var(--card)",
+        border: active ? "2px solid var(--cobalt-accent)" : "2px solid var(--rule)",
+        boxShadow: active ? "4px 4px 0 var(--cobalt-accent)" : "none",
+        overflow: "hidden",
       }}
     >
       {/* Thumbnail — the whole button is the click target for loading */}
@@ -187,12 +172,13 @@ function TapeCard({
         aria-label={`${t.load} ${item.fileName}`}
         style={{
           display: "block", width: "100%", padding: 0, border: "none",
-          background: "rgba(2,6,23,0.6)", cursor: "pointer", textAlign: "left",
+          background: "transparent", color: "inherit", cursor: "pointer", textAlign: "start",
         }}
       >
         <div style={{
-          height: "70px", display: "flex", alignItems: "center",
+          height: "84px", display: "flex", alignItems: "center",
           justifyContent: "center", overflow: "hidden",
+          background: "var(--card)", borderBottom: "2px solid var(--rule)",
         }}>
           {item.thumbnailUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -200,33 +186,33 @@ function TapeCard({
               src={item.thumbnailUrl}
               alt=""
               loading="lazy"
-              style={{ width: "100%", height: "70px", objectFit: "cover", opacity: active ? 1 : 0.75 }}
+              style={{ width: "100%", height: "84px", objectFit: "cover" }}
             />
           ) : (
-            <span aria-hidden="true" style={{ fontSize: "1.4rem", opacity: 0.25 }}>📊</span>
+            <svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#12121a" strokeWidth="2" opacity="0.35"><path d="M4 19h16M7 16V10M12 16V5M17 16v-8"/></svg>
           )}
         </div>
 
-        <div style={{ padding: "7px 9px 8px" }}>
+        <div style={{ padding: "10px 12px 12px" }}>
           <p style={{
-            margin: 0, fontSize: "0.76rem", fontWeight: 600,
-            color: active ? "#bfdbfe" : "#cbd5e1",
+            margin: 0, fontSize: "0.9rem", fontWeight: 600,
+            color: "var(--ink)",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>
             {item.fileName}
           </p>
 
-          <p style={{ margin: "2px 0 0", fontSize: "0.66rem", color: "#475569" }}>
+          <p style={{ margin: "3px 0 0", fontSize: "0.8rem", color: "var(--ink-soft)" }}>
             {when ? new Date(when).toLocaleDateString("en-CA") : "—"}
             {item.rowCount ? ` · ${item.rowCount.toLocaleString()}r` : ""}
           </p>
 
-          <div style={{ display: "flex", gap: "3px", marginTop: "5px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: "4px", marginTop: "8px", flexWrap: "wrap" }}>
             {badges.map(b => (
               <span key={b.key} style={{
-                fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.04em",
-                padding: "1px 5px", borderRadius: "3px",
-                background: "rgba(30,41,59,0.9)", color: "#64748b",
+                fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.05em",
+                padding: "2px 6px",
+                border: "1.5px solid var(--line)", color: "var(--ink-soft)",
               }}>
                 {b.label}
               </span>
@@ -247,9 +233,9 @@ function TapeCard({
           title={pinned ? t.unpin : t.pin}
           style={{
             position: "absolute", top: "5px", left: "5px",
-            background: "rgba(2,6,23,0.8)", border: "none", borderRadius: "5px",
-            padding: "2px 5px", cursor: "pointer", fontSize: "0.68rem",
-            color: pinned ? "#fbbf24" : "#64748b", lineHeight: 1,
+            background: "var(--card)", border: "1.5px solid var(--line)",
+            minWidth: "28px", minHeight: "28px", padding: "2px 6px", cursor: "pointer", fontSize: "0.85rem",
+            color: pinned ? "var(--warn-text)" : "var(--ink)", lineHeight: 1,
           }}
         >
           <span aria-hidden="true">{pinned ? "★" : "☆"}</span>
@@ -263,9 +249,9 @@ function TapeCard({
           aria-label={`${t.delete} ${item.fileName}`}
           style={{
             position: "absolute", top: "5px", right: "5px",
-            background: "rgba(2,6,23,0.8)", border: "none", borderRadius: "5px",
-            padding: "2px 6px", cursor: "pointer", fontSize: "0.7rem",
-            color: "#f87171", lineHeight: 1,
+            background: "var(--card)", border: "1.5px solid var(--line)",
+            minWidth: "28px", minHeight: "28px", padding: "2px 6px", cursor: "pointer", fontSize: "0.85rem",
+            color: "var(--danger-text)", lineHeight: 1,
           }}
         >
           <span aria-hidden="true">✕</span>
@@ -276,18 +262,18 @@ function TapeCard({
           lose the card's context. */}
       {confirming && (
         <div style={{
-          position: "absolute", inset: 0, background: "rgba(2,6,23,0.94)",
+          position: "absolute", inset: 0, background: "var(--card)",
           display: "flex", flexDirection: "column", alignItems: "center",
           justifyContent: "center", gap: "7px", padding: "8px", textAlign: "center",
         }}>
-          <p style={{ margin: 0, fontSize: "0.7rem", color: "#cbd5e1" }}>{t.confirmDelete}</p>
+          <p style={{ margin: 0, fontSize: "0.9rem", fontWeight: 600, color: "var(--ink)" }}>{t.confirmDelete}</p>
           <div style={{ display: "flex", gap: "6px" }}>
             <button
               onClick={onConfirmDelete}
               style={{
-                background: "rgba(239,68,68,0.2)", border: "1px solid rgba(239,68,68,0.4)",
-                color: "#fca5a5", fontSize: "0.68rem", padding: "3px 10px",
-                borderRadius: "5px", cursor: "pointer",
+                background: "var(--danger)", border: "2px solid var(--rule)",
+                color: "#ffffff", fontSize: "0.82rem", fontWeight: 600, padding: "6px 12px",
+                cursor: "pointer",
               }}
             >
               {t.yes}
@@ -295,8 +281,8 @@ function TapeCard({
             <button
               onClick={onCancelDelete}
               style={{
-                background: "none", border: "none", color: "#64748b",
-                fontSize: "0.68rem", padding: "3px 6px", cursor: "pointer",
+                background: "none", border: "none", color: "var(--ink-soft)",
+                fontSize: "0.82rem", padding: "6px 8px", cursor: "pointer", textDecoration: "underline",
               }}
             >
               {t.no}
@@ -315,8 +301,8 @@ function SkeletonCard() {
     <div
       aria-hidden="true"
       style={{
-        flex: "0 0 178px", height: "132px", borderRadius: "10px",
-        background: "linear-gradient(90deg, rgba(15,23,42,0.7) 25%, rgba(30,41,59,0.7) 50%, rgba(15,23,42,0.7) 75%)",
+        flex: "0 0 200px", height: "168px", border: "2px dashed var(--line)",
+        background: "linear-gradient(90deg, var(--paper-alt) 25%, var(--card) 50%, var(--paper-alt) 75%)",
         backgroundSize: "200% 100%",
         animation: "digTapeShimmer 1.4s ease-in-out infinite",
       }}
@@ -335,9 +321,9 @@ function TapeArrow({ dir, onClick, label }) {
       onClick={onClick}
       aria-label={label}
       style={{
-        background: "rgba(15,23,42,0.8)", border: "1px solid rgba(30,41,59,0.8)",
-        color: "#64748b", borderRadius: "6px", width: "24px", height: "22px",
-        cursor: "pointer", fontSize: "0.7rem", lineHeight: 1, padding: 0,
+        background: "var(--card)", border: "2px solid var(--rule)",
+        color: "var(--ink)", width: "36px", height: "36px",
+        cursor: "pointer", fontSize: "1.1rem", lineHeight: 1, padding: 0,
       }}
     >
       {dir === "left" ? "‹" : "›"}
@@ -349,21 +335,24 @@ function TapeArrow({ dir, onClick, label }) {
 
 const T = {
   en: {
-    title: "History", empty: "No analyses yet — upload a dataset to begin.",
+    title: "Your analyses", keptTitle: "Analyses kept, of the most your plan keeps",
+    empty: "No analyses yet. Upload a file above to begin.",
     upgrade: "Upgrade for 15", load: "Load", delete: "Delete",
     pin: "Pin", unpin: "Unpin", confirmDelete: "Delete this?",
     yes: "Delete", no: "Cancel",
     scrollLeft: "Scroll history left", scrollRight: "Scroll history right",
   },
   fr: {
-    title: "Historique", empty: "Aucune analyse — importez un dataset pour commencer.",
+    title: "Vos analyses", keptTitle: "Analyses conservées, sur le maximum de votre offre",
+    empty: "Aucune analyse pour l'instant. Importez un fichier ci-dessus pour commencer.",
     upgrade: "Passer à 15", load: "Charger", delete: "Supprimer",
     pin: "Épingler", unpin: "Détacher", confirmDelete: "Supprimer ?",
     yes: "Supprimer", no: "Annuler",
     scrollLeft: "Défiler à gauche", scrollRight: "Défiler à droite",
   },
   fa: {
-    title: "تاریخچه", empty: "هنوز تحلیلی نیست — یک دیتاست آپلود کنید.",
+    title: "تحلیل‌های شما", keptTitle: "تحلیل‌های نگه‌داشته، از بیشترین تعداد طرح شما",
+    empty: "هنوز تحلیلی نیست. برای شروع، بالا یک فایل آپلود کنید.",
     upgrade: "ارتقا به ۱۵", load: "بارگذاری", delete: "حذف",
     pin: "سنجاق", unpin: "برداشتن سنجاق", confirmDelete: "حذف شود؟",
     yes: "حذف", no: "لغو",
