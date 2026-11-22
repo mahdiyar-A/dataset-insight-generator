@@ -11,7 +11,6 @@
  *   TEAMS          — /api/teams     (create, invite, members)
  *   WORKSPACES     — /api/workspaces (share, permissions, annotations)
  *   CHATBOT        — /api/chat
- *   GUEST          — /api/guest
  *   ADMIN          — /api/admin
  */
 
@@ -506,43 +505,6 @@ export default class BackendAPI {
       { method: "POST", headers: authHeaders(token),
         body: JSON.stringify({ analysisId, question, history, uiLanguage }) },
       "The assistant couldn't be reached.");
-  }
-
-  // ── GUEST ─────────────────────────────────────────────────────────────────
-
-  /**
-   * @param {File} file
-   * @param {string} sessionId
-   * @param {number} [rows]
-   * @param {number} [columns]
-   */
-  static async guestUpload(file, sessionId, rows = 0, columns = 0) {
-    const form = new FormData();
-    form.append("file",      file);
-    form.append("sessionId", sessionId);
-    form.append("rows",      String(rows));
-    form.append("columns",   String(columns));
-
-    const res = await fetch(`${API_BASE}/api/guest/upload`,
-      { method: "POST", body: form });
-    if (!res.ok) throw new Error((await readError(res)) || "Guest upload failed");
-    return res.json();
-  }
-
-  static async guestChat(message, sessionId, meta = {}) {
-    return req(`${API_BASE}/api/guest/chat`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, sessionId, ...meta }),
-      },
-      "Guest chat failed");
-  }
-
-  static async guestStatus(sessionId) {
-    const res = await fetch(`${API_BASE}/api/guest/status/${sessionId}`);
-    if (!res.ok) return null;
-    return res.json();
   }
 
   // ── ADMIN ─────────────────────────────────────────────────────────────────

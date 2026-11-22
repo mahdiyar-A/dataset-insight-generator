@@ -204,11 +204,11 @@ describe("uploads", () => {
     expect(form.get("columns")).toBe("2");
   });
 
-  it("shows the server's reason for refusing a guest's file", async () => {
+  it("shows the server's reason for refusing a file", async () => {
     fetchMock.mockResolvedValue(jsonResponse(
       { error: "UNREADABLE", message: "This zip is password-protected." }, { ok: false, status: 400 }));
 
-    await expect(BackendAPI.guestUpload(new File(["x"], "a.zip"), "s1"))
+    await expect(BackendAPI.uploadDataset(TOKEN, new File(["x"], "a.zip")))
       .rejects.toThrow("This zip is password-protected.");
   });
 });

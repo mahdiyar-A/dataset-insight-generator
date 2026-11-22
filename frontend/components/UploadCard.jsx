@@ -72,8 +72,6 @@ const T = {
  *   onUploadStart?: () => void,
  *   onUploadFailed?: () => void,
  *   resetKey: number,
- *   guestMode?: boolean,
- *   guestSessionId?: string | null,
  * }} props
  *
  * onUploadStart is optional — it is called with `?.()` and the authenticated
@@ -83,7 +81,7 @@ const T = {
  * onUploadFailed fires when the server refuses a file. By then it has dropped
  * any upload that was waiting, so the dashboard must stop offering Start for it.
  */
-export default function UploadCard({ onUploadSuccess, onUploadStart, onUploadFailed, resetKey, guestMode = false, guestSessionId = null }) {
+export default function UploadCard({ onUploadSuccess, onUploadStart, onUploadFailed, resetKey }) {
   const { token } = useAuth();
   const { lang } = useSettings();
   const t = T[lang] || T.en;
@@ -178,9 +176,7 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, onUploadFai
     try {
       const rows    = parsed?.totalRows ?? 0;
       const columns = parsed?.totalCols ?? 0;
-      const result  = guestMode
-        ? await BackendAPI.guestUpload(selectedFile, guestSessionId ?? "guest", rows, columns)
-        : await BackendAPI.uploadDataset(token, selectedFile, rows, columns);
+      const result  = await BackendAPI.uploadDataset(token, selectedFile, rows, columns);
 
       // The server's reading replaces the quick one: it handles quoted commas,
       // other delimiters and encodings, which splitting on "," does not.

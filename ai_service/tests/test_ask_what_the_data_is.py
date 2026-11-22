@@ -330,7 +330,7 @@ def test_the_check_reads_the_data_only_when_asked(monkeypatch, df):
 
     body = client.post("/check", files=csv_upload(df), data={"session_id": "s"}).json()
 
-    assert "domain" not in body and prompts == []   # the guest flow and old callers: no model call
+    assert "domain" not in body and prompts == []   # callers that don't ask: no model call
 
 
 def test_the_check_says_what_it_read_and_whether_it_is_sure(monkeypatch, df):

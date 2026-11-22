@@ -137,34 +137,6 @@ public class UploadFormatsTests
         body.GetProperty("columnCount").GetInt32().Should().Be(0);
     }
 
-    [Test]
-    public async Task GuestUpload_TakesTheSameFormats()
-    {
-        var session = Guid.NewGuid();
-        var form    = Form("survey.sav");
-        form.Add(new StringContent(session.ToString()), "sessionId");
-
-        var response = await _client.PostAsync("/api/guest/upload", form);
-
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var body = await Json(response);
-        body.GetProperty("sessionId").GetString().Should().Be(session.ToString());
-        body.GetProperty("rowCount").GetInt32().Should().Be(1200);
-        UploadStore.Guests.Find(session).Should().EndWith(".sav");
-        UploadStore.Guests.Delete(session);
-    }
-
-    [Test]
-    public async Task GuestUpload_WithACraftedSessionId_IsRefused()
-    {
-        var form = Form("data.csv");
-        form.Add(new StringContent("../../etc/passwd"), "sessionId");
-
-        var response = await _client.PostAsync("/api/guest/upload", form);
-
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
     // ── The regression: Excel was accepted, then lost ────────────────────────
 
     [Test]

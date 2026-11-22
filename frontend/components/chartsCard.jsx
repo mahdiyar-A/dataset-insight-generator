@@ -221,16 +221,11 @@ function ZoomModal({ chart, imgSrc, onClose, escClose }) {
 
 /* ── Main component ────────────────────────────────────────────────────────── */
 /**
- * `charts: guestCharts = null` alone infers `null`, so the guest dashboard
- * passing a real ChartMeta[] failed the production type check.
- *
  * @param {{
  *   dataset?: import("@/lib/types").Analysis | import("@/lib/types").UploadedFileMeta | null,
- *   charts?: import("@/lib/types").ChartMeta[] | null,
- *   reportReady?: boolean,
  * }} props
  */
-export default function ChartsCard({ dataset, charts: guestCharts = null, reportReady: guestReportReady = false }) {
+export default function ChartsCard({ dataset }) {
   const { token } = useAuth();
   const { lang } = useSettings();
   const t = T[lang] || T.en;
@@ -246,18 +241,7 @@ export default function ChartsCard({ dataset, charts: guestCharts = null, report
       ...c,
     }));
 
-  // Guest mode
   useEffect(() => {
-    if (guestCharts !== null) {
-      setCharts(mergeWithFallbacks(guestCharts));
-      setActive(0);
-      setLoading(false);
-    }
-  }, [guestCharts]);
-
-  // Auth mode
-  useEffect(() => {
-    if (guestCharts !== null) return;
     if (!token) { setLoading(false); return; }
     // New upload in progress — clear stale charts immediately, don't fetch
     if (dataset?.isPending) { setCharts([]); setActive(0); setLoading(false); return; }

@@ -531,30 +531,6 @@ body.dig-body {
     color: var(--text);
 }
 
-/* guest banner */
-
-.guest-banner {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 9px 14px;
-    border-radius: 0;
-    background: var(--card);
-    border: 1px dashed var(--line);
-    font-size: 0.8rem;
-    color: var(--text-soft);
-}
-
-.guest-link {
-    color: var(--cobalt-accent);
-    text-decoration: none;
-    font-weight: 500;
-}
-
-.guest-link:hover {
-    text-decoration: underline;
-}
-
 /* cards and grids */
 
 .card {
@@ -1192,42 +1168,6 @@ body.dig-body {
     .dig-main {
         padding: 18px 16px;
     }
-}
-/* Neon Guest Banner */
-/* Container holding banner and button */
-.guest-banner-container {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-top: 16px;
-}
-
-/* Banner box */
-.guest-register-btn {
-    width: auto; /* let it size based on content */
-    padding: 12px 24px;
-    border-radius: 0;
-    border: none;
-    background: var(--cobalt);
-    color: #fff;
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
-    box-shadow: 0 12px 28px color-mix(in srgb, var(--cobalt) 35%, transparent);
-    transition: var(--transition);
-}
-/* Banner box */
-.guest-banner {
-    background-color: color-mix(in srgb, var(--card) 0%, transparent); /* matches dashboard theme */
-    border: 1px solid var(--cobalt-accent);
-    border-radius: 0;
-    border-width: 2px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-}
-
-.guest-text {
-    font-size: 0.9rem;
-    color: var(--ink);
 }
 .dataset-management-grid {
     margin-top: 32px;
