@@ -36,13 +36,12 @@ public sealed record UploadMeta(
 /// supported extension, and Save, which removes the previous upload first so
 /// an old .csv can never shadow a new .xlsx.
 ///
-/// Owners are GUIDs (user ids, or guest session ids validated as GUIDs), which
-/// is also what keeps a crafted name from escaping the directory.
+/// Owners are user ids, which is also what keeps a crafted name from escaping
+/// the directory.
 /// </summary>
 public sealed class UploadStore
 {
-    public static readonly UploadStore Users  = new(Path.Combine(Path.GetTempPath(), "dig_uploads"));
-    public static readonly UploadStore Guests = new(Path.Combine(Path.GetTempPath(), "dig_guest"));
+    public static readonly UploadStore Users = new(Path.Combine(Path.GetTempPath(), "dig_uploads"));
 
     public string Root { get; }
 

@@ -20,13 +20,10 @@ const serverRead = (over = {}) => ({
 });
 
 let upload: ReturnType<typeof vi.fn>;
-let guestUpload: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   upload = vi.fn().mockResolvedValue(serverRead());
-  guestUpload = vi.fn().mockResolvedValue(serverRead());
   BackendAPI.uploadDataset = upload as unknown as typeof BackendAPI.uploadDataset;
-  BackendAPI.guestUpload = guestUpload as unknown as typeof BackendAPI.guestUpload;
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -98,17 +95,6 @@ describe("a supported file", () => {
     expect(screen.getByRole("columnheader", { name: "a" })).toBeInTheDocument();
   });
 
-  it("goes through the guest route for guests", async () => {
-    const { container } = render(
-      <UploadCard onUploadSuccess={() => {}} resetKey={0} guestMode guestSessionId="s1" />);
-    const file = named("survey.sav");
-
-    choose(container, file);
-
-    await screen.findByText("region");
-    expect(guestUpload).toHaveBeenCalledWith(file, "s1", 0, 0);
-    expect(upload).not.toHaveBeenCalled();
-  });
 });
 
 describe("a refused file", () => {

@@ -9,10 +9,33 @@
 
 | Suite | Count | Command |
 |---|---|---|
-| C# — unit, integration, edge cases, the real Supabase client against a stand-in server, the chat suggesting changes, teams editing the report, the look of the files | 540 | `dotnet test backend.Tests/backend.Tests.csproj` |
+| C# — unit, integration, edge cases, the real Supabase client against a stand-in server, the chat suggesting changes, teams editing the report, the look of the files | 533 | `dotnet test backend.Tests/backend.Tests.csproj` |
 | Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is, insights' evidence, the editable report, changes the chat suggests and charts DIG draws, combining teammates' saves, reading who the report is for, plain words and the five looks | 1154 | `cd ai_service && pytest tests/` |
-| Frontend — Vitest, including rendered components, the change card, the live report channel, the two themes, the interactive demo and its team stop, and the look picker | 371 | `cd frontend && npm test` |
+| Frontend — Vitest, including rendered components, the change card, the live report channel, the two themes, the interactive demo and its team stop, and the look picker | 370 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
+
+---
+
+## No more guest dashboard, 2026-11-22
+
+The guest dashboard ran the whole pipeline for anyone, with no account. A
+visitor who can't be told apart can't be held to an allowance, and every guest
+run spent the free AI quota that signed-in people share. The interactive demo
+now does its job of showing what DIG does.
+
+- **The landing page offers three ways in**: the demo first, then Register and
+  Login, in English, French and Persian. The note under them points to the
+  demo and says a free account runs DIG on your own data. "Flexible Access"
+  became "Free to Start".
+- **`/guestDashboard` is gone.** Old links and search results land on `/demo`
+  (a permanent redirect in `next.config.ts`); the sitemap no longer lists it.
+- **The server's guest routes are gone**: `/api/guest/upload`, `/chat` and
+  `/status` answer 404 (`NoGuestRoutesTests`). With them went the guest
+  allowances in `AnalysisGate`, the two guest rate-limit policies and the
+  guest upload store.
+- **The chat, upload and charts cards** lost their guest branches; every
+  analysis runs under a signed-in account.
+- **The terms** no longer mention guest use (updated 22 November 2026).
 
 ---
 
@@ -510,7 +533,7 @@ Teams of up to five, email invites, Viewer and Editor roles. Shared workspaces w
 Supabase JWT, email verification, password reset, email change verification, phone OTP.
 
 ### Other
-Admin dashboard, guest dashboard, help centre, profile management, Docker images for all three services.
+Admin dashboard, interactive demo (it replaced the guest dashboard), help centre, profile management, Docker images for all three services.
 
 ---
 
@@ -621,8 +644,6 @@ The test suites replace Supabase, Stripe, SMTP and the Python service with in-me
   download rather than rendering it inline. See FUTURE_EXPANSION.md.
 - **Chart legends are English.** "Trend", "Overall trend" and "Other groups"
   stay in English in a report written in another language.
-- **Guest dashboard.** To be changed or removed; raise it when planning
-  frontend work.
 
 ## Next up
 

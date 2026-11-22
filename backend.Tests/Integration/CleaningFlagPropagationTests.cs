@@ -27,8 +27,7 @@ namespace backend.Tests.Integration;
 /// loop users reported.
 ///
 /// Note this was invisible to the existing endpoint tests: they asserted the
-/// pipeline *ran*, never what it was asked to do. GuestController escaped the bug
-/// because it builds its DTO inline and sets the flags directly.
+/// pipeline *ran*, never what it was asked to do.
 ///
 /// These tests exercise AnalysisService directly rather than through HTTP,
 /// because TryStartAsync is fire-and-forget — an HTTP-level test would race

@@ -10,9 +10,9 @@ designs for the three directions currently under discussion.
 
 ## Who can use it
 
-**Guest (no account).** Gets a session id in the browser, uploads one CSV, runs
-one analysis, sees charts and a PDF. Nothing persists — close the tab and it is
-gone. No history, no account, no team.
+**Visitor (no account).** Can try the interactive demo at `/demo`: a real
+saved run, walked through with DIG, that never calls the server. Running DIG on
+their own data needs a free account.
 
 **Free account.** 2 analyses per rolling 48 hours, 5 history slots, PDF report
 and cleaned-CSV download. Standard model.
@@ -415,9 +415,6 @@ outside the product.
 
 **Accessibility.** Charts currently carry no alt text and the palette has not
 been checked for contrast. Both are quick and both matter.
-
-**Rate limiting on the guest endpoint.** It runs the full pipeline with no
-account and no quota. Someone will find it.
 
 ---
 

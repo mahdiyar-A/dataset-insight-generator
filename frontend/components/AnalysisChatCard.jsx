@@ -109,16 +109,11 @@ const T = {
 };
 
 /**
- * `guestSessionId = null` alone infers `null`, so the guest dashboard passing a
- * real session id failed the production type check.
- *
  * @param {{
  *   dataset?: import("@/lib/types").Analysis | import("@/lib/types").UploadedFileMeta | null,
  *   reportReady?: boolean,
  *   onViewReport?: () => void,
  *   onAnalysisStarted?: (analysisId: string) => void,
- *   guestMode?: boolean,
- *   guestSessionId?: string | null,
  *   plan?: string,
  *   settings?: object | null,
  *   onSettingsChange?: (settings: object) => void,
@@ -129,7 +124,6 @@ const T = {
  */
 export default function AnalysisAssistantCard({
   dataset, reportReady, onViewReport, onAnalysisStarted,
-  guestMode = false, guestSessionId = null,
   plan = "free",
   settings = null, onSettingsChange,
 }) {
@@ -191,18 +185,7 @@ export default function AnalysisAssistantCard({
         ...extra,
       };
 
-      let res;
-      if (guestMode) {
-        const sessionId = guestSessionId ?? sessionStorage.getItem("dig_guest_session") ?? "guest";
-        const response  = await fetch(`${(process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5150").replace(/\/$/, "")}/api/guest/chat`, {
-          method:  "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message, sessionId, ...meta }),
-        });
-        res = await response.json();
-      } else {
-        res = await BackendAPI.sendChatMessage(token, message, meta);
-      }
+      const res       = await BackendAPI.sendChatMessage(token, message, meta);
       const reply     = res?.reply ?? res?.content ?? "Processing…";
       const cond      = res?.condition ?? null;
       const done      = res?.done      ?? false;
@@ -246,20 +229,13 @@ export default function AnalysisAssistantCard({
         }
         setAwaitingResponse(needsResp);
       }
-    } catch (err) {
-      if (guestMode) {
-        console.error("[Guest chat error]", err);
-        addMsg("assistant", "⚠️ Could not reach the analysis service. Please make sure the backend is running, then upload your file again to retry.");
-        setAwaitingResponse(false);
-        // Stay at stage 1 — chat log stays visible. Next upload resets the chatbot.
+    } catch {
+      // Show the error in the chat, which stays visible. The stub flow is for development only.
+      if (process.env.NODE_ENV === "development") {
+        handleStubFlow(message);
       } else {
-        // For logged-in users: show error in chat, stay visible. Fall back to stub only in dev.
-        if (process.env.NODE_ENV === "development") {
-          handleStubFlow(message);
-        } else {
-          addMsg("assistant", "⚠️ Could not reach the analysis service. Please try uploading your file again.");
-          setAwaitingResponse(false);
-        }
+        addMsg("assistant", "⚠️ Could not reach the analysis service. Please try uploading your file again.");
+        setAwaitingResponse(false);
       }
     } finally {
       setSending(false);
@@ -426,14 +402,12 @@ export default function AnalysisAssistantCard({
           </button>
 
           {/* Pro customization panel — shown in idle state before analysis starts */}
-          {!guestMode && (
-            <ChatCustomizationPanel
-              isPro={isPro}
-              value={settings}
-              onChange={onSettingsChange}
-              onUpgrade={() => { if (typeof window !== "undefined") window.location.href = "/plans"; }}
-            />
-          )}
+          <ChatCustomizationPanel
+            isPro={isPro}
+            value={settings}
+            onChange={onSettingsChange}
+            onUpgrade={() => { if (typeof window !== "undefined") window.location.href = "/plans"; }}
+          />
         </div>
       )}
 
@@ -544,7 +518,7 @@ export default function AnalysisAssistantCard({
             {t.goReport}
           </button>
 
-          {!guestMode && dataset?.id && <AnalysisQA analysisId={dataset.id} plan={plan} />}
+          {dataset?.id && <AnalysisQA analysisId={dataset.id} plan={plan} />}
         </>
       )}
 

@@ -16,8 +16,8 @@ const T = {
     hero: {
       title: 'Your Data Has a Story. We Help You Read It.',
       subtitle: 'Drop in a CSV, Excel, JSON, Parquet or SPSS file and get back a full AI-powered analysis — visualizations, patterns, anomalies, and a professional PDF report. No coding. No setup. Just an insightful report.',
-      login: 'Login', register: 'Register', guest: 'Continue as Guest', demo: 'Try the interactive demo',
-      note: 'No account needed for a one-time report. Create an account to save your results.',
+      login: 'Login', register: 'Register', demo: 'Try the interactive demo',
+      note: 'See everything DIG does in the demo first. A free account runs it on your own data and keeps your results.',
       howTitle: 'How it works?',
       step1: 'Upload your dataset — CSV, Excel, JSON, Parquet, SPSS and more, up to 50MB.',
       step2: 'Our AI engine profiles your data, detects patterns, and generates charts.',
@@ -29,7 +29,7 @@ const T = {
       cards: [
         { title: 'Instant Data Profiling', desc: 'Automatically detects column types, missing values, outliers, and correlations. No configuration required — it just works.' },
         { title: 'AI-Written Insights', desc: 'Goes beyond charts. Our AI writes a plain-English narrative explaining what your data means, what stands out, and what to watch out for.' },
-        { title: 'Flexible Access', desc: 'Use it as a guest for a quick one-time report, or create an account to save your results and come back anytime.' },
+        { title: 'Free to Start', desc: 'See everything first in the interactive demo, then create a free account to run your own data and come back to your results anytime.' },
         { title: 'AI-Guided Analysis Assistant', desc: 'An interactive chatbot walks you through your results — asking the right questions, flagging concerns, and helping you get the most out of your report.' },
         { title: 'Your Results, Always There', desc: 'We save your last session automatically. Come back anytime to download your cleaned dataset, original file, or full PDF report — no need to re-upload.' },
       ],
@@ -65,8 +65,8 @@ const T = {
     hero: {
       title: 'Vos données ont une histoire. Nous vous aidons à la lire.',
       subtitle: "Importez un fichier CSV, Excel, JSON, Parquet ou SPSS et obtenez une analyse complète par IA — visualisations, patterns, anomalies et un rapport PDF professionnel. Sans code. Sans configuration. Juste des insights.",
-      login: 'Connexion', register: "S'inscrire", guest: 'Continuer en invité', demo: 'Essayer la démo interactive',
-      note: 'Aucun compte requis pour un rapport ponctuel. Créez un compte pour sauvegarder vos résultats.',
+      login: 'Connexion', register: "S'inscrire", demo: 'Essayer la démo interactive',
+      note: "Découvrez tout ce que fait DIG dans la démo. Un compte gratuit l'applique à vos propres données et garde vos résultats.",
       howTitle: 'Comment ça marche ?',
       step1: "Importez votre dataset — CSV, Excel, JSON, Parquet, SPSS et plus, jusqu'à 50 Mo.",
       step2: 'Notre moteur IA profile vos données, détecte les tendances et génère des graphiques.',
@@ -78,7 +78,7 @@ const T = {
       cards: [
         { title: 'Profilage instantané', desc: 'Détecte automatiquement les types de colonnes, valeurs manquantes, anomalies et corrélations. Sans configuration.' },
         { title: 'Insights rédigés par IA', desc: "Va au-delà des graphiques. Notre IA rédige un narratif en langage naturel expliquant ce que signifient vos données." },
-        { title: 'Accès flexible', desc: "Utilisez-le en invité pour un rapport ponctuel, ou créez un compte pour sauvegarder vos résultats." },
+        { title: 'Gratuit pour commencer', desc: "Découvrez tout dans la démo interactive, puis créez un compte gratuit pour analyser vos données et retrouver vos résultats." },
         { title: 'Assistant d\'analyse guidée par IA', desc: 'Un chatbot interactif vous guide à travers vos résultats — pose les bonnes questions et vous aide à tirer le meilleur parti de votre rapport.' },
         { title: 'Vos résultats, toujours disponibles', desc: 'Nous sauvegardons automatiquement votre dernière session. Revenez à tout moment pour télécharger votre dataset, fichier original ou rapport PDF.' },
       ],
@@ -114,8 +114,8 @@ const T = {
     hero: {
       title: 'داده‌های شما یک داستان دارند. ما کمک می‌کنیم آن را بخوانید.',
       subtitle: 'یک فایل CSV، اکسل، JSON، Parquet یا SPSS را آپلود کنید و تحلیل کامل مبتنی بر هوش مصنوعی دریافت کنید — تصویرسازی، الگوها، ناهنجاری‌ها و یک گزارش PDF حرفه‌ای. بدون کدنویسی. بدون راه‌اندازی.',
-      login: 'ورود', register: 'ثبت‌نام', guest: 'ادامه به عنوان مهمان', demo: 'امتحان دموی تعاملی',
-      note: 'برای یک گزارش یکبار مصرف نیازی به حساب نیست. برای ذخیره نتایج حساب بسازید.',
+      login: 'ورود', register: 'ثبت‌نام', demo: 'امتحان دموی تعاملی',
+      note: 'اول در دمو ببینید DIG چه کارهایی می‌کند. با یک حساب رایگان آن را روی داده‌های خودتان اجرا کنید و نتایج را نگه دارید.',
       howTitle: 'چطور کار می‌کند؟',
       step1: 'دیتاست خود را آپلود کنید — CSV، اکسل، JSON، Parquet، SPSS و بیشتر، حداکثر ۵۰ مگابایت.',
       step2: 'موتور هوش مصنوعی ما داده‌هایتان را پروفایل می‌کند، الگوها را شناسایی می‌کند و نمودار می‌سازد.',
@@ -127,7 +127,7 @@ const T = {
       cards: [
         { title: 'پروفایل‌سازی فوری داده', desc: 'به طور خودکار نوع ستون‌ها، مقادیر گم‌شده، دادها پرت و همبستگی‌ها را شناسایی می‌کند. بدون پیکربندی.' },
         { title: 'بینش‌های نوشته‌شده توسط هوش مصنوعی', desc: 'فراتر از نمودارها. هوش مصنوعی ما یک روایت به زبان ساده می‌نویسد که توضیح می‌دهد داده‌های شما چه معنایی دارند.' },
-        { title: 'دسترسی انعطاف‌پذیر', desc: 'به عنوان مهمان برای یک گزارش یکبار مصرف استفاده کنید، یا حساب بسازید تا نتایج خود را ذخیره کنید.' },
+        { title: 'شروع رایگان', desc: 'اول همه چیز را در دموی تعاملی ببینید، بعد یک حساب رایگان بسازید تا داده‌های خودتان را تحلیل کنید و هر وقت خواستید به نتایج برگردید.' },
         { title: 'دستیار تحلیل هدایت‌شده توسط هوش مصنوعی', desc: 'یک چت‌بات تعاملی شما را در نتایج راهنمایی می‌کند — سؤالات درست می‌پرسد و به شما کمک می‌کند از گزارشتان بهترین استفاده را ببرید.' },
         { title: 'نتایج شما، همیشه در دسترس', desc: 'آخرین جلسه شما را به طور خودکار ذخیره می‌کنیم. هر زمان برگردید تا دیتاست پاک‌شده، فایل اصلی یا گزارش PDF را دانلود کنید.' },
       ],
@@ -773,27 +773,29 @@ export default function HomePage() {
               ...stagger(2),
               display: 'flex', gap: '10px', margin: '32px 0 0', flexWrap: 'wrap',
             }}>
-              <Link href="/guestDashboard" className="atlas-btn" style={{
-                padding: '15px 26px', background: c.lime, color: '#12121a',
-                border: '2px solid #12121a', textDecoration: 'none',
-                fontFamily: DISPLAY, fontSize: '15px', fontWeight: 700,
-              }}>
-                {t.hero.guest}
-              </Link>
+              {/* The demo takes the place the guest dashboard had: see the whole
+                  product first, then an account runs it on your own data. */}
               <Link href="/demo" className="atlas-btn" style={{
-                padding: '15px 22px', background: '#ffffff', color: '#12121a',
+                padding: '15px 22px', background: c.lime, color: '#12121a',
                 border: '2px solid #12121a', textDecoration: 'none',
                 fontFamily: DISPLAY, fontSize: '15px', fontWeight: 700,
                 display: 'inline-flex', alignItems: 'center', gap: '10px',
               }}>
                 <span aria-hidden="true" style={{
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  width: '22px', height: '22px', background: c.lime, border: '2px solid #12121a',
+                  width: '22px', height: '22px', background: '#12121a', color: c.lime,
                   fontSize: '9px', lineHeight: 1,
                 }}>
                   ▶
                 </span>
                 {t.hero.demo}
+              </Link>
+              <Link href="/register" className="atlas-btn" style={{
+                padding: '15px 26px', background: '#ffffff', color: '#12121a',
+                border: '2px solid #12121a', textDecoration: 'none',
+                fontFamily: DISPLAY, fontSize: '15px', fontWeight: 700,
+              }}>
+                {t.hero.register}
               </Link>
               <Link href="/login" className="atlas-btn" style={{
                 padding: '15px 26px', background: 'transparent', color: '#ffffff',
