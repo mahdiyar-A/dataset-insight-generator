@@ -157,7 +157,7 @@ public class CustomizationFieldsTests
     {
         var req = await Sent(json);
 
-        req.Tone.Should().Be("professional");
+        req.Tone.Should().Be("auto");
         _analyses.Store.Single().Status.Should().Be("done");
     }
 
@@ -171,15 +171,38 @@ public class CustomizationFieldsTests
         Plan("free");
 
         var req = await Sent("""
-        {"tone": "casual", "language": "fr", "assumptions": "x", "outputFormat": {"word": true, "pptx": true}}
+        {"tone": "casual", "language": "fr", "assumptions": "x", "outputFormat": {"word": true, "pptx": true},
+         "theme": "midnight", "font": "classic", "pageSize": "letter"}
         """);
 
-        req.Tone.Should().Be("professional");
+        // DIG reads who the data is for and writes for them, in its own look.
+        req.Tone.Should().Be("auto");
+        req.Theme.Should().Be("signature");
+        req.PageSize.Should().Be("a4");
         req.Language.Should().Be("en");
         req.Assumptions.Should().BeEmpty();
         req.WantWord.Should().BeFalse();
         req.WantPptx.Should().BeFalse();
         _analyses.Store.Single().Customization.Should().BeNull("the history must not show settings that were not applied");
+    }
+
+    [Test]
+    public async Task TheLookOfTheFiles_ReachesTheAiService()
+    {
+        // Risk: the panel offers five looks, two page sizes and five fonts; if
+        // any is dropped here every Pro report comes out in the free look.
+        var req = await Sent("""{"theme": "warm", "font": "storybook", "pageSize": "letter"}""");
+
+        req.Theme.Should().Be("warm");
+        req.Font.Should().Be("storybook");
+        req.PageSize.Should().Be("letter");
+    }
+
+    [Test]
+    public async Task NoLookChosen_MeansDigsOwn()
+    {
+        var req = await Sent("""{"tone": "casual"}""");
+        (req.Theme, req.Font, req.PageSize).Should().Be(("signature", "auto", "a4"));
     }
 
     [Test]

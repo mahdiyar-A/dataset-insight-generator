@@ -278,6 +278,64 @@ def basis(entry: Entry, language: str = "en") -> str:
     return ""
 
 
+# How sure a finding is, said without statistics. A plain report shows this
+# as a small label under each insight instead of "η² = 0.51, p < 1e-6"; the
+# statistics move to the report's "How we know" page.
+STRENGTHS = ("strong", "clear", "weak", "fact")
+_RANK = {"strong": 3, "clear": 2, "weak": 1, "fact": 0}
+
+
+def _f(value: Any) -> Optional[float]:
+    try:
+        return abs(float(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _by(value: Optional[float], strong: float, clear: float) -> str:
+    if value is None:
+        return ""
+    return "strong" if value >= strong else "clear" if value >= clear else "weak"
+
+
+def _strength_of(entry: Entry) -> str:
+    """One result's strength: strong, clear, weak, or fact for a plain description."""
+    kind, x = entry.get("kind"), entry.get("item") or {}
+    if x.get("significant") is False:
+        return "weak"
+    if kind == "correlation":
+        return _by(_f(x.get("r", x.get("spearman"))), 0.5, 0.3) or "clear"
+    if kind in ("group_difference",):
+        return _by(_f(x.get("eta_squared")), 0.14, 0.06) or "clear"
+    if kind == "group_effect":
+        return _by(_f(x.get("etaSquared")), 0.14, 0.06) or "clear"
+    if kind == "association":
+        return _by(_f(x.get("cramers_v")), 0.3, 0.15) or "clear"
+    if kind == "driver":
+        if x.get("rho") is not None:
+            return _by(_f(x.get("rho")), 0.5, 0.3) or "clear"
+        return _by(_f(x.get("etaSquared")), 0.14, 0.06) or "clear"
+    if kind == "trend":
+        return "strong" if x.get("significant") else "weak"
+    if kind == "segment":
+        rows = _f(x.get("rows"))
+        return "clear" if rows is None or rows >= 30 else "weak"
+    if kind == "misleading":
+        return "clear"
+    return "fact"
+
+
+def strength(ids: List[str], known: Dict[str, Entry]) -> str:
+    """
+    How sure an insight is, from the results it rests on: the surest of them,
+    or "fact" when they only describe the data. "" when it rests on nothing.
+    """
+    found = [_strength_of(known[i]) for i in ids if i in known]
+    if not found:
+        return ""
+    return max(found, key=lambda s: _RANK[s])
+
+
 def based_on(ids: List[str], known: Dict[str, Entry], language: str = "en") -> List[str]:
     """The lines for an insight's ids, each once, skipping any that cannot be said."""
     lines: List[str] = []

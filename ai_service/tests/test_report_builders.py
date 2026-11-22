@@ -7,14 +7,17 @@ import base64
 import io
 import re
 import zipfile
+import zlib
 
 import pytest
 from docx import Document
 from lxml import etree
 from pptx import Presentation
 
+from ai_engine.design.looks import THEMES, office_theme, settle_look
 from ai_engine.models.models import DomainResult, LLMReport
 from ai_engine.pdf.pdf_builder import build_pdf, needs_unicode
+from tests.pdf_text import pdf_text
 from ai_engine.pptx.pptx_builder import FULL_WIDTH_CHARS, _weight, build_pptx, chunk_text
 from ai_engine.report_labels import LABELS, labels_for, left_out_line
 from ai_engine.word.word_builder import build_word_doc
@@ -110,15 +113,23 @@ def _schema_order_problems(docx_bytes):
     return problems
 
 
+def _all_text(doc) -> str:
+    """A Word document's words, the boxes (tables) included."""
+    parts = [p.text for p in doc.paragraphs]
+    for table in doc.tables:
+        parts += [p.text for row in table.rows for cell in row.cells for p in cell.paragraphs]
+    return "\n".join(parts)
+
+
 @pytest.mark.parametrize("lang", ["en", "fr", "fa", "zh"])
 def test_word_report_opens_and_is_well_formed(lang):
     data = build_word_doc(report(lang), "orders.xlsx", "retail", charts=CHARTS, language=lang,
                           confidence_score=7)
     assert _schema_order_problems(data) == []
     doc = Document(io.BytesIO(data))
-    text = "\n".join(p.text for p in doc.paragraphs)
+    text = _all_text(doc)
     labels = labels_for(lang)
-    for key in ("executive_summary", "key_insights", "your_questions", "conclusion", "methodology"):
+    for key in ("short_version", "what_we_found", "your_questions", "what_it_means", "how_we_know"):
         assert labels[key] in text, key
     assert labels["not_answerable"] in text
     assert len(doc.inline_shapes) == 2                     # both charts placed
@@ -149,9 +160,10 @@ def test_deck_opens_with_every_section(lang):
                                               language=lang, confidence_score=7)))
     texts = ["\n".join(sh.text_frame.text for sh in s.shapes if sh.has_text_frame) for s in deck.slides]
     labels = labels_for(lang)
-    assert any(labels["executive_summary"] in t for t in texts)
+    assert any(labels["short_version"] in t for t in texts)
     assert sum(labels["your_questions"] in t for t in texts) == 2       # one slide per question
-    assert any(labels["methodology"] in t for t in texts)
+    assert any(labels["what_it_means"] in t for t in texts)
+    assert any(labels["how_we_know"] in t for t in texts)
     pictures = sum(1 for s in deck.slides for sh in s.shapes if sh.shape_type == 13)
     assert pictures == 2                                                # beside its insight, and its own slide
     if lang == "fa":
@@ -168,20 +180,26 @@ def test_a_long_insight_continues_on_the_next_slide():
 
 # ── PDF ───────────────────────────────────────────────────────────────────────
 
-def _pdf(lang, rep=None):
+def _pdf(lang, rep=None, look=None):
     domain = DomainResult(domain="retail", confidence=0.9, is_analyzable=True, analysis_focus=[], key_questions=[],
                           column_decisions={"drop": [], "keep": [], "key": []}, attribute_interpretations={},
                           key_issues=["Revenue has 3 extreme values"])
     b64 = build_pdf(rep or report(lang), CHARTS, {"rowCount": 600, "columnCount": 6}, was_cleaned=False,
                     file_name="orders.xlsx", domain=domain, judge_confidence_score=4, language=lang,
-                    dropped_columns=["order_id"])
+                    dropped_columns=["order_id"], look=look)
     return base64.b64decode(b64)
 
 
-def test_pdf_in_english_keeps_the_built_in_font():
+def test_pdf_in_english_embeds_the_looks_own_fonts_and_nothing_more():
     data = _pdf("en")
-    assert data.startswith(b"%PDF") and b"DejaVu" not in data
+    assert data.startswith(b"%PDF")
+    assert b"Bricolage" in data and b"WorkSans" in data            # the free plan's Signature
+    assert b"DejaVu" not in data                                   # no letter needed a fallback
     assert len(re.findall(rb"/Type\s*/Page\b", data)) >= 3
+    text = pdf_text(data)
+    for key in ("short_version", "what_we_found", "what_it_means", "how_we_know"):
+        assert labels_for("en")[key] in text, key
+    assert "Regional sales review" in text and "North brings 42% of revenue" in text
 
 
 @pytest.mark.parametrize("lang", ["fa", "zh"])
@@ -196,3 +214,75 @@ def test_pdf_switches_font_for_foreign_text_in_an_english_report():
     assert b"DejaVu" in _pdf("en", rep)
     assert not needs_unicode("Café — “quoted” • 12 € œuvre")      # mapped onto Latin-1
     assert needs_unicode("درآمد") and needs_unicode("收入")
+
+
+def test_pdf_cover_shows_the_key_numbers_and_each_finding_its_strength_and_figure():
+    rep = report("en")
+    rep.keyNumbers = [{"value": "42%", "label": "of revenue from the North"},
+                      {"value": "$1.2M", "label": "taken in"}]
+    rep.insights[0].update(strength="strong", highlight={"value": "42%", "label": "from the North"})
+    rep.insights[1].update(strength="weak")
+    text = pdf_text(_pdf("en", rep))
+    cover = text[:text.index(labels_for("en")["what_we_found"], text.index("$1.2M"))]
+    assert "of revenue from the North" in cover and "$1.2M" in cover
+    assert "Strong pattern" in text and "Weak pattern" in text and "from the North" in text
+
+
+def test_pdf_cover_falls_back_to_the_files_size_without_key_numbers():
+    text = pdf_text(_pdf("en"))
+    assert "600" in text and "rows" in text and "columns" in text
+
+
+# ── Looks: every theme, font and page size reaches the files ──────────────────
+
+def _media_box(pdf: bytes):
+    return [round(float(v)) for v in re.search(rb"/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)", pdf).groups()]
+
+
+@pytest.mark.parametrize("theme", sorted(THEMES))
+@pytest.mark.parametrize("size", ["a4", "letter"])
+def test_every_theme_and_size_makes_all_three_files(theme, size):
+    look = settle_look(theme, None, size)
+    pdf = _pdf("en", look=look)
+    assert _media_box(pdf) == ([595, 842] if size == "a4" else [612, 792])
+    # The page is painted in the theme's paper, unless it is white.
+    paper = THEMES[theme].rgb("paper")
+    if paper != (255, 255, 255):
+        rg = " ".join(f"{c / 255:.4f}".rstrip("0").rstrip(".") for c in paper).encode() + b" rg"
+        pages = b"".join(zlib.decompress(s) for s in re.findall(rb"stream\r?\n(.*?)\r?\nendstream", pdf, re.S)
+                         if s[:1] == b"x")
+        assert rg in pages
+
+    word = build_word_doc(report("en"), "orders.xlsx", "retail", charts=CHARTS, confidence_score=7, look=look)
+    assert _schema_order_problems(word) == []
+    doc = Document(io.BytesIO(word))
+    width_mm = doc.sections[0].page_width.mm
+    assert abs(width_mm - (210 if size == "a4" else 215.9)) < 0.5
+    office = office_theme(look)
+    assert not office.dark                                  # Word is printed: always on light paper
+    assert doc.styles["Heading 1"].font.name == look.f.office_heading
+
+    deck = Presentation(io.BytesIO(build_pptx(report("en"), charts=CHARTS, confidence_score=7, look=look)))
+    ground = deck.slides[0].background.fill.fore_color.rgb
+    assert str(ground) == THEMES[theme].paper.lstrip("#").upper()   # slides keep the theme, dark included
+
+
+def test_a_font_choice_overrides_the_themes_own_fonts():
+    look = settle_look("clean", "classic", "a4")
+    assert b"STIX" in _pdf("en", look=look)
+    doc = Document(io.BytesIO(build_word_doc(report("en"), look=look)))
+    assert doc.styles["Normal"].font.name == "Georgia"
+
+
+def test_word_names_its_fonts_outright_so_the_template_theme_fonts_do_not_win():
+    data = build_word_doc(report("en"), look=settle_look("warm", None, "a4"))
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        styles = z.read("word/styles.xml")
+    assert b"asciiTheme" not in styles and b"Georgia" in styles
+
+
+def test_a_dark_theme_turns_light_for_print_in_word():
+    night = office_theme(settle_look("midnight", None, "a4"))
+    assert night.paper == "#FFFFFF" and night.ink == THEMES["midnight"].paper
+    assert night.accent == THEMES["midnight"].mark            # cobalt headings, readable on white
+    assert office_theme(settle_look("warm", None, "a4")) == THEMES["warm"]

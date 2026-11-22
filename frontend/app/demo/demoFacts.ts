@@ -24,7 +24,7 @@ export const CHECK = {
   belowZero: 6, // rows that sold fewer than zero items
 };
 
-/** Revenue per product and per store, from the cleaned file. */
+/** Revenue per product, store, day and month, from the cleaned file. */
 export const REVENUE = {
   total: 381667.1,
   byProduct: [
@@ -41,6 +41,10 @@ export const REVENUE = {
     { name: 'Midtown', average: 118.54, total: 71244.44 },
   ],
   noDiscountShare: 80.4, // percent of rows with no discount
+  perDay: { weekend: 1155.31, weekday: 1001.97 }, // average revenue of a day, all four shops
+  bestMonth: { month: 12, total: 37006.95 },
+  worstMonth: { month: 6, total: 26295.22 },
+  prices: { Sandwich: 8.9, 'Drip coffee': 3.1 },
 };
 
 /** What DIG read each column as, shown when a column name is clicked. */
@@ -60,12 +64,12 @@ export const COLUMNS: Record<string, { kind: string; note: string }> = {
  * in plain words. Every key must appear in sample.json's summary exactly.
  */
 export const EVIDENCE: { text: string; plain: string }[] = [
-  { text: '31.98%', plain: 'Sandwiches brought in $122,040.59 of the $381,667.10 total.' },
-  { text: 'lift of 1.63', plain: 'A sandwich sale averages $265.88, about 1.63 times the average sale of $163.38.' },
-  { text: '$219.57', plain: 'Downtown’s average revenue per row of the file. A row is one product at one store on one day.' },
-  { text: '1.85 times', plain: 'Downtown’s $219.57 divided by Midtown’s $118.54.' },
-  { text: 'ρ=0.714', plain: 'ρ (rho) measures how closely two things rise together, from −1 to 1. Price and revenue rise together strongly.' },
-  { text: 'τ=0.115, p=0.232', plain: 'A trend test on weekly revenue. A p above 0.05 means the small rise could be chance, so DIG calls the year flat.' },
+  { text: '32%', plain: 'Sandwiches brought in $122,040.59 of the $381,667.10 the four shops took in over the year.' },
+  { text: '$8.90', plain: 'A sandwich costs $8.90 in every shop. A drip coffee, the cheapest thing on the menu, is $3.10.' },
+  { text: '$124,277', plain: 'Everything Downtown took in over the year: $124,276.64, rounded to the dollar.' },
+  { text: '1.74 times', plain: 'Downtown’s $124,276.64 divided by Midtown’s $71,244.44.' },
+  { text: '15% busier', plain: 'An average Saturday or Sunday brought in $1,155.31 across the four shops, an average weekday $1,001.97.' },
+  { text: '$37,007', plain: 'December’s sales across the four shops came to $37,006.95, the best month of the year. June was the quietest, at $26,295.' },
 ];
 
 /** What DIG says when clicked, between the lines of the tour. */
@@ -96,11 +100,31 @@ export const PLAN_FEATURES: { name: string; pro: boolean; note?: string }[] = [
   { name: 'Priority support', pro: true },
 ];
 
+/**
+ * The example team in the Work together stop: made up, like the shops. The
+ * roles and what each may do are the app's own (TeamRoles.cs, ReportAccess.cs).
+ */
+export const TEAM = [
+  { id: 'you', name: 'You', face: 'You', role: 'Owner', color: '#2536E0', on: '#ffffff', away: '' },
+  { id: 'sam', name: 'Sam', face: 'S', role: 'Editor', color: '#D6F24A', on: '#12121a', away: '' },
+  { id: 'priya', name: 'Priya', face: 'P', role: 'Editor', color: '#E4572E', on: '#ffffff', away: '' },
+  { id: 'leo', name: 'Leo', face: 'L', role: 'Viewer', color: '#7B5EA7', on: '#ffffff', away: '' },
+  { id: 'ana', name: 'Ana', face: 'A', role: 'Editor', color: '#0F766E', on: '#ffffff', away: 'Away · seen 2 h ago' },
+] as const;
+
+export type TeammateId = (typeof TEAM)[number]['id'];
+
+export const ROLES = [
+  { role: 'Owner', can: 'Runs the team: invites people, changes their roles, removes them.' },
+  { role: 'Editor', can: 'Edits the report, shares analyses with the team and invites people.' },
+  { role: 'Viewer', can: 'Reads the report and comments on it.' },
+];
+
 /** The files from the sample run, all in public/demo. Sizes are checked by the tests. */
 export const FILES = [
-  { name: 'Report', ext: 'pdf', href: '/demo/sample_report.pdf', size: '292 KB', pro: false },
-  { name: 'Report', ext: 'docx', href: '/demo/sample_report.docx', size: '298 KB', pro: true },
-  { name: 'Report', ext: 'pptx', href: '/demo/sample_report.pptx', size: '317 KB', pro: true },
+  { name: 'Report', ext: 'pdf', href: '/demo/sample_report.pdf', size: '224 KB', pro: false },
+  { name: 'Report', ext: 'docx', href: '/demo/sample_report.docx', size: '201 KB', pro: true },
+  { name: 'Report', ext: 'pptx', href: '/demo/sample_report.pptx', size: '223 KB', pro: true },
   { name: 'Cleaned data', ext: 'csv', href: '/demo/cleaned_coffee_sales.csv', size: '122 KB', pro: false },
   { name: 'Original file', ext: 'csv', href: '/demo/coffee_sales.csv', size: '118 KB', pro: false },
 ];

@@ -595,6 +595,11 @@ public class AnalysisService
             req.WantPptx = Bool(fmt, "pptx") ?? false;
         }
 
+        // How the files look
+        req.Theme    = Str(cust, "theme")    ?? req.Theme;
+        req.Font     = Str(cust, "font")     ?? req.Font;
+        req.PageSize = Str(cust, "pageSize") ?? req.PageSize;
+
         return req;
     }
 

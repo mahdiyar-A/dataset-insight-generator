@@ -206,9 +206,19 @@ def _instruction(spec: Dict[str, Any], label: str, desc: str) -> ChartInstructio
                             groupColumn=spec.get("group"), aggregate=spec.get("agg") or "")
 
 
-def draw(df: pd.DataFrame, spec: Dict[str, Any], label: str, desc: str = "") -> str:
+def _style(doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """The chart style of the look the report was made in, or None for one made before looks."""
+    look = ((doc or {}).get("facts") or {}).get("look")
+    if not isinstance(look, dict):
+        return None
+    from ai_engine.design.looks import look_from_dict
+    return look_from_dict(look).chart_style()
+
+
+def draw(df: pd.DataFrame, spec: Dict[str, Any], label: str, desc: str = "",
+         doc: Optional[Dict[str, Any]] = None) -> str:
     """The picture for a checked chart request, as base64 PNG, or Rejected."""
-    picture = draw_chart(df, _instruction(spec, label, desc))
+    picture = draw_chart(df, _instruction(spec, label, desc), _style(doc))
     if not picture:
         raise Rejected(f"A {spec['type']} chart of {spec['x']}"
                        f"{' and ' + spec['y'] if spec.get('y') else ''} could not be drawn from this data.")
@@ -331,7 +341,7 @@ def _check_one(item, doc, insights, charts, answers, known, lookups, df, languag
             if kind == charts[file_no].get("type"):
                 raise Rejected(f"The chart is already a {kind} chart.")
             spec = _redraw_spec(charts[file_no], kind, df)
-            picture = draw(df, spec, charts[file_no].get("label") or "", charts[file_no].get("desc") or "")
+            picture = draw(df, spec, charts[file_no].get("label") or "", charts[file_no].get("desc") or "", doc)
             return {"op": op, "file": file_no, "chart": spec, "picture": picture}
         change = {"op": op, "file": file_no}
         label, desc = _caption(item.get("label")), _caption(item.get("desc"))
@@ -384,7 +394,7 @@ def _check_one(item, doc, insights, charts, answers, known, lookups, df, languag
     if owner is not None and owner not in insights:
         raise Rejected(f"There is no insight {owner!r} to put it under.")
     spec = chart_spec(df, item.get("chart"))
-    picture = draw(df, spec, label, desc)
+    picture = draw(df, spec, label, desc, doc)
     return {"op": "add_chart", "chart": spec, "label": label, "desc": desc, "insight": owner,
             "picture": picture}
 

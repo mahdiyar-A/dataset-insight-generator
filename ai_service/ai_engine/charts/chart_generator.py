@@ -10,8 +10,9 @@ import matplotlib.ticker as mticker
 import seaborn as sns
 from matplotlib import font_manager
 from matplotlib.text import Text
+from contextlib import contextmanager
 from dataclasses import replace
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Iterator, Optional
 from ai_engine.fonts import RTL_CHARS, cjk_font_file
 from ai_engine.models.models import ChartInstruction
 
@@ -52,12 +53,117 @@ plt.rcParams.update({
 })
 
 
+# The colours every chart is drawn with. The dark set is the old look, kept for
+# a chart drawn with no report look given; drawn_in() swaps in a report's own.
+_DARK: Dict[str, Any] = {
+    "paper": "#0f172a", "ink": "#e2e8f0", "edge": "#0f172a", "trend": "#f8fafc", "second": "#fbbf24",
+    "other": "#64748b", "colors": ["#3b82f6", "#a855f7", "#10b981", "#f97316", "#ec4899"],
+    "groups": ["#3987e5", "#d95926", "#199e70"], "heading": None, "themed": False,
+}
+_pal: Dict[str, Any] = dict(_DARK)
+_registered: Dict[str, Optional[str]] = {}
+
+
+def _family(path: str) -> Optional[str]:
+    """matplotlib's name for a font file, registering it once; None if it cannot be used."""
+    if path not in _registered:
+        try:
+            font_manager.fontManager.addfont(path)
+            _registered[path] = font_manager.FontProperties(fname=path).get_name()
+        except Exception as e:
+            print(f"[Chart] font {path} unusable: {e}")
+            _registered[path] = None
+    return _registered[path]
+
+
+def _mix(a: str, b: str, share: float) -> str:
+    """Colour a moved `share` of the way towards b."""
+    ca, cb = (tuple(int(h.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4)) for h in (a, b))
+    return "#" + "".join(f"{round(x + (y - x) * share):02x}" for x, y in zip(ca, cb))
+
+
+@contextmanager
+def drawn_in(style: Optional[Dict[str, Any]]) -> Iterator[None]:
+    """
+    Draw the charts inside in a report's look (Look.chart_style()): its paper,
+    ink, colours and fonts, a light grid and no box. Without a style nothing
+    changes.
+    """
+    global _pal
+    if not style:
+        yield
+        return
+    paper, ink, muted = style["paper"], style["ink"], style["muted"]
+    body_files = list(style.get("body_files") or [])
+    heading_files = list(style.get("heading_files") or [])
+    body = next((f for f in (_family(p) for p in body_files) if f), None)
+    heading = next((f for f in (_family(p) for p in heading_files) if f), None)
+    families = list(dict.fromkeys(([body] if body else []) + _font_families()))
+    rc = {
+        "figure.facecolor": paper, "axes.facecolor": paper, "savefig.facecolor": paper,
+        "axes.edgecolor": _mix(ink, paper, 0.55), "axes.labelcolor": muted, "axes.titlecolor": ink,
+        "xtick.color": muted, "ytick.color": muted, "text.color": ink,
+        "grid.color": _mix(ink, paper, 0.85), "grid.linewidth": 0.8,
+        "axes.spines.top": False, "axes.spines.right": False, "axes.axisbelow": True,
+        "font.family": families, "font.size": 10, "legend.frameon": False,
+        "axes.labelsize": 9, "xtick.labelsize": 8.5, "ytick.labelsize": 8.5,
+    }
+    colors = list(style.get("colors") or _DARK["colors"])
+    pal = {"paper": paper, "ink": ink, "edge": paper, "trend": ink, "second": colors[min(2, len(colors) - 1)],
+           "other": _mix(muted, paper, 0.35), "colors": colors, "groups": colors[:3], "heading": heading,
+           "themed": True}
+    old = _pal
+    with plt.rc_context(rc):
+        _pal = pal
+        try:
+            yield
+        finally:
+            _pal = old
+
+
+def _words(column: str) -> str:
+    """A column name as words for an axis: "units_sold" -> "Units sold"."""
+    raw = str(column)
+    if re.search(r"_|[a-z][A-Z]", raw):
+        raw = re.sub(r"([a-z])([A-Z])", r"\1 \2", raw).replace("_", " ")
+        raw = re.sub(r"\s+", " ", raw).strip().lower()
+    # "revenue" -> "Revenue", but "pH" stays as it is.
+    if raw[:1].islower() and raw[1:2].islower():
+        raw = raw[:1].upper() + raw[1:]
+    return raw
+
+
+def _short(v: float) -> str:
+    """A bar's value as a label: 1,240 / 12k / 3.1M."""
+    a = abs(v)
+    if a >= 1e6:
+        return f"{v / 1e6:.1f}M"
+    if a >= 1e4:
+        return f"{v / 1e3:.0f}k"
+    if a >= 100 or float(v).is_integer():
+        return f"{v:,.0f}"
+    return f"{v:,.1f}"
+
+
+def _label_bars(ax, bars) -> None:
+    """Each bar's value at its end, when there are few enough to read."""
+    if 0 < len(bars) <= 12:
+        ax.bar_label(bars, labels=[_short(b.get_height()) for b in bars], padding=3, fontsize=8,
+                     color=_pal["ink"])
+        ax.margins(y=0.12)
+
+
+def _title(ax, text: str) -> None:
+    kw = {"fontfamily": _pal["heading"]} if _pal.get("heading") else {}
+    ax.set_title(text, fontsize=12.5, fontweight="bold", pad=14, loc="left" if _pal["themed"] else "center", **kw)
+
+
 MAX_SCATTER_POINTS = 500
 MAX_SCATTER_LEVELS = 20    # beyond this a column is labels, not groups
 # In a scatter any group can sit beside any other, so these must stay apart in
 # every pairing, for colour-blind readers too, on the axes colour above. Three
 # is as many as that allows; the rest of the rows are drawn as other groups.
-GROUP_COLORS = ["#3987e5", "#d95926", "#199e70"]
+GROUP_COLORS = _DARK["groups"]
 GROUP_MARKERS = ["o", "s", "^"]
 OTHER_GROUPS_COLOR = "#64748b"
 
@@ -138,8 +244,32 @@ def _measure(instr: ChartInstruction) -> str:
     return "sum" if re.search(r"\b(totals?|sums?)\b", words, re.IGNORECASE) else "mean"
 
 
+_DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+_MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october",
+           "november", "december"]
+
+
+def _natural_order(index: pd.Index) -> Optional[List[Any]]:
+    """
+    Days of the week and months of the year in calendar order, not by size: a
+    week read Sunday, Saturday, Wednesday hides the weekend. Also an ordered
+    category's own order. None for anything else.
+    """
+    if isinstance(index, pd.CategoricalIndex) and index.ordered:
+        return list(index.sort_values())
+    names = [str(v).strip().lower() for v in index]
+    if not names or len(names) > 12:
+        return None
+    for calendar in (_DAYS, _MONTHS):
+        for width in (None, 3):
+            keys = [c[:width] if width else c for c in calendar]
+            if all(n in keys for n in names):
+                return sorted(index, key=lambda v: keys.index(str(v).strip().lower()))
+    return None
+
+
 def _axis_label(column: str, how: str) -> str:
-    return f"{column} ({'total' if how == 'sum' else 'average'})"
+    return f"{_words(column)} ({'total' if how == 'sum' else 'average'})"
 
 
 def _bar_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
@@ -153,17 +283,28 @@ def _bar_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
 
     if y and pd.api.types.is_numeric_dtype(df[y]):
         how = _measure(instr)
-        data = df.groupby(x)[y].agg(how).sort_values(ascending=False).head(top_n)
-        ax.bar(data.index.astype(str), data.values, color=instr.color, alpha=0.85, edgecolor="#0f172a", linewidth=0.5)
+        data = df.groupby(x, observed=True)[y].agg(how)
+        natural = _natural_order(data.index)
+        data = data.reindex(natural) if natural is not None else data.sort_values(ascending=False).head(top_n)
+        bars = ax.bar(data.index.astype(str), data.values, color=instr.color, alpha=0.9, edgecolor=_pal["edge"],
+                      linewidth=0.5)
         ax.set_ylabel(_axis_label(y, how))
     else:
         data = df[x].value_counts().head(top_n)
-        ax.bar(data.index.astype(str), data.values, color=instr.color, alpha=0.85, edgecolor="#0f172a", linewidth=0.5)
+        bars = ax.bar(data.index.astype(str), data.values, color=instr.color, alpha=0.9, edgecolor=_pal["edge"],
+                      linewidth=0.5)
         ax.set_ylabel("Count")
+    if _pal["themed"]:
+        _label_bars(ax, bars)
 
-    ax.set_xlabel(x)
-    ax.set_title(instr.title, fontsize=12, fontweight="bold", pad=12)
-    plt.xticks(rotation=35, ha="right", fontsize=8)
+    ax.set_xlabel(_words(x))
+    _title(ax, instr.title)
+    # Labels lie flat while they fit side by side: each bar has about 110 / n
+    # characters of room at this size.
+    longest = max((len(str(v)) for v in data.index), default=0)
+    crowded = len(data) > 12 or longest * len(data) > 90
+    plt.xticks(rotation=35 if crowded or not _pal["themed"] else 0,
+               ha="right" if crowded or not _pal["themed"] else "center", fontsize=8)
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:,.0f}"))
     ax.grid(axis="y", alpha=0.3)
     fig.tight_layout()
@@ -187,9 +328,10 @@ def _line_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
     fig, ax = plt.subplots(figsize=(8, 4.5))
     how = "sum" if counting else _measure(instr)
     y_label = "Count" if counting else _axis_label(y, how)
+    dated = False
 
     if pd.api.types.is_numeric_dtype(df[x]):
-        y_label = "Count" if counting else y
+        y_label = "Count" if counting else _words(y)
         sorted_df = df[[x, y]].dropna().sort_values(x)
         ax.plot(sorted_df[x], sorted_df[y], color=instr.color, linewidth=2, alpha=0.9)
         ax.fill_between(sorted_df[x], sorted_df[y], alpha=0.15, color=instr.color)
@@ -210,10 +352,18 @@ def _line_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
             data = frame.groupby("t")["y"].agg(how).sort_index()
             if len(data) > 120:
                 span_days = (data.index.max() - data.index.min()).days
-                periods = data.resample("W" if span_days <= 730 else "MS")
+                rule = "W" if span_days <= 730 else "MS"
+                periods = data.resample(rule)
                 data = (periods.sum(min_count=1) if how == "sum" else periods.mean()).dropna()
+                if how == "sum":
+                    data = _without_part_periods(data, frame.groupby("t").size().resample(rule).size())
             ax.plot(data.index, data.values, color=instr.color, linewidth=2, marker="o", markersize=3)
-            fig.autofmt_xdate()
+            # "Jan Feb Mar … 2025" reads; "2025-01 2025-03", tilted, does not.
+            import matplotlib.dates as mdates
+            locator = mdates.AutoDateLocator(minticks=4, maxticks=10)
+            ax.xaxis.set_major_locator(locator)
+            ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
+            dated = True
         else:
             data = series.groupby(x)[y].agg(how)
             ax.plot(data.index.astype(str), data.values, color=instr.color, linewidth=2, marker="o", markersize=4)
@@ -222,13 +372,35 @@ def _line_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
                 from matplotlib.ticker import MaxNLocator
                 ax.xaxis.set_major_locator(MaxNLocator(nbins=20))
 
-    ax.set_xlabel(x)
+    ax.set_xlabel(_words(x))
     ax.set_ylabel(y_label)
-    ax.set_title(instr.title, fontsize=12, fontweight="bold", pad=12)
-    plt.xticks(rotation=35, ha="right", fontsize=8)
+    _title(ax, instr.title)
+    if dated:
+        plt.xticks(fontsize=8)
+    else:
+        plt.xticks(rotation=35, ha="right", fontsize=8)
     ax.grid(alpha=0.3)
+    if _pal["themed"]:
+        ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:,.0f}" if abs(v) >= 100 else f"{v:g}"))
     fig.tight_layout()
     return _to_png_base64(fig)
+
+
+def _without_part_periods(totals: pd.Series, days: pd.Series) -> pd.Series:
+    """
+    Totals per week or month without a first or last period that holds only
+    part of its days: a year that starts on a Thursday drew its first week as
+    a collapse in sales.
+    """
+    days = days.reindex(totals.index).fillna(0)
+    if len(totals) < 4 or not len(days):
+        return totals
+    full = float(days.median())
+    keep = pd.Series(True, index=totals.index)
+    for end in (totals.index[0], totals.index[-1]):
+        if days.get(end, full) < 0.9 * full:
+            keep[end] = False
+    return totals[keep]
 
 
 def _trend_line(ax, fitted: pd.DataFrame, drawn: pd.DataFrame, x: str, y: str, **style):
@@ -252,12 +424,12 @@ def _trend_line(ax, fitted: pd.DataFrame, drawn: pd.DataFrame, x: str, y: str, *
 
 def _scatter_by_group(ax, points: pd.DataFrame, sample: pd.DataFrame, x: str, y: str, g: str) -> None:
     """The largest groups in their own colour and shape, each with its own line."""
-    levels = points[g].value_counts().index[:len(GROUP_COLORS)]
+    levels = points[g].value_counts().index[:len(_pal["groups"])]
     rest = sample[~sample[g].isin(levels)]
     if len(rest):
-        ax.scatter(rest[x], rest[y], color=OTHER_GROUPS_COLOR, alpha=0.35, s=14, edgecolors="none",
+        ax.scatter(rest[x], rest[y], color=_pal["other"], alpha=0.35, s=14, edgecolors="none",
                    label="Other groups")
-    for level, color, marker in zip(levels, GROUP_COLORS, GROUP_MARKERS):
+    for level, color, marker in zip(levels, _pal["groups"], GROUP_MARKERS):
         shown = sample[sample[g] == level]
         ax.scatter(shown[x], shown[y], color=color, marker=marker, alpha=0.6, s=22, edgecolors="none",
                    label=str(level))
@@ -286,14 +458,14 @@ def _scatter_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
         _scatter_by_group(ax, points, sample, x, y, g)
     else:
         ax.scatter(sample[x], sample[y], color=instr.color, alpha=0.55, s=20, edgecolors="none")
-    _trend_line(ax, points, sample, x, y, color="#f8fafc", linewidth=1.2, linestyle="--", alpha=0.6,
+    _trend_line(ax, points, sample, x, y, color=_pal["trend"], linewidth=1.2, linestyle="--", alpha=0.6,
                 label="Overall trend" if grouped else "Trend")
     if ax.get_legend_handles_labels()[0]:
         ax.legend(fontsize=8)
 
-    ax.set_xlabel(x)
-    ax.set_ylabel(y)
-    ax.set_title(instr.title, fontsize=12, fontweight="bold", pad=12)
+    ax.set_xlabel(_words(x))
+    ax.set_ylabel(_words(y))
+    _title(ax, instr.title)
     ax.grid(alpha=0.25)
     fig.tight_layout()
     return _to_png_base64(fig)
@@ -306,16 +478,17 @@ def _histogram(df: pd.DataFrame, instr: ChartInstruction) -> str:
 
     fig, ax = plt.subplots(figsize=(7, 4.5))
     series = df[x].dropna()
-    ax.hist(series, bins=30, color=instr.color, alpha=0.8, edgecolor="#0f172a", linewidth=0.4)
+    ax.hist(series, bins=30, color=instr.color, alpha=0.85, edgecolor=_pal["edge"], linewidth=0.4)
 
     # Mean + median lines
-    ax.axvline(series.mean(),   color="#f8fafc", linestyle="--", linewidth=1.2, alpha=0.8, label=f"Mean: {series.mean():.2f}")
-    ax.axvline(series.median(), color="#fbbf24", linestyle=":",  linewidth=1.2, alpha=0.8, label=f"Median: {series.median():.2f}")
+    ax.axvline(series.mean(),   color=_pal["trend"], linestyle="--", linewidth=1.2, alpha=0.8, label=f"Mean: {series.mean():.2f}")
+    second = next((c for c in _pal["colors"] if c != instr.color), _pal["second"]) if _pal["themed"] else _pal["second"]
+    ax.axvline(series.median(), color=second, linestyle=":",  linewidth=1.6, alpha=0.95, label=f"Median: {series.median():.2f}")
     ax.legend(fontsize=8)
 
-    ax.set_xlabel(x)
-    ax.set_ylabel("Frequency")
-    ax.set_title(instr.title, fontsize=12, fontweight="bold", pad=12)
+    ax.set_xlabel(_words(x))
+    ax.set_ylabel("How many rows" if _pal["themed"] else "Frequency")
+    _title(ax, instr.title)
     ax.grid(axis="y", alpha=0.3)
     fig.tight_layout()
     return _to_png_base64(fig)
@@ -333,27 +506,27 @@ def _box_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
         groups = [grp[y].dropna().values for _, grp in df.groupby(x)]
         labels = [str(k) for k in df[x].unique()[:12]]
         bp = ax.boxplot(groups[:12], patch_artist=True, labels=labels,
-                        medianprops={"color": "#f8fafc", "linewidth": 1.5},
+                        medianprops={"color": _pal["trend"], "linewidth": 1.5},
                         whiskerprops={"color": "#64748b"},
                         capprops={"color": "#64748b"},
                         flierprops={"marker": "o", "color": instr.color, "alpha": 0.4, "markersize": 3})
         for patch in bp["boxes"]:
             patch.set_facecolor(instr.color)
             patch.set_alpha(0.6)
-        ax.set_ylabel(y)
+        ax.set_ylabel(_words(y))
     else:
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()[:8]
         data = [df[c].dropna().values for c in numeric_cols]
         bp = ax.boxplot(data, patch_artist=True, labels=numeric_cols,
-                        medianprops={"color": "#f8fafc", "linewidth": 1.5},
+                        medianprops={"color": _pal["trend"], "linewidth": 1.5},
                         whiskerprops={"color": "#64748b"},
                         capprops={"color": "#64748b"})
         for patch in bp["boxes"]:
             patch.set_facecolor(instr.color)
             patch.set_alpha(0.6)
 
-    ax.set_xlabel(x)
-    ax.set_title(instr.title, fontsize=12, fontweight="bold", pad=12)
+    ax.set_xlabel(_words(x))
+    _title(ax, instr.title)
     plt.xticks(rotation=25, ha="right", fontsize=8)
     ax.grid(axis="y", alpha=0.3)
     fig.tight_layout()
@@ -369,11 +542,11 @@ def _heatmap(df: pd.DataFrame, instr: ChartInstruction) -> str:
     fig, ax = plt.subplots(figsize=(max(6, len(corr.columns) * 0.8), max(5, len(corr.columns) * 0.7)))
     sns.heatmap(
         corr, ax=ax, annot=True, fmt=".2f", cmap="coolwarm",
-        linewidths=0.5, linecolor="#0f172a",
+        linewidths=0.5, linecolor=_pal["edge"],
         annot_kws={"size": 8},
         cbar_kws={"shrink": 0.8},
     )
-    ax.set_title(instr.title, fontsize=12, fontweight="bold", pad=12)
+    _title(ax, instr.title)
     plt.xticks(rotation=35, ha="right", fontsize=8)
     plt.yticks(fontsize=8)
     fig.tight_layout()
@@ -397,7 +570,8 @@ def _grouped_bar_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
         n_groups   = len(groups)
         x_indices  = np.arange(len(x_vals))
         bar_width  = 0.8 / max(n_groups, 1)
-        colors     = plt.cm.Blues(np.linspace(0.4, 0.9, n_groups))
+        colors     = ([_pal["colors"][i % len(_pal["colors"])] for i in range(n_groups)] if _pal["themed"]
+                      else plt.cm.Blues(np.linspace(0.4, 0.9, n_groups)))
 
         for gi, (grp, col) in enumerate(zip(groups, colors)):
             subset  = df[df[g] == grp]
@@ -405,14 +579,14 @@ def _grouped_bar_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
             heights = [(rows[y].mean() if numeric else len(rows)) if len(rows) else 0 for rows in at_x]
             offset  = (gi - n_groups / 2 + 0.5) * bar_width
             ax.bar(x_indices + offset, heights, bar_width * 0.9,
-                   label=str(grp), color=col, alpha=0.85, edgecolor="#0f172a", linewidth=0.4)
+                   label=str(grp), color=col, alpha=0.9, edgecolor=_pal["edge"], linewidth=0.4)
 
         ax.set_xticks(x_indices)
         ax.set_xticklabels([str(v) for v in x_vals], rotation=35, ha="right", fontsize=8)
-        ax.set_xlabel(x)
-        ax.set_ylabel(y if numeric else "Count")
-        ax.set_title(instr.title, fontsize=12, fontweight="bold", pad=12)
-        ax.legend(title=str(g), fontsize=7, title_fontsize=8)
+        ax.set_xlabel(_words(x))
+        ax.set_ylabel(_words(y) if numeric else "Count")
+        _title(ax, instr.title)
+        ax.legend(title=_words(g), fontsize=7, title_fontsize=8)
         ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:,.0f}"))
         ax.grid(axis="y", alpha=0.3)
         fig.tight_layout()
@@ -439,7 +613,7 @@ def _multi_line_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
     if not y_cols:
         return _line_chart(df, instr)
 
-    colors_cycle = [instr.color, "#a855f7", "#10b981", "#f97316", "#ec4899"]
+    colors_cycle = [instr.color] + [c for c in _pal["colors"] if c != instr.color]
     fig, ax = plt.subplots(figsize=(9, 5))
 
     for i, yc in enumerate(y_cols[:5]):
@@ -449,16 +623,16 @@ def _multi_line_chart(df: pd.DataFrame, instr: ChartInstruction) -> str:
             sorted_df = df[[x, yc]].dropna().sort_values(x)
             ax.plot(sorted_df[x], sorted_df[yc],
                     color=colors_cycle[i % len(colors_cycle)],
-                    linewidth=2, marker="o", markersize=3, label=yc)
+                    linewidth=2, marker="o", markersize=3, label=_words(yc))
         else:
             data = df.groupby(x)[yc].mean()
             ax.plot(data.index.astype(str), data.values,
                     color=colors_cycle[i % len(colors_cycle)],
-                    linewidth=2, marker="o", markersize=3, label=yc)
+                    linewidth=2, marker="o", markersize=3, label=_words(yc))
 
-    ax.set_xlabel(x)
+    ax.set_xlabel(_words(x))
     ax.set_ylabel("Value")
-    ax.set_title(instr.title, fontsize=12, fontweight="bold", pad=12)
+    _title(ax, instr.title)
     ax.legend(fontsize=8)
     plt.xticks(rotation=35, ha="right", fontsize=8)
     ax.grid(alpha=0.3)
@@ -487,9 +661,11 @@ def _is_measure(df: pd.DataFrame, column: str | None) -> bool:
     return bool(name) and pd.api.types.is_numeric_dtype(df[name])
 
 
-def generate_charts(df: pd.DataFrame, instructions: List[ChartInstruction]) -> List[Dict[str, Any]]:
+def generate_charts(df: pd.DataFrame, instructions: List[ChartInstruction],
+                    style: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """
-    Generate charts from LLM instructions.
+    Generate charts from LLM instructions, in the report's look when `style`
+    (Look.chart_style()) is given: each chart takes the theme's next colour.
     Routes to correct builder including complex types (grouped_bar, multi_line).
     Also routes simple bar/line charts with subtype/groupColumn to the complex builders.
     Returns list of {type, label, desc, color, insight_index, image_base64} — max 5 charts.
@@ -503,52 +679,59 @@ def generate_charts(df: pd.DataFrame, instructions: List[ChartInstruction]) -> L
     if len(instructions) > MAX_CHARTS:
         print(f"[Chart] {len(instructions)} instructions received, keeping the first "
               f"{MAX_CHARTS} — the backend stores no more than that.")
-    for instr in instructions[:MAX_CHARTS]:
-        chart_type = instr.chartType.lower()
-
-        # Route subtypes even when base type is simple
-        if chart_type == "bar" and instr.chartSubtype == "grouped" and instr.groupColumn:
-            chart_type = "grouped_bar"
-        elif chart_type == "line" and (instr.chartSubtype == "multi_line" or instr.yColumns):
-            chart_type = "multi_line"
-
-        builder = _CHART_BUILDERS.get(chart_type, _bar_chart)
-        drawn = instr
-        try:
-            img_b64 = builder(df, instr)
-        except Exception as e:
-            print(f"[Chart] Could not draw '{instr.title}' as {chart_type}: {e}")
-            plt.close("all")
-            img_b64 = None
-
-        # Most of these want numbers, and a file of text has none: 19 of 32 ways
-        # of asking for a chart of one drew nothing. Counting always works.
-        if not img_b64 and instr.xColumn not in counted:
-            try:
-                drawn = replace(instr, yColumn=None, groupColumn=None, yColumns=[])
-                img_b64 = _bar_chart(df, drawn)
-                chart_type = "bar"
-            except Exception as e:
-                print(f"[Chart] Failed to generate '{instr.title}': {e}")
-                plt.close("all")
-        if not img_b64:
-            continue
-
-        if chart_type == "bar" and not _is_measure(df, instr.yColumn):
-            counted.add(instr.xColumn)
-        results.append({
-            "type":          chart_type,
-            "label":         instr.title,
-            "desc":          instr.description,
-            "color":         instr.color,
-            "insight_index": instr.insightIndex,
-            "image_base64":  img_b64,
-            # The columns it was drawn from, so it can be drawn again as
-            # another kind of chart. See report_document and report_changes.
-            "spec":          spec_of(drawn),
-        })
-
+    with drawn_in(style):
+        for i, instr in enumerate(instructions[:MAX_CHARTS]):
+            if style:
+                instr = replace(instr, color=_pal["colors"][i % len(_pal["colors"])])
+            _one_chart(df, instr, counted, results)
     return results
+
+
+def _one_chart(df: pd.DataFrame, instr: ChartInstruction, counted: set, results: List[Dict[str, Any]]) -> None:
+    """Draw one instruction into `results`, falling back to a count when it cannot be drawn as asked."""
+    chart_type = instr.chartType.lower()
+
+    # Route subtypes even when base type is simple
+    if chart_type == "bar" and instr.chartSubtype == "grouped" and instr.groupColumn:
+        chart_type = "grouped_bar"
+    elif chart_type == "line" and (instr.chartSubtype == "multi_line" or instr.yColumns):
+        chart_type = "multi_line"
+
+    builder = _CHART_BUILDERS.get(chart_type, _bar_chart)
+    drawn = instr
+    try:
+        img_b64 = builder(df, instr)
+    except Exception as e:
+        print(f"[Chart] Could not draw '{instr.title}' as {chart_type}: {e}")
+        plt.close("all")
+        img_b64 = None
+
+    # Most of these want numbers, and a file of text has none: 19 of 32 ways
+    # of asking for a chart of one drew nothing. Counting always works.
+    if not img_b64 and instr.xColumn not in counted:
+        try:
+            drawn = replace(instr, yColumn=None, groupColumn=None, yColumns=[])
+            img_b64 = _bar_chart(df, drawn)
+            chart_type = "bar"
+        except Exception as e:
+            print(f"[Chart] Failed to generate '{instr.title}': {e}")
+            plt.close("all")
+    if not img_b64:
+        return
+
+    if chart_type == "bar" and not _is_measure(df, instr.yColumn):
+        counted.add(instr.xColumn)
+    results.append({
+        "type":          chart_type,
+        "label":         instr.title,
+        "desc":          instr.description,
+        "color":         instr.color,
+        "insight_index": instr.insightIndex,
+        "image_base64":  img_b64,
+        # The columns it was drawn from, so it can be drawn again as
+        # another kind of chart. See report_document and report_changes.
+        "spec":          spec_of(drawn),
+    })
 
 
 def spec_of(instr: ChartInstruction) -> Dict[str, Any]:
@@ -562,7 +745,7 @@ def spec_of(instr: ChartInstruction) -> Dict[str, Any]:
 DRAWABLE = ("bar", "line", "scatter", "histogram", "box", "grouped_bar")
 
 
-def draw_chart(df: pd.DataFrame, instr: ChartInstruction) -> str | None:
+def draw_chart(df: pd.DataFrame, instr: ChartInstruction, style: Optional[Dict[str, Any]] = None) -> str | None:
     """
     One chart exactly as asked, as base64 PNG, or None when it cannot be drawn.
 
@@ -574,7 +757,10 @@ def draw_chart(df: pd.DataFrame, instr: ChartInstruction) -> str | None:
     if builder is None or instr.chartType not in DRAWABLE:
         return None
     try:
-        return builder(df, instr)
+        with drawn_in(style):
+            if style:
+                instr = replace(instr, color=_pal["colors"][0])
+            return builder(df, instr)
     except Exception as e:
         print(f"[Chart] Could not draw '{instr.title}' as {instr.chartType}: {e}")
         plt.close("all")

@@ -200,3 +200,78 @@ describe("settings chosen before the upload", () => {
     await waitFor(() => expect(screen.getByText("2 directives")).toBeInTheDocument());
   });
 });
+
+describe("the look of the files", () => {
+  it("starts on the look that fits the data, A4, and the theme's own font", async () => {
+    render(<Harness />);
+    await open();
+
+    expect(screen.getByRole("radio", { name: "Fits the data" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "A4" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Theme's own" })).toBeChecked();
+  });
+
+  it("offers five themes besides that, and each one is kept when picked", async () => {
+    render(<Harness />);
+    const user = await open();
+
+    const themes = screen.getAllByRole("radio").filter((r) => r.closest("[aria-labelledby='dig-theme-label']"));
+    expect(themes).toHaveLength(6);
+
+    for (const [name, id] of [["Warm", "warm"], ["Midnight", "midnight"], ["Classic", "classic"]] as const) {
+      await user.click(screen.getByRole("radio", { name }));
+      expect(latest?.theme).toBe(id);
+      expect(screen.getByRole("radio", { name })).toBeChecked();
+      expect(screen.getByRole("radio", { name: "Fits the data" })).not.toBeChecked();
+    }
+  });
+
+  it("chooses a font and a page size", async () => {
+    render(<Harness />);
+    const user = await open();
+
+    await user.click(screen.getByRole("radio", { name: "Classic serif" }));
+    await user.click(screen.getByRole("radio", { name: "US Letter" }));
+
+    expect(latest?.font).toBe("classic");
+    expect(latest?.pageSize).toBe("letter");
+    expect(screen.getByRole("radio", { name: "A4" })).not.toBeChecked();
+  });
+
+  it("takes the look from a brief", async () => {
+    brief.mockResolvedValue(briefReply({ settings: { theme: "clean", pageSize: "letter" } }));
+    render(<Harness />);
+    const user = await open();
+
+    await writeBrief(user, "Clean, on letter paper");
+
+    await waitFor(() => expect(latest?.theme).toBe("clean"));
+    expect(latest?.pageSize).toBe("letter");
+    expect(screen.getByRole("radio", { name: "Clean" })).toBeChecked();
+  });
+
+  it("gives settings kept from before the look existed the default look", async () => {
+    // Risk: settings held by the dashboard from an older page have no theme,
+    // and the panel would show no theme chosen.
+    const old: Partial<Settings> = { ...DEFAULT_SETTINGS };
+    delete old.theme;
+    delete old.font;
+    delete old.pageSize;
+    render(<ChatCustomizationPanel value={old} isPro />);
+
+    expect(screen.getByRole("radio", { name: "Fits the data" })).toBeChecked();
+  });
+});
+
+describe("tone and audience", () => {
+  it("start on letting DIG read the data, and can still be chosen", async () => {
+    render(<Harness />);
+    const user = await open();
+
+    expect(screen.getByRole("combobox", { name: "Tone" })).toHaveValue("auto");
+    expect(screen.getByRole("combobox", { name: "Audience" })).toHaveValue("auto");
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "Tone" }), "casual");
+    expect(latest?.tone).toBe("casual");
+  });
+});

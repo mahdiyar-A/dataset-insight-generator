@@ -7,8 +7,8 @@ import { useAuth } from "@/app/contexts/AuthContext";
 import { useSettings } from "@/app/contexts/SettingsContext";
 import BackendAPI from "@/lib/BackendAPI";
 import {
-  DEFAULT_SETTINGS, MAX_BRIEF_CHARS, MAX_INSIGHTS, MAX_MUST_MENTION, MAX_QUESTIONS, MIN_INSIGHTS,
-  TEXT_LIMITS, applyBrief, directiveCount,
+  DEFAULT_SETTINGS, FONTS, MAX_BRIEF_CHARS, MAX_INSIGHTS, MAX_MUST_MENTION, MAX_QUESTIONS, MIN_INSIGHTS,
+  PAGE_SIZES, TEXT_LIMITS, THEMES, applyBrief, directiveCount,
 } from "@/lib/reportSettings";
 
 /**
@@ -67,11 +67,26 @@ const T = {
     notePh: "Optional note, e.g. who is asking or why it matters",
     addQuestion: "+ Add a question",
     remove: "Remove",
+    sectionLook: "Look of the files",
+    theme: "Theme",
+    themes: {
+      auto: ["Fits the data", "DIG picks the look: warm for a café, clean for a lab"],
+      signature: ["DIG Signature", "Paper, cobalt and lime, bold rules"],
+      clean: ["Clean", "White, one teal, thin lines"],
+      warm: ["Warm", "Cream, terracotta and sage"],
+      classic: ["Classic", "Navy and burgundy, serif type"],
+      midnight: ["Midnight", "Dark, for screens and presenting"],
+    },
+    font: "Font",
+    fonts: { auto: "Theme's own", signature: "Signature", modern: "Modern", classic: "Classic serif", storybook: "Storybook", technical: "Technical" },
+    pageSize: "Page size",
+    pageSizes: { a4: "A4", letter: "US Letter" },
+    lookHint: "PDF, Word and PowerPoint all come out in this look. Word and PowerPoint use fonts every computer has.",
     sectionVoice: "Voice & audience",
     audience: "Audience",
-    audiences: { general: "General", executive: "Executive / C-suite", technical: "Technical / data team", client: "Client / external", student: "Student / educational" },
+    audiences: { auto: "Let DIG read the data", general: "General", executive: "Executive / C-suite", technical: "Technical / data team", client: "Client / external", student: "Student / educational" },
     tone: "Tone",
-    tones: { professional: "Professional", technical: "Technical / statistical", storytelling: "Storytelling / narrative", casual: "Casual / friendly", academic: "Academic / research", simplified: "Simplified / plain language" },
+    tones: { auto: "Let DIG read the data", professional: "Professional", technical: "Technical / statistical", storytelling: "Storytelling / narrative", casual: "Casual / friendly", academic: "Academic / research", simplified: "Simplified / plain language" },
     language: "Language",
     languages: { en: "English", fr: "French", es: "Spanish", de: "German", zh: "Chinese", ar: "Arabic", pt: "Portuguese", fa: "Persian" },
     writing: "Writing format",
@@ -92,7 +107,9 @@ const T = {
     word: "📝 Word (.docx)",
     pptx: "📊 PowerPoint",
     outputHint: "PDF is always included. Word and PowerPoint are additional Pro exports.",
-    summary: (o, t) => `${t.languages[o.language]} · ${t.tones[o.tone]} · ${t.audiences[o.audience]} · ${t.writings[o.writingFormat]} · ${o.insightsCount} insights`,
+    autoTone: "Tone that fits the data",
+    autoAudience: "Reader from the data",
+    summary: (o, t) => `${t.themes[o.theme]?.[0] ?? t.themes.auto[0]} · ${t.languages[o.language]} · ${o.tone === "auto" ? t.autoTone : t.tones[o.tone]} · ${o.audience === "auto" ? t.autoAudience : t.audiences[o.audience]} · ${t.writings[o.writingFormat]} · ${o.insightsCount} insights`,
   },
   fr: {
     lockedTitle: "⚡ Personnalisez votre rapport",
@@ -133,11 +150,26 @@ const T = {
     notePh: "Note facultative, ex. qui demande ou pourquoi c'est important",
     addQuestion: "+ Ajouter une question",
     remove: "Retirer",
+    sectionLook: "Apparence des fichiers",
+    theme: "Thème",
+    themes: {
+      auto: ["Selon les données", "DIG choisit : chaleureux pour un café, épuré pour un labo"],
+      signature: ["Signature DIG", "Papier, cobalt et citron vert, traits épais"],
+      clean: ["Épuré", "Blanc, un bleu-vert, traits fins"],
+      warm: ["Chaleureux", "Crème, terre cuite et sauge"],
+      classic: ["Classique", "Marine et bordeaux, police à empattements"],
+      midnight: ["Minuit", "Sombre, pour l'écran et les présentations"],
+    },
+    font: "Police",
+    fonts: { auto: "Celle du thème", signature: "Signature", modern: "Moderne", classic: "Serif classique", storybook: "Livre", technical: "Technique" },
+    pageSize: "Format de page",
+    pageSizes: { a4: "A4", letter: "Lettre US" },
+    lookHint: "Le PDF, Word et PowerPoint sortent tous avec cette apparence. Word et PowerPoint utilisent des polices présentes sur tous les ordinateurs.",
     sectionVoice: "Style et public",
     audience: "Public",
-    audiences: { general: "Général", executive: "Direction", technical: "Technique / équipe data", client: "Client / externe", student: "Étudiant / pédagogique" },
+    audiences: { auto: "Selon les données", general: "Général", executive: "Direction", technical: "Technique / équipe data", client: "Client / externe", student: "Étudiant / pédagogique" },
     tone: "Ton",
-    tones: { professional: "Professionnel", technical: "Technique / statistique", storytelling: "Narratif", casual: "Décontracté", academic: "Académique / recherche", simplified: "Simplifié" },
+    tones: { auto: "Selon les données", professional: "Professionnel", technical: "Technique / statistique", storytelling: "Narratif", casual: "Décontracté", academic: "Académique / recherche", simplified: "Simplifié" },
     language: "Langue",
     languages: { en: "Anglais", fr: "Français", es: "Espagnol", de: "Allemand", zh: "Chinois", ar: "Arabe", pt: "Portugais", fa: "Persan" },
     writing: "Forme du texte",
@@ -158,7 +190,9 @@ const T = {
     word: "📝 Word (.docx)",
     pptx: "📊 PowerPoint",
     outputHint: "Le PDF est toujours inclus. Word et PowerPoint sont des exports Pro.",
-    summary: (o, t) => `${t.languages[o.language]} · ${t.tones[o.tone]} · ${t.audiences[o.audience]} · ${t.writings[o.writingFormat]} · ${o.insightsCount} résultats`,
+    autoTone: "Ton adapté aux données",
+    autoAudience: "Public selon les données",
+    summary: (o, t) => `${t.themes[o.theme]?.[0] ?? t.themes.auto[0]} · ${t.languages[o.language]} · ${o.tone === "auto" ? t.autoTone : t.tones[o.tone]} · ${o.audience === "auto" ? t.autoAudience : t.audiences[o.audience]} · ${t.writings[o.writingFormat]} · ${o.insightsCount} résultats`,
   },
   fa: {
     lockedTitle: "⚡ گزارش خود را شخصی‌سازی کنید",
@@ -199,11 +233,26 @@ const T = {
     notePh: "یادداشت اختیاری، مثلاً چه کسی می‌پرسد یا چرا مهم است",
     addQuestion: "+ افزودن پرسش",
     remove: "حذف",
+    sectionLook: "ظاهر فایل‌ها",
+    theme: "قالب",
+    themes: {
+      auto: ["متناسب با داده", "DIG انتخاب می‌کند: گرم برای کافه، ساده برای آزمایشگاه"],
+      signature: ["امضای DIG", "کاغذی، آبی کبالتی و لیمویی، خط‌های پررنگ"],
+      clean: ["ساده", "سفید، یک رنگ سبزآبی، خط‌های نازک"],
+      warm: ["گرم", "کرم، سفالی و سبز مریم‌گلی"],
+      classic: ["کلاسیک", "سرمه‌ای و زرشکی، قلم سریف"],
+      midnight: ["نیمه‌شب", "تیره، برای صفحه‌نمایش و ارائه"],
+    },
+    font: "قلم",
+    fonts: { auto: "قلم خود قالب", signature: "امضا", modern: "مدرن", classic: "سریف کلاسیک", storybook: "کتابی", technical: "فنی" },
+    pageSize: "اندازه صفحه",
+    pageSizes: { a4: "A4", letter: "نامه آمریکایی" },
+    lookHint: "PDF، Word و PowerPoint همه با همین ظاهر ساخته می‌شوند. Word و PowerPoint از قلم‌هایی استفاده می‌کنند که همه رایانه‌ها دارند.",
     sectionVoice: "لحن و مخاطب",
     audience: "مخاطب",
-    audiences: { general: "عمومی", executive: "مدیران ارشد", technical: "فنی / تیم داده", client: "مشتری / بیرونی", student: "دانشجو / آموزشی" },
+    audiences: { auto: "DIG از روی داده تشخیص دهد", general: "عمومی", executive: "مدیران ارشد", technical: "فنی / تیم داده", client: "مشتری / بیرونی", student: "دانشجو / آموزشی" },
     tone: "لحن",
-    tones: { professional: "حرفه‌ای", technical: "فنی / آماری", storytelling: "روایی", casual: "خودمانی", academic: "دانشگاهی / پژوهشی", simplified: "ساده" },
+    tones: { auto: "DIG از روی داده تشخیص دهد", professional: "حرفه‌ای", technical: "فنی / آماری", storytelling: "روایی", casual: "خودمانی", academic: "دانشگاهی / پژوهشی", simplified: "ساده" },
     language: "زبان",
     languages: { en: "انگلیسی", fr: "فرانسوی", es: "اسپانیایی", de: "آلمانی", zh: "چینی", ar: "عربی", pt: "پرتغالی", fa: "فارسی" },
     writing: "شکل نوشتار",
@@ -224,7 +273,9 @@ const T = {
     word: "📝 Word (.docx)",
     pptx: "📊 PowerPoint",
     outputHint: "PDF همیشه هست. Word و PowerPoint خروجی‌های اضافه Pro هستند.",
-    summary: (o, t) => `${t.languages[o.language]} · ${t.tones[o.tone]} · ${t.audiences[o.audience]} · ${t.writings[o.writingFormat]} · ${o.insightsCount} یافته`,
+    autoTone: "لحن متناسب با داده",
+    autoAudience: "مخاطب از روی داده",
+    summary: (o, t) => `${t.themes[o.theme]?.[0] ?? t.themes.auto[0]} · ${t.languages[o.language]} · ${o.tone === "auto" ? t.autoTone : t.tones[o.tone]} · ${o.audience === "auto" ? t.autoAudience : t.audiences[o.audience]} · ${t.writings[o.writingFormat]} · ${o.insightsCount} یافته`,
   },
 };
 
@@ -316,6 +367,127 @@ function Chip({ label, active, onClick, disabled }) {
       }}>
       {label}
     </button>
+  );
+}
+
+// ── One of a few: a chip that is a radio ──────────────────────────────────────
+function Choice({ label, checked, onClick, fontFamily }) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={checked}
+      onClick={onClick}
+      style={{
+        padding: "6px 12px", borderRadius: "0", cursor: "pointer",
+        border: checked ? "2px solid var(--ink)" : "1px solid var(--line)",
+        margin: checked ? 0 : "1px",
+        background: checked ? "color-mix(in srgb, var(--cobalt) 12%, var(--card))" : "var(--card)",
+        color: checked ? "var(--ink)" : "var(--ink-soft)",
+        fontSize: "0.8rem", fontWeight: checked ? 700 : 500,
+        fontFamily: fontFamily ?? "inherit",
+      }}>
+      {label}
+    </button>
+  );
+}
+
+// ── A little page in a theme's colours ─────────────────────────────────────────
+function MiniPage({ id }) {
+  if (id === "auto") {
+    // The five papers side by side, with a spark: DIG picks one of them.
+    return (
+      <div aria-hidden="true" style={{ position: "relative", height: "58px", display: "flex", border: "1px solid var(--line)" }}>
+        {Object.entries(THEMES).map(([key, th]) => (
+          <span key={key} style={{ flex: 1, background: th.paper, display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: "6px" }}>
+            <span style={{ width: "8px", height: "18px", background: th.accent }} />
+          </span>
+        ))}
+        <span style={{
+          position: "absolute", top: "5px", insetInlineStart: "6px", padding: "0 5px",
+          background: "#D6F24A", color: "#12121A", border: "1.5px solid #12121A",
+          fontSize: "0.62rem", fontWeight: 800, lineHeight: "14px",
+        }}>AUTO</span>
+      </div>
+    );
+  }
+  const th = THEMES[id];
+  return (
+    <div aria-hidden="true" style={{
+      height: "58px", padding: "7px 8px", boxSizing: "border-box", background: th.paper,
+      border: th.heavy ? `2px solid ${th.ink}` : `1px solid color-mix(in srgb, ${th.ink} 22%, transparent)`,
+      boxShadow: th.heavy ? `3px 3px 0 ${th.ink}` : "none",
+      display: "flex", flexDirection: "column", gap: "4px",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+        <span style={{ width: "42%", height: "6px", background: th.ink }} />
+        <span style={{ width: "14px", height: "6px", background: th.mark, border: th.heavy ? `1px solid ${th.ink}` : "none" }} />
+      </div>
+      <span style={{ fontSize: "1.05rem", fontWeight: 800, lineHeight: 1, color: th.accent, fontFamily: "var(--app-display, inherit)" }}>32%</span>
+      <span style={{ width: "78%", height: "3px", background: th.ink, opacity: 0.45 }} />
+      <span style={{ width: "56%", height: "3px", background: th.ink, opacity: 0.45 }} />
+    </div>
+  );
+}
+
+// ── The look of the files: theme, font, page size ──────────────────────────────
+function LookPicker({ opts, set, t }) {
+  const themes = ["auto", ...Object.keys(THEMES)];
+  return (
+    <div>
+      <p style={FIELD_LABEL} id="dig-theme-label">{t.theme}</p>
+      <div role="radiogroup" aria-labelledby="dig-theme-label" style={{
+        display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(104px, 1fr))", gap: "10px",
+      }}>
+        {themes.map(id => {
+          const checked = opts.theme === id;
+          const [name, desc] = t.themes[id];
+          return (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={checked}
+              aria-label={name}
+              title={desc}
+              onClick={() => set("theme", id)}
+              style={{
+                padding: "6px", borderRadius: "0", cursor: "pointer", textAlign: "start",
+                background: checked ? "color-mix(in srgb, var(--cobalt) 10%, var(--card))" : "var(--card)",
+                border: checked ? "2px solid var(--cobalt-accent)" : "1px solid var(--line)",
+                margin: checked ? 0 : "1px", minWidth: 0,
+              }}>
+              <MiniPage id={id} />
+              <span style={{ display: "block", marginTop: "7px", fontSize: "0.78rem", fontWeight: 700, color: "var(--ink)" }}>
+                {checked ? "✓ " : ""}{name}
+              </span>
+              <span style={{ display: "block", fontSize: "0.68rem", lineHeight: 1.35, color: "var(--ink-faint)" }}>{desc}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", marginTop: "14px" }}>
+        <div style={{ flex: "2 1 260px", minWidth: 0 }}>
+          <p style={FIELD_LABEL} id="dig-font-label">{t.font}</p>
+          <div role="radiogroup" aria-labelledby="dig-font-label" style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+            {Object.entries(FONTS).map(([id, family]) => (
+              <Choice key={id} label={t.fonts[id]} checked={opts.font === id}
+                fontFamily={family} onClick={() => set("font", id)} />
+            ))}
+          </div>
+        </div>
+        <div style={{ flex: "1 1 140px", minWidth: 0 }}>
+          <p style={FIELD_LABEL} id="dig-page-label">{t.pageSize}</p>
+          <div role="radiogroup" aria-labelledby="dig-page-label" style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+            {PAGE_SIZES.map(id => (
+              <Choice key={id} label={t.pageSizes[id]} checked={opts.pageSize === id} onClick={() => set("pageSize", id)} />
+            ))}
+          </div>
+        </div>
+      </div>
+      <p style={{ ...FIELD_HINT, marginTop: "8px" }}>{t.lookHint}</p>
+    </div>
   );
 }
 
@@ -568,7 +740,8 @@ function BriefBox({ opts, onChange, t }) {
 export default function ChatCustomizationPanel({ value = null, onChange, onUpgrade, isPro = false }) {
   const { lang } = useSettings();
   const t = T[lang] || T.en;
-  const opts = value ?? DEFAULT_SETTINGS;
+  // Settings held from before a key existed (the look, say) take its default.
+  const opts = value ? { ...DEFAULT_SETTINGS, ...value } : DEFAULT_SETTINGS;
   const [open, setOpen] = useState(value !== null);
 
   if (!isPro) return <LockedBanner onUpgrade={onUpgrade} t={t} />;
@@ -682,6 +855,10 @@ export default function ChatCustomizationPanel({ value = null, onChange, onUpgra
             <Chip label={t.pptx} active={opts.outputFormat.pptx} onClick={() => setFmt("pptx", !opts.outputFormat.pptx)} />
           </div>
           <p style={{ ...FIELD_HINT, marginTop: "6px" }}>{t.outputHint}</p>
+
+          {/* ── LOOK OF THE FILES ──────────────────────────────────────── */}
+          <SectionLabel text={t.sectionLook} />
+          <LookPicker opts={opts} set={set} t={t} />
 
           <p style={{
             margin: "14px 0 0", padding: "10px 14px", borderRadius: "0", fontSize: "0.77rem", lineHeight: 1.7,

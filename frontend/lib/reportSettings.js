@@ -22,11 +22,42 @@ export const TEXT_LIMITS = {
   note: 300,
 };
 
+/**
+ * The five looks a report can be made in, with the colours
+ * ai_engine/design/looks.py draws them in, so the panel's little pages match
+ * the files. "heavy" is DIG's own way: thick ink rules and offset shadows.
+ */
+export const THEMES = {
+  signature: { paper: "#F2EFE9", ink: "#12121A", accent: "#2536E0", mark: "#D6F24A", heavy: true },
+  clean:     { paper: "#FFFFFF", ink: "#1E293B", accent: "#0F766E", mark: "#CCFBF1", heavy: false },
+  warm:      { paper: "#FBF6EE", ink: "#2B1D14", accent: "#B5532E", mark: "#F3D9A4", heavy: false },
+  classic:   { paper: "#FFFFFF", ink: "#14213D", accent: "#7A1F2B", mark: "#EFE6D2", heavy: false },
+  midnight:  { paper: "#111318", ink: "#F4F1EA", accent: "#D6F24A", mark: "#2536E0", heavy: true },
+};
+
+/** Font pairs, and the type each is shown in on the panel. */
+export const FONTS = {
+  auto:      "inherit",
+  signature: 'var(--font-display), "Bricolage Grotesque", sans-serif',
+  modern:    'var(--font-sans), "Work Sans", sans-serif',
+  classic:   'Georgia, "Times New Roman", serif',
+  storybook: 'Georgia, "Times New Roman", serif',
+  technical: 'Consolas, "SFMono-Regular", Menlo, monospace',
+};
+
+export const PAGE_SIZES = ["a4", "letter"];
+
 export const DEFAULT_SETTINGS = {
-  // Language & voice
+  // How the files look. "auto" lets DIG pick the theme that fits the data;
+  // the font follows the theme unless one is chosen.
+  theme: "auto",
+  font: "auto",
+  pageSize: "a4",
+  // Language & voice. "auto" means DIG reads the data for who the report is
+  // for: a reading log is written for its owner, a lab's data for a scientist.
   language: "en",
-  tone: "professional",
-  audience: "general",
+  tone: "auto",
+  audience: "auto",
   writingFormat: "narrative",
   // Depth & scope
   depth: "standard",
@@ -47,6 +78,20 @@ export const DEFAULT_SETTINGS = {
   // Output formats. The PDF is always made.
   outputFormat: { pdf: true, word: false, pptx: false },
 };
+
+/**
+ * Whether a brief's value is one the panel can show. A theme, font or page
+ * size the panel has no card for would leave it showing nothing chosen.
+ *
+ * @param {string} key
+ * @param {any} value
+ */
+function allowed(key, value) {
+  if (key === "theme") return value === "auto" || value in THEMES;
+  if (key === "font") return value in FONTS;
+  if (key === "pageSize") return PAGE_SIZES.includes(value);
+  return true;
+}
 
 /**
  * The panel after a brief. Only what the brief set changes, so a brief that
@@ -72,6 +117,8 @@ export function applyBrief(current, settings) {
         .map((q) => ({ question: String(q?.question ?? ""), note: String(q?.note ?? "") }))
         .filter((q) => q.question.trim())
         .slice(0, MAX_QUESTIONS);
+    } else if (!allowed(key, value)) {
+      continue;
     } else {
       /** @type {Record<string, any>} */ (next)[key] = value;
     }

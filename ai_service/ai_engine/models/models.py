@@ -105,6 +105,9 @@ class DomainResult:
     # "model" when a model classified the file; "fallback" when none answered
     # and this is the general stand-in, which is not a reading of the data at all.
     source: str = "model"
+    # Who the report is for and how to speak to them (ai_engine/reading.py),
+    # as plain data so it travels to the backend and back with the rest.
+    reading: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -165,6 +168,9 @@ class LLMReport:
     # The user's stated assumptions, echoed into the exported documents so a
     # reader knows what was taken as given.
     assumptions: str = ""
+    # Up to three headline figures for the report's cover, each
+    # {"value": "$124,000", "label": "in sales"}, checked against the data.
+    keyNumbers: List[Dict[str, str]] = field(default_factory=list)
 
 
 @dataclass

@@ -86,6 +86,10 @@ public class PythonAiClient : IPythonAiClient
             // Output formats
             content.Add(new StringContent(request.WantWord.ToString().ToLower()),         "want_word");
             content.Add(new StringContent(request.WantPptx.ToString().ToLower()),         "want_pptx");
+            // How the files look
+            content.Add(new StringContent(request.Theme),                                 "theme");
+            content.Add(new StringContent(request.Font),                                  "font");
+            content.Add(new StringContent(request.PageSize),                              "page_size");
             // What the data is
             content.Add(new StringContent(request.DomainJson),                            "domain_json");
             content.Add(new StringContent(request.DataDescription),                       "data_description");

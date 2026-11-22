@@ -17,7 +17,8 @@ The document has four kinds of content:
                    sits under are editable, and one can be removed.
   questionAnswers  the user's own questions are fixed; the answers are editable.
   facts            what DIG measured: rows, columns, confidence, cleaning
-                   notes. Never editable.
+                   notes, the headline figures, who the report is for and
+                   the look its files are made in. Never editable.
 
 An edit is applied to the ORIGINAL document, version 1, never to whatever the
 person sent: only the editable parts are taken from the edit, every fixed part
@@ -87,9 +88,15 @@ def _strings(values: Any) -> List[str]:
     return [str(v) for v in (values or []) if v is not None and str(v) != ""]
 
 
+def _figure(value: Any) -> Optional[Dict[str, str]]:
+    if not isinstance(value, dict) or not str(value.get("value") or "").strip():
+        return None
+    return {"value": one_line(str(value.get("value")), 24), "label": one_line(str(value.get("label") or ""), 60)}
+
+
 def build(report: LLMReport, charts: List[Dict[str, Any]], *, stats: Any, domain: Optional[DomainResult],
           was_cleaned: bool, dropped_columns: Optional[List[str]], file_name: str, language: str,
-          confidence_score: int, confidence_level: str) -> Dict[str, Any]:
+          confidence_score: int, confidence_level: str, look: Any = None, reading: Any = None) -> Dict[str, Any]:
     """The document for a report the pipeline has just written: version 1."""
     insights, owner = [], {}
     for k, ins in enumerate(report.insights or []):
@@ -103,6 +110,8 @@ def build(report: LLMReport, charts: List[Dict[str, Any]], *, stats: Any, domain
             "body": str(ins.get("body") or ""),
             "restsOn": _strings(ins.get("restsOn")),
             "basedOn": _strings(ins.get("basedOn")),
+            **({"strength": str(ins["strength"])} if ins.get("strength") else {}),
+            **({"highlight": _figure(ins.get("highlight"))} if _figure(ins.get("highlight")) else {}),
         })
 
     # Position i is the picture the backend stores as chart_{i}.png.
@@ -142,12 +151,16 @@ def build(report: LLMReport, charts: List[Dict[str, Any]], *, stats: Any, domain
                 "domain": (domain.domain if domain else "") or "general",
                 "keyIssues": _strings(domain.key_issues if domain else None),
                 "cleaningMethods": _strings(domain.cleaning_methods if domain else None),
+                "description": str(getattr(domain, "description", "") or "")[:300] if domain else "",
             },
             "confidenceScore": _int(confidence_score) or 6,
             "confidenceLevel": str(confidence_level or "MEDIUM"),
             "confidenceNote": str(report.confidenceNote or ""),
             "writerModel": str(getattr(report, "writerModel", "") or ""),
             "writerScore": _int(getattr(report, "geminiConfidenceScore", 0)),
+            "keyNumbers": [f for f in (_figure(k) for k in getattr(report, "keyNumbers", None) or []) if f],
+            **({"look": look.to_dict()} if look is not None else {}),
+            **({"reading": reading.to_dict()} if reading is not None else {}),
         },
     }
 
@@ -427,7 +440,9 @@ def to_report(doc: Dict[str, Any]) -> Tuple[LLMReport, List[Dict[str, Any]]]:
         insights.append({"rank": k + 1, "insight_index": k + 1,
                          "title": ins.get("title", ""), "body": ins.get("body", ""),
                          "restsOn": list(ins.get("restsOn") or []),
-                         "basedOn": list(ins.get("basedOn") or [])})
+                         "basedOn": list(ins.get("basedOn") or []),
+                         **({"strength": ins["strength"]} if ins.get("strength") else {}),
+                         **({"highlight": _figure(ins.get("highlight"))} if _figure(ins.get("highlight")) else {})})
     charts = [{"file": c.get("file"), "type": c.get("type", ""), "label": c.get("label", ""),
                "desc": c.get("desc", ""), "color": c.get("color", ""),
                "insight_index": position.get(c.get("insight"), 0)}
@@ -448,6 +463,7 @@ def to_report(doc: Dict[str, Any]) -> Tuple[LLMReport, List[Dict[str, Any]]]:
                           "answerable": qa.get("answerable", True)}
                          for qa in doc.get("questionAnswers") or []],
         assumptions=text.get("assumptions", ""),
+        keyNumbers=[f for f in (_figure(k) for k in facts.get("keyNumbers") or []) if f],
     )
     return report, charts
 
@@ -457,7 +473,21 @@ def _domain(facts: Dict[str, Any]) -> DomainResult:
     return DomainResult(domain=d.get("domain") or "general", confidence=0.0, is_analyzable=True,
                         analysis_focus=[], key_questions=[], column_decisions={},
                         attribute_interpretations={}, key_issues=list(d.get("keyIssues") or []),
-                        cleaning_methods=list(d.get("cleaningMethods") or []))
+                        cleaning_methods=list(d.get("cleaningMethods") or []),
+                        description=str(d.get("description") or ""))
+
+
+def office_details(domain: Optional[DomainResult], stats: Dict[str, Any], was_cleaned: bool,
+                   dropped_columns: List[str]) -> Dict[str, Any]:
+    """What Word and PowerPoint print on the cover and under "Notes on the data", as the PDF does."""
+    key_issues = list((domain.key_issues if domain else None) or [])
+    detected = [i for i in stats.get("detectedIssues") or [] if i not in key_issues]
+    return {"description": str(getattr(domain, "description", "") or "") if domain else "",
+            "stats": {"rowCount": stats.get("rowCount"), "columnCount": stats.get("columnCount")},
+            "was_cleaned": bool(was_cleaned),
+            "cleaning": list((domain.cleaning_methods if domain else None) or []),
+            "dropped_columns": list(dropped_columns or []),
+            "issues": key_issues + detected}
 
 
 def build_files(doc: Dict[str, Any], pictures: Dict[int, bytes], want_word: bool = False,
@@ -481,6 +511,12 @@ def build_files(doc: Dict[str, Any], pictures: Dict[int, bytes], want_word: bool
     language = facts.get("language") or "en"
     file_name = facts.get("fileName") or "dataset.csv"
     score = _int(facts.get("confidenceScore")) or 6
+    # The look the report was first made in. A report from before looks were
+    # stored is rebuilt in the free plan's look.
+    from ai_engine.design.looks import look_from_dict
+    from ai_engine.reading import from_dict as reading_from_dict
+    look = look_from_dict(facts.get("look"))
+    reading = reading_from_dict(facts.get("reading"), domain.domain) if facts.get("reading") else None
 
     out: Dict[str, Optional[str]] = {"pdf": None, "word": None, "pptx": None}
     out["pdf"] = build_pdf(
@@ -490,17 +526,21 @@ def build_files(doc: Dict[str, Any], pictures: Dict[int, bytes], want_word: bool
         was_cleaned=bool(facts.get("wasCleaned")), file_name=file_name, domain=domain,
         judge_confidence_score=score, judge_confidence_level=facts.get("confidenceLevel") or "MEDIUM",
         dropped_columns=list(facts.get("droppedColumns") or []), language=language,
+        look=look, reading=reading,
     )
+    office = office_details(domain, {"rowCount": facts.get("rowCount"), "columnCount": facts.get("columnCount"),
+                                     "detectedIssues": list(facts.get("detectedIssues") or [])},
+                            bool(facts.get("wasCleaned")), list(facts.get("droppedColumns") or []))
     if want_word:
         from ai_engine.word.word_builder import build_word_doc
         out["word"] = base64.b64encode(build_word_doc(
             report, file_name=file_name, domain=domain.domain, charts=charts,
-            language=language, confidence_score=score)).decode("ascii")
+            language=language, confidence_score=score, look=look, **office)).decode("ascii")
     if want_pptx:
         from ai_engine.pptx.pptx_builder import build_pptx
         out["pptx"] = base64.b64encode(build_pptx(
             report, file_name=file_name, domain=domain.domain, charts=charts,
-            language=language, confidence_score=score)).decode("ascii")
+            language=language, confidence_score=score, look=look, **office)).decode("ascii")
     return out
 
 

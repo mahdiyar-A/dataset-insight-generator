@@ -74,61 +74,61 @@
     "report": "5 findings and 5 charts, each figure taken from the statistics."
   },
   "report": {
-    "title": "Retail Revenue Drivers Analysis – 2025 Annual Transaction Data",
-    "summary": "Revenue is overwhelmingly concentrated in the Sandwich product line, which alone accounts for 31.98% of total dollars and exhibits a lift of 1.63 over the overall average. Downtown store outperforms all locations, generating $219.57 average daily revenue—1.85 times Midtown’s $118.54. Both units_sold (ρ=0.661) and unit_price (ρ=0.714) move strongly with revenue, confirming volume and pricing as the chief levers. Discounting shows a negligible positive link to units_sold and a slight negative association with satisfaction, suggesting limited effectiveness of price cuts. The weekly revenue series is statistically flat (Mann‑Kendall τ=0.115, p=0.232), indicating that seasonal spikes are modest and not a reliable growth engine.",
+    "title": "Four coffee shops, one year: what sells and where",
+    "summary": "Sandwiches are your best seller by a distance: one sale in five, but 32% of the money, because at $8.90 they cost far more than anything else on the menu. Downtown is your busiest shop, with $124,277 over the year, 1.74 times Midtown. Weekends are 15% busier than weekdays. Discounts sell a few more items but bring in almost no extra money, and customers who got one rated their visit a little lower. Sales held steady through the year, and the best month was the last: December, at $37,007.",
     "insights": [
       {
         "rank": 1,
-        "title": "Sandwich Product Dominates Revenue Share",
-        "body": "Product-level analysis reveals that Sandwiches generate a mean revenue of $265.88 per transaction, representing 31.98% of the total $381,667.1 and delivering a lift of 1.63 relative to the overall average. The eta‑squared of 0.5086 confirms that product category explains over half of the variance in revenue, a large and statistically significant effect (p < 1e‑6). This concentration implies that any strategic initiative—pricing, promotion, or assortment expansion—should prioritize the Sandwich line to move the revenue needle.",
+        "title": "Sandwiches bring in a third of the money",
+        "body": "One sale in five is a sandwich, yet sandwiches took $122,041 of the $381,667 the shops made this year. It is not that more of them sell: every product sells about 31 a day at each shop. A sandwich simply costs $8.90, nearly three times a drip coffee at $3.10.",
         "chart": {
           "src": "/demo/chart_1.png",
-          "label": "Average Revenue by Product Type",
-          "desc": "Illustrates the dominant revenue contribution of Sandwiches versus other products, supporting Insight 1."
+          "label": "Sales by product, 2025",
+          "desc": "Total revenue from each product over the year."
         }
       },
       {
         "rank": 2,
-        "title": "Downtown Store Leads in Daily Revenue Generation",
-        "body": "Store‑level comparison shows Downtown achieving the highest average daily revenue of $219.57, 1.85 times the lowest performer Midtown at $118.54. The store effect is large (eta‑squared = 0.2137, p < 1e‑6) and aligns with the highest mean units_sold of 41.30, indicating that footfall and conversion are both superior at this location. Consequently, best‑practice operational insights from Downtown merit replication across the network.",
+        "title": "Downtown is your busiest shop",
+        "body": "Downtown took $124,277 this year, a third of everything, against $71,244 at Midtown. The gap comes from how much people buy, not what they pay: prices are the same in every shop, but Downtown sells about 41 of a product on a typical day and Midtown about 22. Whatever brings people into Downtown is worth copying.",
         "chart": {
           "src": "/demo/chart_2.png",
-          "label": "Average Daily Revenue by Store Location",
-          "desc": "Compares revenue performance across the four stores, highlighting Downtown’s lead (Insight 2)."
+          "label": "Sales by shop, 2025",
+          "desc": "Total revenue at each of the four shops over the year."
         }
       },
       {
         "rank": 3,
-        "title": "Units Sold and Unit Price Both Strongly Associated with Revenue",
-        "body": "Correlation analysis identifies a strong positive relationship between unit_price and revenue (r = 0.713) and a moderate positive relationship between units_sold and revenue (r = 0.648). Both associations are highly significant (p < 1e‑6). In the multivariate driver model, units_sold contributes a model share of 0.472 and unit_price 0.003, together accounting for the majority of explained variance (R² = 0.996). These metrics confirm that volume growth and price optimization are the twin pillars of revenue enhancement.",
+        "title": "Weekends are 15% busier",
+        "body": "On an average Saturday or Sunday the four shops take in $1,155; on a weekday, $1,002. Sunday is the best day of the week and Friday the quietest. Weekend staff and stock deserve the most attention.",
         "chart": {
           "src": "/demo/chart_3.png",
-          "label": "Units Sold vs. Revenue",
-          "desc": "Displays the moderate positive association between volume and revenue, underpinning Insight 3."
+          "label": "Sales on an average day",
+          "desc": "Average revenue a day across the four shops, for each day of the week."
         }
       },
       {
         "rank": 4,
-        "title": "Discounts Have Minimal Impact on Sales Volume and Satisfaction",
-        "body": "Discount percentage exhibits a negligible correlation with units_sold (r = 0.194) and a slight negative correlation with satisfaction (r = ‑0.148), both statistically insignificant for practical decision‑making. The mean discount applied across all transactions is only 2.35%, with 80.4% of sales receiving no discount at all. This pattern suggests that discounting is not a primary driver of revenue or customer sentiment in this portfolio.",
+        "title": "Discounts sell more items, not more money",
+        "body": "Four sales in five had no discount. When there was one, about 35 items sold instead of 30, but the money barely moved: $168 a row against $162, a gap too small to rely on. Customers who got a discount also rated their visit a little lower, 4.17 out of 5 against 4.30. On these numbers, discounts are not bringing in extra money.",
         "chart": {
           "src": "/demo/chart_4.png",
-          "label": "Discount Percentage vs. Customer Satisfaction",
-          "desc": "Shows the slight negative link between discounting and satisfaction, confirming Insight 4."
+          "label": "Items sold, with and without a discount",
+          "desc": "Average items sold a row, for sales with a discount and without one."
         }
       },
       {
         "rank": 5,
-        "title": "Revenue Trend Is Flat Over the Year",
-        "body": "A Mann‑Kendall test on weekly aggregated revenue shows a non‑significant upward direction (τ = 0.115, p = 0.232) with a Sen slope of $13.25 per week, translating to a modest 3.86% increase in the second half of the year. The low R² of 0.0268 confirms that temporal variation explains little of the overall revenue pattern, reinforcing the view that structural factors—product mix and store performance— dominate.",
+        "title": "A steady year with a strong finish",
+        "body": "Monthly sales stayed between $26,295 in June and $37,007 in December. The second half of the year brought in 7% more than the first, but sales go up and down so much from week to week that this is not yet a trend to plan around.",
         "chart": {
           "src": "/demo/chart_5.png",
-          "label": "Weekly Total Revenue Over 2025",
-          "desc": "Tracks the flat weekly revenue trajectory and the non‑significant rise noted in Insight 5."
+          "label": "Sales by month, 2025",
+          "desc": "Total revenue across the four shops in each month."
         }
       }
     ],
-    "conclusion": "Revenue in the 2025 retail portfolio is principally shaped by product mix—particularly the high-revenue Sandwich line—and by the superior performance of the Downtown store. Volume and price both move in tandem with revenue, whereas discounting offers little upside. The flat yearly trend underscores that incremental growth must arise from strategic adjustments to product assortment and store operations rather than seasonal timing. We recommend a focused pricing and promotion program for Sandwiches at under‑performing stores to replicate Downtown’s success."
+    "conclusion": "Your money comes from sandwiches and from Downtown, and weekends matter more than weekdays. Three things are worth trying: keep sandwiches stocked and easy to see in every shop, above all at weekends; find out what brings people into Downtown and try it at Midtown; and use discounts sparingly, since they move items but not money. Check again with next year's figures to see whether the strong finish to 2025 holds."
   },
   "answers": [
     {
@@ -138,7 +138,7 @@
     },
     {
       "q": "Did discounts make customers less satisfied?",
-      "a": "The data show a slight negative correlation between discount percentage and satisfaction (r = ‑0.148), which is classified as negligible. This means discounts are associated with a very small decrease in satisfaction, but the effect is minimal and not practically significant.",
+      "a": "A little. Customers who got a discount rated their visit 4.17 out of 5 on average, against 4.30 for those who didn't. The gap is small, and it doesn't show that the discount caused it.",
       "source": "analysis"
     },
     {
