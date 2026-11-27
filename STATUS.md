@@ -11,8 +11,47 @@
 |---|---|---|
 | C# — unit, integration, edge cases, the real Supabase client against a stand-in server, the chat suggesting changes, teams editing the report, the look of the files | 533 | `dotnet test backend.Tests/backend.Tests.csproj` |
 | Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is, insights' evidence, the editable report, changes the chat suggests and charts DIG draws, combining teammates' saves, reading who the report is for, plain words and the five looks | 1154 | `cd ai_service && pytest tests/` |
-| Frontend — Vitest, including rendered components, the change card, the live report channel, the two themes, the interactive demo and its team stop, the look picker, the landing page, the Plans page signed out, the pages for searches, and the one contact address | 472 | `cd frontend && npm test` |
+| Frontend — Vitest, including rendered components, the change card, the live report channel, the two themes, the interactive demo and its team stop, the look picker, the landing page, the Plans page signed out, the pages for searches, the one contact address, and the homepage you can press | 489 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
+
+---
+
+## A homepage you can press, 2026-11-27
+
+The owner's notes on PR #31: the window under the title looked like the app
+but nothing in it worked, the proof section repeated its chart, the difference
+section was four flat cards, and the founder's quote never said AI.
+
+- **The window under the title works** (`app/home/HeroShot.tsx`, words in
+  `heroCopy.ts`). Its tabs switch (Report, Charts, Data), the five findings of
+  the sample report step with their own charts, a chart opens its finding, the
+  Data tab shows the file's first rows, three of the sample's saved answers can
+  be asked (with DIG "reading" first), a typed question gets a line saying
+  where to ask for real, the three dots tuck the window away, hide the chat or
+  make it bigger, and "Report ready" opens the sample's real files.
+- **The proof section is the cleaning** (`ProofSection.tsx`): pressing a
+  problem lights its rows, DIG asks before it cleans, and "Yes, clean it"
+  shows the rows as `cleaned_coffee_sales.csv` has them (blank rating 4.3,
+  impossible count 6.9, the repeat removed). Its questions are new (where 32%
+  comes from, are weekends busier, a refused one); none repeats the window's.
+- **"Chatbots talk. DIG delivers." is five things to press**
+  (`VersusSection.tsx`, `versusCopy.ts`): it bends to you (one finding for
+  three readers, marked as an example), keeps talking (an answer added to the
+  report as version 2, and Undo), brings your team (roles, an edit, a thread;
+  five people on Pro), proves its numbers (press a figure, see its sum), and
+  speaks their language (finding 1 in the 8 report languages; Pro).
+- **Features say what the analysis does** (cleans, reads the columns, finds,
+  charts, keeps the maths on the "How we know" page), so they no longer repeat
+  the difference section. A test keeps the two apart.
+- **The founder**: the group-project line is gone; the heading is "An AI
+  analyst for everyone." and the quote says DIG is an AI analyst.
+- The window sets its own direction, so on the pages for searches it stays
+  English and left to right even when the visitor picked Persian for the site.
+  (The rest of those pages still follows the site's direction; see the note
+  in the PR.)
+- A section that changes its own `className` must not carry `data-rv`: React's
+  new class wipes the reveal's `rv-in` and the element turns invisible. The
+  cleaned panel hit this; its class is now fixed.
 
 ---
 

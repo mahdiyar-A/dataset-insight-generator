@@ -3,31 +3,42 @@
 import { useState } from 'react';
 import Link from 'next/link';
 
+import { ArrowIcon, CheckIcon, FileIcon, UndoIcon } from '@/components/Icons';
 import DigFigure from '../demo/DigFigure';
 import type { DigMood } from '../demo/DigFigure';
-import { CHECK, REVENUE } from '../demo/demoFacts';
-import { BLANKS, MESSY_COLUMNS, MESSY_ROWS, PROOF, SHARE, money, num, percent } from './homeCopy';
+import { CHECK, FILES } from '../demo/demoFacts';
+import { BLANKS, MESSY_COLUMNS, MESSY_ROWS, PROOF, num } from './homeCopy';
 import type { Answer, Lang } from './homeCopy';
 
 /**
- * Shows what DIG does instead of describing it: the sample file's messy rows
- * beside the finding DIG makes of them, then three things to press. The first
- * says where a figure comes from, the last shows DIG declining a question that
- * is not about the file.
+ * The cleaning, done in front of the visitor: the sample file's messy rows,
+ * three problems to press (each lights up its rows), and DIG asking before it
+ * cleans. "Yes, clean it" shows the same rows as cleaned_coffee_sales.csv has
+ * them. Then three questions that show where a figure comes from, and DIG
+ * declining one that is not about the file.
  *
- * Everything is saved text about the demo's sample file. Nothing here calls
- * the server or a model.
+ * The report and its charts are in the window under the title, so they are
+ * not shown again here. Everything is saved text about the sample file.
+ * Nothing calls the server or a model.
  */
 
 const MOOD: Record<Answer['kind'], DigMood> = { worked: 'point', looked: 'cheer', refused: 'no' };
-const PROBLEM_KIND = ['dup', 'blank', 'neg'] as const;
-const PROBLEM_COUNT = [CHECK.repeatedRows, BLANKS, CHECK.belowZero];
+const KINDS = ['dup', 'blank', 'neg'] as const;
+type Kind = (typeof KINDS)[number];
+const COUNTS = [CHECK.repeatedRows, BLANKS, CHECK.belowZero];
+const CLEANED = FILES.find(f => f.href.includes('cleaned'))!;
 
 export default function ProofSection({ lang }: { lang: Lang }) {
   const t = PROOF[lang];
   const [picked, setPicked] = useState(0);
+  const [spot, setSpot] = useState<Kind | null>(null);
+  const [clean, setClean] = useState(false);
   const answer = t.answers[picked];
-  const most = REVENUE.byProduct[0].total;
+  const later = MESSY_ROWS.filter(r => r.flag === 'dup')[1];
+
+  const rowClass = (flag?: Kind) =>
+    [flag ? 'hp-' + flag : '', spot && flag !== spot ? 'hp-dim' : '', spot && flag === spot ? 'hp-lit' : '']
+      .filter(Boolean).join(' ') || undefined;
 
   return (
     <section id="proof" className="hp-section">
@@ -54,7 +65,7 @@ export default function ProofSection({ lang }: { lang: Lang }) {
                 </thead>
                 <tbody>
                   {MESSY_ROWS.map(r => (
-                    <tr key={r.row} className={r.flag ? 'hp-' + r.flag : undefined}>
+                    <tr key={r.row} className={rowClass(r.flag)}>
                       <td className="hp-rown">{r.row}</td>
                       {r.cells.map((cell, i) => {
                         const bad = (r.flag === 'blank' && cell === '') || (r.flag === 'neg' && MESSY_COLUMNS[i] === 'units_sold');
@@ -69,14 +80,21 @@ export default function ProofSection({ lang }: { lang: Lang }) {
                 </tbody>
               </table>
             </div>
-            <ul className="hp-problems">
-              {PROBLEM_COUNT.map((n, i) => (
-                <li key={PROBLEM_KIND[i]} className={'hp-' + PROBLEM_KIND[i]}>
+            <div className="hp-problems">
+              <p>{t.find}</p>
+              {KINDS.map((kind, i) => (
+                <button
+                  key={kind}
+                  type="button"
+                  className={'hp-' + kind}
+                  aria-pressed={spot === kind}
+                  onClick={() => setSpot(s => (s === kind ? null : kind))}
+                >
                   <i aria-hidden="true" />
-                  <strong>{num(lang, n)}</strong> {t.problems[i]}
-                </li>
+                  <strong>{num(lang, COUNTS[i])}</strong> {t.problems[i]}
+                </button>
               ))}
-            </ul>
+            </div>
           </div>
 
           <span className="hp-arrow" aria-hidden="true">
@@ -85,42 +103,71 @@ export default function ProofSection({ lang }: { lang: Lang }) {
             </svg>
           </span>
 
-          {/* ── After: what the report says ── */}
-          <div data-rv className="hp-panel hp-after">
+          {/* ── After: DIG asks, then cleans. The class stays the same: the
+              reveal on scroll marks this element, and a new className from
+              React would wipe that mark and hide the panel. ── */}
+          <div data-rv className="hp-panel hp-after" aria-live="polite">
             <p className="hp-bar">
               <strong>{t.after}</strong>
-              <span className="hp-bar-end">{t.afterNote}</span>
+              <span dir="ltr">cleaned_coffee_sales.csv</span>
+              {clean && <span className="hp-bar-end">{t.cleanedRows}</span>}
             </p>
-            <div className="hp-after-in">
-              <h3 className="hp-finding">{t.finding}</h3>
-              <p className="hp-figure">
-                <button
-                  type="button"
-                  className="hp-share"
-                  onClick={() => setPicked(0)}
-                  title={t.shareHint}
-                  aria-label={`${percent(lang, SHARE)} ${t.share}. ${t.shareHint}`}
-                >
-                  {percent(lang, SHARE)}
+
+            {!clean ? (
+              <div className="hp-ask">
+                <span className="hp-dig hp-dig-small" aria-hidden="true"><DigFigure mood="think" size={96} /></span>
+                <p>{t.askFirst}</p>
+                <button type="button" className="hp-btn hp-lime" onClick={() => { setClean(true); setSpot(null); }}>
+                  <CheckIcon size={15} /> {t.clean}
                 </button>
-                <span>{t.share}</span>
-              </p>
-              <p className="hp-charttitle">{t.chartTitle}</p>
-              <ul className="hp-bars" dir="ltr">
-                {REVENUE.byProduct.map((p, i) => (
-                  <li key={p.name} title={`${p.name}: ${money(lang, p.total, 2)}`}>
-                    <span className="hp-bar-name">{p.name}</span>
-                    <span className="hp-track">
-                      <span
-                        className={'hp-fill' + (i === 0 ? ' hp-most' : '')}
-                        style={{ width: `${(100 * p.total) / most}%`, transitionDelay: `${0.15 + i * 0.07}s` }}
-                      />
-                    </span>
-                    <bdi className="hp-val">{money(lang, p.total)}</bdi>
-                  </li>
-                ))}
-              </ul>
-            </div>
+              </div>
+            ) : (
+              <div className="hp-clean-in">
+                <div className="hp-tablewrap" dir="ltr">
+                  <table className="hp-table">
+                    <thead>
+                      <tr>
+                        <th scope="col" className="hp-rown">#</th>
+                        {MESSY_COLUMNS.map(c => <th key={c} scope="col" className={'hp-c-' + c}>{c}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {MESSY_ROWS.map((r, n) => {
+                        const gone = r === later;
+                        return (
+                          <tr key={r.row} className={gone ? 'hp-gone' : undefined} style={{ animationDelay: `${n * 0.08}s` }}>
+                            <td className="hp-rown">{r.row}</td>
+                            {r.cells.map((cell, i) => {
+                              const col = MESSY_COLUMNS[i];
+                              const fixed = (r.flag === 'blank' && cell === '') || (r.flag === 'neg' && col === 'units_sold');
+                              return (
+                                <td key={i} className={'hp-c-' + col}>
+                                  {fixed ? <mark className={'hp-good hp-' + r.flag}>{r.fixed}</mark> : cell}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <ul className="hp-notes" dir={lang === 'fa' ? 'rtl' : 'ltr'}>
+                  <li className="hp-dup"><i aria-hidden="true" />{t.removed}</li>
+                  <li className="hp-blank"><i aria-hidden="true" />{t.filled}</li>
+                  <li className="hp-neg"><i aria-hidden="true" />{t.pulled}</li>
+                </ul>
+                <ul className="hp-done">
+                  {COUNTS.map((n, i) => (
+                    <li key={i}><CheckIcon size={13} /> <strong>{num(lang, n)}</strong> {t.done[i]}</li>
+                  ))}
+                </ul>
+                <div className="hp-clean-foot">
+                  <a href={CLEANED.href} download className="hp-dl"><FileIcon size={14} /> {t.csv}</a>
+                  <button type="button" className="hp-again" onClick={() => setClean(false)}><UndoIcon size={13} /> {t.again}</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -129,7 +176,7 @@ export default function ProofSection({ lang }: { lang: Lang }) {
           <div className="hp-asks">
             <p className="hp-trytitle">{t.tryTitle}</p>
             {t.answers.map((a, i) => (
-              <button key={a.kind} type="button" aria-pressed={picked === i} onClick={() => setPicked(i)}>
+              <button key={a.q} type="button" aria-pressed={picked === i} onClick={() => setPicked(i)}>
                 {a.q}
               </button>
             ))}
@@ -140,12 +187,10 @@ export default function ProofSection({ lang }: { lang: Lang }) {
               <div key={picked} className="hp-bubble-in">
                 <span className={'hp-badge hp-' + answer.kind}>{answer.badge}</span>
                 <p>{answer.a}</p>
-                {answer.kind === 'worked' && (
-                  <p className="hp-sum"><bdi dir="ltr">{`${money(lang, most, 2)} ÷ ${money(lang, REVENUE.total, 2)} = ${percent(lang, SHARE)}`}</bdi></p>
-                )}
+                {answer.sum && <p className="hp-sum"><bdi dir="ltr">{answer.sum}</bdi></p>}
               </div>
             </div>
-            <Link href="/demo" className="hp-btn hp-lime">{t.cta}</Link>
+            <Link href="/demo" className="hp-btn hp-lime">{t.cta} <ArrowIcon size={14} /></Link>
           </div>
         </div>
       </div>

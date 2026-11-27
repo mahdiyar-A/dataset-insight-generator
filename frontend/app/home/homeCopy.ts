@@ -16,6 +16,10 @@ const LOCALE: Record<Lang, string> = { en: 'en-US', fr: 'fr-CA', fa: 'fa-IR' };
 /** A count, in the language's own digits. */
 export const num = (lang: Lang, n: number) => n.toLocaleString(LOCALE[lang]);
 
+/** A number with a fixed count of decimals, in the language's own digits. */
+export const dec = (lang: Lang, n: number, d: number) =>
+  n.toLocaleString(LOCALE[lang], { minimumFractionDigits: d, maximumFractionDigits: d });
+
 /** Money, written the way the language writes it. */
 export function money(lang: Lang, n: number, decimals = 0) {
   const figure = n.toLocaleString(LOCALE[lang], { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -40,18 +44,22 @@ export const REPORT_LANGUAGES: Record<Lang, string[]> = {
 
 /**
  * Five rows of coffee_sales.csv as uploaded, numbered as in the file (1 is the
- * first row of data). `flag` is the problem the check finds in that row.
+ * first row of data). `flag` is the problem the check finds in that row, and
+ * `fixed` what that cell is in cleaned_coffee_sales.csv: a blank rating takes
+ * the column's typical value, and an impossible count is pulled back to the
+ * edge of the normal range (ai_engine/core/cleaner.py). Of the two repeated
+ * rows, the later one is removed.
  */
 export const MESSY_COLUMNS = ['date', 'store', 'product', 'units_sold', 'satisfaction'] as const;
-export const MESSY_ROWS: { row: number; flag?: 'blank' | 'neg' | 'dup'; cells: string[] }[] = [
+export const MESSY_ROWS: { row: number; flag?: 'blank' | 'neg' | 'dup'; cells: string[]; fixed?: string }[] = [
   { row: 4, cells: ['2025-01-01', 'Harbour', 'Sandwich', '42', '4.8'] },
-  { row: 50, flag: 'blank', cells: ['2025-01-10', 'Midtown', 'Croissant', '27', ''] },
-  { row: 89, flag: 'neg', cells: ['2025-01-15', 'Midtown', 'Drip coffee', '-1', '4.1'] },
+  { row: 50, flag: 'blank', cells: ['2025-01-10', 'Midtown', 'Croissant', '27', ''], fixed: '4.3' },
+  { row: 89, flag: 'neg', cells: ['2025-01-15', 'Midtown', 'Drip coffee', '-1', '4.1'], fixed: '6.9' },
   { row: 1628, flag: 'dup', cells: ['2025-09-11', 'Harbour', 'Croissant', '32', '4.3'] },
   { row: 2337, flag: 'dup', cells: ['2025-09-11', 'Harbour', 'Croissant', '32', '4.3'] },
 ];
 
-export type Answer = { q: string; a: string; badge: string; kind: 'worked' | 'looked' | 'refused' };
+export type Answer = { q: string; a: string; badge: string; kind: 'worked' | 'looked' | 'refused'; sum?: string };
 
 const listOf = (lang: Lang, items: string[]) => {
   const last = items[items.length - 1];
@@ -59,34 +67,44 @@ const listOf = (lang: Lang, items: string[]) => {
   return `${rest} ${lang === 'en' ? 'and' : lang === 'fr' ? 'et' : 'و'} ${last}`;
 };
 
+const lift = Math.round((100 * REVENUE.perDay.weekend) / REVENUE.perDay.weekday - 100);
+const ratio = (lang: Lang) => (REVENUE.perDay.weekend / REVENUE.perDay.weekday).toLocaleString(LOCALE[lang], { maximumFractionDigits: 2 });
+
 function proofEn() {
   const l: Lang = 'en';
   return {
     eyebrow: 'SEE IT WORK',
-    heading: 'From messy rows to a clear answer.',
-    sub: 'A sample file: one year of sales at a made-up coffee chain. Every figure below is worked out from that file.',
+    heading: 'From a messy file to one you can trust.',
+    sub: 'A sample file: one year of sales at a made-up coffee chain, exactly as it was uploaded. Press a problem to find it, then let DIG clean it.',
     before: 'BEFORE',
     rows: `${num(l, FILE.rows)} rows`,
     problems: ['repeated rows', 'blank cells', 'below zero'],
+    find: 'Press one to find it in the file',
     blank: 'blank',
     tableLabel: 'Five rows of coffee_sales.csv, four of them with a problem',
     after: 'AFTER',
-    afterNote: 'The report, finding 1',
-    finding: 'Sandwiches bring in a third of the money',
-    share: 'of the year’s sales came from sandwiches',
-    shareHint: 'Where does this number come from?',
-    chartTitle: 'Sales by product, 2025',
+    cleanedRows: `${num(l, FILE.cleanRows)} rows`,
+    askFirst: 'DIG found three kinds of problem. It asks before it changes a thing.',
+    clean: 'Yes, clean it',
+    again: 'Show the file as it came',
+    removed: `Removed: the same as row ${num(l, MESSY_ROWS[3].row)}`,
+    filled: 'Filled with the typical rating',
+    pulled: 'Pulled back into the normal range',
+    done: ['repeats removed', 'blanks filled', 'impossible values fixed'],
+    csv: 'Download the cleaned file',
     tryTitle: 'Don’t take DIG’s word for it. Press one.',
     answers: [
       {
         q: `Where does ${percent(l, SHARE)} come from?`,
         a: `Sandwiches brought in ${money(l, top.total, 2)} of the ${money(l, REVENUE.total, 2)} the four shops took in over the year.`,
         badge: 'Worked out from the file', kind: 'worked',
+        sum: `${money(l, top.total, 2)} ÷ ${money(l, REVENUE.total, 2)} = ${percent(l, SHARE)}`,
       },
       {
-        q: 'Which store made the most revenue, and how much was it?',
-        a: `Downtown store made the most revenue, with a total of ${money(l, REVENUE.byStore[0].total, 2)}.`,
-        badge: 'Looked up in the file', kind: 'looked',
+        q: 'Are weekends really busier?',
+        a: `Yes. On an average Saturday or Sunday the four shops took in ${money(l, REVENUE.perDay.weekend, 2)}, and on a weekday ${money(l, REVENUE.perDay.weekday, 2)}: ${percent(l, lift)} more.`,
+        badge: 'Worked out from the file', kind: 'worked',
+        sum: `${money(l, REVENUE.perDay.weekend, 2)} ÷ ${money(l, REVENUE.perDay.weekday, 2)} = ${ratio(l)}`,
       },
       {
         q: 'What is the capital of France?',
@@ -104,30 +122,37 @@ function proofFr(): ProofCopy {
   const l: Lang = 'fr';
   return {
     eyebrow: 'VOYEZ PAR VOUS-MÊME',
-    heading: 'De lignes en désordre à une réponse claire.',
-    sub: 'Un fichier d’exemple : un an de ventes d’une chaîne de cafés fictive. Chaque chiffre ci-dessous est calculé à partir de ce fichier.',
+    heading: 'D’un fichier en désordre à un fichier fiable.',
+    sub: 'Un fichier d’exemple : un an de ventes d’une chaîne de cafés fictive, tel qu’il a été importé. Cliquez sur un problème pour le trouver, puis laissez DIG nettoyer.',
     before: 'AVANT',
     rows: `${num(l, FILE.rows)} lignes`,
     problems: ['lignes répétées', 'cellules vides', 'valeurs sous zéro'],
+    find: 'Cliquez pour le trouver dans le fichier',
     blank: 'vide',
     tableLabel: 'Cinq lignes de coffee_sales.csv, dont quatre posent problème',
     after: 'APRÈS',
-    afterNote: 'Le rapport, constat 1',
-    finding: 'Les sandwichs rapportent un tiers de l’argent',
-    share: 'des ventes de l’année viennent des sandwichs',
-    shareHint: 'D’où vient ce chiffre ?',
-    chartTitle: 'Ventes par produit, 2025',
+    cleanedRows: `${num(l, FILE.cleanRows)} lignes`,
+    askFirst: 'DIG a trouvé trois sortes de problèmes. Il demande avant de toucher à quoi que ce soit.',
+    clean: 'Oui, nettoyer',
+    again: 'Revoir le fichier tel qu’il était',
+    removed: `Supprimée : identique à la ligne ${num(l, MESSY_ROWS[3].row)}`,
+    filled: 'Remplie avec la note habituelle',
+    pulled: 'Ramenée dans la plage normale',
+    done: ['répétitions supprimées', 'vides remplis', 'valeurs impossibles corrigées'],
+    csv: 'Télécharger le fichier nettoyé',
     tryTitle: 'Ne croyez pas DIG sur parole. Cliquez.',
     answers: [
       {
         q: `D’où viennent ces ${percent(l, SHARE)} ?`,
         a: `Les sandwichs ont rapporté ${money(l, top.total, 2)} sur les ${money(l, REVENUE.total, 2)} encaissés par les quatre cafés dans l’année.`,
         badge: 'Calculé à partir du fichier', kind: 'worked',
+        sum: `${money(l, top.total, 2)} ÷ ${money(l, REVENUE.total, 2)} = ${percent(l, SHARE)}`,
       },
       {
-        q: 'Quel café a réalisé le plus de ventes, et combien ?',
-        a: `Downtown a réalisé le plus de ventes, avec un total de ${money(l, REVENUE.byStore[0].total, 2)}.`,
-        badge: 'Trouvé dans le fichier', kind: 'looked',
+        q: 'Le week-end est-il vraiment plus actif ?',
+        a: `Oui. Un samedi ou un dimanche moyen, les quatre cafés ont encaissé ${money(l, REVENUE.perDay.weekend, 2)}, et un jour de semaine ${money(l, REVENUE.perDay.weekday, 2)} : ${percent(l, lift)} de plus.`,
+        badge: 'Calculé à partir du fichier', kind: 'worked',
+        sum: `${money(l, REVENUE.perDay.weekend, 2)} ÷ ${money(l, REVENUE.perDay.weekday, 2)} = ${ratio(l)}`,
       },
       {
         q: 'Quelle est la capitale de la France ?',
@@ -143,30 +168,37 @@ function proofFa(): ProofCopy {
   const l: Lang = 'fa';
   return {
     eyebrow: 'خودتان ببینید',
-    heading: 'از ردیف‌های به‌هم‌ریخته تا یک پاسخ روشن.',
-    sub: 'یک فایل نمونه: فروش یک‌سالهٔ یک کافهٔ زنجیره‌ای فرضی. همهٔ عددهای زیر از همین فایل محاسبه شده‌اند.',
+    heading: 'از یک فایل به‌هم‌ریخته تا فایلی که می‌شود به آن اعتماد کرد.',
+    sub: 'یک فایل نمونه: فروش یک‌سالهٔ یک کافهٔ زنجیره‌ای فرضی، دقیقاً همان‌طور که آپلود شد. یک مشکل را بزنید تا پیدایش کنید، بعد بگذارید DIG پاکش کند.',
     before: 'قبل',
     rows: `${num(l, FILE.rows)} ردیف`,
     problems: ['ردیف تکراری', 'خانهٔ خالی', 'مقدار زیر صفر'],
+    find: 'یکی را بزنید تا در فایل پیدایش کنید',
     blank: 'خالی',
     tableLabel: 'پنج ردیف از coffee_sales.csv که چهارتای آن‌ها مشکل دارند',
     after: 'بعد',
-    afterNote: 'گزارش، یافتهٔ ۱',
-    finding: 'یک‌سوم پول از ساندویچ می‌آید',
-    share: 'از فروش سال از ساندویچ بوده است',
-    shareHint: 'این عدد از کجا آمده؟',
-    chartTitle: 'فروش هر محصول، ۲۰۲۵',
+    cleanedRows: `${num(l, FILE.cleanRows)} ردیف`,
+    askFirst: 'DIG سه نوع مشکل پیدا کرد. پیش از هر تغییری از شما می‌پرسد.',
+    clean: 'بله، پاکش کن',
+    again: 'نمایش فایل همان‌طور که بود',
+    removed: `حذف شد: همانند ردیف ${num(l, MESSY_ROWS[3].row)}`,
+    filled: 'با امتیاز معمول پر شد',
+    pulled: 'به محدودهٔ عادی برگردانده شد',
+    done: ['تکراری حذف شد', 'خانهٔ خالی پر شد', 'مقدار ناممکن اصلاح شد'],
+    csv: 'دانلود فایل پاک‌شده',
     tryTitle: 'فقط به حرف DIG اعتماد نکنید. یکی را بزنید.',
     answers: [
       {
         q: `این ${percent(l, SHARE)} از کجا آمده؟`,
         a: `ساندویچ‌ها ${money(l, top.total, 2)} از ${money(l, REVENUE.total, 2)} فروش سال چهار شعبه را آورده‌اند.`,
         badge: 'محاسبه‌شده از فایل', kind: 'worked',
+        sum: `${money(l, top.total, 2)} ÷ ${money(l, REVENUE.total, 2)} = ${percent(l, SHARE)}`,
       },
       {
-        q: 'کدام شعبه بیشترین فروش را داشت و چقدر بود؟',
-        a: `شعبهٔ Downtown بیشترین فروش را داشت، با مجموع ${money(l, REVENUE.byStore[0].total, 2)}.`,
-        badge: 'پیداشده در فایل', kind: 'looked',
+        q: 'آیا آخر هفته‌ها واقعاً شلوغ‌ترند؟',
+        a: `بله. در یک شنبه یا یکشنبهٔ معمولی چهار شعبه ${money(l, REVENUE.perDay.weekend, 2)} فروختند و در یک روز کاری ${money(l, REVENUE.perDay.weekday, 2)}؛ یعنی ${percent(l, lift)} بیشتر.`,
+        badge: 'محاسبه‌شده از فایل', kind: 'worked',
+        sum: `${money(l, REVENUE.perDay.weekend, 2)} ÷ ${money(l, REVENUE.perDay.weekday, 2)} = ${ratio(l)}`,
       },
       {
         q: 'پایتخت فرانسه کجاست؟',
@@ -326,29 +358,6 @@ export const PRICING: Record<Lang, {
   },
 };
 
-// ── The product, at the top of the page ──────────────────────────────────────
-
-/** Labels for the app window under the title. Its finding and its question are PROOF's. */
-export const HERO_SHOT: Record<Lang, {
-  label: string; ready: string; tabs: string[]; finding: string; ask: string; placeholder: string;
-}> = {
-  en: {
-    label: 'A DIG report on the sample file, with a question answered beside it',
-    ready: 'Report ready', tabs: ['Report', 'Charts', 'Data'],
-    finding: 'FINDING 1 · STRONG PATTERN', ask: 'ASK DIG', placeholder: 'Ask about your data…',
-  },
-  fr: {
-    label: 'Un rapport DIG sur le fichier d’exemple, avec une question et sa réponse à côté',
-    ready: 'Rapport prêt', tabs: ['Rapport', 'Graphiques', 'Données'],
-    finding: 'CONSTAT 1 · TENDANCE NETTE', ask: 'DEMANDEZ À DIG', placeholder: 'Posez une question sur vos données…',
-  },
-  fa: {
-    label: 'گزارش DIG روی فایل نمونه، با یک پرسش و پاسخ آن در کنارش',
-    ready: 'گزارش آماده است', tabs: ['گزارش', 'نمودارها', 'داده‌ها'],
-    finding: 'یافتهٔ ۱ · الگوی قوی', ask: 'از DIG بپرسید', placeholder: 'دربارهٔ داده‌هایتان بپرسید…',
-  },
-};
-
 // ── Security ─────────────────────────────────────────────────────────────────
 
 /**
@@ -446,66 +455,20 @@ export const FAQ: Record<Lang, { eyebrow: string; heading: string; sub: string; 
   },
 };
 
-// ── The difference ───────────────────────────────────────────────────────────
-
-// A point of view, not a feature table: what DIG does that a chatbot does not.
-// No product is named. Each line is something the code does: figures checked
-// (llm/guard.py, insight_agent._grounded_figures), cleaning asked for first,
-// off-file questions declined, finished files (PDF on every plan, Word and
-// PowerPoint on Pro).
-export const VERSUS: Record<Lang, {
-  eyebrow: string; heading: string; sub: string; pillars: { title: string; body: string }[];
-}> = {
-  en: {
-    eyebrow: 'THE DIFFERENCE',
-    heading: 'Chatbots talk. DIG delivers.',
-    sub: 'DIG doesn’t just chat about your file. It works through it, start to finish, and hands you a report you can stand behind.',
-    pillars: [
-      { title: 'Every number, checked.', body: 'Figures are calculated from your file and checked against it before they reach you.' },
-      { title: 'Cleaned before it’s counted.', body: 'Repeated rows, gaps and impossible values are found, fixed with your OK, and shown.' },
-      { title: 'Honest about its limits.', body: 'Ask something your file can’t answer, and DIG says so instead of inventing one.' },
-      { title: 'Boardroom-ready.', body: 'Not a chat to copy out: a finished report with charts, ready to send as a PDF, or Word and PowerPoint on Pro.' },
-    ],
-  },
-  fr: {
-    eyebrow: 'LA DIFFÉRENCE',
-    heading: 'Les chatbots parlent. DIG livre.',
-    sub: 'DIG ne se contente pas de discuter de votre fichier. Il le traite de bout en bout et vous remet un rapport sur lequel vous pouvez compter.',
-    pillars: [
-      { title: 'Chaque chiffre, vérifié.', body: 'Les chiffres sont calculés à partir de votre fichier et vérifiés avant de vous parvenir.' },
-      { title: 'Nettoyé avant d’être compté.', body: 'Lignes répétées, trous et valeurs impossibles : repérés, corrigés avec votre accord, et montrés.' },
-      { title: 'Honnête sur ses limites.', body: 'Posez une question à laquelle votre fichier ne peut pas répondre : DIG vous le dit au lieu d’inventer.' },
-      { title: 'Prêt pour la salle de réunion.', body: 'Pas une conversation à recopier : un rapport fini avec graphiques, prêt à envoyer en PDF, ou en Word et PowerPoint avec Pro.' },
-    ],
-  },
-  fa: {
-    eyebrow: 'تفاوت',
-    heading: 'چت‌بات‌ها حرف می‌زنند. DIG تحویل می‌دهد.',
-    sub: 'DIG فقط دربارهٔ فایل شما گفت‌وگو نمی‌کند؛ از اول تا آخر روی آن کار می‌کند و گزارشی به شما می‌دهد که می‌توانید به آن تکیه کنید.',
-    pillars: [
-      { title: 'هر عدد، بررسی‌شده.', body: 'اعداد از روی فایل شما محاسبه و پیش از رسیدن به شما با آن بررسی می‌شوند.' },
-      { title: 'پاک‌سازی پیش از شمارش.', body: 'ردیف‌های تکراری، جاهای خالی و مقادیر ناممکن پیدا می‌شوند، با اجازهٔ شما اصلاح می‌شوند و به شما نشان داده می‌شوند.' },
-      { title: 'صادق دربارهٔ محدودیت‌هایش.', body: 'پرسشی بپرسید که فایل شما جوابش را ندارد؛ DIG به‌جای ساختن جواب، همین را می‌گوید.' },
-      { title: 'آماده برای جلسهٔ مدیران.', body: 'نه یک چت برای کپی کردن: یک گزارش کامل با نمودار، آمادهٔ ارسال به‌صورت PDF، یا Word و PowerPoint با Pro.' },
-    ],
-  },
-};
-
 // ── The founder ──────────────────────────────────────────────────────────────
 
-// Name, role and school only: nothing about where the founder lives. The
-// origin line is the old Developer section's, which the owner wrote; the
-// quote was drafted with the owner and approved by them on 2026-11-26. It
-// speaks for them, so change it only with their say-so.
+// Name, role and school only: nothing about where the founder lives. The quote
+// speaks for the owner: they approved the first one on 2026-11-26 and on
+// 2026-11-27 asked for it to say that DIG is AI, which this one does. Change it
+// only with their say-so.
 export const FOUNDER: Record<Lang, {
-  eyebrow: string; heading: string; quote: string; origin: string;
+  eyebrow: string; heading: string; quote: string;
   name: string; role: string; school: string; linkedin: string;
 }> = {
   en: {
     eyebrow: 'WHY I BUILT DIG',
-    heading: 'An analyst for everyone.',
-    quote: 'Hiring an analyst costs a fortune, and a chatbot can make numbers up. I wanted everyone, from a café owner to a CEO, to have an analyst who reads every row, checks the numbers and speaks their language. So I built one. That’s DIG.',
-    origin: 'DIG began as a group project with fellow Computer Science students at the University of Calgary. I’ve built it on my own since.',
+    heading: 'An AI analyst for everyone.',
+    quote: 'Hiring an analyst costs a fortune, and a chatbot will happily make numbers up. So I built an AI analyst that does neither. It reads every row, checks every number, writes for whoever is reading and works alongside your whole team. Everyone, from a café owner to a CEO, deserves one. That’s DIG.',
     name: 'Mahdiyar Ashrafioun',
     role: 'Founder and developer',
     school: 'Computer Science student, University of Calgary',
@@ -513,9 +476,8 @@ export const FOUNDER: Record<Lang, {
   },
   fr: {
     eyebrow: 'POURQUOI J’AI CRÉÉ DIG',
-    heading: 'Un analyste pour tout le monde.',
-    quote: 'Un analyste coûte une fortune, et un chatbot peut inventer des chiffres. Je voulais que chacun, du patron de café au PDG, ait un analyste qui lit chaque ligne, vérifie les chiffres et parle sa langue. Alors je l’ai construit. C’est DIG.',
-    origin: 'DIG a commencé comme un projet de groupe entre étudiants en informatique à l’Université de Calgary. Depuis, je le construis seul.',
+    heading: 'Un analyste IA pour tout le monde.',
+    quote: 'Un analyste coûte une fortune, et un chatbot invente volontiers des chiffres. Alors j’ai créé un analyste IA qui ne fait ni l’un ni l’autre. Il lit chaque ligne, vérifie chaque chiffre, écrit pour celui qui lit et travaille avec toute votre équipe. Tout le monde, du patron de café au PDG, mérite le sien. C’est DIG.',
     name: 'Mahdiyar Ashrafioun',
     role: 'Fondateur et développeur',
     school: 'Étudiant en informatique, Université de Calgary',
@@ -523,9 +485,8 @@ export const FOUNDER: Record<Lang, {
   },
   fa: {
     eyebrow: 'چرا DIG را ساختم',
-    heading: 'یک تحلیلگر برای همه.',
-    quote: 'استخدام یک تحلیلگر هزینهٔ زیادی دارد و یک چت‌بات ممکن است عدد بسازد. می‌خواستم همه، از صاحب یک کافه تا مدیرعامل یک شرکت، تحلیلگری داشته باشند که تک‌تک ردیف‌ها را می‌خواند، اعداد را بررسی می‌کند و به زبان خودشان حرف می‌زند. پس آن را ساختم. اسمش DIG است.',
-    origin: 'DIG به‌عنوان یک پروژهٔ گروهی با دانشجویان علوم کامپیوتر دانشگاه کالگاری آغاز شد. از آن زمان به‌تنهایی آن را می‌سازم.',
+    heading: 'یک تحلیلگر هوش مصنوعی برای همه.',
+    quote: 'استخدام یک تحلیلگر هزینهٔ زیادی دارد و یک چت‌بات به‌راحتی عدد می‌سازد. پس یک تحلیلگر هوش مصنوعی ساختم که هیچ‌کدام از این‌ها نیست. تک‌تک ردیف‌ها را می‌خواند، هر عدد را بررسی می‌کند، برای هر کسی که گزارش را می‌خواند می‌نویسد و کنار کل تیم شما کار می‌کند. همه، از صاحب یک کافه تا مدیرعامل، سزاوار یکی هستند. این DIG است.',
     name: 'مهدیار اشرفیون',
     role: 'بنیان‌گذار و توسعه‌دهنده',
     school: 'دانشجوی علوم کامپیوتر، دانشگاه کالگاری',
