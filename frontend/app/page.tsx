@@ -11,6 +11,8 @@ import { MoonIcon, PlayIcon, SunIcon } from '@/components/Icons';
 import { ATLAS, DISPLAY, SANS } from './home/atlas';
 import ClosingSection from './home/ClosingSection';
 import FaqSection from './home/FaqSection';
+import FounderSection from './home/FounderSection';
+import VersusSection from './home/VersusSection';
 import FilesSection from './home/FilesSection';
 import HeroShot from './home/HeroShot';
 import { HOME_CSS } from './home/homeStyles';
@@ -26,7 +28,7 @@ const T = {
     nav: { features: 'Features', security: 'Security', pricing: 'Pricing', faq: 'FAQ', contact: 'Contact', menu: 'Menu' },
     hero: {
       title: 'Your Data Has a Story. We Help You Read It.',
-      subtitle: 'Drop in a CSV, Excel, JSON, Parquet or SPSS file and get back a full AI-powered analysis — visualizations, patterns, anomalies, and a professional PDF report. No coding. No setup. Just an insightful report.',
+      subtitle: 'Drop in a CSV, Excel, JSON, Parquet, SPSS, Stata or SAS file and get back a full AI-powered analysis — visualizations, patterns, anomalies, and a professional PDF report. No coding. No setup. Just an insightful report.',
       login: 'Login', register: 'Register', demo: 'Try the interactive demo',
       note: 'See everything DIG does in the demo first. A free account runs it on your own data and keeps your results.',
     },
@@ -49,7 +51,7 @@ const T = {
     nav: { features: 'Fonctionnalités', security: 'Sécurité', pricing: 'Tarifs', faq: 'FAQ', contact: 'Contact', menu: 'Menu' },
     hero: {
       title: 'Vos données ont une histoire. Nous vous aidons à la lire.',
-      subtitle: "Importez un fichier CSV, Excel, JSON, Parquet ou SPSS et obtenez une analyse complète par IA — visualisations, patterns, anomalies et un rapport PDF professionnel. Sans code. Sans configuration. Juste des insights.",
+      subtitle: "Importez un fichier CSV, Excel, JSON, Parquet, SPSS, Stata ou SAS et obtenez une analyse complète par IA — visualisations, patterns, anomalies et un rapport PDF professionnel. Sans code. Sans configuration. Juste des insights.",
       login: 'Connexion', register: "S'inscrire", demo: 'Essayer la démo interactive',
       note: "Découvrez tout ce que fait DIG dans la démo. Un compte gratuit l'applique à vos propres données et garde vos résultats.",
     },
@@ -72,7 +74,7 @@ const T = {
     nav: { features: 'ویژگی‌ها', security: 'امنیت', pricing: 'قیمت‌ها', faq: 'پرسش‌ها', contact: 'تماس', menu: 'منو' },
     hero: {
       title: 'داده‌های شما یک داستان دارند. ما کمک می‌کنیم آن را بخوانید.',
-      subtitle: 'یک فایل CSV، اکسل، JSON، Parquet یا SPSS را آپلود کنید و تحلیل کامل مبتنی بر هوش مصنوعی دریافت کنید — تصویرسازی، الگوها، ناهنجاری‌ها و یک گزارش PDF حرفه‌ای. بدون کدنویسی. بدون راه‌اندازی.',
+      subtitle: 'یک فایل CSV، اکسل، JSON، Parquet، SPSS، Stata یا SAS را آپلود کنید و تحلیل کامل مبتنی بر هوش مصنوعی دریافت کنید — تصویرسازی، الگوها، ناهنجاری‌ها و یک گزارش PDF حرفه‌ای. بدون کدنویسی. بدون راه‌اندازی.',
       login: 'ورود', register: 'ثبت‌نام', demo: 'امتحان دموی تعاملی',
       note: 'اول در دمو ببینید DIG چه کارهایی می‌کند. با یک حساب رایگان آن را روی داده‌های خودتان اجرا کنید و نتایج را نگه دارید.',
     },
@@ -883,6 +885,8 @@ export default function HomePage() {
           </div>
         </section>
 
+        <VersusSection lang={lang} />
+
         <FilesSection lang={lang} />
 
         {/* The second blue block, so the page reads blue / paper / blue / citron. */}
@@ -891,6 +895,7 @@ export default function HomePage() {
         <PricingSection lang={lang} eyebrow={t.nav.pricing} />
 
         <FaqSection lang={lang} />
+        <FounderSection lang={lang} />
 
         <ClosingSection lang={lang} />
       </main>

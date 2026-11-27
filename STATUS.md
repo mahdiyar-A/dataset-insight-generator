@@ -11,8 +11,36 @@
 |---|---|---|
 | C# — unit, integration, edge cases, the real Supabase client against a stand-in server, the chat suggesting changes, teams editing the report, the look of the files | 533 | `dotnet test backend.Tests/backend.Tests.csproj` |
 | Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is, insights' evidence, the editable report, changes the chat suggests and charts DIG draws, combining teammates' saves, reading who the report is for, plain words and the five looks | 1154 | `cd ai_service && pytest tests/` |
-| Frontend — Vitest, including rendered components, the change card, the live report channel, the two themes, the interactive demo and its team stop, the look picker, the landing page, the Plans page signed out, and the pages for searches | 463 | `cd frontend && npm test` |
+| Frontend — Vitest, including rendered components, the change card, the live report channel, the two themes, the interactive demo and its team stop, the look picker, the landing page, the Plans page signed out, the pages for searches, and the one contact address | 472 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
+
+---
+
+## The difference, the developer, and one support address, 2026-11-26
+
+After PR #30, from the owner's notes and a third review. Frontend, plus two
+server strings that wait for the next server deploy.
+
+- **"Chatbots talk. DIG delivers."** (`app/home/VersusSection.tsx`), after
+  Features: four statements on what DIG does that a chatbot does not. No
+  product is named; each line is something the code does (figures checked in
+  `llm/guard.py` and `insight_agent._grounded_figures`, cleaning asked for
+  first, off-file questions declined, Word and PowerPoint marked Pro).
+- **The developer** (`FounderSection.tsx`), after the FAQ: "An analyst for
+  everyone.", the owner's approved quote, name, role, "Computer Science
+  student, University of Calgary" and LinkedIn. Nothing about where they
+  live. The name stays in the footer too.
+- **One contact address**: support@datainsightgen.com (a Namecheap forward to
+  the owner's inbox) replaces the old one on the homepage, Privacy (updated
+  26 November 2026), the legal footer, the dashboard's help cards, and in
+  `PlansController.SupportEmail` and the emails' Reply-To. The server two are
+  live only after the next deploy. `tests/contactAddress.test.ts` keeps the
+  old address out of the code.
+- **Stata and SAS** are named in the hero, the FAQ and the site description.
+- Checked and not changed: the review's "broken mailto" (every live link has
+  mailto:) and "Your file stays us" (the page says "stays with us"). Persian
+  boxes appear only on computers with no Persian font at all; a self-hosted
+  Persian font would fix even those and is not done.
 
 ---
 

@@ -244,6 +244,53 @@ section[id] { scroll-margin-top: 72px; }
 .hp-faq details p { margin: 0; padding: 0 18px 18px; font-size: 15px; line-height: 1.6; color: var(--ink-soft); }
 [dir="rtl"] .hp-faq summary { letter-spacing: 0; }
 
+/* ── The difference ──────────────────────────────────────────────────── */
+.hp-vs-wrap { position: relative; overflow: hidden; padding: clamp(80px, 10vw, 128px) clamp(16px, 3vw, 32px); background: #12121a; color: #f2efe9; border-bottom: 2px solid var(--rule); }
+.hp-vs-wrap::before { content: ''; position: absolute; inset: -40% -10% auto auto; width: 720px; height: 720px; background: radial-gradient(closest-side, rgba(37,54,224,.55), rgba(37,54,224,0)); pointer-events: none; }
+.hp-vs-wrap .hp-in { position: relative; }
+.hp-vs-wrap .hp-eyebrow { color: #d6f24a; }
+.hp-vs-head { max-width: 15ch; margin: 0 0 20px; font-family: ${DISPLAY}; font-size: clamp(44px, 7.4vw, 96px); font-weight: 800; line-height: .98; letter-spacing: -0.05em; color: #ffffff; text-wrap: balance; }
+.hp-vs-head em { font-style: normal; color: #d6f24a; }
+.hp-vs-wrap .hp-sub { max-width: 56ch; margin-bottom: 56px; font-size: 17.5px; color: rgba(242,239,233,.8); }
+.hp-pillars { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; margin: 0; padding: 0; list-style: none; background: rgba(242,239,233,.14); border: 2px solid rgba(242,239,233,.14); }
+.hp-pillars li { padding: clamp(26px, 3.4vw, 44px); background: #12121a; transition: background .25s ease; }
+.hp-pillars li:hover { background: #171a2e; }
+.hp-pillars b { display: block; margin-bottom: 18px; font-family: ${DISPLAY}; font-size: 15px; font-weight: 800; letter-spacing: .08em; color: #d6f24a; }
+.hp-pillars h3 { margin: 0 0 12px; font-family: ${DISPLAY}; font-size: clamp(26px, 3vw, 38px); font-weight: 800; line-height: 1.05; letter-spacing: -0.035em; color: #ffffff; }
+.hp-pillars p { margin: 0; max-width: 44ch; font-size: 16px; line-height: 1.6; color: rgba(242,239,233,.72); }
+[dir="rtl"] .hp-vs-head, [dir="rtl"] .hp-pillars h3 { letter-spacing: 0; line-height: 1.3; }
+@media (max-width: 759px) {
+  .hp-pillars { grid-template-columns: minmax(0, 1fr); }
+  .hp-vs-wrap::before { width: 420px; height: 420px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hp-pillars li { transition: none !important; }
+}
+
+/* ── The founder ─────────────────────────────────────────────────────── */
+.hp-founder { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 56px; align-items: start; }
+.hp-founder-card { padding: 20px; border: 2px solid var(--rule); background: var(--card); box-shadow: 8px 8px 0 var(--cobalt-accent); }
+.hp-founder-mono { display: grid; place-items: center; aspect-ratio: 1; border: 2px solid #12121a; background: var(--lime); color: #12121a; font-family: ${DISPLAY}; font-size: 64px; font-weight: 800; letter-spacing: -0.05em; }
+.hp-founder-who strong { display: block; margin: 16px 0 4px; font-family: ${DISPLAY}; font-size: 18px; font-weight: 700; color: var(--ink); }
+.hp-founder-who > span { display: block; font-size: 13.5px; line-height: 1.45; color: var(--ink-soft); }
+.hp-founder-in { display: inline-flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 14px; font-weight: 700; color: var(--ink); text-decoration: none; --icon-cut: var(--card); }
+.hp-founder-in:hover { color: var(--cobalt-accent); }
+.hp-quote { margin: 0 0 24px; padding: 0; font-family: ${DISPLAY}; font-size: clamp(21px, 2.3vw, 28px); font-weight: 600; line-height: 1.38; letter-spacing: -0.015em; color: var(--ink); }
+.hp-quote p { margin: 0; }
+.hp-quote p::before { content: '“'; color: var(--cobalt-accent); }
+.hp-quote p::after { content: '”'; color: var(--cobalt-accent); }
+[dir="rtl"] .hp-quote p::before { content: '«'; }
+[dir="rtl"] .hp-quote p::after { content: '»'; }
+[dir="rtl"] .hp-quote { letter-spacing: 0; line-height: 1.8; }
+.hp-founder-origin { margin: 0; max-width: 62ch; font-size: 15.5px; line-height: 1.6; color: var(--ink-soft); }
+@media (max-width: 759px) {
+  .hp-founder { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .hp-founder-card { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 16px; align-items: center; order: 2; }
+  .hp-founder-mono { font-size: 34px; }
+  .hp-founder-who strong { margin-top: 0; }
+  .hp-founder-in { margin-top: 8px; }
+}
+
 /* ── The last word ───────────────────────────────────────────────────── */
 .hp-close { padding: 84px clamp(16px, 3vw, 32px); background: var(--lime); color: #12121a; border-bottom: 2px solid #12121a; text-align: center; }
 .hp-close .hp-h2 { max-width: 22ch; margin: 0 auto 14px; color: #12121a; font-size: clamp(32px, 4.6vw, 54px); font-weight: 800; }

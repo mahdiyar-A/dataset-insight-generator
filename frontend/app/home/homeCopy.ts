@@ -407,7 +407,7 @@ export const FAQ: Record<Lang, { eyebrow: string; heading: string; sub: string; 
     heading: 'Questions, answered.',
     sub: 'Anything else? Write to us.',
     items: [
-      { q: 'What files can I upload?', a: 'CSV, Excel, JSON, Parquet, SPSS and other common data files, up to 50 MB each.' },
+      { q: 'What files can I upload?', a: 'CSV, Excel, JSON, Parquet, SPSS, Stata, SAS and other common data files, up to 50 MB each.' },
       { q: 'Do I need to know statistics or code?', a: 'No. DIG writes the report in plain words for whoever will read it. The exact statistics wait on a last page, for anyone who wants them.' },
       { q: 'Is the free plan really free?', a: `Yes, and no card is needed. You get ${PLANS.free.window.count} analyses every ${PLANS.free.window.hours} hours, the full report as a PDF, and ${PLANS.free.questions} questions a day about your results.` },
       { q: 'Does the AI see my file?', a: 'Not the file itself. DIG works on your file on its own servers, and the AI gets a short summary of your columns and a few example values. The Privacy Policy lists exactly what.' },
@@ -421,7 +421,7 @@ export const FAQ: Record<Lang, { eyebrow: string; heading: string; sub: string; 
     heading: 'Vos questions, nos réponses.',
     sub: 'Autre chose ? Écrivez-nous.',
     items: [
-      { q: 'Quels fichiers puis-je importer ?', a: 'CSV, Excel, JSON, Parquet, SPSS et d’autres fichiers de données courants, jusqu’à 50 Mo chacun.' },
+      { q: 'Quels fichiers puis-je importer ?', a: 'CSV, Excel, JSON, Parquet, SPSS, Stata, SAS et d’autres fichiers de données courants, jusqu’à 50 Mo chacun.' },
       { q: 'Faut-il connaître les statistiques ou le code ?', a: 'Non. DIG rédige le rapport en mots simples pour la personne qui le lira. Les statistiques exactes attendent sur une dernière page, pour qui les veut.' },
       { q: 'Le forfait gratuit est-il vraiment gratuit ?', a: `Oui, et aucune carte n’est requise. Vous avez ${PLANS.free.window.count} analyses toutes les ${PLANS.free.window.hours} heures, le rapport complet en PDF et ${PLANS.free.questions} questions par jour sur vos résultats.` },
       { q: 'L’IA voit-elle mon fichier ?', a: 'Pas le fichier lui-même. DIG traite votre fichier sur ses propres serveurs, et l’IA reçoit un court résumé de vos colonnes et quelques exemples de valeurs. La politique de confidentialité en donne le détail.' },
@@ -435,7 +435,7 @@ export const FAQ: Record<Lang, { eyebrow: string; heading: string; sub: string; 
     heading: 'پرسش‌های شما، پاسخ‌های ما.',
     sub: 'سؤال دیگری دارید؟ برایمان بنویسید.',
     items: [
-      { q: 'چه فایل‌هایی می‌توانم آپلود کنم؟', a: 'CSV، اکسل، JSON، Parquet، SPSS و دیگر فایل‌های رایج داده، هر کدام تا ۵۰ مگابایت.' },
+      { q: 'چه فایل‌هایی می‌توانم آپلود کنم؟', a: 'CSV، اکسل، JSON، Parquet، SPSS، Stata، SAS و دیگر فایل‌های رایج داده، هر کدام تا ۵۰ مگابایت.' },
       { q: 'باید آمار یا برنامه‌نویسی بلد باشم؟', a: 'نه. DIG گزارش را به زبان ساده برای کسی که آن را می‌خواند می‌نویسد. آمار دقیق در صفحهٔ آخر می‌ماند، برای هر کسی که بخواهد.' },
       { q: 'طرح رایگان واقعاً رایگان است؟', a: `بله، و نیازی به کارت بانکی نیست. ${num('fa', PLANS.free.window.count)} تحلیل در هر ${num('fa', PLANS.free.window.hours)} ساعت، گزارش کامل به‌صورت PDF و ${num('fa', PLANS.free.questions)} پرسش در روز دربارهٔ نتایج می‌گیرید.` },
       { q: 'هوش مصنوعی فایل من را می‌بیند؟', a: 'خود فایل را نه. DIG فایل شما را روی سرورهای خودش پردازش می‌کند و هوش مصنوعی فقط خلاصه‌ای کوتاه از ستون‌ها و چند مقدار نمونه می‌گیرد. جزئیات در سیاست حریم خصوصی آمده است.' },
@@ -443,6 +443,93 @@ export const FAQ: Record<Lang, { eyebrow: string; heading: string; sub: string; 
       { q: 'گزارش به چه زبان‌هایی نوشته می‌شود؟', a: `با Pro، به ${num('fa', REPORT_LANGUAGES.fa.length)} زبان: ${listOf('fa', REPORT_LANGUAGES.fa)}.` },
       { q: 'می‌توانم Pro را لغو کنم؟', a: 'بله، هر زمان، از حساب کاربری‌تان.' },
     ],
+  },
+};
+
+// ── The difference ───────────────────────────────────────────────────────────
+
+// A point of view, not a feature table: what DIG does that a chatbot does not.
+// No product is named. Each line is something the code does: figures checked
+// (llm/guard.py, insight_agent._grounded_figures), cleaning asked for first,
+// off-file questions declined, finished files (PDF on every plan, Word and
+// PowerPoint on Pro).
+export const VERSUS: Record<Lang, {
+  eyebrow: string; heading: string; sub: string; pillars: { title: string; body: string }[];
+}> = {
+  en: {
+    eyebrow: 'THE DIFFERENCE',
+    heading: 'Chatbots talk. DIG delivers.',
+    sub: 'DIG doesn’t just chat about your file. It works through it, start to finish, and hands you a report you can stand behind.',
+    pillars: [
+      { title: 'Every number, checked.', body: 'Figures are calculated from your file and checked against it before they reach you.' },
+      { title: 'Cleaned before it’s counted.', body: 'Repeated rows, gaps and impossible values are found, fixed with your OK, and shown.' },
+      { title: 'Honest about its limits.', body: 'Ask something your file can’t answer, and DIG says so instead of inventing one.' },
+      { title: 'Boardroom-ready.', body: 'Not a chat to copy out: a finished report with charts, ready to send as a PDF, or Word and PowerPoint on Pro.' },
+    ],
+  },
+  fr: {
+    eyebrow: 'LA DIFFÉRENCE',
+    heading: 'Les chatbots parlent. DIG livre.',
+    sub: 'DIG ne se contente pas de discuter de votre fichier. Il le traite de bout en bout et vous remet un rapport sur lequel vous pouvez compter.',
+    pillars: [
+      { title: 'Chaque chiffre, vérifié.', body: 'Les chiffres sont calculés à partir de votre fichier et vérifiés avant de vous parvenir.' },
+      { title: 'Nettoyé avant d’être compté.', body: 'Lignes répétées, trous et valeurs impossibles : repérés, corrigés avec votre accord, et montrés.' },
+      { title: 'Honnête sur ses limites.', body: 'Posez une question à laquelle votre fichier ne peut pas répondre : DIG vous le dit au lieu d’inventer.' },
+      { title: 'Prêt pour la salle de réunion.', body: 'Pas une conversation à recopier : un rapport fini avec graphiques, prêt à envoyer en PDF, ou en Word et PowerPoint avec Pro.' },
+    ],
+  },
+  fa: {
+    eyebrow: 'تفاوت',
+    heading: 'چت‌بات‌ها حرف می‌زنند. DIG تحویل می‌دهد.',
+    sub: 'DIG فقط دربارهٔ فایل شما گفت‌وگو نمی‌کند؛ از اول تا آخر روی آن کار می‌کند و گزارشی به شما می‌دهد که می‌توانید به آن تکیه کنید.',
+    pillars: [
+      { title: 'هر عدد، بررسی‌شده.', body: 'اعداد از روی فایل شما محاسبه و پیش از رسیدن به شما با آن بررسی می‌شوند.' },
+      { title: 'پاک‌سازی پیش از شمارش.', body: 'ردیف‌های تکراری، جاهای خالی و مقادیر ناممکن پیدا می‌شوند، با اجازهٔ شما اصلاح می‌شوند و به شما نشان داده می‌شوند.' },
+      { title: 'صادق دربارهٔ محدودیت‌هایش.', body: 'پرسشی بپرسید که فایل شما جوابش را ندارد؛ DIG به‌جای ساختن جواب، همین را می‌گوید.' },
+      { title: 'آماده برای جلسهٔ مدیران.', body: 'نه یک چت برای کپی کردن: یک گزارش کامل با نمودار، آمادهٔ ارسال به‌صورت PDF، یا Word و PowerPoint با Pro.' },
+    ],
+  },
+};
+
+// ── The founder ──────────────────────────────────────────────────────────────
+
+// Name, role and school only: nothing about where the founder lives. The
+// origin line is the old Developer section's, which the owner wrote; the
+// quote was drafted with the owner and approved by them on 2026-11-26. It
+// speaks for them, so change it only with their say-so.
+export const FOUNDER: Record<Lang, {
+  eyebrow: string; heading: string; quote: string; origin: string;
+  name: string; role: string; school: string; linkedin: string;
+}> = {
+  en: {
+    eyebrow: 'WHY I BUILT DIG',
+    heading: 'An analyst for everyone.',
+    quote: 'Hiring an analyst costs a fortune, and a chatbot can make numbers up. I wanted everyone, from a café owner to a CEO, to have an analyst who reads every row, checks the numbers and speaks their language. So I built one. That’s DIG.',
+    origin: 'DIG began as a group project with fellow Computer Science students at the University of Calgary. I’ve built it on my own since.',
+    name: 'Mahdiyar Ashrafioun',
+    role: 'Founder and developer',
+    school: 'Computer Science student, University of Calgary',
+    linkedin: 'Connect on LinkedIn',
+  },
+  fr: {
+    eyebrow: 'POURQUOI J’AI CRÉÉ DIG',
+    heading: 'Un analyste pour tout le monde.',
+    quote: 'Un analyste coûte une fortune, et un chatbot peut inventer des chiffres. Je voulais que chacun, du patron de café au PDG, ait un analyste qui lit chaque ligne, vérifie les chiffres et parle sa langue. Alors je l’ai construit. C’est DIG.',
+    origin: 'DIG a commencé comme un projet de groupe entre étudiants en informatique à l’Université de Calgary. Depuis, je le construis seul.',
+    name: 'Mahdiyar Ashrafioun',
+    role: 'Fondateur et développeur',
+    school: 'Étudiant en informatique, Université de Calgary',
+    linkedin: 'Me retrouver sur LinkedIn',
+  },
+  fa: {
+    eyebrow: 'چرا DIG را ساختم',
+    heading: 'یک تحلیلگر برای همه.',
+    quote: 'استخدام یک تحلیلگر هزینهٔ زیادی دارد و یک چت‌بات ممکن است عدد بسازد. می‌خواستم همه، از صاحب یک کافه تا مدیرعامل یک شرکت، تحلیلگری داشته باشند که تک‌تک ردیف‌ها را می‌خواند، اعداد را بررسی می‌کند و به زبان خودشان حرف می‌زند. پس آن را ساختم. اسمش DIG است.',
+    origin: 'DIG به‌عنوان یک پروژهٔ گروهی با دانشجویان علوم کامپیوتر دانشگاه کالگاری آغاز شد. از آن زمان به‌تنهایی آن را می‌سازم.',
+    name: 'مهدیار اشرفیون',
+    role: 'بنیان‌گذار و توسعه‌دهنده',
+    school: 'دانشجوی علوم کامپیوتر، دانشگاه کالگاری',
+    linkedin: 'در لینکدین',
   },
 };
 
@@ -475,7 +562,7 @@ export const LINKEDIN = {
   founder: 'https://www.linkedin.com/in/mahdiyar-ashrafioun/',
 };
 
-export const CONTACT_EMAIL = 'dataset_insight_generator.ai@proton.me';
+export const CONTACT_EMAIL = 'support@datainsightgen.com';
 
 export const FOOTER: Record<Lang, {
   tagline: string; product: string; uses: string; company: string; legal: string;

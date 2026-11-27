@@ -206,7 +206,7 @@ public class PlansController : ControllerBase
     }
 
     /// <summary>The address the privacy policy gives for every request.</summary>
-    public const string SupportEmail = "dataset_insight_generator.ai@proton.me";
+    public const string SupportEmail = "support@datainsightgen.com";
 
     // ── POST /api/plans/webhook ───────────────────────────────────────────────
     // Stripe sends signed events here. We update the user's plan based on them.
