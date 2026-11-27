@@ -38,7 +38,7 @@ import HomePage from "@/app/page";
 import { FILES, PLANS, REVENUE } from "@/app/demo/demoFacts";
 import sample from "@/app/demo/sample.json";
 import {
-  CLOSING, FAQ, FOOTER, HERO_SHOT, LINKEDIN, MESSY_COLUMNS, MESSY_ROWS, PROOF, REPORT_LANGUAGES, SHARE, TRUST, percent,
+  CLOSING, FAQ, FOOTER, FOUNDER, HERO_SHOT, LINKEDIN, MESSY_COLUMNS, MESSY_ROWS, PROOF, REPORT_LANGUAGES, SHARE, TRUST, VERSUS, percent,
 } from "@/app/home/homeCopy";
 
 const ROOT = path.resolve(__dirname, "..");
@@ -373,10 +373,38 @@ describe("the end of the page", () => {
     expect(hrefs).toEqual(expect.arrayContaining(["/privacy", "/terms", "/demo"]));
   });
 
-  it("has no Developer section any more", () => {
+  it.each(LANGS)("introduces the developer by name, role and school, and nothing more personal, in %s", lang => {
+    page(lang);
+    const block = section("founder");
+    const t = FOUNDER[lang];
+    for (const line of [t.name, t.role, t.school, t.quote, t.origin]) expect(block).toHaveTextContent(line);
+    const linkedin = within(block).getByRole("link", { name: new RegExp(t.linkedin) });
+    expect(linkedin).toHaveAttribute("href", LINKEDIN.founder);
+    expect(linkedin).toHaveAttribute("target", "_blank");
+    // Where the founder lives stays off the page.
+    expect(JSON.stringify(FOUNDER)).not.toMatch(/Toronto|Ontario|Alberta|تورنتو|انتاریو/);
+    // The quote is never faded: it is what the section is for.
+    expect(block.querySelector(".hp-quote")).toHaveAttribute("data-rv", "solid");
+  });
+
+  it.each(LANGS)("says what sets DIG apart from a chatbot, in four statements, in %s", lang => {
+    page(lang);
+    const block = section("why");
+    expect(block.querySelector("h2")).toHaveTextContent(VERSUS[lang].heading);
+    const items = block.querySelectorAll(".hp-pillars li");
+    expect(items).toHaveLength(VERSUS.en.pillars.length);
+    VERSUS[lang].pillars.forEach((pillar, i) => {
+      expect(items[i].querySelector("h3")).toHaveTextContent(pillar.title);
+      expect(items[i]).toHaveTextContent(pillar.body);
+    });
+    // A comparison names no other product, and Word and PowerPoint stay Pro.
+    expect(JSON.stringify(VERSUS)).not.toMatch(/ChatGPT|OpenAI|Gemini|Claude|Copilot|Perplexity|Grok/i);
+    expect(VERSUS.en.pillars[3].body).toMatch(/Word and PowerPoint on Pro/);
+  });
+
+  it("keeps the founder's name in the footer as well", () => {
     page();
-    expect(document.getElementById("developers")).toBeNull();
-    expect(document.body.textContent).not.toMatch(/University of Calgary|Founder · Developer/);
+    expect(document.querySelector("footer")).toHaveTextContent(FOOTER.en.founder);
   });
 
   it("points at real companies' pages, and DIG's is the one in the notes", () => {

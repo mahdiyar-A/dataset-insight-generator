@@ -462,8 +462,8 @@ function DocModal({ doc, onClose, stillNeedHelp }) {
         <div style={{ borderTop: "1px solid var(--line)", paddingTop: "14px" }}>
           <p className="muted-small">
             {stillNeedHelp}{" "}
-            <a href="mailto:dataset_insight_generator.ai@proton.me" style={{ color: "var(--cobalt-accent)", textDecoration: "none" }}>
-              dataset_insight_generator.ai@proton.me
+            <a href="mailto:support@datainsightgen.com" style={{ color: "var(--cobalt-accent)", textDecoration: "none" }}>
+              support@datainsightgen.com
             </a>
           </p>
         </div>
@@ -544,7 +544,7 @@ export default function InfoCards() {
 
           {/* Email button */}
           <a
-            href="mailto:dataset_insight_generator.ai@proton.me"
+            href="mailto:support@datainsightgen.com"
             style={{
               display: "flex",
               alignItems: "center",
@@ -565,7 +565,7 @@ export default function InfoCards() {
               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
               <polyline points="22,6 12,13 2,6" />
             </svg>
-            dataset_insight_generator.ai@proton.me
+            support@datainsightgen.com
           </a>
 
           {/* Channel table */}

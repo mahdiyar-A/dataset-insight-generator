@@ -34,7 +34,7 @@ public class SmtpEmailService : IEmailService
     private string FromName    => _config["Email:FromName"]    ?? "DIG";
     // Mail comes from a no-reply address, so a user hitting Reply would reach
     // nobody. Replies go to the support inbox instead.
-    private string ReplyTo     => _config["Email:ReplyTo"]     ?? "dataset_insight_generator.ai@proton.me";
+    private string ReplyTo     => _config["Email:ReplyTo"]     ?? "support@datainsightgen.com";
     private string AppUrl      => (_config["AppUrl"]           ?? "https://datainsightgen.com").TrimEnd('/');
 
     // ── Base email wrapper ────────────────────────────────────────────────────

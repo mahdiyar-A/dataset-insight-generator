@@ -43,7 +43,7 @@ export const metadata: Metadata = {
   // A page with no description leaves Google to invent the snippet from
   // whatever text it finds first.
   description:
-    "Upload a CSV, Excel, JSON, Parquet or SPSS file and get back a written analysis: "
+    "Upload a CSV, Excel, JSON, Parquet, SPSS, Stata or SAS file and get back a written analysis: "
     + "data quality checks, optional cleaning, charts and a PDF report. No formulas, no setup.",
   keywords: [
     "dataset analysis", "CSV analysis", "Excel analysis", "automated data report",

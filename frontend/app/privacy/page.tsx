@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/privacy' },
 };
 
-const UPDATED = 'LAST UPDATED 21 NOVEMBER 2026';
+const UPDATED = 'LAST UPDATED 26 NOVEMBER 2026';
 
 const INTRO = [
   'DIG turns a data file into an analysis report and answers questions about it. To do that it has to read your file, so this page explains exactly what happens to it: where it is stored, what is computed locally, what is sent to other companies, and how to get rid of it.',
@@ -41,7 +41,7 @@ const SECTIONS = [
   {
     heading: 'Who we are',
     body: [
-      'DIG (Dataset Insight Generator) is run by Mahdiyar Ashrafioun, an individual based in Toronto, Ontario, Canada. It is not incorporated — there is no company behind it, just one person. You can reach us at dataset_insight_generator.ai@proton.me for any question about this policy or any request described below.',
+      'DIG (Dataset Insight Generator) is run by Mahdiyar Ashrafioun, an individual based in Toronto, Ontario, Canada. It is not incorporated — there is no company behind it, just one person. You can reach us at support@datainsightgen.com for any question about this policy or any request described below.',
       'The service is offered through datainsightgen.com, datainsightgen.ca and datainsightgen.online. This policy covers all three.',
     ],
   },
@@ -114,7 +114,7 @@ const SECTIONS = [
   {
     heading: 'Your rights',
     body: [
-      'You can ask us to show you the data we hold about you, correct it, delete it, or send you a copy. Email dataset_insight_generator.ai@proton.me and we will respond within 30 days.',
+      'You can ask us to show you the data we hold about you, correct it, delete it, or send you a copy. Email support@datainsightgen.com and we will respond within 30 days.',
       'You can delete your own analyses at any time from your dashboard, which removes the stored files with them.',
       'Because DIG is operated from Ontario, your personal information is handled under Canada’s federal Personal Information Protection and Electronic Documents Act (PIPEDA). Ontario has no separate private-sector privacy statute, so PIPEDA is the law that applies.',
       'If you are not satisfied with how a request was handled, you can complain to the Office of the Privacy Commissioner of Canada at priv.gc.ca. If you are outside Canada, you may also have rights under your own local law; contact us and we will do what it requires.',

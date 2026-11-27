@@ -160,7 +160,7 @@ export default function LegalPage({ title, updated, intro, sections, closing }) 
         <span style={{ fontFamily: DISPLAY, fontSize: '15px', fontWeight: 800, letterSpacing: '-0.04em' }}>DIG</span>
         <Link href="/privacy" className="lg-link lg-tap" style={{ fontSize: '13px', color: c.inkSoft, textDecoration: 'none' }}>Privacy</Link>
         <Link href="/terms" className="lg-link lg-tap" style={{ fontSize: '13px', color: c.inkSoft, textDecoration: 'none' }}>Terms</Link>
-        <a href="mailto:dataset_insight_generator.ai@proton.me" className="lg-link lg-tap"
+        <a href="mailto:support@datainsightgen.com" className="lg-link lg-tap"
            style={{ fontSize: '13px', color: c.inkSoft, textDecoration: 'none' }}>Contact</a>
         <span style={{ marginInlineStart: 'auto', fontSize: '12.5px', color: c.inkFaint }}>
           datainsightgen.com
