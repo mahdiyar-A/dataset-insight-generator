@@ -72,6 +72,34 @@ export const SunIcon = (p: Props) => (
 
 export const MoonIcon = (p: Props) => <Icon {...p}><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5Z" /></Icon>;
 
+export const CrossIcon = (p: Props) => <Icon {...p}><path d="M6 6l12 12M18 6 6 18" /></Icon>;
+
+export const ChevronIcon = (p: Props) => <Icon {...p}><path d="m6 9 6 6 6-6" /></Icon>;
+
+export const ArrowIcon = (p: Props) => <Icon {...p}><path d="M5 12h14M13 6l6 6-6 6" /></Icon>;
+
+/** A page with a folded corner: a file. */
+export const FileIcon = (p: Props) => (
+  <Icon {...p}><path d="M14 3H6v18h12V7l-4-4Z" /><path d="M14 3v4h4" /></Icon>
+);
+
+export const TrashIcon = (p: Props) => (
+  <Icon {...p}><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></Icon>
+);
+
+/** LinkedIn's "in" mark, filled, as links to a LinkedIn page usually show it. */
+export const LinkedInIcon = ({ size = 16 }: Props) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false" style={{ flexShrink: 0 }}>
+    <rect width="24" height="24" rx="3" fill="currentColor" />
+    <path
+      d="M7.1 9.6h-2.4V19h2.4V9.6ZM5.9 5a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8ZM19.3 13.6c0-2.6-1.4-4.2-3.6-4.2-1.3 0-2.1.7-2.5 1.3V9.6h-2.4V19h2.4v-5c0-1.3.6-2.2 1.8-2.2s1.8.9 1.8 2.2v5h2.5v-5.4Z"
+      // The letters show the page behind them. A style, not the `fill`
+      // attribute: an attribute cannot read a CSS variable.
+      style={{ fill: 'var(--icon-cut, #ffffff)' }}
+    />
+  </svg>
+);
+
 /** Filled, unlike the rest: a play triangle reads better solid. */
 export const PlayIcon = ({ size = 10 }: Props) => (
   <svg width={size} height={size} viewBox="0 0 10 10" aria-hidden="true" focusable="false" style={{ flexShrink: 0 }}>

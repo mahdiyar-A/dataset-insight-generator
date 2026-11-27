@@ -1,7 +1,7 @@
 # DIG — Project Status
 
 **Branch:** `main`
-**Last updated:** 2026-11-24
+**Last updated:** 2026-11-26
 
 ---
 
@@ -11,8 +11,49 @@
 |---|---|---|
 | C# — unit, integration, edge cases, the real Supabase client against a stand-in server, the chat suggesting changes, teams editing the report, the look of the files | 533 | `dotnet test backend.Tests/backend.Tests.csproj` |
 | Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is, insights' evidence, the editable report, changes the chat suggests and charts DIG draws, combining teammates' saves, reading who the report is for, plain words and the five looks | 1154 | `cd ai_service && pytest tests/` |
-| Frontend — Vitest, including rendered components, the change card, the live report channel, the two themes, the interactive demo and its team stop, the look picker, and the landing page's proof, files and pricing | 405 | `cd frontend && npm test` |
+| Frontend — Vitest, including rendered components, the change card, the live report channel, the two themes, the interactive demo and its team stop, the look picker, the landing page, the Plans page signed out, and the pages for searches | 463 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
+
+---
+
+## A startup's landing page, and pages for three searches, 2026-11-26
+
+The owner's notes on the reworked site, then a second outside review, each
+point checked against the code first. Frontend only.
+
+- **Security in a customer's words** (`app/home/SecuritySection.tsx`): three
+  promises (the file stays with us, private unless shared, delete it anytime)
+  in place of a list of how the site is built. No technology is named. The
+  note asking people not to upload confidential data stays: the free AI
+  services may keep logs under their own terms (Privacy Policy). Not claimed:
+  that data never trains an AI.
+- **The title shows the product** (`HeroShot.tsx`): a window with the sample's
+  finding, its chart and an answer from the chat, in place of three steps.
+- **Features** say what DIG does for you; a **FAQ** (`FaqSection.tsx`) with
+  figures from `demoFacts.ts`; a **closing call** (`ClosingSection.tsx`); a
+  full **footer** (`SiteFooter.tsx`) with DIG's LinkedIn and the founder's.
+  The Developer section is gone.
+- **No payment company named** under the prices, here or on the Plans page.
+- **The Plans page, signed out**: both cards lead to Register; "Your current
+  plan" shows only to someone signed in; no "Most popular" (two plans and no
+  figures behind it); the ticks and crosses are drawn.
+- **The demo's bubble** sits below the header however tall the header grows
+  (`--dg-top-h`, measured as it changes).
+- **The phone header** is one row from 320px: the theme button is an icon,
+  the language buttons move into the menu below 360px, and the wordmark
+  returns at 520px.
+- **Three pages for searches** (`app/home/useCases.ts`, `UseCasePage.tsx`):
+  `/analyze-spss-file-without-spss`, `/parquet-to-pdf-powerpoint` and
+  `/remove-duplicate-survey-rows`. Each covers what hurts, what DIG does, a
+  real report, four steps, what to know first, and questions. They are in the
+  sitemap and the footer, in English only, rendered on the server. The claims
+  that could drift are tested against the code: file types against the upload
+  list, 50 MB against the backend, SPSS labels and the duplicate rule against
+  the AI service, charts on slides against the PowerPoint builder.
+- Checked and left: lower headings and buttons are never faded (solid since
+  2026-11-24); a test now holds the closing buttons to that.
+- `tests/homePage.test.tsx`, `tests/plansPublic.test.tsx`,
+  `tests/useCasePages.test.tsx`, and more in `tests/demoTour.test.tsx`.
 
 ---
 

@@ -5,9 +5,9 @@ import path from "node:path";
 import React from "react";
 
 /**
- * The landing page's proof, files and pricing sections. Every figure on them
- * has to be the sample file's or the product's own, in all three languages,
- * and nothing a visitor presses may call the server.
+ * The landing page. Every figure on it has to be the sample file's or the
+ * product's own, in all three languages, nothing a visitor presses may call the
+ * server, and it talks to customers, not to engineers.
  */
 
 const settings = vi.hoisted(() => ({ lang: "en" as "en" | "fr" | "fa" }));
@@ -37,7 +37,9 @@ vi.mock("next/link", () => ({
 import HomePage from "@/app/page";
 import { FILES, PLANS, REVENUE } from "@/app/demo/demoFacts";
 import sample from "@/app/demo/sample.json";
-import { MESSY_COLUMNS, MESSY_ROWS, PROOF, REPORT_LANGUAGES, SHARE, percent } from "@/app/home/homeCopy";
+import {
+  CLOSING, FAQ, FOOTER, HERO_SHOT, LINKEDIN, MESSY_COLUMNS, MESSY_ROWS, PROOF, REPORT_LANGUAGES, SHARE, TRUST, percent,
+} from "@/app/home/homeCopy";
 
 const ROOT = path.resolve(__dirname, "..");
 const PUBLIC = path.join(ROOT, "public");
@@ -236,7 +238,7 @@ describe("finding your way", () => {
   it.each(LANGS)("has a menu link to every section in %s", lang => {
     page(lang);
     const hrefs = [...document.querySelectorAll(".atlas-nav a")].map(a => a.getAttribute("href"));
-    expect(hrefs).toEqual(["#features", "#security", "#pricing", "#developers", "#contact"]);
+    expect(hrefs).toEqual(["#features", "#security", "#pricing", "#faq", "#contact"]);
     for (const h of hrefs) expect(document.querySelector(h!)).not.toBeNull();
     for (const a of document.querySelectorAll(".atlas-nav a")) expect(a.textContent).toBeTruthy();
   });
@@ -268,5 +270,145 @@ describe("finding your way", () => {
   it("draws its symbols instead of typing them", () => {
     const { container } = page();
     expect(container.textContent).not.toMatch(/[▶✓✎↻↶⤢＋]/u);
+  });
+});
+
+// ── The product under the title ───────────────────────────────────────────────
+
+describe("the product under the title", () => {
+  it.each(LANGS)("shows the sample's own finding, figure and answer in %s", lang => {
+    page(lang);
+    const shot = screen.getByRole("img", { name: HERO_SHOT[lang].label });
+    // French money and percentages use no-break spaces; compare like with like.
+    const flat = (s: string) => s.replace(/\s+/g, " ");
+    const text = flat(shot.textContent ?? "");
+    expect(text).toContain(flat(PROOF[lang].finding));
+    expect(text).toContain(flat(percent(lang, SHARE)));
+    expect(text).toContain(flat(PROOF[lang].answers[1].a));
+    const chart = shot.querySelector("img")!;
+    expect(existsSync(path.join(PUBLIC, chart.getAttribute("src")!))).toBe(true);
+    expect(chart.getAttribute("src")).toBe(sample.report.insights[0].chart.src);
+  });
+});
+
+// ── Security, in a customer's words ───────────────────────────────────────────
+
+describe("security", () => {
+  // How the site is built is not a promise to a customer. These were on the
+  // page, and the owner asked for them to go.
+  const BUILD_WORDS = /HTTPS|JWT|Supabase|API|token|hash|end to end|de bout en bout|ابتدا تا انتها|Stripe/i;
+
+  it.each(LANGS)("makes three plain promises in %s, and names no technology", lang => {
+    page(lang);
+    const block = section("security");
+    expect(block.querySelectorAll(".hp-promises li")).toHaveLength(3);
+    expect(block.textContent).not.toMatch(BUILD_WORDS);
+    expect(within(block).getByRole("link", { name: TRUST[lang].policy })).toHaveAttribute("href", "/privacy");
+  });
+
+  it("promises no more than the Privacy Policy says", () => {
+    const policy = readFileSync(path.join(ROOT, "app/privacy/page.tsx"), "utf-8");
+    // A summary and a few example values go to the AI; the policy says so.
+    expect(policy).toContain("up to five example values taken from each column");
+    expect(TRUST.en.items[0].body).toContain("a few example values, never the whole file");
+    // Deleting an analysis and an account both exist.
+    const api = readFileSync(path.join(ROOT, "lib/BackendAPI.js"), "utf-8");
+    expect(api).toMatch(/static async deleteAnalysis\(/);
+    expect(api).toMatch(/static async deleteAccount\(/);
+    // Not claimed: the free AI services may keep logs under their own terms.
+    for (const lang of LANGS) expect(JSON.stringify(TRUST[lang])).not.toMatch(/train/i);
+  });
+
+  it.each(LANGS)("says nothing about the payment company under the prices in %s", lang => {
+    page(lang);
+    expect(section("pricing").textContent).not.toMatch(/Stripe|card details|données de votre carte|processed securely/i);
+  });
+});
+
+// ── Questions ─────────────────────────────────────────────────────────────────
+
+describe("questions", () => {
+  it.each(LANGS)("answers the same questions with the product's own figures in %s", lang => {
+    page(lang);
+    const items = section("faq").querySelectorAll("details");
+    expect(items).toHaveLength(FAQ.en.items.length);
+    const free = numbers(FAQ[lang].items[2].a);
+    expect(free).toEqual(expect.arrayContaining([PLANS.free.window.count, PLANS.free.window.hours, PLANS.free.questions]));
+    expect(numbers(FAQ[lang].items[5].a)).toContain(REPORT_LANGUAGES[lang].length);
+    expect(numbers(FAQ[lang].items[0].a)).toContain(50);
+  });
+
+  it("opens an answer without a script", () => {
+    page();
+    const first = section("faq").querySelector("details")!;
+    expect(first.querySelector("summary")).toHaveTextContent(FAQ.en.items[0].q);
+    expect(first).toHaveTextContent(FAQ.en.items[0].a);
+  });
+});
+
+// ── The last word, the footer, and no Developer section ──────────────────────
+
+describe("the end of the page", () => {
+  it("ends on the demo, sign-up and a way to ask", () => {
+    page();
+    const close = within(section("contact"));
+    expect(close.getByRole("link", { name: CLOSING.en.demo })).toHaveAttribute("href", "/demo");
+    expect(close.getByRole("link", { name: CLOSING.en.register })).toHaveAttribute("href", "/register");
+    expect(close.getByRole("link", { name: CLOSING.en.write }).getAttribute("href")).toMatch(/^mailto:/);
+    // The buttons never fade: a reader who scrolls down fast sees them at once.
+    expect(section("contact").querySelector(".hp-close-btns")).toHaveAttribute("data-rv", "solid");
+  });
+
+  it.each(LANGS)("links DIG's LinkedIn and its founder's in the footer in %s", lang => {
+    page(lang);
+    const foot = document.querySelector("footer")!;
+    const hrefs = [...foot.querySelectorAll("a")].map(a => a.getAttribute("href"));
+    expect(hrefs).toContain(LINKEDIN.dig);
+    expect(hrefs).toContain(LINKEDIN.founder);
+    for (const a of foot.querySelectorAll<HTMLAnchorElement>('a[href*="linkedin.com"]')) {
+      expect(a).toHaveAttribute("target", "_blank");
+      expect(a.getAttribute("rel")).toContain("noopener");
+    }
+    expect(foot).toHaveTextContent(FOOTER[lang].founder);
+    expect(hrefs).toEqual(expect.arrayContaining(["/privacy", "/terms", "/demo"]));
+  });
+
+  it("has no Developer section any more", () => {
+    page();
+    expect(document.getElementById("developers")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/University of Calgary|Founder · Developer/);
+  });
+
+  it("points at real companies' pages, and DIG's is the one in the notes", () => {
+    expect(LINKEDIN.dig).toMatch(/^https:\/\/www\.linkedin\.com\/company\/\d+\/$/);
+    expect(LINKEDIN.founder).toMatch(/^https:\/\/www\.linkedin\.com\/in\/[a-z-]+\/$/);
+  });
+});
+
+// ── The bar at the top, on a phone ────────────────────────────────────────────
+
+describe("the bar on a phone", () => {
+  const source = readFileSync(path.join(ROOT, "app/page.tsx"), "utf-8");
+
+  it("shows the theme as an icon, with its name for screen readers", () => {
+    page();
+    const theme = document.querySelector<HTMLButtonElement>(".atlas-theme")!;
+    expect(theme.textContent).toBe("");
+    expect(theme).toHaveAttribute("aria-label", "Theme: Dark");
+  });
+
+  it("moves the language buttons into the menu on the narrowest phones", () => {
+    page();
+    fireEvent.click(document.querySelector(".atlas-burger")!);
+    const row = document.querySelector("#atlas-menu .atlas-menu-lang")!;
+    expect([...row.querySelectorAll("button")].map(b => b.textContent)).toEqual(["EN", "FR", "FA"]);
+    expect(source).toContain("'@media (max-width: 359px) {',");
+    expect(source).toContain("'  .atlas-header .atlas-lang { display: none; }',");
+    // An inline display would outrank that rule and the bar would wrap again.
+    expect(document.querySelector<HTMLElement>(".atlas-header .atlas-lang")!.style.display).toBe("");
+  });
+
+  it("keeps the short bar until the wordmark fits beside everything else", () => {
+    expect(source).toContain("'@media (max-width: 519px) {',\r\n    '  .atlas-wordmark { display: none; }',".replace(/\r\n/g, source.includes("\r\n") ? "\r\n" : "\n"));
   });
 });

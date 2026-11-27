@@ -7,159 +7,86 @@ import Link from 'next/link';
 import { partitionVisible } from '@/lib/revealOnScroll';
 import { useSettings } from './contexts/SettingsContext';
 import DigMascot from '@/components/DigMascot';
-import { PlayIcon } from '@/components/Icons';
-import { ATLAS, DISPLAY, SANS, SHEET } from './home/atlas';
+import { MoonIcon, PlayIcon, SunIcon } from '@/components/Icons';
+import { ATLAS, DISPLAY, SANS } from './home/atlas';
+import ClosingSection from './home/ClosingSection';
+import FaqSection from './home/FaqSection';
 import FilesSection from './home/FilesSection';
+import HeroShot from './home/HeroShot';
 import { HOME_CSS } from './home/homeStyles';
 import PricingSection from './home/PricingSection';
 import ProofSection from './home/ProofSection';
+import SecuritySection from './home/SecuritySection';
+import SiteFooter from './home/SiteFooter';
 
 // ── Translations ──────────────────────────────────────────────────────────────
 const T = {
   en: {
     dir: 'ltr',
-    nav: { features: 'Features', security: 'Security', pricing: 'Pricing', developers: 'Developer', contact: 'Contact', menu: 'Menu' },
+    nav: { features: 'Features', security: 'Security', pricing: 'Pricing', faq: 'FAQ', contact: 'Contact', menu: 'Menu' },
     hero: {
       title: 'Your Data Has a Story. We Help You Read It.',
       subtitle: 'Drop in a CSV, Excel, JSON, Parquet or SPSS file and get back a full AI-powered analysis — visualizations, patterns, anomalies, and a professional PDF report. No coding. No setup. Just an insightful report.',
       login: 'Login', register: 'Register', demo: 'Try the interactive demo',
       note: 'See everything DIG does in the demo first. A free account runs it on your own data and keeps your results.',
-      howTitle: 'How it works?',
-      step1: 'Upload your dataset — CSV, Excel, JSON, Parquet, SPSS and more, up to 50MB.',
-      step2: 'Our AI engine profiles your data, detects patterns, and generates charts.',
-      step3: 'Download a clean, professional PDF report in seconds.',
     },
     features: {
-      heading: 'Everything you need to understand your data',
-      subtitle: 'Built for researchers, analysts, and students who want real insights — not just raw numbers.',
+      heading: 'An analyst’s work, done for you.',
+      subtitle: 'For business owners, analysts, researchers and students who want answers, not raw numbers.',
       cards: [
-        { title: 'Instant Data Profiling', desc: 'Automatically detects column types, missing values, outliers, and correlations. No configuration required — it just works.' },
-        { title: 'AI-Written Insights', desc: 'Goes beyond charts. Our AI writes a plain-English narrative explaining what your data means, what stands out, and what to watch out for.' },
-        { title: 'Free to Start', desc: 'See everything first in the interactive demo, then create a free account to run your own data and come back to your results anytime.' },
-        { title: 'AI-Guided Analysis Assistant', desc: 'An interactive chatbot walks you through your results — asking the right questions, flagging concerns, and helping you get the most out of your report.' },
-        { title: 'Your Results, Always There', desc: 'We save your analyses automatically. Come back anytime to download your cleaned dataset, original file, or full PDF report — no need to re-upload.' },
+        { title: 'Cleans the mess first', desc: 'Spots blank cells, repeated rows and impossible values, cleans them up, and shows you exactly what changed.' },
+        { title: 'Findings that show their work', desc: 'Every insight names the number it rests on, so you can check it against your own file.' },
+        { title: 'Written for your reader', desc: 'DIG works out who the report is for. A café owner gets plain words, and the statistics wait on a last page.' },
+        { title: 'Ask, and it answers from your file', desc: 'Ask follow-up questions in plain words. DIG answers from your data, and tells you when a question is outside it.' },
+        { title: 'Edit it alone or as a team', desc: 'Change any part of the report yourself, or ask the chat to. Every save is a version you can undo. On Pro, up to five people edit together.' },
       ],
     },
-    security: {
-      heading: 'Security',
-      body: 'Your data is handled with care at every step — from upload to report delivery.',
-      items: [
-        'All data is transmitted over HTTPS — encrypted end to end.',
-        'Your file itself is never sent to an AI provider — only column summaries and a few example values, as set out in our Privacy Policy.',
-        'We use Supabase — a trusted, production-grade cloud database used by thousands of teams worldwide.',
-        'Authentication is handled via industry-standard JWT tokens with secure password hashing.',
-        '50MB file size limit and strict file type validation enforced on every upload.',
-        'Data quality warnings are surfaced transparently so you always know how reliable your results are.',
-        'Built with security-conscious development practices — input validation, error handling, and safe API design throughout.',
-      ],
-      note: 'Please do not upload confidential or legally sensitive data.',
-    },
-    developers: {
-      heading: 'Developer',
-      name: 'Mahdiyar Ashrafioun',
-      body: 'DIG began as a group project by undergraduate Computer Science students at the University of Calgary. It is now built and maintained by Mahdiyar Ashrafioun, working solo.',
-      role: 'Founder · Developer',
-    },
-    contact: { heading: 'Get in Touch', body: "Have questions or feedback? We'd love to hear from you.", btn: 'Contact us' },
-    footer: '© 2026 Dataset Insight Generator',
     switcher: { language: 'Language', theme: 'Theme', dark: 'Dark', light: 'Light' },
   },
 
   fr: {
     dir: 'ltr',
-    nav: { features: 'Fonctionnalités', security: 'Sécurité', pricing: 'Tarifs', developers: 'Développeur', contact: 'Contact', menu: 'Menu' },
+    nav: { features: 'Fonctionnalités', security: 'Sécurité', pricing: 'Tarifs', faq: 'FAQ', contact: 'Contact', menu: 'Menu' },
     hero: {
       title: 'Vos données ont une histoire. Nous vous aidons à la lire.',
       subtitle: "Importez un fichier CSV, Excel, JSON, Parquet ou SPSS et obtenez une analyse complète par IA — visualisations, patterns, anomalies et un rapport PDF professionnel. Sans code. Sans configuration. Juste des insights.",
       login: 'Connexion', register: "S'inscrire", demo: 'Essayer la démo interactive',
       note: "Découvrez tout ce que fait DIG dans la démo. Un compte gratuit l'applique à vos propres données et garde vos résultats.",
-      howTitle: 'Comment ça marche ?',
-      step1: "Importez votre dataset — CSV, Excel, JSON, Parquet, SPSS et plus, jusqu'à 50 Mo.",
-      step2: 'Notre moteur IA profile vos données, détecte les tendances et génère des graphiques.',
-      step3: 'Téléchargez un rapport PDF professionnel en quelques secondes.',
     },
     features: {
-      heading: 'Tout ce dont vous avez besoin pour comprendre vos données',
-      subtitle: 'Conçu pour les chercheurs, analystes et étudiants qui veulent de vraies insights — pas que des chiffres bruts.',
+      heading: 'Le travail d’un analyste, fait pour vous.',
+      subtitle: 'Pour les commerçants, analystes, chercheurs et étudiants qui veulent des réponses, pas des chiffres bruts.',
       cards: [
-        { title: 'Profilage instantané', desc: 'Détecte automatiquement les types de colonnes, valeurs manquantes, anomalies et corrélations. Sans configuration.' },
-        { title: 'Insights rédigés par IA', desc: "Va au-delà des graphiques. Notre IA rédige un narratif en langage naturel expliquant ce que signifient vos données." },
-        { title: 'Gratuit pour commencer', desc: "Découvrez tout dans la démo interactive, puis créez un compte gratuit pour analyser vos données et retrouver vos résultats." },
-        { title: 'Assistant d\'analyse guidée par IA', desc: 'Un chatbot interactif vous guide à travers vos résultats — pose les bonnes questions et vous aide à tirer le meilleur parti de votre rapport.' },
-        { title: 'Vos résultats, toujours disponibles', desc: 'Nous sauvegardons automatiquement vos analyses. Revenez à tout moment pour télécharger votre dataset, fichier original ou rapport PDF.' },
+        { title: 'Il fait le ménage d’abord', desc: 'Repère les cellules vides, les lignes répétées et les valeurs impossibles, les corrige et vous montre exactement ce qui a changé.' },
+        { title: 'Des constats qui se justifient', desc: 'Chaque constat cite le chiffre sur lequel il repose, pour que vous puissiez le vérifier dans votre propre fichier.' },
+        { title: 'Écrit pour votre lecteur', desc: 'DIG comprend à qui s’adresse le rapport. Un patron de café reçoit des mots simples ; les statistiques attendent sur une dernière page.' },
+        { title: 'Il répond depuis votre fichier', desc: 'Posez vos questions en mots simples. DIG répond à partir de vos données et vous prévient quand une question en sort.' },
+        { title: 'Modifiez-le seul ou en équipe', desc: 'Changez n’importe quelle partie du rapport vous-même, ou demandez-le au chat. Chaque enregistrement est une version que vous pouvez annuler. Avec Pro, jusqu’à cinq personnes le modifient ensemble.' },
       ],
     },
-    security: {
-      heading: 'Sécurité',
-      body: 'Vos données sont traitées avec soin à chaque étape — du téléchargement à la livraison du rapport.',
-      items: [
-        'Toutes les données sont transmises via HTTPS — chiffrées de bout en bout.',
-        "Votre fichier n'est jamais envoyé à un fournisseur d'IA — uniquement des résumés de colonnes et quelques exemples de valeurs, comme indiqué dans notre politique de confidentialité.",
-        'Nous utilisons Supabase — une base de données cloud de production de confiance.',
-        "L'authentification utilise des JWT conformes aux standards industriels avec hachage sécurisé.",
-        'Limite de 50 Mo et validation stricte du type de fichier à chaque import.',
-        "Les avertissements de qualité des données sont affichés de façon transparente.",
-        "Développé avec des pratiques sécurisées — validation des entrées, gestion des erreurs, API sûre.",
-      ],
-      note: 'Veuillez ne pas importer de données confidentielles ou sensibles.',
-    },
-    developers: {
-      heading: 'Développeur',
-      name: 'Mahdiyar Ashrafioun',
-      body: "DIG a commencé comme un projet de groupe mené par des étudiants en informatique à l'Université de Calgary. Il est aujourd'hui développé et maintenu par Mahdiyar Ashrafioun, seul.",
-      role: 'Fondateur · Développeur',
-    },
-    contact: { heading: 'Nous contacter', body: 'Des questions ou des retours ? Nous serions ravis de vous entendre.', btn: 'Nous contacter' },
-    footer: '© 2026 Dataset Insight Generator',
     switcher: { language: 'Langue', theme: 'Thème', dark: 'Sombre', light: 'Clair' },
   },
 
   fa: {
     dir: 'rtl',
-    nav: { features: 'ویژگی‌ها', security: 'امنیت', pricing: 'قیمت‌ها', developers: 'توسعه‌دهنده', contact: 'تماس', menu: 'منو' },
+    nav: { features: 'ویژگی‌ها', security: 'امنیت', pricing: 'قیمت‌ها', faq: 'پرسش‌ها', contact: 'تماس', menu: 'منو' },
     hero: {
       title: 'داده‌های شما یک داستان دارند. ما کمک می‌کنیم آن را بخوانید.',
       subtitle: 'یک فایل CSV، اکسل، JSON، Parquet یا SPSS را آپلود کنید و تحلیل کامل مبتنی بر هوش مصنوعی دریافت کنید — تصویرسازی، الگوها، ناهنجاری‌ها و یک گزارش PDF حرفه‌ای. بدون کدنویسی. بدون راه‌اندازی.',
       login: 'ورود', register: 'ثبت‌نام', demo: 'امتحان دموی تعاملی',
       note: 'اول در دمو ببینید DIG چه کارهایی می‌کند. با یک حساب رایگان آن را روی داده‌های خودتان اجرا کنید و نتایج را نگه دارید.',
-      howTitle: 'چطور کار می‌کند؟',
-      step1: 'دیتاست خود را آپلود کنید — CSV، اکسل، JSON، Parquet، SPSS و بیشتر، حداکثر ۵۰ مگابایت.',
-      step2: 'موتور هوش مصنوعی ما داده‌هایتان را پروفایل می‌کند، الگوها را شناسایی می‌کند و نمودار می‌سازد.',
-      step3: 'یک گزارش PDF حرفه‌ای را در چند ثانیه دانلود کنید.',
     },
     features: {
-      heading: 'همه چیزی که برای درک داده‌هایتان نیاز دارید',
-      subtitle: 'ساخته شده برای پژوهشگران، تحلیلگران و دانشجویانی که به دنبال بینش واقعی هستند — نه فقط اعداد خام.',
+      heading: 'کار یک تحلیلگر، برای شما انجام می‌شود.',
+      subtitle: 'برای صاحبان کسب‌وکار، تحلیلگران، پژوهشگران و دانشجویانی که پاسخ می‌خواهند، نه عدد خام.',
       cards: [
-        { title: 'پروفایل‌سازی فوری داده', desc: 'به طور خودکار نوع ستون‌ها، مقادیر گم‌شده، دادها پرت و همبستگی‌ها را شناسایی می‌کند. بدون پیکربندی.' },
-        { title: 'بینش‌های نوشته‌شده توسط هوش مصنوعی', desc: 'فراتر از نمودارها. هوش مصنوعی ما یک روایت به زبان ساده می‌نویسد که توضیح می‌دهد داده‌های شما چه معنایی دارند.' },
-        { title: 'شروع رایگان', desc: 'اول همه چیز را در دموی تعاملی ببینید، بعد یک حساب رایگان بسازید تا داده‌های خودتان را تحلیل کنید و هر وقت خواستید به نتایج برگردید.' },
-        { title: 'دستیار تحلیل هدایت‌شده توسط هوش مصنوعی', desc: 'یک چت‌بات تعاملی شما را در نتایج راهنمایی می‌کند — سؤالات درست می‌پرسد و به شما کمک می‌کند از گزارشتان بهترین استفاده را ببرید.' },
-        { title: 'نتایج شما، همیشه در دسترس', desc: 'تحلیل‌های شما را به طور خودکار ذخیره می‌کنیم. هر زمان برگردید تا دیتاست پاک‌شده، فایل اصلی یا گزارش PDF را دانلود کنید.' },
+        { title: 'اول به‌هم‌ریختگی را مرتب می‌کند', desc: 'خانه‌های خالی، ردیف‌های تکراری و مقدارهای ناممکن را پیدا و پاک‌سازی می‌کند و دقیقاً نشان می‌دهد چه چیزی تغییر کرد.' },
+        { title: 'یافته‌هایی که دلیلشان را نشان می‌دهند', desc: 'هر یافته عددی را که بر آن تکیه دارد نام می‌برد تا بتوانید آن را در فایل خودتان بررسی کنید.' },
+        { title: 'نوشته‌شده برای خوانندهٔ شما', desc: 'DIG می‌فهمد گزارش برای چه کسی است. صاحب یک کافه زبان ساده می‌گیرد و آمار در صفحهٔ آخر می‌ماند.' },
+        { title: 'از فایل خودتان جواب می‌گیرید', desc: 'پرسش‌هایتان را به زبان ساده بپرسید. DIG از داده‌های شما پاسخ می‌دهد و اگر پرسشی بیرون از آن‌ها باشد، می‌گوید.' },
+        { title: 'تنها یا گروهی ویرایش کنید', desc: 'هر بخش گزارش را خودتان تغییر دهید یا از چت بخواهید. هر ذخیره نسخه‌ای است که می‌توانید برگردانید. با Pro تا پنج نفر با هم ویرایش می‌کنند.' },
       ],
     },
-    security: {
-      heading: 'امنیت',
-      body: 'داده‌های شما در هر مرحله با دقت مدیریت می‌شوند — از آپلود تا تحویل گزارش.',
-      items: [
-        'تمام داده‌ها از طریق HTTPS منتقل می‌شوند — رمزگذاری شده از ابتدا تا انتها.',
-        'خود فایل شما هرگز برای ارائه‌دهندگان هوش مصنوعی ارسال نمی‌شود — تنها خلاصهٔ ستون‌ها و چند نمونه مقدار، همان‌طور که در سیاست حریم خصوصی آمده است.',
-        'از Supabase استفاده می‌کنیم — پایگاه داده ابری معتمد و در سطح تولید.',
-        'احراز هویت از طریق توکن‌های JWT استاندارد با هش رمز عبور ایمن انجام می‌شود.',
-        'محدودیت ۵۰ مگابایت و اعتبارسنجی دقیق نوع فایل در هر آپلود.',
-        'هشدارهای کیفیت داده به صورت شفاف نمایش داده می‌شوند.',
-        'توسعه‌یافته با روش‌های امنیت‌محور — اعتبارسنجی ورودی، مدیریت خطا، طراحی ایمن API.',
-      ],
-      note: 'لطفاً داده‌های محرمانه یا حساس قانونی آپلود نکنید.',
-    },
-    developers: {
-      heading: 'توسعه‌دهنده',
-      name: 'مهدیار اشرفیون',
-      body: 'DIG به‌عنوان یک پروژهٔ گروهی توسط دانشجویان کارشناسی علوم کامپیوتر در دانشگاه کالگاری آغاز شد. امروز به‌تنهایی توسط مهدیار اشرفیون ساخته و نگهداری می‌شود.',
-      role: 'بنیان‌گذار · توسعه‌دهنده',
-    },
-    contact: { heading: 'تماس با ما', body: 'سؤال یا بازخورد دارید؟ خوشحال می‌شویم بشنویم.', btn: 'تماس با ما' },
-    footer: '© ۲۰۲۶ Dataset Insight Generator',
     switcher: { language: 'زبان', theme: 'تم', dark: 'تیره', light: 'روشن' },
   },
 } as const;
@@ -172,7 +99,7 @@ const LANGS: { code: Lang; label: string }[] = [
   { code: 'fa', label: 'FA' },
 ];
 
-const NAV = ['features', 'security', 'pricing', 'developers', 'contact'] as const;
+const NAV = ['features', 'security', 'pricing', 'faq', 'contact'] as const;
 
 // Mirrors the `max-width: 919px` media query in pageCss. The resize
 // handler and the stylesheet must agree on where the phone menu stops
@@ -421,7 +348,7 @@ export default function HomePage() {
     // The section anchors are the row that goes. They are a convenience
     // on a wide screen; on a phone the page is a scroll away and every other
     // control in the bar (sign-up, language, theme) is something you cannot
-    // reach by scrolling. Below 420px the wordmark goes too, since the logo
+    // reach by scrolling. Below 520px the wordmark goes too, since the logo
     // already links home and the remaining controls need the width.
     //
     // Result: one row, ~62px, at every phone size.
@@ -439,14 +366,23 @@ export default function HomePage() {
     '}',
     '@media (min-width: 920px) { .atlas-menu { display: none; } }',
     '.atlas-header { gap: 18px; }',
+    // In the class, not inline, so the phone rule below can hide it.
+    '.atlas-lang { display: flex; }',
     '.atlas-lang button { padding: 5px 10px; }',
     // 320px (an SE-sized phone) was still two rows: logo plus the control
     // cluster came to 298px inside 288px of usable width. Ten pixels, so the
     // gap and the language buttons give them back rather than the layout
     // wrapping.
     '.atlas-logo { height: 34px; width: auto; }',
-    '.atlas-theme { padding: 5px 11px; }',
-    '@media (max-width: 419px) {',
+    '.atlas-theme { padding: 5px 9px; display: inline-flex; align-items: center; justify-content: center; }',
+    '.atlas-menu-lang { display: none; gap: 6px; padding-top: 12px; }',
+    '@media (max-width: 359px) {',
+    '  .atlas-header .atlas-lang { display: none; }',
+    '  .atlas-menu-lang { display: flex; }',
+    '}',
+    // Up to 519px, not 419: from 420px the wordmark came back beside a logo
+    // that already spells the name, and the bar needed 438px of a 398px row.
+    '@media (max-width: 519px) {',
     '  .atlas-wordmark { display: none; }',
     '  .atlas-header { gap: 10px; }',
     '  .atlas-lang button { padding: 5px 6px; }',
@@ -482,15 +418,6 @@ export default function HomePage() {
     '  .atlas-features { grid-template-columns: repeat(3, minmax(0, 1fr)); }',
     '  .atlas-features > :last-child { grid-column: span 2; }',
     '}',
-    // Two prose columns, single until there is room for two comfortable
-    // measures side by side.
-    '.atlas-duo { display: grid; gap: 40px; grid-template-columns: minmax(0, 1fr); }',
-    '@media (min-width: 760px) { .atlas-duo { grid-template-columns: repeat(2, minmax(0, 1fr)); } }',
-    // The three hero steps. `min(210px, 100%)` is the guard the feature grid
-    // was missing: under 210px the track follows the container instead of
-    // overflowing it.
-    '.atlas-steps { display: grid; gap: 20px;',
-    '  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr)); }',
   ].join('\n');
 
   const inner: React.CSSProperties = { maxWidth: '1120px', margin: '0 auto' };
@@ -644,6 +571,28 @@ export default function HomePage() {
                 {t.nav[k]}
               </a>
             ))}
+            {/* Below 360px the language buttons leave the bar for here: with
+                them, the bar needed 336px of a 288px row and wrapped. */}
+            <div className="atlas-menu-lang" role="group" aria-label={t.switcher.language}>
+              {LANGS.map(l => (
+                <button
+                  key={l.code}
+                  type="button"
+                  onClick={() => setLang(l.code)}
+                  aria-pressed={lang === l.code}
+                  className="atlas-tap"
+                  style={{
+                    flex: 1, cursor: 'pointer', fontFamily: SANS, fontSize: '13px',
+                    fontWeight: lang === l.code ? 700 : 500,
+                    border: '1.5px solid ' + c.hairline,
+                    background: lang === l.code ? c.ink : 'transparent',
+                    color: lang === l.code ? c.paper : c.inkSoft,
+                  }}
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -651,7 +600,7 @@ export default function HomePage() {
           marginInlineStart: 'auto', display: 'flex', alignItems: 'center',
           gap: '6px', flexWrap: 'wrap',
         }}>
-          <div className="atlas-lang" style={{ display: 'flex', border: '1.5px solid ' + c.hairline }}>
+          <div className="atlas-lang" style={{ border: '1.5px solid ' + c.hairline }}>
             {LANGS.map(l => (
               <button
                 key={l.code}
@@ -671,16 +620,20 @@ export default function HomePage() {
             ))}
           </div>
 
+          {/* An icon rather than the word: "Sombre" and "Clair" were what
+              pushed the bar onto a second row on a phone. */}
           <button
+            type="button"
             onClick={() => setBrightness(brightness > 65 ? 10 : 80)}
             className="atlas-tap atlas-theme"
+            aria-label={t.switcher.theme + ': ' + (light ? t.switcher.light : t.switcher.dark)}
+            title={t.switcher.theme + ': ' + (light ? t.switcher.light : t.switcher.dark)}
             style={{
               cursor: 'pointer', background: 'transparent',
-              border: '1.5px solid ' + c.hairline, color: c.inkFaint,
-              fontFamily: SANS, fontSize: '11.5px', fontWeight: 500,
+              border: '1.5px solid ' + c.hairline, color: c.inkSoft,
             }}
           >
-            {light ? t.switcher.light : t.switcher.dark}
+            {light ? <MoonIcon size={15} /> : <SunIcon size={15} />}
           </button>
 
           <Link
@@ -790,39 +743,10 @@ export default function HomePage() {
               {t.hero.note}
             </p>
 
-            {/* A sheet of paper laid on the cobalt field — cream in both themes,
-                and overlapping the fold so the page invites a scroll. */}
-            <div data-rv style={{
-              ...stagger(4),
-              margin: 'clamp(22px, min(5vw, 5vh), 60px) auto -2px', maxWidth: '880px',
-              background: SHEET.bg, color: SHEET.ink,
-              borderTop: '2px solid #12121a',
-              borderInline: '2px solid #12121a',
-              padding: '22px clamp(16px, 2.5vw, 28px) 28px',
-              boxShadow: '0 -18px 50px rgba(0,0,0,0.25)',
-            }}>
-              <p style={{
-                margin: '0 0 16px', fontFamily: DISPLAY, fontSize: '17px',
-                fontWeight: 700, letterSpacing: '-0.02em',
-              }}>
-                {t.hero.howTitle}
-              </p>
-              <div className="atlas-steps">
-                {[t.hero.step1, t.hero.step2, t.hero.step3].map((step, i) => (
-                  <div key={i}>
-                    <p style={{
-                      margin: '0 0 7px', fontFamily: DISPLAY, fontSize: '30px',
-                      fontWeight: 800, lineHeight: 1, letterSpacing: '-0.05em',
-                      color: SHEET.accent,
-                    }}>
-                      {'0' + (i + 1)}
-                    </p>
-                    <p style={{ margin: 0, fontSize: '13.5px', lineHeight: 1.5, color: SHEET.soft }}>
-                      {step}
-                    </p>
-                  </div>
-                ))}
-              </div>
+            {/* The product itself, laid on the cobalt field like a sheet of
+                paper and overlapping the fold so the page invites a scroll. */}
+            <div data-rv style={{ ...stagger(4), margin: 'clamp(22px, min(5vw, 5vh), 56px) auto -2px' }}>
+              <HeroShot lang={lang} />
             </div>
           </div>
         </section>
@@ -961,173 +885,17 @@ export default function HomePage() {
 
         <FilesSection lang={lang} />
 
-        {/* ── Security — the second blue block, so the page reads
-             blue / paper / blue / citron rather than one accent and filler ── */}
-        <section id="security" style={{
-          padding: '76px clamp(16px, 3vw, 32px)',
-          background: c.cobalt, color: '#ffffff',
-          borderBottom: '2px solid ' + c.rule,
-        }}>
-          <div className="atlas-duo" style={inner}>
-            <div>
-              <p data-rv="solid" style={eyebrow('#d6f24a')}>{t.security.heading.toUpperCase()}</p>
-              <h2 data-rv="solid" style={{ ...h2('#ffffff'), ...stagger(1), maxWidth: '16ch' }}>
-                {t.security.heading}
-              </h2>
-              <p data-rv="solid" style={{
-                ...stagger(2),
-                margin: '0 0 18px', fontSize: '16px', lineHeight: 1.6,
-                color: 'rgba(255,255,255,0.82)',
-              }}>
-                {t.security.body}
-              </p>
-              <p data-rv="solid" style={{
-                ...stagger(3),
-                margin: 0, padding: '11px 15px', fontSize: '13px', lineHeight: 1.5,
-                color: '#12121a', background: c.lime, border: '2px solid #12121a',
-                fontWeight: 600,
-              }}>
-                {t.security.note}
-              </p>
-            </div>
-
-            <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-              {t.security.items.map((item, i) => (
-                <li
-                  key={i}
-                  data-rv
-                  style={{
-                    ...stagger(i),
-                    display: 'flex', gap: '12px', padding: '12px 0',
-                    borderTop: '1px solid rgba(255,255,255,0.28)',
-                    borderBottom: i === t.security.items.length - 1
-                      ? '1px solid rgba(255,255,255,0.28)'
-                      : 'none',
-                    fontSize: '14px', lineHeight: 1.45,
-                    color: 'rgba(255,255,255,0.88)',
-                  }}
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"
-                       style={{ flexShrink: 0, marginTop: '3px' }}>
-                    <path d="M20 6 9 17l-5-5" stroke="#d6f24a" strokeWidth="2.8" strokeLinecap="round" />
-                  </svg>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
+        {/* The second blue block, so the page reads blue / paper / blue / citron. */}
+        <SecuritySection lang={lang} />
 
         <PricingSection lang={lang} eyebrow={t.nav.pricing} />
 
-        {/* ── Developers ────────────────────────────────────────────────── */}
-        <section id="developers" style={sectionPad}>
-          <div style={inner}>
-            <p data-rv="solid" style={eyebrow(c.inkFaint)}>{t.developers.heading.toUpperCase()}</p>
-            <h2 data-rv="solid" style={{ ...h2(c.ink), ...stagger(1), maxWidth: '18ch' }}>
-              {t.developers.heading}
-            </h2>
-            <p data-rv="solid" style={{
-              ...stagger(2),
-              margin: '0 0 30px', fontSize: '16px', lineHeight: 1.6,
-              color: c.inkSoft, maxWidth: '70ch',
-            }}>
-              {t.developers.body}
-            </p>
+        <FaqSection lang={lang} />
 
-            <div data-rv style={{
-              ...stagger(3),
-              display: 'inline-block', padding: '22px 26px',
-              border: '2px solid ' + c.rule, background: c.card,
-              boxShadow: '10px 10px 0 ' + c.cobaltAccent,
-            }}>
-              <p style={{
-                margin: '0 0 3px', fontFamily: DISPLAY, fontSize: '19px',
-                fontWeight: 700, letterSpacing: '-0.02em', color: c.ink,
-              }}>
-                {t.developers.name}
-              </p>
-              <p style={{ margin: '0 0 10px', fontSize: '13px', color: c.inkFaint }}>
-                {t.developers.role}
-              </p>
-              <a
-                href="https://www.linkedin.com/in/mahdiyar-ashrafioun/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="atlas-link"
-                style={{ fontSize: '13px', fontWeight: 600, color: c.cobaltAccent, textDecoration: 'none' }}
-              >
-                LinkedIn →
-              </a>
-            </div>
-          </div>
-        </section>
-
-        {/* ── Contact ───────────────────────────────────────────────────── */}
-        <section id="contact" style={{
-          padding: '72px clamp(16px, 3vw, 32px)',
-          background: c.lime, borderBottom: '2px solid #12121a',
-        }}>
-          <div style={{ ...inner, textAlign: 'center' }}>
-            <h2 data-rv="solid" style={{
-              ...h2('#12121a'), margin: '0 0 14px',
-              fontSize: 'clamp(32px, 4.6vw, 54px)', fontWeight: 800,
-            }}>
-              {t.contact.heading}
-            </h2>
-            <p data-rv="solid" style={{
-              ...stagger(1),
-              margin: '0 0 28px', fontSize: '16.5px', color: '#3c3a34',
-            }}>
-              {t.contact.body}
-            </p>
-            <a
-              data-rv="solid"
-              href="mailto:dataset_insight_generator.ai@proton.me"
-              className="atlas-btn"
-              style={{
-                ...stagger(2),
-                display: 'inline-block', padding: '16px 30px',
-                background: '#12121a', color: '#f2efe9',
-                border: '2px solid #12121a', textDecoration: 'none',
-                fontFamily: DISPLAY, fontSize: '16px', fontWeight: 700,
-              }}
-            >
-              {t.contact.btn}
-            </a>
-          </div>
-        </section>
+        <ClosingSection lang={lang} />
       </main>
 
-      {/* ── Footer ────────────────────────────────────────────────────────── */}
-      <footer style={{
-        padding: '28px clamp(16px, 3vw, 32px)',
-        display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap',
-      }}>
-        <span style={{
-          fontFamily: DISPLAY, fontSize: '16px', fontWeight: 800,
-          letterSpacing: '-0.04em', color: c.ink,
-        }}>
-          DIG
-        </span>
-        <span style={{ fontSize: '12.5px', color: c.inkFaint }}>{t.footer}</span>
-        {/* Left in English in every locale, because the documents they point at
-            are published in English only — a translated label promising a
-            translated page would be the misleading half. */}
-        <Link href="/privacy" style={{
-          fontSize: '12.5px', color: c.inkSoft, textDecoration: 'none',
-        }}>
-          Privacy
-        </Link>
-        <Link href="/terms" style={{
-          fontSize: '12.5px', color: c.inkSoft, textDecoration: 'none',
-        }}>
-          Terms
-        </Link>
-        <span style={{ marginInlineStart: 'auto', fontSize: '12.5px', color: c.inkFaint }}>
-          datainsightgen.com
-        </span>
-      </footer>
+      <SiteFooter lang={lang} />
     </div>
   );
 }
