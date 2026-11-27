@@ -84,6 +84,8 @@ LABELS: Dict[str, Dict[str, str]] = {
         "not_cleaned_note": "This analysis was conducted on the original dataset as provided, without automated preprocessing. The quality characteristics identified above were present throughout the analysis. Findings should be interpreted with these data quality conditions in mind — particularly where missing values, mixed data types, or outlier concentrations are noted.",
         "cleaning_tip": "Applying the recommended cleaning procedures prior to analysis could improve the reliability of statistical findings, particularly for correlation and group comparison results.",
         "low_confidence_note": "The confidence rating for this analysis is {score}/10. This reflects limitations in the underlying dataset — such as sample size, data completeness, or statistical significance of key findings. The observations presented are valid but should be treated as directional indicators rather than definitive conclusions. Supplementing with additional data would improve reliability.",
+        "confidence_basis": "DIG rates confidence from the number of rows, how complete they are and how strong the evidence is ({score}/10). It rates the data, not the writing.",
+        "no_writer_note": "No AI writer was available: this is a statistics-only report.",
         "short_version": "The short version",
         "what_we_found": "What we found",
         "what_it_means": "What it means",
@@ -168,6 +170,8 @@ LABELS: Dict[str, Dict[str, str]] = {
         "not_cleaned_note": "Cette analyse porte sur les données d'origine, sans prétraitement automatique. Les problèmes de qualité relevés ci-dessus étaient présents pendant toute l'analyse : interprétez les résultats en conséquence, en particulier là où des valeurs manquantes, des types mélangés ou des valeurs extrêmes sont signalés.",
         "cleaning_tip": "Appliquer le nettoyage recommandé avant l'analyse rendrait les résultats statistiques plus fiables, surtout pour les corrélations et les comparaisons entre groupes.",
         "low_confidence_note": "Le niveau de confiance de cette analyse est de {score}/10. Il reflète les limites des données : taille de l'échantillon, complétude ou significativité statistique des principaux résultats. Les observations sont valables mais doivent être lues comme des tendances plutôt que comme des conclusions définitives. Des données supplémentaires amélioreraient leur fiabilité.",
+        "confidence_basis": "DIG évalue la confiance d'après le nombre de lignes, leur complétude et la solidité des résultats ({score}/10). Elle porte sur les données, pas sur la rédaction.",
+        "no_writer_note": "Aucun rédacteur IA n'était disponible : ce rapport ne contient que les statistiques.",
         "short_version": "En bref",
         "what_we_found": "Ce que nous avons trouvé",
         "what_it_means": "Ce que cela signifie",
@@ -252,6 +256,8 @@ LABELS: Dict[str, Dict[str, str]] = {
         "not_cleaned_note": "Este análisis se realizó sobre los datos originales, sin preprocesamiento automático. Los problemas de calidad indicados arriba estuvieron presentes durante todo el análisis, así que interprete los resultados teniéndolos en cuenta, sobre todo donde se señalan valores faltantes, tipos mezclados o valores atípicos.",
         "cleaning_tip": "Aplicar la limpieza recomendada antes del análisis haría más fiables los resultados estadísticos, sobre todo las correlaciones y las comparaciones entre grupos.",
         "low_confidence_note": "El nivel de confianza de este análisis es {score}/10. Refleja limitaciones de los datos, como el tamaño de la muestra, su integridad o la significación estadística de los hallazgos principales. Las observaciones son válidas, pero conviene leerlas como tendencias y no como conclusiones definitivas. Más datos mejorarían su fiabilidad.",
+        "confidence_basis": "DIG calcula la confianza a partir del número de filas, lo completas que están y la solidez de los resultados ({score}/10). Valora los datos, no la redacción.",
+        "no_writer_note": "No había ningún redactor de IA disponible: este informe solo contiene estadísticas.",
         "short_version": "En resumen",
         "what_we_found": "Lo que encontramos",
         "what_it_means": "Lo que significa",
@@ -336,6 +342,8 @@ LABELS: Dict[str, Dict[str, str]] = {
         "not_cleaned_note": "Diese Analyse beruht auf den Originaldaten ohne automatische Vorverarbeitung. Die oben genannten Qualitätsprobleme bestanden während der gesamten Analyse; berücksichtigen Sie sie bei der Interpretation, besonders bei fehlenden Werten, gemischten Datentypen oder Ausreißern.",
         "cleaning_tip": "Die empfohlene Bereinigung vor der Analyse würde die statistischen Ergebnisse verlässlicher machen, vor allem Korrelationen und Gruppenvergleiche.",
         "low_confidence_note": "Die Konfidenz dieser Analyse liegt bei {score}/10. Das spiegelt Grenzen der Daten wider, etwa Stichprobengröße, Vollständigkeit oder statistische Signifikanz der wichtigsten Ergebnisse. Die Beobachtungen sind gültig, sollten aber als Tendenzen und nicht als endgültige Schlussfolgerungen gelesen werden. Zusätzliche Daten würden die Verlässlichkeit erhöhen.",
+        "confidence_basis": "DIG bewertet die Konfidenz nach der Zahl der Zeilen, ihrer Vollständigkeit und der Stärke der Ergebnisse ({score}/10). Sie bewertet die Daten, nicht den Text.",
+        "no_writer_note": "Kein KI-Autor war verfügbar: Dieser Bericht enthält nur die Statistik.",
         "short_version": "Kurz gesagt",
         "what_we_found": "Was wir gefunden haben",
         "what_it_means": "Was das bedeutet",
@@ -420,6 +428,8 @@ LABELS: Dict[str, Dict[str, str]] = {
         "not_cleaned_note": "Esta análise foi feita sobre os dados originais, sem pré-processamento automático. Os problemas de qualidade indicados acima estiveram presentes em toda a análise; interprete os resultados com isso em mente, sobretudo onde há valores ausentes, tipos misturados ou valores extremos.",
         "cleaning_tip": "Aplicar a limpeza recomendada antes da análise tornaria os resultados estatísticos mais confiáveis, especialmente correlações e comparações entre grupos.",
         "low_confidence_note": "O nível de confiança desta análise é {score}/10. Ele reflete limitações dos dados, como tamanho da amostra, completude ou significância estatística dos principais resultados. As observações são válidas, mas devem ser lidas como tendências e não como conclusões definitivas. Mais dados aumentariam a confiabilidade.",
+        "confidence_basis": "O DIG avalia a confiança pelo número de linhas, pela completude e pela força dos resultados ({score}/10). Ela avalia os dados, não a redação.",
+        "no_writer_note": "Nenhum redator de IA estava disponível: este relatório contém apenas estatísticas.",
         "short_version": "Em resumo",
         "what_we_found": "O que encontramos",
         "what_it_means": "O que isso significa",
@@ -504,6 +514,8 @@ LABELS: Dict[str, Dict[str, str]] = {
         "not_cleaned_note": "本分析基于原始数据，未经自动预处理。上文列出的数据质量问题在整个分析中都存在，解读结果时请考虑这些问题，尤其是存在缺失值、混合数据类型或异常值的地方。",
         "cleaning_tip": "在分析前进行建议的数据清理，可以提高统计结果的可靠性，尤其是相关性和组间比较。",
         "low_confidence_note": "本分析的置信度为 {score}/10，反映了数据本身的局限，例如样本量、完整性或主要结果的统计显著性。这些观察是成立的，但应视为趋势参考，而非最终结论。补充更多数据可以提高可靠性。",
+        "confidence_basis": "DIG 根据行数、数据完整程度和证据强度评估置信度（{score}/10）。它评价的是数据，而不是文字。",
+        "no_writer_note": "没有可用的 AI 撰写模型：本报告仅包含统计结果。",
         "short_version": "简而言之",
         "what_we_found": "我们的发现",
         "what_it_means": "这意味着什么",
@@ -588,6 +600,8 @@ LABELS: Dict[str, Dict[str, str]] = {
         "not_cleaned_note": "أُجري هذا التحليل على البيانات الأصلية كما هي، دون معالجة مسبقة تلقائية. كانت مشكلات الجودة المذكورة أعلاه قائمة طوال التحليل، لذا فسّر النتائج مع مراعاتها، خاصة حيث توجد قيم مفقودة أو أنواع بيانات مختلطة أو قيم متطرفة.",
         "cleaning_tip": "تطبيق التنظيف الموصى به قبل التحليل يجعل النتائج الإحصائية أكثر موثوقية، خاصة الارتباطات والمقارنات بين المجموعات.",
         "low_confidence_note": "مستوى الثقة في هذا التحليل {score}/10، وهو يعكس حدود البيانات مثل حجم العينة أو اكتمالها أو الدلالة الإحصائية لأهم النتائج. الملاحظات صحيحة لكن ينبغي قراءتها كمؤشرات على الاتجاه لا كاستنتاجات نهائية، وإضافة بيانات أكثر تزيد موثوقيتها.",
+        "confidence_basis": "يقيّم DIG الثقة من عدد الصفوف ومدى اكتمالها وقوة الأدلة ({score}/10). وهو يقيّم البيانات لا الكتابة.",
+        "no_writer_note": "لم يكن أي كاتب بالذكاء الاصطناعي متاحًا: هذا تقرير إحصائي فقط.",
         "short_version": "باختصار",
         "what_we_found": "ما وجدناه",
         "what_it_means": "ماذا يعني ذلك",
@@ -672,6 +686,8 @@ LABELS: Dict[str, Dict[str, str]] = {
         "not_cleaned_note": "این تحلیل روی داده‌های اصلی و بدون پیش‌پردازش خودکار انجام شد. مشکلات کیفیتی که در بالا آمده در تمام تحلیل وجود داشت؛ نتایج را با در نظر گرفتن آن‌ها بخوانید، به‌ویژه جایی که مقدار گمشده، نوع داده‌ی مخلوط یا داده‌ی پرت گزارش شده است.",
         "cleaning_tip": "اجرای پاک‌سازی پیشنهادی پیش از تحلیل، نتایج آماری را قابل‌اعتمادتر می‌کند، به‌ویژه همبستگی‌ها و مقایسه‌ی گروه‌ها.",
         "low_confidence_note": "میزان اطمینان این تحلیل {score}/10 است و محدودیت‌های داده را نشان می‌دهد، مثل اندازه‌ی نمونه، کامل‌بودن داده یا معناداری آماری یافته‌های اصلی. این مشاهدات درست‌اند، اما باید آن‌ها را نشانه‌ی روند دانست نه نتیجه‌ی قطعی؛ داده‌ی بیشتر اطمینان را بالا می‌برد.",
+        "confidence_basis": "DIG میزان اطمینان را از تعداد ردیف‌ها، کامل‌بودن آن‌ها و قوت شواهد می‌سنجد ({score}/10). این سنجش درباره‌ی داده است، نه نوشته.",
+        "no_writer_note": "هیچ نویسنده‌ی هوش مصنوعی در دسترس نبود: این گزارش فقط آمار را دارد.",
         "short_version": "به طور خلاصه",
         "what_we_found": "آنچه یافتیم",
         "what_it_means": "این یعنی چه",
@@ -736,6 +752,23 @@ def described_line(description: str, by_user: bool, language: str = "en") -> str
     if (language or "en").lower()[:2] != "en":
         return ""
     return READ_AS.format(description=description)
+
+
+def printed_issues(model_issues, detected, language: str = "en"):
+    """
+    The data problems printed under "Notes on the data".
+
+    The file-reading model's own list was printed unchecked, and once said 20%
+    of a column was missing when it was 0.2%. Only DIG's measured problems are
+    printed, plus the model's points that state no figure. Both are English
+    text, so a report in another language prints neither: its writer already
+    covers them, in the reader's language, in the data-quality section.
+    """
+    if (language or "en")[:2].lower() != "en":
+        return []
+    detected = [str(i) for i in detected or [] if i]
+    plain = [str(i) for i in model_issues or [] if i and not any(ch.isdigit() for ch in str(i))]
+    return plain + [i for i in detected if i not in plain]
 
 
 def is_rtl(language: str) -> bool:

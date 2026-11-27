@@ -369,6 +369,7 @@ internal class StubWorkspaceRepository : IWorkspaceRepository
     public Task<SharedWorkspace> ShareAnalysisAsync(SharedWorkspace workspace) => Task.FromResult(workspace);
     public Task UnshareAsync(Guid workspaceId) => Task.CompletedTask;
     public Task DeleteRepliesToUserAsync(Guid userId) => Task.CompletedTask;
+    public Task ReleaseSharesByUserAsync(Guid userId) => Task.CompletedTask;
     public Task<List<WorkspaceFilePermission>> GetPermissionsAsync(Guid workspaceId) => Task.FromResult(new List<WorkspaceFilePermission>());
     public Task SetPermissionAsync(WorkspaceFilePermission permission) => Task.CompletedTask;
     public Task RemovePermissionAsync(Guid workspaceId, Guid userId, string fileType) => Task.CompletedTask;

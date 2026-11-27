@@ -189,6 +189,15 @@ public class PythonAiClient : IPythonAiClient
         }
     }
 
+    public async Task<bool> HealthAsync()
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+        var response = await _http.GetAsync($"{BaseUrl}/health", cts.Token);
+        if (!response.IsSuccessStatusCode) return false;
+        using var doc = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync(cts.Token));
+        return doc.RootElement.TryGetProperty("status", out var s) && s.GetString() == "ok";
+    }
+
     public async Task<string> ModelStatusAsync()
     {
         // The AI service reads two providers' model lists, 20 seconds each at worst.

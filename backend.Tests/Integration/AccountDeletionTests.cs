@@ -129,6 +129,8 @@ public class AccountDeletionTests
     private int FilesRemoved    => Step(r => r.Method == "DELETE" && r.Path.EndsWith("/storage/v1/object/dig_files"));
     private int RepliesRemoved  => Step(r => r.Method == "DELETE" && r.Path.EndsWith("/rest/v1/annotations"));
     private int InvitesCleared  => Step(r => r.Method == "PATCH" && r.Path.EndsWith("/rest/v1/team_invites"));
+    private int GrantsCleared   => Step(r => r.Method == "PATCH" && r.Path.EndsWith("/rest/v1/workspace_file_permissions"));
+    private int SharesRemoved   => Step(r => r.Method == "DELETE" && r.Path.EndsWith("/rest/v1/shared_workspaces"));
     private int RowRemoved      => Step(r => r.Method == "DELETE" && r.Path.EndsWith("/rest/v1/users"));
     private int SignInRemoved   => Step(r => r.Method == "DELETE" && r.Path.EndsWith($"/auth/v1/admin/users/{_userId}"));
 
@@ -140,8 +142,21 @@ public class AccountDeletionTests
         FilesRemoved.Should().BeGreaterThanOrEqualTo(0, "the files have to go");
         RepliesRemoved.Should().BeGreaterThan(FilesRemoved);
         InvitesCleared.Should().BeGreaterThan(RepliesRemoved);
+        GrantsCleared.Should().BeGreaterThan(RepliesRemoved);
+        SharesRemoved.Should().BeGreaterThan(GrantsCleared);
         RowRemoved.Should().BeGreaterThan(InvitesCleared, "the database refuses it while those still point at the user");
+        RowRemoved.Should().BeGreaterThan(SharesRemoved, "a report this person shared with a team names them as sharer");
         SignInRemoved.Should().BeGreaterThan(RowRemoved);
+    }
+
+    [Test]
+    public async Task Only_this_persons_shares_and_grants_are_touched()
+    {
+        await _deletion.DeleteAsync(_userId);
+
+        _supabase.Requests[SharesRemoved].Query.Should().Contain($"shared_by=eq.{_userId}");
+        _supabase.Requests[GrantsCleared].Query.Should().Contain($"granted_by=eq.{_userId}");
+        _supabase.Requests[GrantsCleared].Text.Should().Contain("\"granted_by\":null");
     }
 
     [Test]

@@ -111,6 +111,17 @@ PREFER_STRONGER_GRACE_SECS = 5
 # is back in use within minutes.
 COOLDOWN_SECS = 600
 
+# Shorter sit-outs for failures that say less about the model. A call that ran
+# out of time was often one long prompt on a busy minute, and "Request too
+# large" is Groq's per-minute output allowance, full for a minute and no more.
+# Benching both for ten minutes left no model by the second analysis.
+TIMEOUT_COOLDOWN_SECS = 180
+TOO_LARGE_COOLDOWN_SECS = 60
+
+# A 400 that is about one reply, not the request or the model: Groq could not
+# parse what the model wrote. The next reply may well be fine.
+_REPLY_LEVEL_400 = ("parsing failed", "json_validate_failed", "output_parse_failed")
+
 # The longest a stated rate limit is taken at its word. A daily quota can name
 # hours; a mistaken header should not take a model out for days.
 MAX_RATE_LIMIT_WAIT_SECS = 3600
@@ -419,8 +430,13 @@ def _attempt(
             pass
         error = f"HTTP {e.code}: {body[:160]}"
         generation = _failed_generation(body)
+        lowered = body.lower()
         if e.code == 429:
             bench_secs = _rate_limit_wait(e.headers, body)
+        elif e.code in (400, 413) and "request too large" in lowered:
+            bench_secs = TOO_LARGE_COOLDOWN_SECS
+        elif e.code == 400 and generation is None and any(k in lowered for k in _REPLY_LEVEL_400):
+            bench_secs = None
         elif generation is not None:
             # Like a reply that will not parse, this is about one answer, and
             # it may well be a good answer in the wrong wrapper.
@@ -430,7 +446,10 @@ def _attempt(
             except Exception as accept_error:
                 print(f"[Report] could not read {p.display_name}'s reply: {accept_error}", flush=True)
             error = None if result is not None else _UNPARSEABLE
-    except Exception as e:  # deadline, connection errors, malformed bodies
+    except TimeoutError as e:
+        error = f"TimeoutError: {e}"
+        bench_secs = TIMEOUT_COOLDOWN_SECS
+    except Exception as e:  # connection errors, malformed bodies
         error = f"{type(e).__name__}: {e}"
 
     duration_ms = int((clock() - started) * 1000)

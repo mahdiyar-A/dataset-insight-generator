@@ -28,9 +28,25 @@ type Analytics = {
   users: {
     total: number; free: number; pro: number;
     activeAnalysts: number; activeThisWeek: number; estimatedMrrUsd: number;
+    paying?: number;
   };
   perDay: { date: string; analyses: number; failed: number; costUsd: number }[];
 };
+
+type HealthCheck = { name: string; ok: boolean; ms: number; note?: string | null };
+
+type Visits = {
+  windowDays: number;
+  today: { views: number; visitors: number };
+  week:  { views: number; visitors: number };
+  total: { views: number; visitors: number };
+  perDay: { date: string; views: number; visitors: number }[];
+  topPages: { path: string; views: number; visitors: number }[];
+  topSources: { source: string; views: number }[];
+};
+
+// How often the open page refreshes its numbers, while the tab is in view.
+const LIVE_EVERY_MS = 15_000;
 
 /**
  * One measure per chart, deliberately: analyses/day and cost/day differ in
@@ -38,16 +54,19 @@ type Analytics = {
  * fabricate. Two aligned single-series charts carry the same comparison
  * honestly.
  */
-function DayBarChart({ title, days, value, format, barColor }: {
+function DayBarChart<T extends { date: string }>({ title, days, value, format, barColor }: {
   title: string;
-  days: { date: string; analyses: number; failed: number; costUsd: number }[];
-  value: (d: { date: string; analyses: number; failed: number; costUsd: number }) => number;
+  days: T[];
+  value: (d: T) => number;
   format: (v: number) => string;
   barColor: string;
 }) {
   const [hover, setHover] = useState<number | null>(null);
 
-  const max = Math.max(...days.map(value), 1);
+  // The real highest day. A floor of 1 here used to print "peak $1.000" on a
+  // month that cost a fraction of a cent; the floor is only for bar heights.
+  const peak = days.length ? Math.max(...days.map(value)) : 0;
+  const max  = peak > 0 ? peak : 1;
   const W = 600, H = 140, PAD = 4;
   const bw = (W - PAD * 2) / days.length;
 
@@ -62,7 +81,7 @@ function DayBarChart({ title, days, value, format, barColor }: {
         <span style={{ fontSize: "0.75rem", color: "var(--ink-faint)", minHeight: "1em" }}>
           {hover != null
             ? `${days[hover].date} — ${format(value(days[hover]))}`
-            : `peak ${format(max)}`}
+            : peak > 0 ? `peak ${format(peak)}` : "nothing yet"}
         </span>
       </div>
 
@@ -116,8 +135,12 @@ export default function AdminPage() {
   const [planFilter, setPlanFilter] = useState("");
   const [busy,    setBusy]    = useState(false);
   const [error,   setError]   = useState("");
-  const [tab,     setTab]     = useState<"overview" | "analytics" | "models" | "users">("overview");
+  const [tab,     setTab]     = useState<"overview" | "analytics" | "visits" | "models" | "users">("overview");
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [health,  setHealth]  = useState<HealthCheck[] | null>(null);
+  const [visits,  setVisits]  = useState<Visits | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null);
+  const [, setTick] = useState(0);
 
   const isAdmin = user?.plan === "admin";
 
@@ -144,6 +167,42 @@ export default function AdminPage() {
 
   useEffect(() => { if (isAdmin) load(); }, [page, planFilter]);
 
+  // The numbers on the open tab refresh every 15 seconds while the page is in
+  // view, so a new sign-up or a service going down shows without a reload.
+  useEffect(() => {
+    if (!token || !isAdmin || (tab !== "overview" && tab !== "visits")) return;
+    let stopped = false;
+    const refresh = async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        if (tab === "overview") {
+          const [s, h] = await Promise.all([
+            BackendAPI.adminGetStats(token),
+            BackendAPI.adminGetHealth(token).then(r => r.checks as HealthCheck[]).catch(() => null),
+          ]);
+          if (stopped) return;
+          setStats(s);
+          setHealth(h);
+        } else {
+          const v = await BackendAPI.adminGetVisits(token, 30);
+          if (stopped) return;
+          setVisits(v);
+        }
+        setUpdatedAt(Date.now());
+      } catch (e) { if (!stopped) setError(errorMessage(e)); }
+    };
+    refresh();
+    const every = setInterval(refresh, LIVE_EVERY_MS);
+    const ticker = setInterval(() => setTick(t => t + 1), 5_000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      stopped = true;
+      clearInterval(every);
+      clearInterval(ticker);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [tab, token, isAdmin]);
+
   // Fetched on first visit to the tab rather than with the page: it scans the
   // whole analytics window server-side, which the other tabs never need.
   useEffect(() => {
@@ -155,16 +214,22 @@ export default function AdminPage() {
 
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); load(); };
 
-  const handleSetPlan = async (userId: string, plan: string) => {
+  const handleSetPlan = async (u: UserRow, plan: string) => {
     if (!token) return;
+    // A paying customer moved to Free has their Stripe subscription cancelled.
+    const paying = plan === "free" && !!u.stripeSubscriptionId;
+    if (paying && !confirm(
+      `${u.email} pays for Pro through Stripe. Moving them to Free cancels their subscription. Continue?`)) return;
+    setError("");
     try {
-      await BackendAPI.adminSetPlan(token, userId, plan);
+      await BackendAPI.adminSetPlan(token, u.id, plan, null, paying);
       await load();
     } catch (e) { setError(errorMessage(e)); }
   };
 
   const handleDeleteUser = async (userId: string, email: string) => {
     if (!token || !confirm(`Permanently delete user ${email}? This cannot be undone.`)) return;
+    setError("");
     try {
       await BackendAPI.adminDeleteUser(token, userId);
       await load();
@@ -197,10 +262,10 @@ export default function AdminPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--paper)", color: "var(--ink)",
-      padding: "40px 24px", maxWidth: "1100px", margin: "0 auto" }}>
+      padding: "40px clamp(14px, 4vw, 24px)", maxWidth: "1100px", margin: "0 auto" }}>
 
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between",
+      <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "14px",
         alignItems: "center", marginBottom: "32px" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: "10px",
@@ -232,10 +297,11 @@ export default function AdminPage() {
       )}
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: "4px", marginBottom: "28px" }}>
-        {(["overview", "analytics", "models", "users"] as const).map(t => (
+      <div style={{ display: "flex", gap: "4px", marginBottom: updatedAt && (tab === "overview" || tab === "visits") ? "8px" : "28px",
+        overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+        {(["overview", "analytics", "visits", "models", "users"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
-            style={{ padding: "8px 20px", borderRadius: "0", border: "none",
+            style={{ padding: "8px 20px", borderRadius: "0", border: "none", flex: "0 0 auto",
               fontWeight: 600, fontSize: "0.85rem", cursor: "pointer",
               background: tab === t ? "color-mix(in srgb, var(--cobalt) 20%, transparent)" : "transparent",
               color: tab === t ? "var(--cobalt-accent)" : "var(--ink-faint)" }}>
@@ -243,6 +309,11 @@ export default function AdminPage() {
           </button>
         ))}
       </div>
+      {updatedAt && (tab === "overview" || tab === "visits") && (
+        <p style={{ margin: "0 0 20px", fontSize: "0.72rem", color: "var(--ink-faint)" }}>
+          Updated {Math.max(0, Math.round((Date.now() - updatedAt) / 1000))}s ago · refreshes every 15 seconds
+        </p>
+      )}
 
       {/* Overview */}
       {tab === "overview" && stats && (
@@ -263,27 +334,33 @@ export default function AdminPage() {
               color: "var(--ink-soft)" }}>
               System Health
             </h3>
+            {/* Each service is really tried by the server, each time. */}
+            {!health ? (
+              <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--ink-faint)" }}>Checking…</p>
+            ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {[
-                { label: "Backend API",      status: "ok" },
-                { label: "Supabase DB",      status: "ok" },
-                { label: "Supabase Storage", status: "ok" },
-                { label: "Stripe",           status: "ok" },
-                { label: "AI Service",       status: "ok" },
-              ].map(s => (
-                <div key={s.label} style={{ display: "flex", justifyContent: "space-between",
+              {health.map(s => (
+                <div key={s.name} style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "8px",
                   alignItems: "center", padding: "10px 14px", borderRadius: "0",
                   background: "color-mix(in srgb, var(--card) 50%, transparent)", border: "1px solid var(--line)" }}>
-                  <span style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>{s.label}</span>
+                  <span style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>
+                    {s.name}
+                    {s.note && (
+                      <span style={{ display: "block", fontSize: "0.72rem",
+                        color: s.ok ? "var(--ink-faint)" : "var(--danger-text)" }}>{s.note}</span>
+                    )}
+                  </span>
                   <span style={{ padding: "3px 10px", borderRadius: "0", fontSize: "0.72rem",
                     fontWeight: 600,
-                    background: "color-mix(in srgb, var(--ok) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--ok) 35%, transparent)",
-                    color: "var(--ok-text)" }}>
-                    ✓ {s.status}
+                    background: s.ok ? "color-mix(in srgb, var(--ok) 10%, transparent)" : "color-mix(in srgb, var(--danger) 10%, transparent)",
+                    border: s.ok ? "1px solid color-mix(in srgb, var(--ok) 35%, transparent)" : "1px solid color-mix(in srgb, var(--danger) 35%, transparent)",
+                    color: s.ok ? "var(--ok-text)" : "var(--danger-text)" }}>
+                    {s.ok ? `✓ ok · ${s.ms} ms` : "✕ down"}
                   </span>
                 </div>
               ))}
             </div>
+            )}
           </div>
         </div>
       )}
@@ -319,7 +396,7 @@ export default function AdminPage() {
                 sub={`of ${analytics.users.total} users`} color="var(--cobalt-accent)" />
               <StatCard label="Est. MRR"
                 value={`$${analytics.users.estimatedMrrUsd.toFixed(2)}`}
-                sub={`${analytics.users.pro} pro × $9.99 — see Stripe for net`}
+                sub={`${analytics.users.paying ?? analytics.users.pro} paying × $9.99 — see Stripe for net`}
                 color="var(--ok-text)" />
             </div>
 
@@ -383,6 +460,54 @@ export default function AdminPage() {
         )
       )}
 
+      {/* Visits, counted on our own server without cookies */}
+      {tab === "visits" && (
+        !visits ? (
+          <p style={{ color: "var(--ink-faint)", fontSize: "0.9rem" }}>Loading visits…</p>
+        ) : (
+          <div>
+            <p style={{ color: "var(--ink-faint)", fontSize: "0.8rem", margin: "0 0 16px" }}>
+              Last {visits.windowDays} days · counted without cookies; a visitor is told apart only within one day
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+              gap: "16px", marginBottom: "24px" }}>
+              <StatCard label="Visitors today" value={visits.today.visitors}
+                sub={`${visits.today.views} page views`} />
+              <StatCard label="Visitors, 7 days" value={visits.week.visitors}
+                sub={`${visits.week.views} page views`} color="var(--cobalt-accent)" />
+              <StatCard label={`Visitors, ${visits.windowDays} days`} value={visits.total.visitors}
+                sub={`${visits.total.views} page views`} color="var(--cobalt-accent)" />
+            </div>
+            <div style={{ marginBottom: "24px" }}>
+              <DayBarChart title="Visitors per day" days={visits.perDay}
+                value={d => d.visitors} format={v => `${v}`} barColor="var(--cobalt-accent)" />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
+              {[
+                { title: "Top pages", rows: visits.topPages.map(p => ({ key: p.path, label: p.path, views: p.views })) },
+                { title: "Where visitors came from", rows: visits.topSources.map(s => ({ key: s.source, label: s.source, views: s.views })) },
+              ].map(block => (
+                <div key={block.title} style={{ background: "color-mix(in srgb, var(--card) 80%, transparent)",
+                  border: "1px solid var(--line)", padding: "18px 22px" }}>
+                  <h3 style={{ margin: "0 0 12px", fontSize: "0.85rem", fontWeight: 700, color: "var(--ink-soft)" }}>
+                    {block.title}
+                  </h3>
+                  {block.rows.length === 0 ? (
+                    <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--ink-faint)" }}>Nothing yet.</p>
+                  ) : block.rows.map(r => (
+                    <div key={r.key} style={{ display: "flex", justifyContent: "space-between", gap: "12px",
+                      padding: "6px 0", borderBottom: "1px solid var(--line)", fontSize: "0.8rem" }}>
+                      <span style={{ color: "var(--ink)", overflowWrap: "anywhere" }}>{r.label}</span>
+                      <span style={{ color: "var(--ink-faint)", flex: "0 0 auto" }}>{r.views} views</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      )}
+
       {/* The AI models, and the alarm that watches them */}
       {tab === "models" && token && <AdminModels token={token} />}
 
@@ -391,13 +516,13 @@ export default function AdminPage() {
         <div>
           {/* Filters */}
           <div style={{ display: "flex", gap: "10px", marginBottom: "20px", flexWrap: "wrap" }}>
-            <form onSubmit={handleSearch} style={{ display: "flex", gap: "8px", flex: 1,
-              minWidth: "200px" }}>
+            <form onSubmit={handleSearch} style={{ display: "flex", gap: "8px", flex: "1 1 260px",
+              minWidth: 0 }}>
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search by email or name…"
-                style={{ flex: 1, padding: "9px 14px", borderRadius: "0",
+                style={{ flex: 1, minWidth: 0, padding: "9px 14px", borderRadius: "0",
                   border: "1px solid var(--line)",
                   background: "color-mix(in srgb, var(--card) 80%, transparent)", color: "var(--ink)",
                   fontSize: "0.85rem", outline: "none" }} />
@@ -409,7 +534,7 @@ export default function AdminPage() {
               </button>
             </form>
             <select value={planFilter} onChange={e => { setPlanFilter(e.target.value); setPage(1); }}
-              style={{ padding: "9px 14px", borderRadius: "0",
+              style={{ flex: "0 0 auto", padding: "9px 14px", borderRadius: "0",
                 border: "1px solid var(--line)",
                 background: "color-mix(in srgb, var(--card) 80%, transparent)", color: "var(--ink-soft)",
                 fontSize: "0.85rem", cursor: "pointer" }}>
@@ -426,8 +551,8 @@ export default function AdminPage() {
 
           {/* Table */}
           <div style={{ background: "color-mix(in srgb, var(--card) 80%, transparent)", border: "1px solid var(--line)",
-            borderRadius: "0", overflow: "hidden" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.83rem" }}>
+            borderRadius: "0", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+            <table style={{ width: "100%", minWidth: "640px", borderCollapse: "collapse", fontSize: "0.83rem" }}>
               <thead>
                 <tr style={{ background: "color-mix(in srgb, var(--card) 60%, transparent)",
                   borderBottom: "1px solid var(--line)" }}>
@@ -461,6 +586,10 @@ export default function AdminPage() {
                           color: badge.color }}>
                           {u.plan}
                         </span>
+                        {u.stripeSubscriptionId && (
+                          <span style={{ display: "block", marginTop: "4px", fontSize: "0.68rem",
+                            color: "var(--ok-text)" }}>paying</span>
+                        )}
                       </td>
                       <td style={{ padding: "12px 16px", color: "var(--ink-faint)",
                         fontSize: "0.78rem" }}>
@@ -476,15 +605,15 @@ export default function AdminPage() {
                         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                           {/* Plan toggle */}
                           {u.plan !== "pro" && (
-                            <button onClick={() => handleSetPlan(u.id, "pro")}
+                            <button onClick={() => handleSetPlan(u, "pro")}
                               style={{ padding: "4px 10px", borderRadius: "0", border: "none",
                                 background: "color-mix(in srgb, var(--cobalt) 20%, transparent)", color: "var(--cobalt-accent)",
                                 fontSize: "0.72rem", cursor: "pointer" }}>
                               → Pro
                             </button>
                           )}
-                          {u.plan !== "free" && u.plan !== "admin" && (
-                            <button onClick={() => handleSetPlan(u.id, "free")}
+                          {u.plan !== "free" && (
+                            <button onClick={() => handleSetPlan(u, "free")}
                               style={{ padding: "4px 10px", borderRadius: "0", border: "none",
                                 background: "color-mix(in srgb, var(--card) 50%, transparent)", color: "var(--ink-faint)",
                                 fontSize: "0.72rem", cursor: "pointer" }}>
@@ -492,7 +621,7 @@ export default function AdminPage() {
                             </button>
                           )}
                           {u.plan !== "admin" && (
-                            <button onClick={() => handleSetPlan(u.id, "admin")}
+                            <button onClick={() => handleSetPlan(u, "admin")}
                               style={{ padding: "4px 10px", borderRadius: "0", border: "none",
                                 background: "color-mix(in srgb, var(--cobalt) 15%, transparent)", color: "var(--cobalt-accent)",
                                 fontSize: "0.72rem", cursor: "pointer" }}>

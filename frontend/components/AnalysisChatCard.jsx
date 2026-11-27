@@ -57,6 +57,7 @@ const T = {
     goReport: "Go to Report",
     received: (name) => `We've received "${name}" — starting analysis now. Please wait…`,
     readAs: (what) => `This looks like: ${what}.`,
+    upgrade: "See what Pro adds",
     ownWords: "Or say what it is, in your own words",
     send: "Send",
     skip: "Skip",
@@ -79,6 +80,7 @@ const T = {
     goReport: "Voir le rapport",
     received: (name) => `Nous avons reçu « ${name} » — analyse en cours. Veuillez patienter…`,
     readAs: (what) => `Cela ressemble à : ${what}.`,
+    upgrade: "Voir ce que Pro ajoute",
     ownWords: "Ou dites ce que c'est, avec vos propres mots",
     send: "Envoyer",
     skip: "Passer",
@@ -101,6 +103,7 @@ const T = {
     goReport: "مشاهده گزارش",
     received: (name) => `فایل "${name}" دریافت شد — تحلیل در حال شروع است. لطفاً صبر کنید…`,
     readAs: (what) => `به نظر می‌رسد این داده‌ها چنین باشد: ${what}.`,
+    upgrade: "ببینید Pro چه چیزی اضافه می‌کند",
     ownWords: "یا با کلمات خودتان بگویید چیست",
     send: "ارسال",
     skip: "رد شدن",
@@ -149,6 +152,9 @@ export default function AnalysisAssistantCard({
 
   const bottomRef = useRef(null);
   const timerRef  = useRef(null);
+  // "Your report is ready" is said once per run. Checking the stage alone let
+  // it through twice when the effect ran twice before the stage update landed.
+  const readySaidRef = useRef(false);
 
   // Scroll chat log on new messages
   useEffect(() => {
@@ -157,7 +163,8 @@ export default function AnalysisAssistantCard({
 
   // If parent signals report is ready (polling found it), jump to stage 2
   useEffect(() => {
-    if (reportReady && stage < 2) {
+    if (reportReady && stage < 2 && !readySaidRef.current) {
+      readySaidRef.current = true;
       setStage(2);
       addMsg("assistant", "✅ Your report is ready! Click below to view it.");
     }
@@ -165,8 +172,8 @@ export default function AnalysisAssistantCard({
 
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
-  const addMsg = (role, text) =>
-    setMessages(prev => [...prev, { role, text }]);
+  const addMsg = (role, text, link = null) =>
+    setMessages(prev => [...prev, { role, text, link }]);
 
   // ── Send a message to the backend chatbot ──
   const sendMessage = async (message, pendingCondition = null, extra = {}) => {
@@ -197,7 +204,9 @@ export default function AnalysisAssistantCard({
       // When the server was sure, it says what it read, so the person can see
       // what the report will rest on.
       if (res?.understoodAs) addMsg("assistant", t.readAs(res.understoodAs));
-      addMsg("assistant", reply);
+      // Out of free analyses: the way on is one click away, not a search.
+      addMsg("assistant", reply,
+        failed && res?.code === "QUOTA_EXCEEDED" ? { href: "/plans", label: t.upgrade } : null);
       setCondition(cond);
       setDomainAsk(askingDomain ? { options: Array.isArray(res.options) ? res.options : [] } : null);
       if (askingDomain) {
@@ -301,6 +310,7 @@ export default function AnalysisAssistantCard({
 
   const handleStart = () => {
     clearTimeout(timerRef.current);
+    readySaidRef.current = false;
     setRunStarted(false);
     setStage(1);
     setMessages([]);
@@ -417,7 +427,14 @@ export default function AnalysisAssistantCard({
           <div className="analysis-chat-log">
             {messages.map((msg, i) => (
               <div key={i} className={`msg-row ${msg.role}`}>
-                <div className="msg">{msg.text}</div>
+                <div className="msg">
+                  {msg.text}
+                  {msg.link && (
+                    <a href={msg.link.href} style={{ display: "block", marginTop: "8px", fontWeight: 600 }}>
+                      {msg.link.label} →
+                    </a>
+                  )}
+                </div>
               </div>
             ))}
             {/* Typing indicator while waiting for backend */}
@@ -503,7 +520,14 @@ export default function AnalysisAssistantCard({
           <div className="analysis-chat-log">
             {messages.map((msg, i) => (
               <div key={i} className={`msg-row ${msg.role}`}>
-                <div className="msg">{msg.text}</div>
+                <div className="msg">
+                  {msg.text}
+                  {msg.link && (
+                    <a href={msg.link.href} style={{ display: "block", marginTop: "8px", fontWeight: 600 }}>
+                      {msg.link.label} →
+                    </a>
+                  )}
+                </div>
               </div>
             ))}
             <div ref={bottomRef}/>

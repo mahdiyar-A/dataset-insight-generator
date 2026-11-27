@@ -9,6 +9,10 @@ import {
   MAX_UPLOAD_BYTES, UPLOAD_ACCEPT, canPreviewInBrowser, extensionOf, isAcceptedFile, previewFromUpload,
 } from "@/lib/uploadFormats";
 
+// Only a blank cell is missing, the same rule the analysis uses: "None",
+// "NA" and "null" written in a file are text someone typed.
+const isBlank = (cell) => cell === null || cell === undefined || String(cell).trim() === "";
+
 const T = {
   en: {
     title: "Upload Dataset",
@@ -17,6 +21,7 @@ const T = {
     browse: "or click to choose a data file",
     badType: (ext) => `${ext ? ext + " files" : "That file"} can't be analysed. Use CSV, Excel, JSON, XML, Parquet, SPSS, Stata, SAS or SQLite.`,
     tooLarge: "That file is over the 50 MB limit.",
+    upgrade: "See what Pro adds",
     status: { idle: "Idle", uploading: "Uploading", done: "Ready", error: "Failed" },
     statusMsg: {
       idle: "No file selected.",
@@ -35,6 +40,7 @@ const T = {
     browse: "ou cliquez pour choisir un fichier de données",
     badType: (ext) => `${ext ? "Les fichiers " + ext : "Ce fichier"} ne peuvent pas être analysés. Utilisez CSV, Excel, JSON, XML, Parquet, SPSS, Stata, SAS ou SQLite.`,
     tooLarge: "Ce fichier dépasse la limite de 50 Mo.",
+    upgrade: "Voir ce que Pro ajoute",
     status: { idle: "Inactif", uploading: "Import…", done: "Prêt", error: "Échec" },
     statusMsg: {
       idle: "Aucun fichier sélectionné.",
@@ -53,6 +59,7 @@ const T = {
     browse: "یا برای انتخاب فایل داده کلیک کنید",
     badType: (ext) => `${ext ? "فایل‌های " + ext : "این فایل"} قابل تحلیل نیستند. از CSV، اکسل، JSON، XML، Parquet، SPSS، Stata، SAS یا SQLite استفاده کنید.`,
     tooLarge: "این فایل از سقف ۵۰ مگابایت بزرگ‌تر است.",
+    upgrade: "ببینید Pro چه چیزی اضافه می‌کند",
     status: { idle: "آماده", uploading: "در حال آپلود", done: "آماده", error: "خطا" },
     statusMsg: {
       idle: "فایلی انتخاب نشده.",
@@ -94,6 +101,7 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, onUploadFai
   const [preview,  setPreview]  = useState(null);
   const [dragging, setDragging] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [outOfFree, setOutOfFree] = useState(false);
   const [notice,   setNotice]   = useState(""); // a file refused here, before any upload
   const [reading,  setReading]  = useState(null); // { formatLabel, notes } from the server
 
@@ -122,7 +130,7 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, onUploadFai
     const previewRows = dataRows.slice(0, 10).map((line) => {
       const cells = line.split(",").map((c) => c.trim().replace(/"/g, ""));
       cells.forEach((c) => {
-        if (!c || c.toLowerCase() === "na" || c.toLowerCase() === "null") missingCount++;
+        if (isBlank(c)) missingCount++;
       });
       return cells.slice(0, 10);
     });
@@ -192,6 +200,7 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, onUploadFai
       console.error("Upload error:", err);
       setStatus("error");
       setErrorMsg(err?.message || "Upload failed. Try again.");
+      setOutOfFree(err?.code === "QUOTA_EXCEEDED");
       setStats({ rows: null, columns: null, size: null });
       setPreview(null);
       clearInput();
@@ -273,6 +282,11 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, onUploadFai
             {status === "uploading" && t.statusMsg.uploading}
             {status === "done"      && t.statusMsg.done}
             {status === "error"     && (errorMsg || "Upload failed. Try again.")}
+            {status === "error" && outOfFree && (
+              <a href="/plans" style={{ display: "block", marginTop: "4px", fontWeight: 600 }}>
+                {t.upgrade ?? "See what Pro adds"} →
+              </a>
+            )}
           </span>
           <span className={`status-pill ${pillClass}`}>{statusLabel[status]}</span>
         </div>
@@ -342,7 +356,7 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, onUploadFai
                       {ri + 1}
                     </td>
                     {row.map((cell, ci) => {
-                      const isEmpty = !cell || cell === "" || cell.toLowerCase() === "na" || cell.toLowerCase() === "null";
+                      const isEmpty = isBlank(cell);
                       return (
                         <td key={ci} style={{ padding: "6px 12px", whiteSpace: "nowrap", maxWidth: "130px", overflow: "hidden", textOverflow: "ellipsis", color: isEmpty ? "var(--danger-text)" : "var(--ink)" }}>
                           {isEmpty ? <span style={{ opacity: 0.5 }}>—</span> : cell}
@@ -354,9 +368,12 @@ export default function UploadCard({ onUploadSuccess, onUploadStart, onUploadFai
               </tbody>
             </table>
           </div>
-          <p className="muted-small" style={{ marginTop: "6px" }}>
-            {t.missing}
-          </p>
+          {/* Said only when the preview shows a blank cell. */}
+          {preview.rows.some(row => row.some(isBlank)) && (
+            <p className="muted-small" style={{ marginTop: "6px" }}>
+              {t.missing}
+            </p>
+          )}
           {reading?.notes?.length > 0 && (
             <ul className="muted-small" dir="auto" style={{ margin: "6px 0 0", paddingInlineStart: "16px" }}>
               {reading.notes.map((note, i) => <li key={i}>{note}</li>)}

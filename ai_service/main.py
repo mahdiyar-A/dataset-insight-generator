@@ -234,7 +234,7 @@ async def check(
 
     if not quality.isUsable:
         print(f"[Check] ✗ Dataset not usable: {'; '.join(quality.errors)}", flush=True)
-        return JSONResponse({"condition": "not_workable", "error": "; ".join(quality.errors), "file": file_info})
+        return JSONResponse({"condition": "not_workable", "error": _sentences(quality.errors), "file": file_info})
 
     confidence = evaluate_confidence(df, quality)
 
@@ -247,9 +247,41 @@ async def check(
 
     print(f"[Check] ✓ Condition: {condition}", flush=True)
     reply = {"condition": condition, "error": None, "file": file_info}
+    if condition == "not_clean":
+        reply["problems"] = _problems(df, quality)
     if with_domain:
         reply["domain"] = _read_the_data(df)
     return JSONResponse(reply)
+
+
+def _sentences(errors) -> str:
+    """Reasons as sentences. Joined with "; " they read "…analysis.; Dataset needs…"."""
+    parts = [str(e).strip() for e in errors or [] if str(e).strip()]
+    return " ".join(p if p.endswith((".", "!", "?")) else p + "." for p in parts)
+
+
+def _problems(df, quality) -> list:
+    """
+    What the cleaning would fix, in a few plain words each, for the question
+    "Would you like me to clean it?". It used to say only "missing values or
+    duplicates detected", whatever was found.
+    """
+    out = []
+    if quality.duplicateRows:
+        n = quality.duplicateRows
+        out.append(f"{n:,} duplicate row{'s' if n != 1 else ''}")
+    if quality.emptyRows:
+        n = quality.emptyRows
+        out.append(f"{n:,} empty row{'s' if n != 1 else ''}")
+    blanks = [str(c) for c in df.columns if df[c].isna().any()]
+    if blanks:
+        named = ", ".join(blanks[:3]) + ("…" if len(blanks) > 3 else "")
+        out.append(f"blank cells in {len(blanks)} column{'s' if len(blanks) != 1 else ''} ({named})")
+    if quality.mixedTypeColumns:
+        out.append("numbers stored as text in " + ", ".join(str(c) for c in quality.mixedTypeColumns[:3]))
+    if quality.constantColumns:
+        out.append("columns with one value only: " + ", ".join(str(c) for c in quality.constantColumns[:3]))
+    return out[:4]
 
 
 # How long the check may spend asking a model what the data is. The person is

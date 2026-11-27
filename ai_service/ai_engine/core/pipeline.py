@@ -33,7 +33,7 @@ from ai_engine.reading                   import from_dict as reading_from_dict, 
 from ai_engine.llm.insight_agent         import generate_report, MAX_INSIGHTS, MIN_INSIGHTS, MAX_QUESTIONS
 from ai_engine.llm.stats_digest          import build_digest
 from ai_engine.llm.user_requests         import cover, for_chat, for_prompt, work_out_requests
-from ai_engine.charts.chart_generator    import generate_charts
+from ai_engine.charts.chart_generator    import generate_charts, readable_names
 from ai_engine.pdf.pdf_builder           import build_pdf
 from ai_engine.report_labels             import described_line, left_out_line
 from ai_engine                           import report_document
@@ -408,7 +408,9 @@ def run_pipeline(
     # ── Phase 7: Chart generation (using validated instructions) ─────────
     print(f"[Pipeline] Phase 7 — Generating {len(llm_report.chartInstructions)} chart(s)...", flush=True)
     try:
-        charts = generate_charts(df_work, llm_report.chartInstructions, look.chart_style())
+        charts = generate_charts(df_work, llm_report.chartInstructions, look.chart_style(),
+                                 names=readable_names(df_work.columns,
+                                                      getattr(domain, "attribute_interpretations", None)))
     except Exception as e:
         print(f"[Pipeline] Chart generation error: {e}", flush=True)
         charts = []
@@ -460,8 +462,7 @@ def run_pipeline(
                 word_bytes = build_word_doc(llm_report, file_name=file_name, domain=domain.domain,
                                             charts=charts, language=language,
                                             confidence_score=judge.confidence_score, look=look,
-                                            **office_details(domain, stats.__dict__, was_cleaned,
-                                                             dropped_columns))
+                                            **office_details(domain, stats.__dict__, was_cleaned, dropped_columns, language))
                 import base64 as _b64
                 word_b64 = _b64.b64encode(word_bytes).decode("utf-8")
                 print(f"[Pipeline] Word report generated ({len(word_bytes):,} bytes)", flush=True)
@@ -479,8 +480,7 @@ def run_pipeline(
                 pptx_bytes = build_pptx(llm_report, file_name=file_name, domain=domain.domain,
                                         charts=charts, language=language,
                                         confidence_score=judge.confidence_score, look=look,
-                                        **office_details(domain, stats.__dict__, was_cleaned,
-                                                         dropped_columns))
+                                        **office_details(domain, stats.__dict__, was_cleaned, dropped_columns, language))
                 import base64 as _b64
                 pptx_b64 = _b64.b64encode(pptx_bytes).decode("utf-8")
                 print(f"[Pipeline] PPTX generated ({len(pptx_bytes):,} bytes)", flush=True)

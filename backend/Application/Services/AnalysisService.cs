@@ -125,8 +125,24 @@ public class AnalysisService
         return user.ReportsUsed >= FreePlanAnalysesPer48h
             ? new Admission(false, "QUOTA_EXCEEDED",
                 $"The free plan includes {FreePlanAnalysesPer48h} analyses every 48 hours, and you've used them. " +
-                "Upgrade to Pro, or try again once the 48 hours are up.")
+                $"You can run another {TimeLeft(user.ReportsResetAt.AddHours(48) - DateTime.UtcNow)}, or upgrade to Pro.")
             : null;
+    }
+
+    /// <summary>
+    /// "in about 5 hours", "in about 20 minutes": no clock time, so it reads
+    /// right in any time zone.
+    /// </summary>
+    public static string TimeLeft(TimeSpan left)
+    {
+        if (left <= TimeSpan.FromMinutes(1)) return "in a minute";
+        if (left < TimeSpan.FromHours(1))
+        {
+            var m = (int)Math.Ceiling(left.TotalMinutes);
+            return $"in about {m} minute{(m == 1 ? "" : "s")}";
+        }
+        var h = (int)Math.Round(left.TotalHours, MidpointRounding.AwayFromZero);
+        return $"in about {h} hour{(h == 1 ? "" : "s")}";
     }
 
     /// <summary>Must match PlansController's advertised free-plan allowance.</summary>

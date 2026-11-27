@@ -54,7 +54,7 @@ const DASH_T = {
       openTeam: "Open your team",
     },
     plan: {
-      freeNote: "5 analyses kept, 10 questions a day.",
+      freeNote: "2 analyses every 48 hours, 5 kept, 10 questions a day.",
       freeCta: "See what Pro adds",
       proNote: "15 analyses kept, 100 questions a day, team editing.",
       proCta: "Plan and billing",
@@ -103,7 +103,7 @@ const DASH_T = {
       openTeam: "Ouvrir votre équipe",
     },
     plan: {
-      freeNote: "5 analyses conservées, 10 questions par jour.",
+      freeNote: "2 analyses toutes les 48 heures, 5 conservées, 10 questions par jour.",
       freeCta: "Ce que Pro ajoute",
       proNote: "15 analyses conservées, 100 questions par jour, édition en équipe.",
       proCta: "Offre et facturation",
@@ -152,7 +152,7 @@ const DASH_T = {
       openTeam: "باز کردن تیم",
     },
     plan: {
-      freeNote: "۵ تحلیل نگه‌داشته، ۱۰ پرسش در روز.",
+      freeNote: "۲ تحلیل در هر ۴۸ ساعت، ۵ تحلیل نگه‌داشته، ۱۰ پرسش در روز.",
       freeCta: "امکانات پرو",
       proNote: "۱۵ تحلیل نگه‌داشته، ۱۰۰ پرسش در روز، ویرایش تیمی.",
       proCta: "طرح و پرداخت",
@@ -290,7 +290,9 @@ export default function DashboardPage() {
     // No server id yet — the analysis row is created when the pipeline starts.
     // Marked isPending so the header renders the neutral subtitle.
     setAnalysis({ ...tempMeta, id: "", status: "pending", isPending: true });
-    setAnalysisStatus("pending");
+    // Nothing runs until Start is pressed: "pending" here used to show the
+    // "Analysis running" banner over a file nobody had started yet.
+    setAnalysisStatus(null);
     setReportReady(false);
     setHasPdfReport(false);
     setAnalysisKey(k => k + 1);

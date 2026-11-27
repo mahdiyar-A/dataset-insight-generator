@@ -53,6 +53,9 @@ public interface IPythonAiClient
     /// </summary>
     Task<string> ModelStatusAsync();
 
+    /// <summary>Whether the AI service answers its /health with "ok". No model calls.</summary>
+    Task<bool> HealthAsync();
+
     /// <summary>
     /// The files for a report rebuilt from its document, with the document an
     /// edit makes, figures worth a second look and the chat context carrying

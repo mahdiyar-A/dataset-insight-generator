@@ -157,8 +157,14 @@ function PlanManagementContent() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
           gap: "12px", marginTop: "24px" }}>
           {[
-            { label: "Analyses (48h)", value: isPro || isAdmin ? "∞" : `${reportsUsed} / 2`,
-              sub: !isPro && !isAdmin && reportsReset ? `Resets at ${reportsReset}` : null },
+            // Pro has a fair-use limit of 20 a day (AnalysisLimits.ProPerDay);
+            // only admin has none. "(48h) ∞" was wrong on both counts.
+            isAdmin
+              ? { label: "Analyses", value: "No limit", sub: null }
+              : isPro
+              ? { label: "Analyses", value: "20 a day", sub: "Fair-use limit, resets at midnight UTC" }
+              : { label: "Analyses (48h)", value: `${reportsUsed} / 2`,
+                  sub: reportsReset ? `Resets at ${reportsReset}` : null },
             { label: "History slots", value: `${historyLimit}`,
               sub: isPro || isAdmin ? "Full history" : "Upgrade for 15" },
             { label: "Collaboration", value: isPro || isAdmin ? "✓ Enabled" : "✗ Locked",

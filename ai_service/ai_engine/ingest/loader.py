@@ -357,6 +357,13 @@ def _header_row(rows: List[List[Any]]) -> int:
     return 0
 
 
+# Only an empty cell is missing when a file is read. pandas' own list also
+# erases "None", "NA" and "null", which are often real categories (no
+# insurance, North America). coerce_types applies DIG's rules afterwards:
+# "N/A" and "null" go everywhere, "None" and "Unknown" only in number columns.
+_ONLY_BLANKS_MISSING = {"keep_default_na": False, "na_values": [""]}
+
+
 def _read_text(data: bytes, detail: Dict[str, Any]) -> pd.DataFrame:
     text, encoding = _decode_text(data)
     detail["encoding"] = encoding
@@ -373,11 +380,12 @@ def _read_text(data: bytes, detail: Dict[str, Any]) -> pd.DataFrame:
             if skip:
                 detail["skippedTitleRows"] = skip
             return pd.read_csv(io.StringIO(text), sep=r"\s+", engine="python", skiprows=skip,
-                               on_bad_lines="skip")
+                               on_bad_lines="skip", **_ONLY_BLANKS_MISSING)
         # A single column. Read it so the quality check can say plainly that
         # analysis needs at least two.
         detail["delimiter"] = "none"
-        return pd.read_csv(io.StringIO(text), sep=",", engine="python", on_bad_lines="skip")
+        return pd.read_csv(io.StringIO(text), sep=",", engine="python", on_bad_lines="skip",
+                           **_ONLY_BLANKS_MISSING)
 
     detail["delimiter"] = {"\t": "tab"}.get(sep, sep)
     sample_rows = list(csv.reader(io.StringIO(sample), delimiter=sep))
@@ -385,7 +393,8 @@ def _read_text(data: bytes, detail: Dict[str, Any]) -> pd.DataFrame:
     if skip:
         detail["skippedTitleRows"] = skip
     return pd.read_csv(io.StringIO(text), sep=sep, skiprows=skip, on_bad_lines="skip",
-                       engine="c", low_memory=False, dtype=_code_columns(sample_rows[:2000], skip) or None)
+                       engine="c", low_memory=False, dtype=_code_columns(sample_rows[:2000], skip) or None,
+                       **_ONLY_BLANKS_MISSING)
 
 
 _CODE = re.compile(r"^[-+]?0\d")
@@ -448,7 +457,8 @@ def _left_out_note(detail: Dict[str, Any]) -> Optional[str]:
 def _read_excel(data: bytes, fmt: str, detail: Dict[str, Any]) -> pd.DataFrame:
     engine = {"xlsx": "openpyxl", "xls": "xlrd", "ods": "odf"}[fmt]
     try:
-        sheets = pd.read_excel(io.BytesIO(data), sheet_name=None, header=None, engine=engine)
+        sheets = pd.read_excel(io.BytesIO(data), sheet_name=None, header=None, engine=engine,
+                               **_ONLY_BLANKS_MISSING)
     except ImportError:
         raise UnsupportedFile(f"{FORMAT_LABELS[fmt]} files cannot be read on this server yet.")
     except Exception as exc:

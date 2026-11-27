@@ -27,6 +27,12 @@ _LOG_FILE = os.path.join(_LOG_DIR, "pipeline_runs.jsonl")
 # Max file size before rotation (10 MB)
 _MAX_LOG_BYTES = 10 * 1024 * 1024
 
+# The Privacy Policy keeps operational logs for at most 30 days. This log used
+# to keep every run, with the user's id, for good (725 lines since April on one
+# computer). Records now carry no user id and are dropped after 30 days.
+KEEP_DAYS = 30
+_PRUNED_MARK = os.path.join(_LOG_DIR, ".last_pruned")
+
 
 def _ensure_log_dir():
     os.makedirs(_LOG_DIR, exist_ok=True)
@@ -37,6 +43,43 @@ def _rotate_if_needed():
     if os.path.exists(_LOG_FILE) and os.path.getsize(_LOG_FILE) > _MAX_LOG_BYTES:
         archive = _LOG_FILE.replace(".jsonl", f"_{int(time.time())}.jsonl")
         os.rename(_LOG_FILE, archive)
+
+
+def prune_old_records(now: Optional[float] = None) -> None:
+    """
+    Drop records older than KEEP_DAYS, and rotated files whose newest record is.
+    Runs at most once a day; a failure leaves the log as it was.
+    """
+    now = time.time() if now is None else now
+    try:
+        if os.path.exists(_PRUNED_MARK) and now - os.path.getmtime(_PRUNED_MARK) < 86400:
+            return
+        cutoff = now - KEEP_DAYS * 86400
+        for name in os.listdir(_LOG_DIR):
+            path = os.path.join(_LOG_DIR, name)
+            if not (name.startswith("pipeline_runs") and name.endswith(".jsonl")):
+                continue
+            kept = []
+            with open(path, "r", encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        record = json.loads(line)
+                    except ValueError:
+                        continue
+                    if isinstance(record, dict) and float(record.get("timestamp") or 0) >= cutoff:
+                        record.pop("session_id", None)
+                        kept.append(json.dumps(record))
+            if not kept and path != _LOG_FILE:
+                os.remove(path)
+                continue
+            tmp = path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                f.write("".join(k + "\n" for k in kept))
+            os.replace(tmp, path)
+        with open(_PRUNED_MARK, "w", encoding="utf-8") as f:
+            f.write(str(int(now)))
+    except Exception as e:  # never break an analysis over its log
+        print(f"[TrainingLogger] could not prune old records: {e}")
 
 
 def _dataset_fingerprint(stats: StatsSummary) -> str:
@@ -75,12 +118,13 @@ def log_pipeline_run(
     """
     try:
         _ensure_log_dir()
+        prune_old_records()
         _rotate_if_needed()
 
+        # session_id is the user's id: accepted for the callers, never written.
         record: Dict[str, Any] = {
             # Metadata
             "timestamp":    int(time.time()),
-            "session_id":   session_id or "unknown",
             "status":       status,
 
             # Dataset fingerprint (structural signature, not raw data)

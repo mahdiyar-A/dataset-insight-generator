@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSettings } from "@/app/contexts/SettingsContext";
 import { DARK_BRIGHTNESS, LIGHT_BRIGHTNESS, LIGHT_ABOVE, type Lang } from "@/app/contexts/SettingsContext";
@@ -18,6 +18,7 @@ const T = {
     animations: "Animations", animationsDesc: "Enable interface transitions and micro-interactions.",
     dateFormat: "Date Format", dateFormatDesc: "How dates are displayed across the platform.",
     dark: "Dark", light: "Light",
+    keptNote: "Your theme and language are kept in this tab until you close it or sign out.",
   },
   fr: {
     title: "Paramètres", subtitle: "Personnalisez votre expérience DIG.", back: "Retour au tableau de bord", saved: "Enregistré",
@@ -30,6 +31,7 @@ const T = {
     animations: "Animations", animationsDesc: "Activer les transitions et micro-interactions.",
     dateFormat: "Format de date", dateFormatDesc: "Comment les dates sont affichées.",
     dark: "Sombre", light: "Clair",
+    keptNote: "Votre thème et votre langue sont conservés dans cet onglet jusqu'à sa fermeture ou votre déconnexion.",
   },
   fa: {
     title: "تنظیمات", subtitle: "تجربه DIG خود را سفارشی کنید.", back: "بازگشت به داشبورد", saved: "ذخیره شد",
@@ -42,6 +44,7 @@ const T = {
     animations: "انیمیشن‌ها", animationsDesc: "انتقال‌ها و تعاملات ریز را فعال کنید.",
     dateFormat: "قالب تاریخ", dateFormatDesc: "نحوه نمایش تاریخ‌ها در پلتفرم.",
     dark: "تاریک", light: "روشن",
+    keptNote: "تم و زبان شما در این زبانه می‌ماند تا آن را ببندید یا از حساب خارج شوید.",
   },
 };
 
@@ -66,13 +69,6 @@ export default function SettingsPage() {
 
   const [savedFlash, setSavedFlash] = useState(false);
 
-  // Load non-lang/brightness settings from sessionStorage on mount
-  useEffect(() => {
-    try {
-      const s = JSON.parse(sessionStorage.getItem("dig_settings") || "{}");
-    } catch {}
-  }, []);
-
   const t = T[lang] || T.en;
   const isLight = brightness > LIGHT_ABOVE;
   const textColor = isLight ? "var(--ink)" : "var(--ink)";
@@ -96,12 +92,6 @@ export default function SettingsPage() {
     ctxSetBrightness(b);   // context persists to sessionStorage + applies CSS vars
   }
 
-  function persist(patch = {}) {
-    const cur = JSON.parse(sessionStorage.getItem("dig_settings") || "{}");
-    sessionStorage.setItem("dig_settings", JSON.stringify({ ...cur, ...patch }));
-    flashSaved();
-  }
-
   const rtl = lang === "fa";
   const cardStyle = {
     background: cardBg,
@@ -112,7 +102,6 @@ export default function SettingsPage() {
     margin: 0, fontSize: "0.76rem", color: textSoft,
     letterSpacing: "0.07em", textTransform: "uppercase" as const, fontWeight: 700,
   };
-  const divider = { height: "1px", background: cardBorder };
 
   return (
     <div style={{ minHeight: "100vh", background: pageBackground, padding: "32px 20px", color: textColor, direction: rtl ? "rtl" : "ltr" }}>
@@ -126,9 +115,13 @@ export default function SettingsPage() {
             </svg>
             {t.back}
           </button>
-          <div style={{ display: "flex", alignItems: "center", gap: "5px", opacity: savedFlash ? 1 : 0, transition: "opacity 0.3s", fontSize: "0.78rem", color: "var(--ok-text)", fontWeight: 600 }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-            {t.saved}
+          <div role="status" aria-live="polite" style={{ display: "flex", alignItems: "center", gap: "5px", minHeight: "1em", fontSize: "0.78rem", color: "var(--ok-text)", fontWeight: 600 }}>
+            {savedFlash && (
+              <>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                {t.saved}
+              </>
+            )}
           </div>
         </div>
 
@@ -195,35 +188,8 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* ── COMING SOON ── */}
-        <div style={{ ...cardStyle, opacity: 0.55 }}>
-          <h2 style={groupHead}>{t.tba}</h2>
-          {[
-            { label: t.emailNotif, desc: t.emailNotifDesc },
-            { label: t.reportReady, desc: t.reportReadyDesc },
-            { label: t.compact, desc: t.compactDesc },
-            { label: t.animations, desc: t.animationsDesc },
-            { label: t.dateFormat, desc: t.dateFormatDesc },
-            { label: t.analytics, desc: t.analyticsDesc },
-          ].map((item, i, arr) => (
-            <div key={item.label}>
-              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <p style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600 }}>{item.label}</p>
-                    <span style={{ fontSize: "0.6rem", fontWeight: 700, color: "var(--warn-text)", background: "color-mix(in srgb, var(--warn) 25%, transparent)", border: "1px solid color-mix(in srgb, var(--warn) 35%, transparent)", borderRadius: "0", padding: "1px 6px" }}>TBA</span>
-                  </div>
-                  <p style={{ margin: "3px 0 0", fontSize: "0.78rem", color: textSoft }}>{item.desc}</p>
-                </div>
-                <Toggle active={false} onToggle={() => {}} disabled />
-              </div>
-              {i < arr.length - 1 && <div style={divider} />}
-            </div>
-          ))}
-        </div>
-
         <p style={{ textAlign: "center", fontSize: "0.72rem", color: textSoft, paddingBottom: "24px" }}>
-          Settings apply for this session only — they reset on refresh.
+          {t.keptNote}
         </p>
       </div>
 
@@ -232,29 +198,6 @@ export default function SettingsPage() {
         input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.15);box-shadow:0 3px 12px color-mix(in srgb, var(--cobalt) 35%, transparent)}
         input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--card);border:2px solid var(--cobalt-accent);box-shadow:0 2px 8px rgba(0,0,0,0.35);cursor:pointer}
       `}</style>
-    </div>
-  );
-}
-
-function Toggle({ active, onToggle, disabled = false }: { active: boolean; onToggle: () => void; disabled?: boolean }) {
-  return (
-    <div onClick={disabled ? undefined : onToggle} style={{
-      width: "42px", height: "24px", borderRadius: "0",
-      border: `1px solid ${active ? "var(--cobalt-accent)" : "var(--line)"}`,
-      background: active ? "color-mix(in srgb, var(--cobalt) 28%, transparent)" : "color-mix(in srgb, var(--card) 50%, transparent)",
-      cursor: disabled ? "not-allowed" : "pointer",
-      display: "flex", alignItems: "center", flexShrink: 0, position: "relative",
-      transition: "background 0.2s,border-color 0.2s",
-      opacity: disabled ? 0.4 : 1,
-    }}>
-      <div style={{
-        width: "17px", height: "17px", borderRadius: "50%",
-        background: active ? "var(--cobalt)" : "var(--paper-alt)",
-        position: "absolute",
-        transform: active ? "translateX(21px)" : "translateX(3px)",
-        transition: "transform 0.2s,background 0.2s",
-        boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
-      }} />
     </div>
   );
 }

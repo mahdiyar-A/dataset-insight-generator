@@ -30,6 +30,9 @@ export default function RegisterPage() {
     const ln = lastName.trim();
     const em = email.trim();
 
+    // A space gets its own answer: "Mary Ann" was refused with a list of
+    // allowed characters that never said the space was the problem.
+    if (/\s/.test(fn)) return setError('A first name can\'t contain a space. Join the parts with a hyphen (Mary-Ann), or put the second part in your last name.');
     if (!isFirstNameOk(fn)) return setError('Enter your first name: letters, apostrophes, hyphens or dots, up to 30.');
     if (!isLastNameOk(ln))  return setError('Enter your last name: letters, spaces, apostrophes, hyphens or dots, up to 30.');
     if (!isValidEmail(em)) return setError('Enter a valid email.');

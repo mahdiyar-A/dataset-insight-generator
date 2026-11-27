@@ -478,16 +478,21 @@ def _domain(facts: Dict[str, Any]) -> DomainResult:
 
 
 def office_details(domain: Optional[DomainResult], stats: Dict[str, Any], was_cleaned: bool,
-                   dropped_columns: List[str]) -> Dict[str, Any]:
+                   dropped_columns: List[str], language: str = "en") -> Dict[str, Any]:
     """What Word and PowerPoint print on the cover and under "Notes on the data", as the PDF does."""
-    key_issues = list((domain.key_issues if domain else None) or [])
-    detected = [i for i in stats.get("detectedIssues") or [] if i not in key_issues]
-    return {"description": str(getattr(domain, "description", "") or "") if domain else "",
+    from ai_engine.report_labels import labels_for, printed_issues
+    # The description is English, from the file-reading model; as on the PDF,
+    # another language gets "Report" on the cover instead.
+    described = str(getattr(domain, "description", "") or "") if domain else ""
+    if (language or "en")[:2].lower() != "en":
+        described = labels_for(language)["report"]
+    return {"description": described,
             "stats": {"rowCount": stats.get("rowCount"), "columnCount": stats.get("columnCount")},
             "was_cleaned": bool(was_cleaned),
             "cleaning": list((domain.cleaning_methods if domain else None) or []),
             "dropped_columns": list(dropped_columns or []),
-            "issues": key_issues + detected}
+            "issues": printed_issues(domain.key_issues if domain else None,
+                                     stats.get("detectedIssues"), language)}
 
 
 def build_files(doc: Dict[str, Any], pictures: Dict[int, bytes], want_word: bool = False,
@@ -530,7 +535,7 @@ def build_files(doc: Dict[str, Any], pictures: Dict[int, bytes], want_word: bool
     )
     office = office_details(domain, {"rowCount": facts.get("rowCount"), "columnCount": facts.get("columnCount"),
                                      "detectedIssues": list(facts.get("detectedIssues") or [])},
-                            bool(facts.get("wasCleaned")), list(facts.get("droppedColumns") or []))
+                            bool(facts.get("wasCleaned")), list(facts.get("droppedColumns") or []), language)
     if want_word:
         from ai_engine.word.word_builder import build_word_doc
         out["word"] = base64.b64encode(build_word_doc(

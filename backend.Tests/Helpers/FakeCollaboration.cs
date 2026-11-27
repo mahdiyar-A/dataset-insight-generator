@@ -130,6 +130,14 @@ public class FakeWorkspaceRepository : IWorkspaceRepository
         return Task.CompletedTask;
     }
 
+    public List<Guid> SharesReleased { get; } = new();
+
+    public Task ReleaseSharesByUserAsync(Guid userId)
+    {
+        SharesReleased.Add(userId);
+        return Task.CompletedTask;
+    }
+
     public SharedWorkspace? Workspace { get; set; }
     public List<WorkspaceFilePermission> Permissions { get; } = new();
     public List<Annotation> Annotations { get; } = new();

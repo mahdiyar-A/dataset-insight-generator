@@ -179,7 +179,8 @@ def build_digest(stats: StatsSummary, domain: DomainResult) -> Dict[str, Any]:
         "rows": stats.rowCount,
         "columns": stats.columnCount,
         "domain": domain.domain,
-        "complete_rows_pct": stats.completeRowsPct,
+        # "complete rows" read as "rows kept" and became "100% of rows retained".
+        "rows_with_no_blank_cell_pct": stats.completeRowsPct,
         "sampled_rows_for_tests": stats.sampledRows,
         "date_column": temporal.get("time_column") if temporal.get("detected") else None,
         "date_range": temporal.get("date_range") if temporal.get("detected") else None,

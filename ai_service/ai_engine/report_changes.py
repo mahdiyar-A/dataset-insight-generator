@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import base64
 import copy
+import re
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -577,7 +578,13 @@ def picture_bytes(change: Dict[str, Any]) -> Optional[bytes]:
 def _about(kind: str, entry: Dict[str, Any]) -> Tuple[List[str], Optional[Dict[str, Any]], str]:
     x = entry.get("item") or {}
     if kind == "trend" and x.get("measure") and x.get("dateColumn"):
-        return [x["measure"]], {"type": "line", "x": x["dateColumn"], "y": x["measure"], "agg": "sum"}, "trend"
+        # "Add a chart: patient_age over time" was offered for a flat line of
+        # summed ages. Only a real trend is offered, drawn the way it was
+        # measured (totals or averages).
+        if x.get("significant") is False or x.get("direction") == "flat":
+            return [], None, ""
+        agg = "mean" if x.get("aggregation") == "mean" else "sum"
+        return [x["measure"]], {"type": "line", "x": x["dateColumn"], "y": x["measure"], "agg": agg}, "trend"
     if kind in ("correlation", "misleading") and x.get("a") and x.get("b"):
         return [x["a"], x["b"]], {"type": "scatter", "x": x["a"], "y": x["b"]}, "relation"
     if kind == "group_difference" and x.get("measure") and x.get("by"):
@@ -604,7 +611,13 @@ def _shown(doc: Dict[str, Any]) -> List[Tuple[Any, Any]]:
 def chart_label(what: str, chart: Dict[str, Any], language: str = "en") -> str:
     """A title for a chart DIG offers to add, in the report's language."""
     pattern = labels_for(language).get(f"chart_{what}") or labels_for("en").get(f"chart_{what}", "{y}")
-    return pattern.format(x=chart.get("x") or "", y=chart.get("y") or chart.get("x") or "")[:MAX_TITLE]
+    x, y = _as_words(chart.get("x")), _as_words(chart.get("y") or chart.get("x"))
+    return pattern.format(x=x, y=y)[:MAX_TITLE]
+
+
+def _as_words(column: Any) -> str:
+    """"patient_age" as "patient age", for a title a person reads."""
+    return re.sub(r"\s+", " ", str(column or "").replace("_", " ")).strip()
 
 
 def next_steps(doc: Dict[str, Any], context: Dict[str, Any], limit: int = 4) -> List[Dict[str, Any]]:

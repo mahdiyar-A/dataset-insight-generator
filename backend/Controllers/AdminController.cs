@@ -29,12 +29,33 @@ public class AdminController : ControllerBase
         _logger   = logger;
     }
 
-    private async Task<bool> IsAdminAsync()
+    private Guid? CallerId()
     {
         var c = User.FindFirstValue("sub") ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!Guid.TryParse(c, out var id)) return false;
+        return Guid.TryParse(c, out var id) ? id : null;
+    }
+
+    private async Task<bool> IsAdminAsync()
+    {
+        if (CallerId() is not { } id) return false;
         var user = await _users.GetByIdAsync(id);
         return user?.Plan == "admin";
+    }
+
+    /// <summary>
+    /// Why admin may not be taken away from this account, or null. Nobody may
+    /// demote or delete themselves here, and the last admin stays: otherwise one
+    /// slip locks everyone out of this page.
+    /// </summary>
+    private async Task<object?> LockoutAsync(Guid targetId, string targetPlan)
+    {
+        if (targetPlan != "admin") return null;
+        if (CallerId() == targetId)
+            return new { error = "SELF", message = "You can't remove admin from your own account. Ask another admin to do it." };
+        var admins = (await _users.GetAllAsync()).Count(u => u.Plan == "admin");
+        return admins <= 1
+            ? new { error = "LAST_ADMIN", message = "This is the only admin account. Make someone else admin first." }
+            : null;
     }
 
     // ── GET /api/admin/models ─────────────────────────────────────────────────
@@ -152,6 +173,9 @@ public class AdminController : ControllerBase
             .ToList();
 
         var proUsers = allUsers.Count(u => u.Plan == "pro");
+        // Only Pro accounts with a Stripe subscription pay. Pro given by hand
+        // (a friend, a test) used to be counted as income.
+        var payingUsers = allUsers.Count(u => u.Plan == "pro" && !string.IsNullOrEmpty(u.StripeSubscriptionId));
         var finished = done.Count + failed.Count;
 
         return Ok(new
@@ -181,9 +205,10 @@ public class AdminController : ControllerBase
                 activeAnalysts = analyses.Select(a => a.UserId).Distinct().Count(),
                 activeThisWeek = allUsers.Count(u => u.LastActive.HasValue
                     && (now - u.LastActive.Value).TotalDays < 7),
-                // Pro count times the sticker price — real MRR net of Stripe
-                // fees and proration lives in the Stripe dashboard.
-                estimatedMrrUsd = Math.Round(proUsers * 9.99m, 2),
+                paying         = payingUsers,
+                // Paying accounts times the sticker price. Real income net of
+                // Stripe fees and proration lives in the Stripe dashboard.
+                estimatedMrrUsd = Math.Round(payingUsers * 9.99m, 2),
             },
 
             perDay,
@@ -236,19 +261,42 @@ public class AdminController : ControllerBase
     // ── PATCH /api/admin/users/{id}/plan ──────────────────────────────────────
     // Manually set a user's plan (for granting admin or comping pro)
     [HttpPatch("users/{id:guid}/plan")]
-    public async Task<IActionResult> SetPlan(Guid id, [FromBody] AdminSetPlanRequest req)
+    public async Task<IActionResult> SetPlan(Guid id, [FromBody] AdminSetPlanRequest req,
+                                             [FromServices] IServiceProvider services)
     {
         if (!await IsAdminAsync()) return Forbid();
 
         if (req.Plan is not ("free" or "pro" or "admin"))
             return BadRequest(new { error = "INVALID_PLAN" });
 
+        var target = await _users.GetByIdAsync(id);
+        if (target == null) return NotFound(new { error = "NOT_FOUND", message = "That account no longer exists." });
+
+        if (req.Plan != "admin" && await LockoutAsync(id, target.Plan) is { } lockout)
+            return Conflict(lockout);
+
+        // Free used to drop the Stripe link and leave the subscription running:
+        // the person kept paying and DIG lost track of them. Moving a paying
+        // customer to Free now cancels the subscription, and only once the admin
+        // has confirmed it. Pro and Admin keep the link as it is.
+        if (req.Plan == "free" && target.StripeSubscriptionId is { Length: > 0 } subscription)
+        {
+            if (req.CancelSubscription != true)
+                return Conflict(new
+                {
+                    error   = "PAYING_CUSTOMER",
+                    message = "This person pays for Pro through Stripe. Moving them to Free cancels their subscription.",
+                });
+            await services.GetRequiredService<IStripeService>().CancelSubscriptionAsync(subscription);
+        }
+
         await _users.SetPlanAsync(id, req.Plan,
             planExpiresAt: req.ExpiresAt,
             stripeSubscriptionId: null);
 
-        _logger.LogInformation("[Admin] Plan changed — user {Id} → {Plan}", id, req.Plan);
-        return Ok(new { message = $"User {id} plan set to {req.Plan}" });
+        _logger.LogWarning("[Admin] {Admin} changed the plan of {Id}: {From} -> {To}",
+            CallerId(), id, target.Plan, req.Plan);
+        return Ok(new { message = $"Plan set to {req.Plan}." });
     }
 
     // ── DELETE /api/admin/users/{id} ──────────────────────────────────────────
@@ -258,26 +306,128 @@ public class AdminController : ControllerBase
     {
         if (!await IsAdminAsync()) return Forbid();
 
+        if (CallerId() == id)
+            return Conflict(new { error = "SELF", message = "Delete your own account from Settings, not from here." });
+        var target = await _users.GetByIdAsync(id);
+        if (target != null && await LockoutAsync(id, target.Plan) is { } lockout)
+            return Conflict(lockout);
+
         await deletion.DeleteAsync(id);
 
-        _logger.LogWarning("[Admin] User {Id} deleted by admin", id);
+        _logger.LogWarning("[Admin] {Admin} deleted user {Id}", CallerId(), id);
         return NoContent();
     }
 
     // ── GET /api/admin/health ─────────────────────────────────────────────────
-    // Checks backend + Supabase connectivity
+    // Each service is tried when the page asks, with the time it took or the
+    // error. It used to answer "ok" whatever the state of the services.
     [HttpGet("health")]
-    public async Task<IActionResult> Health()
+    public async Task<IActionResult> Health(
+        [FromServices] IServiceProvider services, [FromServices] IConfiguration config)
+    {
+        if (!await IsAdminAsync()) return Forbid();
+        var me = CallerId()!.Value;
+
+        var key  = config["Stripe:SecretKey"] ?? "";
+        var mode = key.StartsWith("sk_live_") ? "live" : key.StartsWith("sk_test_") ? "test" : "";
+
+        var checks = new[]
+        {
+            await CheckAsync("Database", async () =>
+            {
+                if (await _users.GetByIdAsync(me) == null) throw new InvalidOperationException("Your own account was not found.");
+                return null;
+            }),
+            await CheckAsync("File storage", async () =>
+            {
+                // A file that isn't there: "not found" proves storage answered.
+                try { await services.GetRequiredService<IStorageService>().GetSignedUrlAsync("health/ping.txt", 60); }
+                catch (Exception e) when (e.Message.Contains("not found", StringComparison.OrdinalIgnoreCase)
+                                          || e.Message.Contains("not_found", StringComparison.OrdinalIgnoreCase)) { }
+                return null;
+            }),
+            await CheckAsync("Payments", async () =>
+            {
+                if (mode == "") throw new InvalidOperationException("No Stripe key on this server.");
+                // A subscription that can't exist: Stripe answering "not found" proves the key works.
+                await services.GetRequiredService<IStripeService>().GetSubscriptionAsync("sub_dig_health_check");
+                return $"{mode} mode";
+            }),
+            await CheckAsync("AI service", async () =>
+            {
+                if (!await services.GetRequiredService<IPythonAiClient>().HealthAsync())
+                    throw new InvalidOperationException("It answered, but not with ok.");
+                return null;
+            }),
+        };
+
+        return Ok(new { backend = "ok", timestamp = DateTime.UtcNow, checks });
+    }
+
+    private static async Task<object> CheckAsync(string name, Func<Task<string?>> run)
+    {
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            var note = await run().WaitAsync(TimeSpan.FromSeconds(8));
+            return new { name, ok = true, ms = watch.ElapsedMilliseconds, note };
+        }
+        catch (Exception e)
+        {
+            var why = e is TimeoutException ? "No answer within 8 seconds." : e.Message;
+            return new { name, ok = false, ms = watch.ElapsedMilliseconds, note = (string?)(why.Length > 160 ? why[..160] : why) };
+        }
+    }
+
+    // ── GET /api/admin/visits ─────────────────────────────────────────────────
+    // Page visits counted without cookies (VisitCounter): daily totals, top
+    // pages and the sites visitors came from.
+    [HttpGet("visits")]
+    public async Task<IActionResult> GetVisits([FromServices] IVisitRepository visits, [FromQuery] int days = 30)
     {
         if (!await IsAdminAsync()) return Forbid();
 
+        days = Math.Clamp(days, 1, 365);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var since = today.AddDays(-(days - 1));
+        List<VisitTotal> rows;
+        try { rows = await visits.GetSinceAsync(since); }
+        catch (Exception ex)
+        {
+            // Most likely migration 006 hasn't been run on this database yet.
+            _logger.LogWarning("[Admin] Visits unavailable ({Type}: {Msg})", ex.GetType().Name, ex.Message);
+            return StatusCode(503, new { error = "VISITS_UNAVAILABLE",
+                message = "Visit counts aren't available yet: the site_visits table may not exist (migration 006)." });
+        }
+
+        var site  = rows.Where(r => r.Path == "*").ToList();
+        var pages = rows.Where(r => r.Path != "*").ToList();
+        static int Views(IEnumerable<VisitTotal> r) => r.Sum(x => x.Views);
+        static int People(IEnumerable<VisitTotal> r) => r.Sum(x => x.Visitors);
+        var lastWeek = site.Where(r => r.Day > today.AddDays(-7)).ToList();
+
         return Ok(new
         {
-            backend   = "ok",
-            timestamp = DateTime.UtcNow,
-            version   = "2.0.0",
+            windowDays = days,
+            today  = new { views = Views(site.Where(r => r.Day == today)), visitors = People(site.Where(r => r.Day == today)) },
+            week   = new { views = Views(lastWeek), visitors = People(lastWeek) },
+            total  = new { views = Views(site), visitors = People(site) },
+            perDay = Enumerable.Range(0, days).Select(i => since.AddDays(i)).Select(d => new
+            {
+                date     = d.ToString("yyyy-MM-dd"),
+                views    = Views(site.Where(r => r.Day == d)),
+                visitors = People(site.Where(r => r.Day == d)),
+            }),
+            // A person is counted once per page per day, so a page's visitors
+            // over the window can count the same person on different days.
+            topPages = pages.GroupBy(r => r.Path)
+                .Select(g => new { path = g.Key, views = Views(g), visitors = People(g) })
+                .OrderByDescending(x => x.views).Take(10),
+            topSources = pages.Where(r => r.Source != "").GroupBy(r => r.Source)
+                .Select(g => new { source = g.Key, views = Views(g) })
+                .OrderByDescending(x => x.views).Take(10),
         });
     }
 }
 
-public record AdminSetPlanRequest(string Plan, DateTime? ExpiresAt = null);
+public record AdminSetPlanRequest(string Plan, DateTime? ExpiresAt = null, bool? CancelSubscription = null);

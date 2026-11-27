@@ -146,7 +146,11 @@ public class AdminAnalyticsTests
         var keeper = Guid.NewGuid();
         _storage.Files[$"users/{keeper}/profile.jpg"] = new byte[] { 4 };
 
-        var result = await Controller("admin").DeleteUser(victim, Deletion());
+        // An ordinary account of its own: the fake otherwise answers every id
+        // with the caller, the only admin, whom the page may not delete.
+        var controller = Controller("admin");
+        _users.Names[victim] = "victim";
+        var result = await controller.DeleteUser(victim, Deletion());
 
         result.Should().BeOfType<NoContentResult>();
         _storage.Files.Keys.Should().NotContain(k => k.StartsWith($"users/{victim}/"),

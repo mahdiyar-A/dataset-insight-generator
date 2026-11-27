@@ -77,7 +77,7 @@ def test_a_busy_first_model_hands_over_at_once(monkeypatch, df):
     domain = groq_client.detect_domain(df, {"groq": "k", "openrouter": "k"})
 
     assert domain.domain == "retail"
-    assert calls == ["openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
+    assert calls == ["openai/gpt-oss-20b", "openai/gpt-oss-120b"]
     assert time.monotonic() - started < 5          # no sleeping out the rate limit
 
 
@@ -92,10 +92,10 @@ def test_the_reply_is_still_checked_against_the_real_columns(monkeypatch, df):
 
 def test_a_reply_that_is_not_a_classification_goes_to_the_next_model(monkeypatch, df):
     replies = {"openai/gpt-oss-20b": ok("This looks like retail data to me."),
-               "qwen/qwen3.8-27b": ok("```json\n" + json.dumps(REPLY) + "\n```")}
+               "openai/gpt-oss-120b": ok("```json\n" + json.dumps(REPLY) + "\n```")}
     calls = install(monkeypatch, lambda model: replies[model])
     assert groq_client.detect_domain(df, {"groq": "k"}).domain == "retail"
-    assert calls == ["openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
+    assert calls == ["openai/gpt-oss-20b", "openai/gpt-oss-120b"]
 
 
 def test_every_model_failing_gives_the_general_fallback(monkeypatch, df):

@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/privacy' },
 };
 
-const UPDATED = 'LAST UPDATED 26 NOVEMBER 2026';
+const UPDATED = 'LAST UPDATED 27 NOVEMBER 2026';
 
 const INTRO = [
   'DIG turns a data file into an analysis report and answers questions about it. To do that it has to read your file, so this page explains exactly what happens to it: where it is stored, what is computed locally, what is sent to other companies, and how to get rid of it.',
@@ -59,7 +59,8 @@ const SECTIONS = [
   {
     heading: 'What we do not collect',
     body: [
-      'There is no advertising network, no analytics or tracking script, and no third-party cookie anywhere on this site. We do not build a profile of you, we do not track you across other sites, and we do not sell or rent anything to anyone.',
+      'There is no advertising network, no third-party analytics or tracking script, and no third-party cookie anywhere on this site. We do not build a profile of you, we do not track you across other sites, and we do not sell or rent anything to anyone.',
+      'We count page visits on our own server, without cookies. To count unique visitors, we combine your IP address and browser type with a random value that changes every day and is then deleted, and keep only the resulting code for that day. We never store your IP address, and we can\'t follow you from one day to the next or across other sites. Only daily totals are kept: how many people saw each page, and which website, if any, sent them. If your browser is set to Do Not Track or Global Privacy Control, your visits are not counted at all.',
       'Your browser stores a sign-in token so you stay logged in, and your language and theme choice for the duration of the tab. Both are strictly necessary for the site to function, which is why you are not asked to consent to a cookie banner — there is nothing optional to consent to.',
     ],
   },
