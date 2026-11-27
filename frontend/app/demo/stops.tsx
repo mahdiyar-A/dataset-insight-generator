@@ -5,6 +5,7 @@ import type { CSSProperties, DragEvent, ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
+import { CheckIcon, EnlargeIcon, FlipIcon, LockIcon, PencilIcon, PlusIcon, UndoIcon } from '@/components/Icons';
 import sample from './sample.json';
 import {
   CHECK, COLUMNS, EVIDENCE, FILE, FILES, PERSONAS, PLAN_FEATURES, PLANS,
@@ -181,7 +182,7 @@ export function UploadStop({ active }: { active: boolean }) {
       ) : (
         <div className="dg-stage-in">
           <div className="dg-facts">
-            <span className="dg-fact">✓ {sample.file.name}</span>
+            <span className="dg-fact"><CheckIcon /> {sample.file.name}</span>
             <span className="dg-fact">{fmt(FILE.rows)} rows</span>
             <span className="dg-fact">{FILE.columns} columns</span>
             <span className="dg-fact">{FILE.firstDate} to {FILE.lastDate}</span>
@@ -299,12 +300,12 @@ export function CheckStop() {
                   <span className="dg-big">{card.big}</span>
                   <strong>{card.label}</strong>
                   <span className="dg-faint">{card.sub}</span>
-                  <small>Flip: what DIG does ↻</small>
+                  <small>Flip: what DIG does <FlipIcon size={12} /></small>
                 </span>
                 <span className="dg-face back" aria-hidden={!on}>
                   <strong>What DIG does</strong>
                   <span>{card.back}</span>
-                  <small>Flip back ↻</small>
+                  <small>Flip back <FlipIcon size={12} /></small>
                 </span>
               </span>
             </button>
@@ -366,9 +367,9 @@ export function CleanStop() {
           <>
             <p className="dg-q">Cleaned. Here’s what changed:</p>
             <div className="dg-stats">
-              <div className="dg-stat"><span>Rows</span><s>{fmt(FILE.rows)}</s><strong style={{ '--d': '0s' } as CSSProperties}>{fmt(FILE.cleanRows)}</strong></div>
-              <div className="dg-stat"><span>Blank cells</span><s>{BLANKS}</s><strong style={{ '--d': '.12s' } as CSSProperties}>0</strong></div>
-              <div className="dg-stat"><span>Below zero</span><s>{CHECK.belowZero}</s><strong style={{ '--d': '.24s' } as CSSProperties}>0</strong></div>
+              <div className="dg-stat"><span>Rows</span><s>{fmt(FILE.rows)}</s><strong>{fmt(FILE.cleanRows)}</strong></div>
+              <div className="dg-stat"><span>Blank cells</span><s>{BLANKS}</s><strong>0</strong></div>
+              <div className="dg-stat"><span>Below zero</span><s>{CHECK.belowZero}</s><strong>0</strong></div>
             </div>
             <a className="dg-btn" href="/demo/cleaned_coffee_sales.csv" download>Download the cleaned file (CSV)</a>
           </>
@@ -383,7 +384,7 @@ const AREAS = [
   { stop: 4, emoji: '🔎', title: 'What is it?', teaser: 'DIG asks what the data is. Then see how Pro lets you steer the report.' },
   { stop: 5, emoji: '📄', title: 'The report', teaser: '5 findings and 5 charts. Click any number to see where it comes from, then edit it.' },
   { stop: 6, emoji: '💬', title: 'Ask DIG', teaser: 'Ask about the report. DIG answers from the file and says no to the rest.' },
-  { stop: 7, emoji: '👥', title: 'Work together', teaser: 'One report, a whole team on it: who is here, their roles, live edits and comments.' },
+  { stop: 7, emoji: '👥', title: 'Work together', teaser: 'A simulated team preview: who is here, their roles, their edits and comments.' },
   { stop: 8, emoji: '⚖️', title: 'Free or Pro', teaser: 'Flip between the plans and watch what unlocks.' },
   { stop: 9, emoji: '📦', title: 'Take it home', teaser: 'The report as PDF, Word or PowerPoint, and the cleaned data.' },
 ];
@@ -424,7 +425,7 @@ export function ExploreStop({ visited }: { visited: ReadonlySet<number> }) {
             <span className="dg-area-emoji" aria-hidden="true">{a.emoji}</span>
             <strong>{a.title}</strong>
             <span>{a.teaser}</span>
-            <small>{visited.has(a.stop) ? 'Visited ✓' : 'Go →'}</small>
+            <small>{visited.has(a.stop) ? <>Visited <CheckIcon size={12} /></> : 'Go →'}</small>
           </button>
         ))}
       </div>
@@ -552,7 +553,8 @@ export function WhatStop() {
 const INSIGHTS = sample.report.insights;
 const EVIDENCE_RE = new RegExp('(' + EVIDENCE.map(e => e.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')');
 
-export function ReportStop({ active }: { active: boolean }) {
+/** `near` loads the charts ahead of time, so none is blank when the report opens. */
+export function ReportStop({ active, near }: { active: boolean; near: boolean }) {
   const tour = useTour();
   const activeRef = useActiveRef(active);
   const later = useTimers();
@@ -647,8 +649,8 @@ export function ReportStop({ active }: { active: boolean }) {
 
       <div className="dg-toolbar">
         <span className="dg-version">Version {version}</span>
-        <span className="dg-saved">✓ Saved{draft.by === 'Sam' ? ' by Sam' : ''}</span>
-        <button type="button" className="dg-btn ghost small" disabled={version === 1} onClick={tour.undo}>↶ Undo</button>
+        <span className="dg-saved"><CheckIcon size={12} /> Saved{draft.by === 'Sam' ? ' by Sam' : ''}</span>
+        <button type="button" className="dg-btn ghost small" disabled={version === 1} onClick={tour.undo}><UndoIcon /> Undo</button>
         <span className="dg-team">
           {tour.plan === 'pro' ? (
             <>
@@ -695,7 +697,7 @@ export function ReportStop({ active }: { active: boolean }) {
           )}
           {!editing && (
             <button type="button" className="dg-btn ghost small" onClick={() => { setTitle(draft.title); setEditing(true); }}>
-              ✎ Rename
+              <PencilIcon /> Rename
             </button>
           )}
         </div>
@@ -750,8 +752,8 @@ export function ReportStop({ active }: { active: boolean }) {
               </div>
               <div>
                 <button type="button" className="dg-chart" onClick={(e) => { zoomFrom.current = e.currentTarget; setZoom(idx); }} aria-label={`Enlarge the chart: ${ins.chart.label}`}>
-                  <Image src={ins.chart.src} alt={ins.chart.label} width={1184} height={659} sizes="(max-width: 860px) 100vw, 420px" />
-                  <span className="dg-zoomtag">⤢ Enlarge</span>
+                  <Image src={ins.chart.src} alt={ins.chart.label} width={1184} height={659} sizes="(max-width: 860px) 100vw, 420px" loading={near ? 'eager' : 'lazy'} />
+                  <span className="dg-zoomtag"><EnlargeIcon size={12} /> Enlarge</span>
                 </button>
                 <p className="dg-caption">{ins.chart.desc}</p>
               </div>
@@ -764,7 +766,7 @@ export function ReportStop({ active }: { active: boolean }) {
             <span>Hidden:</span>
             {draft.hidden.map(idx => (
               <button key={idx} type="button" className="dg-btn ghost small" onClick={() => show(idx)} aria-label={`Show again: ${INSIGHTS[idx].title}`}>
-                ＋ {INSIGHTS[idx].title}
+                <PlusIcon size={12} /> {INSIGHTS[idx].title}
               </button>
             ))}
           </div>
@@ -865,8 +867,8 @@ export function AskStop({ active }: { active: boolean }) {
                     <span className={'dg-src ' + m.source}>{SOURCE[m.source]}</span>
                     {m.source !== 'refused' && i !== undefined && (
                       notes.includes(i)
-                        ? <span className="dg-added">✓ In the report</span>
-                        : <button type="button" className="dg-btn ghost small" onClick={() => addToReport(i)}>＋ Add to report</button>
+                        ? <span className="dg-added"><CheckIcon size={12} /> In the report</span>
+                        : <button type="button" className="dg-btn ghost small" onClick={() => addToReport(i)}><PlusIcon size={12} /> Add to report</button>
                     )}
                   </span>
                 )}
@@ -944,7 +946,7 @@ export function PlansStop() {
             const has = !f.pro || pro;
             return (
               <li key={f.name} className={has ? 'has' : 'no'}>
-                <span className="dg-mark" aria-hidden="true">{has ? '✓' : '🔒'}</span>
+                <span className="dg-mark" aria-hidden="true">{has ? <CheckIcon size={16} /> : <LockIcon size={16} />}</span>
                 <span>
                   {f.name}
                   {f.note && <small> · {f.note}</small>}
@@ -996,7 +998,7 @@ export function FilesStop() {
             <strong>{f.name} ({f.ext.toUpperCase()})</strong>
             <small>{f.size}</small>
             <span className={'dg-plan' + (f.pro && !pro ? ' locked' : '')}>
-              {f.pro ? (pro ? 'Included on Pro' : '🔒 Pro · sample to try') : 'Free and Pro'}
+              {f.pro ? (pro ? 'Included on Pro' : <><LockIcon size={11} /> Pro · sample to try</>) : 'Free and Pro'}
             </span>
           </a>
         ))}

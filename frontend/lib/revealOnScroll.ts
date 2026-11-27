@@ -18,10 +18,11 @@
 
 /**
  * How far down the viewport an element's top edge must reach before it counts
- * as arrived. Below 1 so an element animates while entering rather than only
- * once its top touches the very bottom edge.
+ * as arrived. 1 is the bottom edge, so nothing inside the screen is ever left
+ * waiting: at 0.92 the lowest strip of the page stayed blank until the reader
+ * scrolled it further up.
  */
-export const REVEAL_FRACTION = 0.92;
+export const REVEAL_FRACTION = 1;
 
 export interface RevealRect {
   top: number;

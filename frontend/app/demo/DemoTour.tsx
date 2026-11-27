@@ -5,6 +5,7 @@ import type { CSSProperties } from 'react';
 import Link from 'next/link';
 
 import { DARK_BRIGHTNESS, LIGHT_ABOVE, LIGHT_BRIGHTNESS, useSettings } from '@/app/contexts/SettingsContext';
+import { LockIcon, MoonIcon, SunIcon } from '@/components/Icons';
 import DigFigure from './DigFigure';
 import type { DigMood } from './DigFigure';
 import sample from './sample.json';
@@ -28,6 +29,8 @@ import type { Draft, Line, Plan, Tour } from './tour';
  */
 
 const SLEEP_AFTER = 45_000;
+/** How long the “Done!” note stays: long enough to read, then out of the way. */
+const POP_FOR = 3600;
 const LAST = STOPS.length - 1;
 const FIRST: Draft = {
   title: sample.report.title,
@@ -116,7 +119,7 @@ export default function DemoTour() {
     popKey.current += 1;
     setPop({ text, key: popKey.current });
     setHop(true);
-    after('pop', () => setPop(null), 4800);
+    after('pop', () => setPop(null), POP_FOR);
     after('hop', () => setHop(false), 1300);
   }, [after]);
 
@@ -191,7 +194,7 @@ export default function DemoTour() {
     const back = list.slice(0, -1);
     draftsRef.current = back;
     setDrafts(back);
-    say({ mood: 'idle', say: `Back to version ${back.length}. ↶` });
+    say({ mood: 'idle', say: `Back to version ${back.length}.` });
   }, [say]);
 
   const register = useCallback((i: number, arrive: () => Line) => {
@@ -326,7 +329,7 @@ export default function DemoTour() {
       case 'clean': return <CleanStop />;
       case 'explore': return <ExploreStop visited={visited} />;
       case 'what': return <WhatStop />;
-      case 'report': return <ReportStop active={active} />;
+      case 'report': return <ReportStop active={active} near={unlocked || stop >= BASICS - 1} />;
       case 'ask': return <AskStop active={active} />;
       case 'team': return <TeamStop active={active} />;
       case 'plans': return <PlansStop />;
@@ -354,7 +357,7 @@ export default function DemoTour() {
                 className="dg-btn ghost small dg-long"
                 onClick={() => setBrightness(light ? DARK_BRIGHTNESS : LIGHT_BRIGHTNESS)}
               >
-                {light ? '☾ Dark' : '☀ Light'}
+                {light ? <><MoonIcon /> Dark</> : <><SunIcon /> Light</>}
               </button>
               <Link href="/register" className="dg-btn lime small">
                 <span className="dg-long">Create a free account</span>
@@ -366,7 +369,7 @@ export default function DemoTour() {
           <nav className="dg-rail" aria-label="Demo steps">
             <div className="dg-chapters" style={{ gridTemplateColumns: `${BASICS}fr ${n - BASICS}fr` }} aria-hidden="true">
               <span className={unlocked ? 'done' : 'now'}>THE BASICS</span>
-              <span className={unlocked ? 'now' : ''}>EXPLORE {unlocked ? '' : '🔒'}</span>
+              <span className={unlocked ? 'now' : ''}>EXPLORE {!unlocked && <LockIcon size={10} />}</span>
             </div>
             <div className="dg-track" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
               <span className="dg-line" style={{ left: `calc(100% / ${2 * n})`, right: `calc(100% / ${2 * n})` }} />
@@ -399,6 +402,16 @@ export default function DemoTour() {
             </div>
           </nav>
         </header>
+
+        <div className="dg-pop-zone" role="status" aria-live="polite">
+          {pop && (
+            <div key={pop.key} className="dg-pop">
+              <span className="dg-pop-bubble"><strong>Done!</strong> {pop.text}</span>
+              <span className="dg-pop-dig" aria-hidden="true"><DigFigure mood="cheer" size={76} /></span>
+              <button type="button" className="dg-pop-x" aria-label="Close" onClick={() => setPop(null)}>×</button>
+            </div>
+          )}
+        </div>
 
         <section className="dg-intro">
           <div className="dg-intro-in">
@@ -470,16 +483,6 @@ export default function DemoTour() {
               </section>
             ))}
           </main>
-        </div>
-
-        <div className="dg-pop-zone" role="status" aria-live="polite">
-          {pop && (
-            <div key={pop.key} className="dg-pop">
-              <span className="dg-pop-bubble"><strong>Done!</strong> {pop.text}</span>
-              <span className="dg-pop-dig" aria-hidden="true"><DigFigure mood="cheer" size={96} /></span>
-              <button type="button" className="dg-pop-x" aria-label="Close" onClick={() => setPop(null)}>×</button>
-            </div>
-          )}
         </div>
 
         {confetti > 0 && (

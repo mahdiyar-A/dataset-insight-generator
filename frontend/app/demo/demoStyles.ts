@@ -174,7 +174,7 @@ export const DEMO_CSS = `
 .dg-stat { border: 2px solid var(--rule); padding: 14px; background: var(--paper-alt); }
 .dg-stat span { display: block; font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--ink-faint); text-transform: uppercase; }
 .dg-stat s { display: inline-block; margin-top: 6px; color: var(--ink-faint); font-size: 18px; text-decoration-thickness: 2px; text-decoration-color: var(--danger); }
-.dg-stat strong { display: block; font-family: ${DISPLAY}; font-size: 36px; font-weight: 800; letter-spacing: -0.04em; animation: dgPopIn .5s cubic-bezier(.34,1.56,.64,1) both; animation-delay: var(--d); }
+.dg-stat strong { display: block; font-family: ${DISPLAY}; font-size: 36px; font-weight: 800; letter-spacing: -0.04em; animation: dgPopIn .5s cubic-bezier(.34,1.56,.64,1) both; }
 
 /* ── 4 What is it ────────────────────────────────────────────────────── */
 .dg-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -210,10 +210,11 @@ export const DEMO_CSS = `
 .dg-insight h3 { margin: 4px 0 8px; font-size: 19px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; }
 .dg-insight p { margin: 0; font-size: 14px; line-height: 1.65; color: var(--ink-soft); }
 .dg-rank { font-family: ${DISPLAY}; font-size: 36px; font-weight: 800; color: var(--cobalt-accent); line-height: 1; letter-spacing: -0.05em; }
-.dg-chart { display: block; width: 100%; padding: 0; border: 2px solid var(--rule); background: #0f172a; cursor: zoom-in; position: relative; }
+.dg-chart { display: block; width: 100%; padding: 0; border: 2px solid var(--rule); background: #ffffff; cursor: zoom-in; font: inherit; }
 .dg-chart img { display: block; width: 100%; height: auto; }
-.dg-zoomtag { position: absolute; right: 8px; bottom: 8px; background: var(--lime); color: #12121a; font-size: 11px; font-weight: 800; padding: 4px 8px; border: 1.5px solid #12121a; opacity: .9; transition: transform .15s; }
-.dg-chart:hover .dg-zoomtag { transform: scale(1.06); }
+/* Under the chart, never on it: a chart's labels and tallest bar reach its edges. */
+.dg-zoomtag { display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding: 5px 10px; border-top: 2px solid var(--rule); background: var(--paper-alt); color: var(--ink-soft); font-size: 11.5px; font-weight: 800; transition: background-color .15s, color .15s; }
+.dg-chart:hover .dg-zoomtag, .dg-chart:focus-visible .dg-zoomtag { background: var(--lime); color: #12121a; }
 .dg-caption { margin: 8px 0 0; font-size: 12.5px; color: var(--ink-faint); line-height: 1.45; }
 .dg-ctrls { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
 .dg-hidden { border-top: 2px solid var(--rule); padding-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: var(--ink-faint); }
@@ -408,15 +409,17 @@ export const DEMO_CSS = `
 .dg-side-cta { font-size: 13px; font-weight: 700; color: var(--cobalt-accent); text-decoration: none; border-bottom: 2px solid currentColor; animation: dgEnter .4s ease backwards; }
 .dg-digbtn.spin svg { animation: dgSpin .9s cubic-bezier(.34,1.56,.64,1); }
 
-/* ── DIG pops in at the corner to say what just happened ─────────────── */
-.dg-pop-zone { position: fixed; right: 18px; bottom: 0; z-index: 70; pointer-events: none; }
-.dg-pop { position: relative; pointer-events: auto; display: flex; align-items: flex-end; max-width: min(340px, calc(100vw - 24px)); animation: dgPopUp .55s cubic-bezier(.34,1.56,.64,1) both; }
-.dg-pop-bubble { position: relative; background: var(--card); border: 2px solid var(--rule); box-shadow: 4px 4px 0 var(--rule); padding: 12px 14px; font-size: 14px; line-height: 1.45; margin-bottom: 34px; }
-.dg-pop-bubble strong { display: block; font-family: ${DISPLAY}; font-size: 16px; color: var(--ok-text); }
-.dg-pop-bubble::after { content: ''; position: absolute; right: -9px; bottom: 14px; width: 14px; height: 14px; background: var(--card); border-top: 2px solid var(--rule); border-right: 2px solid var(--rule); transform: rotate(45deg); }
-.dg-pop-dig { width: 72px; height: 78px; overflow: hidden; flex-shrink: 0; margin-left: 6px; }
-.dg-pop-dig svg { width: 65px; height: 96px; display: block; }
-.dg-pop-x { position: absolute; top: -12px; left: -12px; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--rule); background: var(--card); color: var(--ink); cursor: pointer; font-size: 16px; line-height: 1; padding: 0; }
+/* ── DIG pops in to say what just happened ─────────────────────────────
+   Under the header, at the right: over a step's heading, where there is
+   nothing to press. A press goes through it anyway; only its × catches one.
+   It has no height of its own, so the page does not move when it comes. */
+.dg-pop-zone { position: sticky; top: 170px; z-index: 60; height: 0; max-width: 1264px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 32px); display: flex; justify-content: flex-end; align-items: flex-start; pointer-events: none; }
+.dg-pop { position: relative; display: flex; width: 320px; margin-top: 12px; animation: dgNote .35s cubic-bezier(.2,.8,.2,1) both; }
+.dg-pop-bubble { flex: 1; background: var(--card); border: 2px solid var(--rule); box-shadow: 4px 4px 0 var(--rule); padding: 10px 74px 11px 14px; min-height: 72px; font-size: 13px; line-height: 1.4; }
+.dg-pop-bubble strong { display: block; font-family: ${DISPLAY}; font-size: 15px; color: var(--ok-text); }
+.dg-pop-dig { position: absolute; right: 12px; bottom: 2px; width: 54px; height: 64px; overflow: hidden; }
+.dg-pop-dig svg { width: 51px; height: 76px; display: block; }
+.dg-pop-x { position: absolute; top: -12px; left: -12px; pointer-events: auto; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--rule); background: var(--card); color: var(--ink); cursor: pointer; font-size: 16px; line-height: 1; padding: 0; }
 
 /* ── The welcome ─────────────────────────────────────────────────────── */
 .dg-welcome { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; background: color-mix(in srgb, var(--paper) 35%, rgba(10, 12, 24, .78)); backdrop-filter: blur(3px); animation: dgFade .3s ease; }
@@ -490,7 +493,7 @@ export const DEMO_CSS = `
 .dg-switch { position: relative; display: inline-grid; grid-template-columns: 1fr 1fr; border: 2px solid var(--rule); background: var(--card); margin-bottom: 18px; }
 .dg-switch button { position: relative; z-index: 1; min-width: 110px; min-height: 48px; border: none; background: transparent; font: inherit; font-family: ${DISPLAY}; font-size: 17px; font-weight: 800; color: var(--ink); cursor: pointer; transition: color .3s; }
 .dg-switch button[aria-pressed="true"] { color: #12121a; }
-.dg-switch-knob { position: absolute; top: 0; bottom: 0; left: 0; width: 50%; background: var(--lime); transition: transform .35s cubic-bezier(.34,1.56,.64,1); }
+.dg-switch-knob { position: absolute; top: 0; bottom: 0; left: 0; width: 50%; background: var(--lime); transition: transform .28s cubic-bezier(.2,.8,.2,1); }
 .dg-plancard { border: 2px solid var(--rule); background: var(--card); box-shadow: 6px 6px 0 var(--rule); padding: clamp(18px, 2.6vw, 28px); transition: box-shadow .3s; }
 .dg-plancard.pro { box-shadow: 6px 6px 0 var(--cobalt-accent); }
 .dg-price { display: flex; align-items: baseline; gap: 8px; margin-bottom: 18px; }
@@ -501,12 +504,13 @@ export const DEMO_CSS = `
 .dg-pmeter > span:first-child { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); }
 .dg-pmeter strong { font-family: ${DISPLAY}; font-size: 22px; font-weight: 800; }
 .dg-pmeter-track { height: 8px; border: 1.5px solid var(--rule); background: var(--card); margin-top: 4px; }
-.dg-pmeter-track span { display: block; height: 100%; background: var(--cobalt-accent); transition: width .6s cubic-bezier(.34,1.56,.64,1); }
+.dg-pmeter-track span { display: block; height: 100%; background: var(--cobalt-accent); transition: width .5s cubic-bezier(.2,.8,.2,1); }
 .dg-features { list-style: none; margin: 0 0 20px; padding: 0; display: grid; gap: 8px; }
 .dg-features li { display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; transition: opacity .3s; }
 .dg-features li.no { opacity: .55; }
 .dg-features li small { color: var(--ink-faint); }
-.dg-mark { width: 24px; flex-shrink: 0; text-align: center; font-weight: 800; color: var(--ok-text); }
+.dg-mark { width: 24px; flex-shrink: 0; text-align: center; color: var(--ok-text); }
+.dg-features li.no .dg-mark { color: var(--ink-faint); }
 .dg-features li.has .dg-mark { animation: dgPopIn .4s cubic-bezier(.34,1.56,.64,1); }
 
 /* ── Files extras ────────────────────────────────────────────────────── */
@@ -519,7 +523,7 @@ export const DEMO_CSS = `
 @keyframes dgRing { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--lime) 90%, transparent); } 100% { box-shadow: 0 0 0 14px transparent; } }
 @keyframes dgNudge { 0%, 100% { transform: none; } 50% { transform: translateX(5px); } }
 @keyframes dgSpin { to { transform: rotate(360deg); } }
-@keyframes dgPopUp { from { transform: translateY(115%); } to { transform: none; } }
+@keyframes dgNote { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
 @keyframes dgWalkIn { 0% { transform: translateX(-240px); opacity: 0; } 25% { opacity: 1; } 100% { transform: none; } }
 @keyframes dgWiggle { 0%, 100% { transform: none; } 30% { transform: rotate(-12deg); } 60% { transform: rotate(10deg); } }
 @keyframes dgSam { 0% { transform: translate(0, 0); opacity: 0; } 12% { opacity: 1; } 70% { transform: translate(-220px, 760px); } 85% { transform: translate(-232px, 748px); } 100% { transform: translate(-226px, 754px); } }
@@ -532,10 +536,10 @@ export const DEMO_CSS = `
   .dg-work { padding-bottom: 240px; }
   /* On a phone DIG is already in the bar at the bottom, so the pop-in drops
      from the top as a plain note. */
-  .dg-pop-zone { top: 12px; bottom: auto; left: 12px; right: 12px; }
-  .dg-pop { max-width: none; animation-name: dgDrop; }
-  .dg-pop-bubble { flex: 1; margin-bottom: 0; }
-  .dg-pop-bubble::after, .dg-pop-dig { display: none; }
+  .dg-pop-zone { position: fixed; top: 0; left: 0; right: 0; padding: 0 12px; }
+  .dg-pop { width: auto; flex: 1; animation-name: dgDrop; }
+  .dg-pop-bubble { min-height: 0; padding: 12px 14px; font-size: 14px; }
+  .dg-pop-dig { display: none; }
   .dg-meters { grid-template-columns: minmax(0, 1fr); }
   .dg-team { margin-inline-start: 0; }
   .dg-welcome-card { grid-template-columns: minmax(0, 1fr); text-align: center; }
@@ -629,6 +633,7 @@ export const DEMO_CSS = `
 @media (min-width: 861px) and (max-height: 860px) {
   .dg-top { position: relative; }
   .dg-guide { top: 16px; }
+  .dg-pop-zone { top: 4px; }
 }
 @media (min-width: 861px) and (min-height: 861px) {
   .dg-work { scroll-margin-top: 180px; }

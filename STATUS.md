@@ -1,7 +1,7 @@
 # DIG — Project Status
 
 **Branch:** `main`
-**Last updated:** 2026-11-22
+**Last updated:** 2026-11-24
 
 ---
 
@@ -11,8 +11,49 @@
 |---|---|---|
 | C# — unit, integration, edge cases, the real Supabase client against a stand-in server, the chat suggesting changes, teams editing the report, the look of the files | 533 | `dotnet test backend.Tests/backend.Tests.csproj` |
 | Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is, insights' evidence, the editable report, changes the chat suggests and charts DIG draws, combining teammates' saves, reading who the report is for, plain words and the five looks | 1154 | `cd ai_service && pytest tests/` |
-| Frontend — Vitest, including rendered components, the change card, the live report channel, the two themes, the interactive demo and its team stop, and the look picker | 370 | `cd frontend && npm test` |
+| Frontend — Vitest, including rendered components, the change card, the live report channel, the two themes, the interactive demo and its team stop, the look picker, and the landing page's proof, files and pricing | 405 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
+
+---
+
+## The landing page shows the product and its prices, 2026-11-24
+
+An outside review of the site, each point checked against the live site and
+the code before anything changed. Frontend only.
+
+- **See it work** (`app/home/ProofSection.tsx`): five real rows of the sample
+  file with their problems marked, beside the finding DIG makes of them, then
+  three questions to press. One says where a figure comes from, one is looked
+  up in the file, one is declined because it is not about the file. All saved
+  text: no server, no AI.
+- **The files** (`FilesSection.tsx`): pages of the sample's own PDF, Word and
+  PowerPoint (`public/demo/preview_*.png` are renders of those files), each
+  linked to the file it is a picture of.
+- **Pricing** (`PricingSection.tsx`), with a link in the menu. The menu button
+  takes over below 920px, where the fifth link no longer fits in French.
+- **No figure is typed into the copy** (`homeCopy.ts`): each comes from
+  `demoFacts.ts`, which the tests hold to the sample files, the Plans page and
+  the report harness, in English, French and Persian.
+- **"8 languages" was the report's, and Pro only**; the site is in three. The
+  ticker now says so. The fifth feature card said one session is kept; a Free
+  account keeps five analyses.
+- **Scrolling no longer blanks words**: headings, the line under each, and the
+  buttons under the title move but are never invisible; the rest fades in half
+  a second instead of one, and starts at the bottom edge of the screen.
+- **Symbols are drawn** (`components/Icons.tsx`), in the demo and on the hero
+  button. ↻ ↶ ✎ ⤢ ＋ ✓ are in neither of the site's fonts, so each depended on
+  what the visitor's computer had.
+- **The demo**: Enlarge sits under a chart instead of on it; the charts load
+  before the report is opened; the "Done!" note is smaller, shorter, under the
+  header, and lets a press through; the three cleaning counts land together;
+  the plan switch no longer overshoots its box; Work together says it is a
+  simulated preview, and what is live in the app.
+- `tests/homePage.test.tsx`, and more in `tests/demoTour.test.tsx`.
+
+Left as it is, on purpose: a declined question still counts toward the day's
+questions, in the demo as on the server (`ChatController.Ask` gives back only
+failures). Giving them back would let anyone use up the shared AI allowance
+for free.
 
 ---
 
