@@ -11,8 +11,47 @@
 |---|---|---|
 | C# — unit, integration, edge cases, the real Supabase client against a stand-in server, the chat suggesting changes, teams editing the report, the look of the files | 533 | `dotnet test backend.Tests/backend.Tests.csproj` |
 | Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is, insights' evidence, the editable report, changes the chat suggests and charts DIG draws, combining teammates' saves, reading who the report is for, plain words and the five looks | 1154 | `cd ai_service && pytest tests/` |
-| Frontend — Vitest, including rendered components, the change card, the live report channel, the two themes, the interactive demo and its team stop, the look picker, the landing page, the Plans page signed out, the pages for searches, the one contact address, and the homepage you can press | 489 | `cd frontend && npm test` |
+| Frontend — Vitest, including rendered components, the change card, the live report channel, the two themes, the interactive demo and its team stop, the look picker, the landing page, the Plans page signed out, the pages for searches, the one contact address, the homepage you can press, the English search pages, Persian letters, page tags and red | 497 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
+
+---
+
+## Page tags for search engines, and DIG's red, 2026-11-27
+
+- **Pricing can be found.** The root layout's canonical is "/", and the plans,
+  sign-up, login and reset pages (client components with no metadata) took
+  it, which told Google they were copies of the homepage. Each folder now has
+  a small server `layout.tsx`: /plans and /register carry their own
+  canonical, title and description; /login and /forgot-password ask not to
+  be indexed and have left the sitemap. `tests/pageTags.test.ts` checks that
+  every sitemap page names its own canonical.
+- **A third colour: red `#e4572e`**, the PowerPoint card's red, chosen by the
+  owner. One value in both looks (`--red`, `ATLAS.*.red`), like cobalt and
+  lime. It reads 3.2:1 on light paper and 4.7:1 on dark, so it is for large
+  type and shapes, never small text on light or anything on cobalt. Now on
+  the feature numbers (the open card keeps lime on cobalt), the founder
+  card's second shadow layer, the PowerPoint card, the Free plan's hard
+  shadow (Pro's is lime), the "Delete it anytime" icon square, and the first
+  of the window's three dots (red, lime, white; a dot that is on turns
+  cobalt).
+
+---
+
+## English search pages and Persian letters, 2026-11-27
+
+- **The pages for searches stay English, left to right.** They are written
+  only in English, but they used to follow the language a visitor picked, so
+  after Persian they turned right to left. Their paths now live in
+  `app/home/useCasePaths.ts`, and `SettingsContext` keeps those paths left to
+  right (it now watches the page as well as the language).
+- **Persian letters have their own font.** The site's faces have no Persian
+  letters, so a device without a Persian font of its own showed empty boxes.
+  `app/fonts/Vazirmatn-NL.woff2` (Vazirmatn's non-Latin file, 48 KB, SIL OFL,
+  licence beside it) is loaded in `layout.tsx` as `--font-fa`, limited by
+  `unicode-range` to Arabic-script letters and with no fallback face, and it
+  comes first in every font list. A browser downloads it only on a page that
+  shows Persian; Latin letters keep the site's own faces.
+  `tests/persianFont.test.ts` keeps it that way.
 
 ---
 

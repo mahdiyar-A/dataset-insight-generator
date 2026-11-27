@@ -1,5 +1,6 @@
 import { PLANS } from '../demo/demoFacts';
 import { MAX_UPLOAD_BYTES } from '@/lib/uploadFormats';
+import { USE_CASE_PATHS } from './useCasePaths';
 
 /**
  * One page per file problem people search for, each answering that search in
@@ -53,7 +54,7 @@ const steps = (upload: string) => [
 ];
 
 const spss: UseCase = {
-  path: '/analyze-spss-file-without-spss',
+  path: USE_CASE_PATHS.spss,
   short: 'SPSS files, without SPSS',
   eyebrow: 'SPSS FILES',
   title: 'Analyze an SPSS (.sav) File Without SPSS | DIG',
@@ -93,7 +94,7 @@ const spss: UseCase = {
 };
 
 const parquet: UseCase = {
-  path: '/parquet-to-pdf-powerpoint',
+  path: USE_CASE_PATHS.parquet,
   short: 'Parquet to PDF or PowerPoint',
   eyebrow: 'PARQUET FILES',
   title: 'Turn a Parquet File into a PDF or PowerPoint Report | DIG',
@@ -132,7 +133,7 @@ const parquet: UseCase = {
 };
 
 const duplicates: UseCase = {
-  path: '/remove-duplicate-survey-rows',
+  path: USE_CASE_PATHS.duplicates,
   short: 'Duplicate survey rows',
   eyebrow: 'SURVEY DATA',
   title: 'Remove Duplicate Survey Rows from a CSV Automatically | DIG',

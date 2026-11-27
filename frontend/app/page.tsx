@@ -860,7 +860,9 @@ export default function HomePage() {
                       display: 'block',
                       margin: '0 0 16px', fontFamily: DISPLAY, fontSize: '34px',
                       fontWeight: 800, lineHeight: 1, letterSpacing: '-0.05em',
-                      color: open ? c.lime : c.cobaltAccent,
+                      // Red on paper; the open card is cobalt, where red
+                      // would barely read, so its number stays lime.
+                      color: open ? c.lime : c.red,
                     }}>
                       {String(i + 1).padStart(2, '0')}
                     </span>

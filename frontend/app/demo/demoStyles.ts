@@ -4,8 +4,8 @@
  * (globals.css, ATLAS), so the demo follows Light and Dark like the rest.
  */
 
-const DISPLAY = 'var(--font-display), "Bricolage Grotesque", Georgia, serif';
-const SANS = 'var(--font-sans), "Work Sans", system-ui, sans-serif';
+const DISPLAY = 'var(--font-fa), var(--font-display), "Bricolage Grotesque", Georgia, serif';
+const SANS = 'var(--font-fa), var(--font-sans), "Work Sans", system-ui, sans-serif';
 const MONO = 'ui-monospace, "SFMono-Regular", Consolas, monospace';
 
 export const DEMO_CSS = `

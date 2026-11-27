@@ -26,7 +26,8 @@ export default function SecuritySection({ lang }: { lang: Lang }) {
             const Icon = ICONS[i];
             return (
               <li key={item.title} data-rv>
-                <span className="hp-promise-ic"><Icon size={20} /></span>
+                {/* Deleting is the one promise drawn in red. */}
+                <span className={'hp-promise-ic' + (Icon === TrashIcon ? ' hp-promise-del' : '')}><Icon size={20} /></span>
                 <h3>{item.title}</h3>
                 <p>{item.body}</p>
               </li>

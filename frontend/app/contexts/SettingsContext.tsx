@@ -24,7 +24,9 @@ import React, {
   useState,
   useCallback,
 } from 'react';
+import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { ENGLISH_ONLY_PATHS } from '@/app/home/useCasePaths';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 export type Lang = 'en' | 'fr' | 'fa';
@@ -89,10 +91,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // ── Apply RTL / LTR whenever lang changes ─────────────────────────────────
+  // ── Apply RTL / LTR whenever lang or the page changes ─────────────────────
+  // The pages for searches are written only in English, so they stay left to
+  // right even when the visitor picked Persian.
+  const pathname = usePathname();
   useEffect(() => {
-    document.documentElement.setAttribute('dir', lang === 'fa' ? 'rtl' : 'ltr');
-  }, [lang]);
+    const englishOnly = ENGLISH_ONLY_PATHS.includes(pathname ?? '');
+    document.documentElement.setAttribute('dir', lang === 'fa' && !englishOnly ? 'rtl' : 'ltr');
+  }, [lang, pathname]);
 
   // ── Apply CSS variables whenever brightness changes ───────────────────────
   useEffect(() => {
