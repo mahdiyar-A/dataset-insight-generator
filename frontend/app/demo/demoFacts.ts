@@ -84,8 +84,8 @@ export const DIG_QUIPS = [
 
 /** The two plans, as the Plans page and the server enforce them. */
 export const PLANS = {
-  free: { name: 'Free', price: '$0', per: 'forever', analyses: '2 every 48 hours', kept: 5, questions: 10 },
-  pro: { name: 'Pro', price: '$9.99', per: 'a month, CAD', analyses: 'Up to 20 a day', kept: 15, questions: 100 },
+  free: { name: 'Free', price: '$0', per: 'forever', analyses: '2 every 48 hours', window: { count: 2, hours: 48 }, kept: 5, questions: 10 },
+  pro: { name: 'Pro', price: '$9.99', per: 'a month, CAD', analyses: 'Up to 20 a day', window: { count: 20, hours: 24 }, kept: 15, questions: 100 },
 };
 
 /** What each plan includes. `pro: true` rows are Pro only. */

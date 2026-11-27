@@ -48,6 +48,8 @@ const MOUTH: Partial<Record<DigMood, string>> = {
   think: 'M21 30 Q24 30.5 27 29.5',
 };
 const SMILE = 'M19 29 Q24 32.5 29 29';
+/** A four-pointed sparkle around 0,0. Drawn, because not every font has one. */
+const SPARKLE = 'M0 -4 Q0.7 -0.7 4 0 Q0.7 0.7 0 4 Q-0.7 0.7 -4 0 Q-0.7 -0.7 0 -4 Z';
 
 export default function DigFigure({ mood, size = 120, look = { x: 0, y: 0 } }: Props) {
   const [lPath, lx, ly] = LEFT_ARM[mood] ?? IDLE_LEFT;
@@ -175,10 +177,10 @@ export default function DigFigure({ mood, size = 120, look = { x: 0, y: 0 } }: P
       </g>
 
       {mood === 'cheer' && (
-        <g className="dg-sparkles" fontSize="8">
-          <text x="-2" y="8" fill="#fbbf24">✦</text>
-          <text x="44" y="4" fill="#f472b6" fontSize="7">✦</text>
-          <text x="22" y="-4" fill="#818cf8" fontSize="6">★</text>
+        <g className="dg-sparkles">
+          <path d={SPARKLE} transform="translate(2 5)" fill="#fbbf24" />
+          <path d={SPARKLE} transform="translate(47 1.5) scale(.9)" fill="#f472b6" />
+          <path d={SPARKLE} transform="translate(25 -6.5) scale(.75)" fill="#818cf8" />
         </g>
       )}
       {mood === 'think' && (

@@ -7,12 +7,18 @@ import Link from 'next/link';
 import { partitionVisible } from '@/lib/revealOnScroll';
 import { useSettings } from './contexts/SettingsContext';
 import DigMascot from '@/components/DigMascot';
+import { PlayIcon } from '@/components/Icons';
+import { ATLAS, DISPLAY, SANS, SHEET } from './home/atlas';
+import FilesSection from './home/FilesSection';
+import { HOME_CSS } from './home/homeStyles';
+import PricingSection from './home/PricingSection';
+import ProofSection from './home/ProofSection';
 
 // ── Translations ──────────────────────────────────────────────────────────────
 const T = {
   en: {
     dir: 'ltr',
-    nav: { features: 'Features', security: 'Security', developers: 'Developer', contact: 'Contact', menu: 'Menu' },
+    nav: { features: 'Features', security: 'Security', pricing: 'Pricing', developers: 'Developer', contact: 'Contact', menu: 'Menu' },
     hero: {
       title: 'Your Data Has a Story. We Help You Read It.',
       subtitle: 'Drop in a CSV, Excel, JSON, Parquet or SPSS file and get back a full AI-powered analysis — visualizations, patterns, anomalies, and a professional PDF report. No coding. No setup. Just an insightful report.',
@@ -31,7 +37,7 @@ const T = {
         { title: 'AI-Written Insights', desc: 'Goes beyond charts. Our AI writes a plain-English narrative explaining what your data means, what stands out, and what to watch out for.' },
         { title: 'Free to Start', desc: 'See everything first in the interactive demo, then create a free account to run your own data and come back to your results anytime.' },
         { title: 'AI-Guided Analysis Assistant', desc: 'An interactive chatbot walks you through your results — asking the right questions, flagging concerns, and helping you get the most out of your report.' },
-        { title: 'Your Results, Always There', desc: 'We save your last session automatically. Come back anytime to download your cleaned dataset, original file, or full PDF report — no need to re-upload.' },
+        { title: 'Your Results, Always There', desc: 'We save your analyses automatically. Come back anytime to download your cleaned dataset, original file, or full PDF report — no need to re-upload.' },
       ],
     },
     security: {
@@ -61,7 +67,7 @@ const T = {
 
   fr: {
     dir: 'ltr',
-    nav: { features: 'Fonctionnalités', security: 'Sécurité', developers: 'Développeur', contact: 'Contact', menu: 'Menu' },
+    nav: { features: 'Fonctionnalités', security: 'Sécurité', pricing: 'Tarifs', developers: 'Développeur', contact: 'Contact', menu: 'Menu' },
     hero: {
       title: 'Vos données ont une histoire. Nous vous aidons à la lire.',
       subtitle: "Importez un fichier CSV, Excel, JSON, Parquet ou SPSS et obtenez une analyse complète par IA — visualisations, patterns, anomalies et un rapport PDF professionnel. Sans code. Sans configuration. Juste des insights.",
@@ -80,7 +86,7 @@ const T = {
         { title: 'Insights rédigés par IA', desc: "Va au-delà des graphiques. Notre IA rédige un narratif en langage naturel expliquant ce que signifient vos données." },
         { title: 'Gratuit pour commencer', desc: "Découvrez tout dans la démo interactive, puis créez un compte gratuit pour analyser vos données et retrouver vos résultats." },
         { title: 'Assistant d\'analyse guidée par IA', desc: 'Un chatbot interactif vous guide à travers vos résultats — pose les bonnes questions et vous aide à tirer le meilleur parti de votre rapport.' },
-        { title: 'Vos résultats, toujours disponibles', desc: 'Nous sauvegardons automatiquement votre dernière session. Revenez à tout moment pour télécharger votre dataset, fichier original ou rapport PDF.' },
+        { title: 'Vos résultats, toujours disponibles', desc: 'Nous sauvegardons automatiquement vos analyses. Revenez à tout moment pour télécharger votre dataset, fichier original ou rapport PDF.' },
       ],
     },
     security: {
@@ -110,7 +116,7 @@ const T = {
 
   fa: {
     dir: 'rtl',
-    nav: { features: 'ویژگی‌ها', security: 'امنیت', developers: 'توسعه‌دهنده', contact: 'تماس', menu: 'منو' },
+    nav: { features: 'ویژگی‌ها', security: 'امنیت', pricing: 'قیمت‌ها', developers: 'توسعه‌دهنده', contact: 'تماس', menu: 'منو' },
     hero: {
       title: 'داده‌های شما یک داستان دارند. ما کمک می‌کنیم آن را بخوانید.',
       subtitle: 'یک فایل CSV، اکسل، JSON، Parquet یا SPSS را آپلود کنید و تحلیل کامل مبتنی بر هوش مصنوعی دریافت کنید — تصویرسازی، الگوها، ناهنجاری‌ها و یک گزارش PDF حرفه‌ای. بدون کدنویسی. بدون راه‌اندازی.',
@@ -129,7 +135,7 @@ const T = {
         { title: 'بینش‌های نوشته‌شده توسط هوش مصنوعی', desc: 'فراتر از نمودارها. هوش مصنوعی ما یک روایت به زبان ساده می‌نویسد که توضیح می‌دهد داده‌های شما چه معنایی دارند.' },
         { title: 'شروع رایگان', desc: 'اول همه چیز را در دموی تعاملی ببینید، بعد یک حساب رایگان بسازید تا داده‌های خودتان را تحلیل کنید و هر وقت خواستید به نتایج برگردید.' },
         { title: 'دستیار تحلیل هدایت‌شده توسط هوش مصنوعی', desc: 'یک چت‌بات تعاملی شما را در نتایج راهنمایی می‌کند — سؤالات درست می‌پرسد و به شما کمک می‌کند از گزارشتان بهترین استفاده را ببرید.' },
-        { title: 'نتایج شما، همیشه در دسترس', desc: 'آخرین جلسه شما را به طور خودکار ذخیره می‌کنیم. هر زمان برگردید تا دیتاست پاک‌شده، فایل اصلی یا گزارش PDF را دانلود کنید.' },
+        { title: 'نتایج شما، همیشه در دسترس', desc: 'تحلیل‌های شما را به طور خودکار ذخیره می‌کنیم. هر زمان برگردید تا دیتاست پاک‌شده، فایل اصلی یا گزارش PDF را دانلود کنید.' },
       ],
     },
     security: {
@@ -166,47 +172,12 @@ const LANGS: { code: Lang; label: string }[] = [
   { code: 'fa', label: 'FA' },
 ];
 
-// ── Atlas palette ─────────────────────────────────────────────────────────────
-// `cobalt` is a SURFACE that carries white text, so it stays deep in both
-// themes — white on a lifted indigo lands near 2.9:1, under the 4.5 minimum.
-// `cobaltAccent` is the same hue as TEXT on the page ground, where the
-// relationship inverts: deep cobalt reads at 2.3:1 against dark paper, so the
-// dark theme lifts it. One hue, two jobs, two values.
-const ATLAS = {
-  light: {
-    paper: '#f2efe9', paperAlt: '#e9e5dd', ink: '#12121a',
-    // inkFaint is darker than it looks like it needs to be: the eyebrow labels
-    // use it at 11.5px over the tinted ground, where #6b6862 measured 4.42:1.
-    inkSoft: '#4a4741', inkFaint: '#66635d',
-    rule: '#12121a', hairline: 'rgba(18,18,26,0.16)',
-    cobalt: '#2536e0', cobaltAccent: '#2536e0',
-    lime: '#d6f24a', card: '#ffffff',
-  },
-  // Ink-blue rather than near-black. A true black ground under a cobalt hero
-  // reads as an absence — the page looked like it had holes in it. These carry
-  // the same hue family as the accent, so the dark theme is a dim version of
-  // the palette instead of a different, colourless one.
-  dark: {
-    paper: '#151a2b', paperAlt: '#1b2138', ink: '#f2efe9',
-    inkSoft: '#bcc2d4', inkFaint: '#8e96ad',
-    rule: '#f2efe9', hairline: 'rgba(242,239,233,0.18)',
-    cobalt: '#2536e0', cobaltAccent: '#8b95f5',
-    lime: '#d6f24a', card: '#1e2440',
-  },
-} as const;
+const NAV = ['features', 'security', 'pricing', 'developers', 'contact'] as const;
 
-// The paper sheet that overlaps the hero is cream in BOTH themes. Letting it
-// follow the dark theme turned it into a black slab sitting on the cobalt
-// field — the palette's whole point is paper against blue against citron.
-const SHEET = { bg: '#f2efe9', ink: '#12121a', soft: '#4a4741', accent: '#2536e0' };
-
-// Mirrors the `max-width: 759px` media query in pageCss. The resize
+// Mirrors the `max-width: 919px` media query in pageCss. The resize
 // handler and the stylesheet must agree on where the phone menu stops
 // existing, or the panel can outlive the button that dismisses it.
-const MENU_BREAKPOINT = 759;
-
-const DISPLAY = 'var(--font-display), "Bricolage Grotesque", Georgia, serif';
-const SANS = 'var(--font-sans), "Work Sans", system-ui, sans-serif';
+const MENU_BREAKPOINT = 919;
 
 export default function HomePage() {
   const { lang, setLang, brightness, setBrightness } = useSettings();
@@ -411,16 +382,20 @@ export default function HomePage() {
   }, [menuOpen]);
 
   const pageCss = [
-    // Longer and gentler than the first pass, which snapped. The curve is
-    // heavily eased-out so movement decelerates into place rather than
-    // arriving at a constant speed, and `will-change` keeps the transform on
-    // its own layer so a long list does not judder.
-    '.rv-armed [data-rv] { opacity: 0; transform: translateY(38px); will-change: opacity, transform;',
+    // Short enough that a reader who scrolls quickly never waits for words: at
+    // a full second, with delays on top, a heading scrolled to was blank for
+    // most of the time it took to look for it. The curve still decelerates into
+    // place, and `will-change` keeps the transform on its own layer so a long
+    // list does not judder.
+    '.rv-armed [data-rv] { opacity: 0; transform: translateY(26px); will-change: opacity, transform;',
     // Colour is listed here too. This rule outranks .atlas-feature on
     // specificity, and a `transition` shorthand replaces rather than merges,
     // so a card's fill would otherwise snap on click instead of fading.
-    '  transition: opacity 1.05s cubic-bezier(0.16,1,0.3,1), transform 1.05s cubic-bezier(0.16,1,0.3,1),',
+    '  transition: opacity 0.5s cubic-bezier(0.16,1,0.3,1), transform 0.5s cubic-bezier(0.16,1,0.3,1),',
     '              background-color 0.25s ease, color 0.25s ease; }',
+    // Headings, the line under each and the buttons move but are never
+    // invisible: they are what someone skimming the page is looking for.
+    '.rv-armed [data-rv="solid"] { opacity: 1; transform: translateY(14px); }',
     '.rv-armed [data-rv].rv-in { opacity: 1; transform: none; }',
     '@media (prefers-reduced-motion: reduce) {',
     '  .rv-armed [data-rv] { opacity: 1 !important; transform: none !important; transition: none !important; }',
@@ -443,7 +418,7 @@ export default function HomePage() {
     // 375px it wrapped onto three rows and stood 188px tall — nearly a quarter
     // of the phone visible area, held there for the whole scroll.
     //
-    // The four section anchors are the row that goes. They are a convenience
+    // The section anchors are the row that goes. They are a convenience
     // on a wide screen; on a phone the page is a scroll away and every other
     // control in the bar (sign-up, language, theme) is something you cannot
     // reach by scrolling. Below 420px the wordmark goes too, since the logo
@@ -457,11 +432,12 @@ export default function HomePage() {
     // The button and the inline nav are mutually exclusive, and the panel
     // exists only where the button does.
     '.atlas-burger { display: none; }',
-    '@media (max-width: 759px) {',
+    '@media (pointer: fine) { .atlas-burger { min-height: 36px; } }',
+    '@media (max-width: 919px) {',
     '  .atlas-nav { display: none; }',
     '  .atlas-burger { display: inline-flex; }',
     '}',
-    '@media (min-width: 760px) { .atlas-menu { display: none; } }',
+    '@media (min-width: 920px) { .atlas-menu { display: none; } }',
     '.atlas-header { gap: 18px; }',
     '.atlas-lang button { padding: 5px 10px; }',
     // 320px (an SE-sized phone) was still two rows: logo plus the control
@@ -525,7 +501,7 @@ export default function HomePage() {
 
   // Staggered delay, capped so a long list never leaves the reader waiting.
   const stagger = (i: number): React.CSSProperties => ({
-    transitionDelay: Math.min(i, 5) * 70 + 'ms',
+    transitionDelay: Math.min(i, 4) * 40 + 'ms',
   });
 
   const eyebrow = (color: string): React.CSSProperties => ({
@@ -537,11 +513,13 @@ export default function HomePage() {
     fontWeight: 700, lineHeight: 1.06, letterSpacing: '-0.035em', color,
   });
 
+  // Eight is the number of languages a report can be written in, which is a
+  // Pro setting. The site itself is in three.
   const marqueeWords = lang === 'fr'
-    ? ['DONNÉES EN ENTRÉE', 'ANALYSE EN SORTIE', 'SANS FORMULES', 'RAPPORT PDF', '8 LANGUES']
+    ? ['DONNÉES EN ENTRÉE', 'ANALYSE EN SORTIE', 'SANS FORMULES', 'RAPPORT PDF', 'RAPPORTS EN 8 LANGUES AVEC PRO']
     : lang === 'fa'
-      ? ['ورودی داده', 'خروجی تحلیل', 'بدون فرمول', 'گزارش PDF', '۸ زبان']
-      : ['DATA IN', 'ANALYSIS OUT', 'NO FORMULAS', 'PDF REPORT', '8 LANGUAGES'];
+      ? ['ورودی داده', 'خروجی تحلیل', 'بدون فرمول', 'گزارش PDF', 'گزارش به ۸ زبان در Pro']
+      : ['DATA IN', 'ANALYSIS OUT', 'NO FORMULAS', 'PDF REPORT', 'REPORTS IN 8 LANGUAGES ON PRO'];
 
   return (
     <div
@@ -557,7 +535,7 @@ export default function HomePage() {
         overflowX: 'clip',
       }}
     >
-      <style>{pageCss}</style>
+      <style>{pageCss + HOME_CSS}</style>
 
       {/* ── Nav ─────────────────────────────────────────────────────────── */}
       <header
@@ -590,7 +568,7 @@ export default function HomePage() {
         </Link>
 
         <nav className="atlas-nav">
-          {(['features', 'security', 'developers', 'contact'] as const).map(k => (
+          {NAV.map(k => (
             <a
               key={k}
               href={'#' + k}
@@ -603,7 +581,7 @@ export default function HomePage() {
           ))}
         </nav>
 
-        {/* Phone menu. The same four anchors the wide layout shows inline —
+        {/* Phone menu. The same anchors the wide layout shows inline —
             hiding them outright would have been the cheaper fix, but the
             sections are the only thing on this page a reader might want to
             reach directly. Bars rather than an icon font so it costs nothing
@@ -650,7 +628,7 @@ export default function HomePage() {
               flexDirection: 'column', display: 'flex',
             }}
           >
-            {(['features', 'security', 'developers', 'contact'] as const).map(k => (
+            {NAV.map(k => (
               <a
                 key={k}
                 href={'#' + k}
@@ -748,7 +726,7 @@ export default function HomePage() {
           </svg>
 
           <div style={{ ...inner, position: 'relative' }}>
-            <h1 data-rv style={{
+            <h1 data-rv="solid" style={{
               margin: 0, fontFamily: DISPLAY,
               // Same reasoning as the section padding above. On a phone the
               // width term is far smaller than the height term, so `min` picks
@@ -761,7 +739,7 @@ export default function HomePage() {
               {t.hero.title}
             </h1>
 
-            <p data-rv style={{
+            <p data-rv="solid" style={{
               ...stagger(1),
               margin: '26px 0 0', fontSize: 'clamp(15px, 1.5vw, 18px)',
               lineHeight: 1.55, maxWidth: '58ch', color: 'rgba(255,255,255,0.82)',
@@ -769,7 +747,7 @@ export default function HomePage() {
               {t.hero.subtitle}
             </p>
 
-            <div data-rv style={{
+            <div data-rv="solid" style={{
               ...stagger(2),
               display: 'flex', gap: '10px', margin: '32px 0 0', flexWrap: 'wrap',
             }}>
@@ -784,9 +762,8 @@ export default function HomePage() {
                 <span aria-hidden="true" style={{
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                   width: '22px', height: '22px', background: '#12121a', color: c.lime,
-                  fontSize: '9px', lineHeight: 1,
                 }}>
-                  ▶
+                  <PlayIcon />
                 </span>
                 {t.hero.demo}
               </Link>
@@ -806,7 +783,7 @@ export default function HomePage() {
               </Link>
             </div>
 
-            <p data-rv style={{
+            <p data-rv="solid" style={{
               ...stagger(3),
               margin: '16px 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.7)',
             }}>
@@ -904,14 +881,16 @@ export default function HomePage() {
           </div>
         </div>
 
+        <ProofSection lang={lang} />
+
         {/* ── Features ──────────────────────────────────────────────────── */}
         <section id="features" style={sectionPad}>
           <div style={inner}>
-            <p data-rv style={eyebrow(c.inkFaint)}>{t.nav.features.toUpperCase()}</p>
-            <h2 data-rv style={{ ...h2(c.ink), ...stagger(1), maxWidth: '20ch' }}>
+            <p data-rv="solid" style={eyebrow(c.inkFaint)}>{t.nav.features.toUpperCase()}</p>
+            <h2 data-rv="solid" style={{ ...h2(c.ink), ...stagger(1), maxWidth: '20ch' }}>
               {t.features.heading}
             </h2>
-            <p data-rv style={{
+            <p data-rv="solid" style={{
               ...stagger(2),
               margin: '0 0 44px', fontSize: '16px', lineHeight: 1.6,
               color: c.inkSoft, maxWidth: '62ch',
@@ -980,6 +959,8 @@ export default function HomePage() {
           </div>
         </section>
 
+        <FilesSection lang={lang} />
+
         {/* ── Security — the second blue block, so the page reads
              blue / paper / blue / citron rather than one accent and filler ── */}
         <section id="security" style={{
@@ -989,18 +970,18 @@ export default function HomePage() {
         }}>
           <div className="atlas-duo" style={inner}>
             <div>
-              <p data-rv style={eyebrow('#d6f24a')}>{t.security.heading.toUpperCase()}</p>
-              <h2 data-rv style={{ ...h2('#ffffff'), ...stagger(1), maxWidth: '16ch' }}>
+              <p data-rv="solid" style={eyebrow('#d6f24a')}>{t.security.heading.toUpperCase()}</p>
+              <h2 data-rv="solid" style={{ ...h2('#ffffff'), ...stagger(1), maxWidth: '16ch' }}>
                 {t.security.heading}
               </h2>
-              <p data-rv style={{
+              <p data-rv="solid" style={{
                 ...stagger(2),
                 margin: '0 0 18px', fontSize: '16px', lineHeight: 1.6,
                 color: 'rgba(255,255,255,0.82)',
               }}>
                 {t.security.body}
               </p>
-              <p data-rv style={{
+              <p data-rv="solid" style={{
                 ...stagger(3),
                 margin: 0, padding: '11px 15px', fontSize: '13px', lineHeight: 1.5,
                 color: '#12121a', background: c.lime, border: '2px solid #12121a',
@@ -1037,14 +1018,16 @@ export default function HomePage() {
           </div>
         </section>
 
+        <PricingSection lang={lang} eyebrow={t.nav.pricing} />
+
         {/* ── Developers ────────────────────────────────────────────────── */}
         <section id="developers" style={sectionPad}>
           <div style={inner}>
-            <p data-rv style={eyebrow(c.inkFaint)}>{t.developers.heading.toUpperCase()}</p>
-            <h2 data-rv style={{ ...h2(c.ink), ...stagger(1), maxWidth: '18ch' }}>
+            <p data-rv="solid" style={eyebrow(c.inkFaint)}>{t.developers.heading.toUpperCase()}</p>
+            <h2 data-rv="solid" style={{ ...h2(c.ink), ...stagger(1), maxWidth: '18ch' }}>
               {t.developers.heading}
             </h2>
-            <p data-rv style={{
+            <p data-rv="solid" style={{
               ...stagger(2),
               margin: '0 0 30px', fontSize: '16px', lineHeight: 1.6,
               color: c.inkSoft, maxWidth: '70ch',
@@ -1086,20 +1069,20 @@ export default function HomePage() {
           background: c.lime, borderBottom: '2px solid #12121a',
         }}>
           <div style={{ ...inner, textAlign: 'center' }}>
-            <h2 data-rv style={{
+            <h2 data-rv="solid" style={{
               ...h2('#12121a'), margin: '0 0 14px',
               fontSize: 'clamp(32px, 4.6vw, 54px)', fontWeight: 800,
             }}>
               {t.contact.heading}
             </h2>
-            <p data-rv style={{
+            <p data-rv="solid" style={{
               ...stagger(1),
               margin: '0 0 28px', fontSize: '16.5px', color: '#3c3a34',
             }}>
               {t.contact.body}
             </p>
             <a
-              data-rv
+              data-rv="solid"
               href="mailto:dataset_insight_generator.ai@proton.me"
               className="atlas-btn"
               style={{

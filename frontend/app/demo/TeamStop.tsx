@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 
+import { EyeIcon, FlipIcon, PlusIcon } from '@/components/Icons';
 import sample from './sample.json';
 import { ROLES, TEAM } from './demoFacts';
 import type { TeammateId } from './demoFacts';
@@ -196,7 +197,7 @@ export function TeamStop({ active }: { active: boolean }) {
       <StopHead
         stop={STOP}
         title="Work together"
-        lead="The same report, open for the whole team at once. Everyone sees who is here, what they are doing, and every save as it happens."
+        lead="A simulated preview with a made-up team, sped up. In the app, your team’s cursors and comments are live, and their changes to the report arrive as soon as they save."
       />
 
       <div className="dg-live">
@@ -216,7 +217,7 @@ export function TeamStop({ active }: { active: boolean }) {
             ))}
           </div>
           <span className="dg-pro-tag">PRO</span>
-          <span className="dg-live-lock">👁 View only</span>
+          <span className="dg-live-lock"><EyeIcon size={13} /> Simulated preview · view only</span>
         </div>
 
         <ul className="dg-live-team" aria-label="The team">
@@ -277,7 +278,7 @@ export function TeamStop({ active }: { active: boolean }) {
                 </section>
               );
             })}
-            <p className="dg-live-more">＋ {insights.length - SHOWN} more findings, the charts and how we know</p>
+            <p className="dg-live-more"><PlusIcon size={11} /> {insights.length - SHOWN} more findings, the charts and how we know</p>
           </div>
 
           <aside className="dg-live-side" aria-label="Comments and activity">
@@ -328,7 +329,7 @@ export function TeamStop({ active }: { active: boolean }) {
       </div>
 
       <div className="dg-row dg-live-again">
-        <button type="button" className="dg-btn ghost small" disabled={!done} onClick={again}>↻ Play it again</button>
+        <button type="button" className="dg-btn ghost small" disabled={!done} onClick={again}><FlipIcon size={12} /> Play it again</button>
         {tour.plan === 'free' && (
           <>
             <span className="dg-faint">Teams are part of Pro: up to 5 people, each on Pro.</span>

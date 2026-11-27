@@ -26,8 +26,10 @@ vi.mock("@/app/demo/demoStyles", () => ({ DEMO_CSS: "" }));
 
 vi.mock("next/image", () => ({
   // A stand-in for the optimised image: a plain <img> is the point here.
-  // eslint-disable-next-line @next/next/no-img-element
-  default: ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />,
+  default: ({ src, alt, loading }: { src: string; alt: string; loading?: "eager" | "lazy" }) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt={alt} loading={loading} />
+  ),
 }));
 
 vi.mock("next/link", () => ({
@@ -267,6 +269,9 @@ describe("every figure the demo states comes from the sample files", () => {
     expect(plansPage).toContain(`"${PLANS.free.questions} questions a day about your analyses"`);
     expect(plansPage).toContain(`"${PLANS.pro.questions} questions a day about your analyses"`);
     expect(plansPage).toContain('"2 analyses per 48 hours"');
+    // The landing page builds its sentences from these.
+    expect(PLANS.free.window).toEqual({ count: 2, hours: 48 });
+    expect(PLANS.pro.window).toEqual({ count: 20, hours: 24 });
     expect(plansPage).toContain('"Up to 20 analyses a day"');
   });
 });
@@ -393,6 +398,33 @@ describe("the tour", () => {
     expect(document.activeElement).toBe(open);
   });
 
+  it("loads the charts before the report is opened, so none is blank on arrival", () => {
+    start();
+    const loading = () => [...document.querySelectorAll(".dg-chart img")].map(i => i.getAttribute("loading"));
+    expect(new Set(loading())).toEqual(new Set(["lazy"]));
+    fireEvent.click(screen.getByRole("button", { name: /Skip the basics/ }));
+    expect(loading()).toHaveLength(sample.report.insights.length);
+    expect(new Set(loading())).toEqual(new Set(["eager"]));
+  });
+
+  it("keeps the Enlarge label off the chart", () => {
+    startExploring();
+    goTo("Report");
+    const css = readFileSync(path.join(ROOT, "app/demo/demoStyles.ts"), "utf-8");
+    expect(css.match(/\.dg-zoomtag \{[^}]*\}/)![0]).not.toContain("absolute");
+    expect(stage().getAllByText("Enlarge")).toHaveLength(sample.report.insights.length);
+  });
+
+  it("takes the Done note away by itself, and lets a press through it", () => {
+    startExploring();
+    expect(popIn()).toContain("Done!");
+    wait(3700);
+    expect(popIn()).toBe("");
+    const css = readFileSync(path.join(ROOT, "app/demo/demoStyles.ts"), "utf-8");
+    expect(css.match(/\.dg-pop-zone \{[^}]*\}/)![0]).toContain("pointer-events: none");
+    expect(css.match(/\.dg-pop \{[^}]*\}/)![0]).not.toContain("pointer-events");
+  });
+
   it("shows team editing on Pro only, with a teammate saving live", () => {
     startExploring();
     goTo("Report");
@@ -423,6 +455,14 @@ describe("working together", () => {
     for (const m of TEAM) expect(within(team).getByText(m.name, { selector: "strong" }).parentElement).toHaveTextContent(m.role);
     expect(team).toHaveTextContent("Away · seen 2 h ago");
     expect(stage().getByText("Reads the report and comments on it.")).toBeInTheDocument();
+  });
+
+  it("says it is a simulated preview, on the map and on the stop", () => {
+    startExploring();
+    expect(stage().getByText(/^A simulated team preview/)).toBeInTheDocument();
+    openTeam();
+    expect(stage().getByText(/^A simulated preview with a made-up team/)).toBeInTheDocument();
+    expect(stage().getByText("Simulated preview · view only")).toBeInTheDocument();
   });
 
   it("plays a live session: people arrive, Sam types, Leo comments, Priya moves a finding", () => {
@@ -565,6 +605,14 @@ describe("the plans and the files", () => {
       wait(3000);
     }
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("symbols", () => {
+  // Neither of the site's fonts has these, so each came from whatever the
+  // visitor's computer offered, and on some that was an empty box.
+  it.each(["DemoTour.tsx", "stops.tsx", "TeamStop.tsx", "DigFigure.tsx"])("are drawn, not typed, in %s", file => {
+    expect(readFileSync(path.join(ROOT, "app/demo", file), "utf-8")).not.toMatch(/[↻↶✎⤢＋☾☀✓✦★▶]|👁|🔒/u);
   });
 });
 
