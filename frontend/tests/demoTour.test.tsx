@@ -425,6 +425,16 @@ describe("the tour", () => {
     expect(css.match(/\.dg-pop \{[^}]*\}/)![0]).not.toContain("pointer-events");
   });
 
+  it("keeps DIG's bubble and notes below the header, however tall the header grows", () => {
+    const { container } = render(<DemoTour />);
+    const css = readFileSync(path.join(ROOT, "app/demo/demoStyles.ts"), "utf-8");
+    // A fixed offset hid the bubble under the header on tall screens.
+    expect(css.match(/\.dg-guide \{[^}]*\}/)![0]).toContain("top: calc(var(--dg-top-h");
+    expect(css.match(/\.dg-pop-zone \{[^}]*\}/)![0]).toContain("top: calc(var(--dg-top-h");
+    const page = container.querySelector<HTMLElement>(".dg-page")!;
+    expect(page.style.getPropertyValue("--dg-top-h")).toMatch(/^\d+px$/);
+  });
+
   it("shows team editing on Pro only, with a teammate saving live", () => {
     startExploring();
     goTo("Report");

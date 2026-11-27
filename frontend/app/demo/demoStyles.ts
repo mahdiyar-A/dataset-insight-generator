@@ -70,7 +70,8 @@ export const DEMO_CSS = `
 
 /* ── Workspace: DIG on the left, the stop on the right ───────────────── */
 .dg-work { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: clamp(20px, 3vw, 40px); max-width: 1264px; margin: 0 auto; padding: 30px clamp(16px, 3vw, 32px) 90px; align-items: start; }
-.dg-guide { position: sticky; top: 150px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+/* --dg-top-h is the header's measured height (DemoTour); the fallback is its usual one. */
+.dg-guide { position: sticky; top: calc(var(--dg-top-h, 170px) + 16px); display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .dg-say { width: 100%; }
 .dg-bubble {
   position: relative; margin: 0; background: var(--card); border: 2px solid var(--rule);
@@ -413,7 +414,7 @@ export const DEMO_CSS = `
    Under the header, at the right: over a step's heading, where there is
    nothing to press. A press goes through it anyway; only its × catches one.
    It has no height of its own, so the page does not move when it comes. */
-.dg-pop-zone { position: sticky; top: 170px; z-index: 60; height: 0; max-width: 1264px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 32px); display: flex; justify-content: flex-end; align-items: flex-start; pointer-events: none; }
+.dg-pop-zone { position: sticky; top: calc(var(--dg-top-h, 170px) + 4px); z-index: 60; height: 0; max-width: 1264px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 32px); display: flex; justify-content: flex-end; align-items: flex-start; pointer-events: none; }
 .dg-pop { position: relative; display: flex; width: 320px; margin-top: 12px; animation: dgNote .35s cubic-bezier(.2,.8,.2,1) both; }
 .dg-pop-bubble { flex: 1; background: var(--card); border: 2px solid var(--rule); box-shadow: 4px 4px 0 var(--rule); padding: 10px 74px 11px 14px; min-height: 72px; font-size: 13px; line-height: 1.4; }
 .dg-pop-bubble strong { display: block; font-family: ${DISPLAY}; font-size: 15px; color: var(--ok-text); }

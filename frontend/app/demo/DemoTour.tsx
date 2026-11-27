@@ -92,6 +92,8 @@ export default function DemoTour() {
   const digRef = useRef<HTMLButtonElement | null>(null);
   const workRef = useRef<HTMLDivElement | null>(null);
   const firstPersonaRef = useRef<HTMLButtonElement | null>(null);
+  const pageRef = useRef<HTMLDivElement | null>(null);
+  const topRef = useRef<HTMLElement | null>(null);
 
   const after = useCallback((name: string, fn: () => void, ms: number) => {
     clearTimeout(timers.current[name]);
@@ -311,6 +313,21 @@ export default function DemoTour() {
     if (welcome) firstPersonaRef.current?.focus();
   }, [welcome]);
 
+  // DIG and the "Done!" note stick just under the header. The header's height
+  // changes with the width (the stop names wrap) and the font, so a fixed
+  // offset put the top of DIG's bubble under it on some screens. Measure it.
+  useEffect(() => {
+    const page = pageRef.current;
+    const top = topRef.current;
+    if (!page || !top) return;
+    const measure = () => page.style.setProperty('--dg-top-h', top.offsetHeight + 'px');
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const watch = new ResizeObserver(measure);
+    watch.observe(top);
+    return () => watch.disconnect();
+  }, []);
+
   const tour = useMemo<Tour>(() => ({
     plan, setPlan, say, done, seeTip, seen, burst, persona, go, drafts, commit, undo, register,
   }), [plan, setPlan, say, done, seeTip, seen, burst, persona, go, drafts, commit, undo, register]);
@@ -339,10 +356,10 @@ export default function DemoTour() {
 
   return (
     <TourContext.Provider value={tour}>
-      <div className="dg-page" dir="ltr" lang="en">
+      <div className="dg-page" dir="ltr" lang="en" ref={pageRef}>
         <style>{DEMO_CSS}</style>
 
-        <header className="dg-top">
+        <header className="dg-top" ref={topRef}>
           <div className="dg-head">
             <Link href="/" className="dg-logo" aria-label="DIG home">DIG</Link>
             <span className="dg-tag">DEMO</span>

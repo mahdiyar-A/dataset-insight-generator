@@ -260,7 +260,7 @@ export const PRICING: Record<Lang, {
       ],
       cta: 'Start free, upgrade anytime',
     },
-    note: 'Payments go through Stripe. We never store your card details. Cancel anytime.',
+    note: 'Cancel Pro anytime.',
   },
   fr: {
     heading: 'Commencez gratuitement. Passez à Pro au besoin.',
@@ -291,7 +291,7 @@ export const PRICING: Record<Lang, {
       ],
       cta: 'Commencer gratuitement',
     },
-    note: 'Les paiements passent par Stripe. Nous ne conservons jamais les données de votre carte. Annulez à tout moment.',
+    note: 'Annulez Pro à tout moment.',
   },
   fa: {
     heading: 'رایگان شروع کنید. وقتی بیشتر خواستید، Pro بگیرید.',
@@ -322,6 +322,185 @@ export const PRICING: Record<Lang, {
       ],
       cta: 'رایگان شروع کنید',
     },
-    note: 'پرداخت‌ها از طریق Stripe انجام می‌شود. اطلاعات کارت شما را هرگز نگه نمی‌داریم. هر زمان خواستید لغو کنید.',
+    note: 'هر وقت خواستید Pro را لغو کنید.',
+  },
+};
+
+// ── The product, at the top of the page ──────────────────────────────────────
+
+/** Labels for the app window under the title. Its finding and its question are PROOF's. */
+export const HERO_SHOT: Record<Lang, {
+  label: string; ready: string; tabs: string[]; finding: string; ask: string; placeholder: string;
+}> = {
+  en: {
+    label: 'A DIG report on the sample file, with a question answered beside it',
+    ready: 'Report ready', tabs: ['Report', 'Charts', 'Data'],
+    finding: 'FINDING 1 · STRONG PATTERN', ask: 'ASK DIG', placeholder: 'Ask about your data…',
+  },
+  fr: {
+    label: 'Un rapport DIG sur le fichier d’exemple, avec une question et sa réponse à côté',
+    ready: 'Rapport prêt', tabs: ['Rapport', 'Graphiques', 'Données'],
+    finding: 'CONSTAT 1 · TENDANCE NETTE', ask: 'DEMANDEZ À DIG', placeholder: 'Posez une question sur vos données…',
+  },
+  fa: {
+    label: 'گزارش DIG روی فایل نمونه، با یک پرسش و پاسخ آن در کنارش',
+    ready: 'گزارش آماده است', tabs: ['گزارش', 'نمودارها', 'داده‌ها'],
+    finding: 'یافتهٔ ۱ · الگوی قوی', ask: 'از DIG بپرسید', placeholder: 'دربارهٔ داده‌هایتان بپرسید…',
+  },
+};
+
+// ── Security ─────────────────────────────────────────────────────────────────
+
+/**
+ * Three promises, in a customer's words. Each is what the Privacy Policy says:
+ * the AI gets a summary and a few example values, never the file; analyses are
+ * private unless shared with a team; an analysis or the account can be deleted.
+ * Nothing here may promise more than that policy does.
+ */
+export const TRUST: Record<Lang, {
+  eyebrow: string; heading: string; sub: string; items: { title: string; body: string }[];
+  note: string; policy: string;
+}> = {
+  en: {
+    eyebrow: 'SECURITY',
+    heading: 'Your data stays yours.',
+    sub: 'Upload with confidence. You decide who sees your work, and for how long.',
+    items: [
+      { title: 'Your file stays with us', body: 'DIG cleans and analyses your file on its own servers. The AI gets a short summary and a few example values, never the whole file.' },
+      { title: 'Private unless you share it', body: 'Only you, and the teammates you invite, can open your analyses.' },
+      { title: 'Delete it anytime', body: 'Remove an analysis, or your whole account, whenever you like.' },
+    ],
+    note: 'Please don’t upload confidential or legally sensitive data.',
+    policy: 'Read the Privacy Policy',
+  },
+  fr: {
+    eyebrow: 'SÉCURITÉ',
+    heading: 'Vos données restent les vôtres.',
+    sub: 'Importez en toute confiance. Vous décidez qui voit votre travail, et pour combien de temps.',
+    items: [
+      { title: 'Votre fichier reste chez nous', body: 'DIG nettoie et analyse votre fichier sur ses propres serveurs. L’IA ne reçoit qu’un court résumé et quelques exemples de valeurs, jamais le fichier entier.' },
+      { title: 'Privé, sauf si vous le partagez', body: 'Seuls vous et les coéquipiers que vous invitez pouvez ouvrir vos analyses.' },
+      { title: 'Supprimez-le quand vous voulez', body: 'Effacez une analyse, ou votre compte entier, à tout moment.' },
+    ],
+    note: 'Merci de ne pas importer de données confidentielles ou juridiquement sensibles.',
+    policy: 'Lire la politique de confidentialité',
+  },
+  fa: {
+    eyebrow: 'امنیت',
+    heading: 'داده‌های شما مال خودتان می‌ماند.',
+    sub: 'با خیال راحت آپلود کنید. شما تصمیم می‌گیرید چه کسی کارتان را ببیند و تا کی.',
+    items: [
+      { title: 'فایل شما پیش ما می‌ماند', body: 'DIG فایل شما را روی سرورهای خودش پاک‌سازی و تحلیل می‌کند. هوش مصنوعی فقط یک خلاصهٔ کوتاه و چند مقدار نمونه می‌بیند، هرگز کل فایل را.' },
+      { title: 'خصوصی، مگر اینکه به اشتراک بگذارید', body: 'فقط شما و هم‌تیمی‌هایی که دعوت می‌کنید می‌توانید تحلیل‌هایتان را باز کنید.' },
+      { title: 'هر وقت خواستید پاکش کنید', body: 'یک تحلیل یا کل حسابتان را هر زمان که بخواهید حذف کنید.' },
+    ],
+    note: 'لطفاً داده‌های محرمانه یا حساس از نظر قانونی آپلود نکنید.',
+    policy: 'خواندن سیاست حریم خصوصی',
+  },
+};
+
+// ── Questions ────────────────────────────────────────────────────────────────
+
+export const FAQ: Record<Lang, { eyebrow: string; heading: string; sub: string; items: { q: string; a: string }[] }> = {
+  en: {
+    eyebrow: 'FAQ',
+    heading: 'Questions, answered.',
+    sub: 'Anything else? Write to us.',
+    items: [
+      { q: 'What files can I upload?', a: 'CSV, Excel, JSON, Parquet, SPSS and other common data files, up to 50 MB each.' },
+      { q: 'Do I need to know statistics or code?', a: 'No. DIG writes the report in plain words for whoever will read it. The exact statistics wait on a last page, for anyone who wants them.' },
+      { q: 'Is the free plan really free?', a: `Yes, and no card is needed. You get ${PLANS.free.window.count} analyses every ${PLANS.free.window.hours} hours, the full report as a PDF, and ${PLANS.free.questions} questions a day about your results.` },
+      { q: 'Does the AI see my file?', a: 'Not the file itself. DIG works on your file on its own servers, and the AI gets a short summary of your columns and a few example values. The Privacy Policy lists exactly what.' },
+      { q: 'Can my team work on a report together?', a: 'Yes, on Pro. Up to 5 people, each on Pro, can edit the same report, leave comments, and see each other’s changes as they save.' },
+      { q: 'Which languages can reports be written in?', a: `On Pro, any of ${REPORT_LANGUAGES.en.length}: ${listOf('en', REPORT_LANGUAGES.en)}.` },
+      { q: 'Can I cancel Pro?', a: 'Yes, anytime, from your account.' },
+    ],
+  },
+  fr: {
+    eyebrow: 'FAQ',
+    heading: 'Vos questions, nos réponses.',
+    sub: 'Autre chose ? Écrivez-nous.',
+    items: [
+      { q: 'Quels fichiers puis-je importer ?', a: 'CSV, Excel, JSON, Parquet, SPSS et d’autres fichiers de données courants, jusqu’à 50 Mo chacun.' },
+      { q: 'Faut-il connaître les statistiques ou le code ?', a: 'Non. DIG rédige le rapport en mots simples pour la personne qui le lira. Les statistiques exactes attendent sur une dernière page, pour qui les veut.' },
+      { q: 'Le forfait gratuit est-il vraiment gratuit ?', a: `Oui, et aucune carte n’est requise. Vous avez ${PLANS.free.window.count} analyses toutes les ${PLANS.free.window.hours} heures, le rapport complet en PDF et ${PLANS.free.questions} questions par jour sur vos résultats.` },
+      { q: 'L’IA voit-elle mon fichier ?', a: 'Pas le fichier lui-même. DIG traite votre fichier sur ses propres serveurs, et l’IA reçoit un court résumé de vos colonnes et quelques exemples de valeurs. La politique de confidentialité en donne le détail.' },
+      { q: 'Mon équipe peut-elle travailler sur un rapport ensemble ?', a: 'Oui, avec Pro. Jusqu’à 5 personnes, chacune avec Pro, peuvent modifier le même rapport, laisser des commentaires et voir les changements des autres dès qu’ils sont enregistrés.' },
+      { q: 'Dans quelles langues les rapports peuvent-ils être rédigés ?', a: `Avec Pro, dans ${REPORT_LANGUAGES.fr.length} langues : ${listOf('fr', REPORT_LANGUAGES.fr)}.` },
+      { q: 'Puis-je annuler Pro ?', a: 'Oui, à tout moment, depuis votre compte.' },
+    ],
+  },
+  fa: {
+    eyebrow: 'پرسش‌ها',
+    heading: 'پرسش‌های شما، پاسخ‌های ما.',
+    sub: 'سؤال دیگری دارید؟ برایمان بنویسید.',
+    items: [
+      { q: 'چه فایل‌هایی می‌توانم آپلود کنم؟', a: 'CSV، اکسل، JSON، Parquet، SPSS و دیگر فایل‌های رایج داده، هر کدام تا ۵۰ مگابایت.' },
+      { q: 'باید آمار یا برنامه‌نویسی بلد باشم؟', a: 'نه. DIG گزارش را به زبان ساده برای کسی که آن را می‌خواند می‌نویسد. آمار دقیق در صفحهٔ آخر می‌ماند، برای هر کسی که بخواهد.' },
+      { q: 'طرح رایگان واقعاً رایگان است؟', a: `بله، و نیازی به کارت بانکی نیست. ${num('fa', PLANS.free.window.count)} تحلیل در هر ${num('fa', PLANS.free.window.hours)} ساعت، گزارش کامل به‌صورت PDF و ${num('fa', PLANS.free.questions)} پرسش در روز دربارهٔ نتایج می‌گیرید.` },
+      { q: 'هوش مصنوعی فایل من را می‌بیند؟', a: 'خود فایل را نه. DIG فایل شما را روی سرورهای خودش پردازش می‌کند و هوش مصنوعی فقط خلاصه‌ای کوتاه از ستون‌ها و چند مقدار نمونه می‌گیرد. جزئیات در سیاست حریم خصوصی آمده است.' },
+      { q: 'تیم من می‌تواند با هم روی یک گزارش کار کند؟', a: `بله، با Pro. تا ${num('fa', 5)} نفر، هر کدام با Pro، می‌توانند یک گزارش را ویرایش کنند، یادداشت بگذارند و تغییرات هم را به محض ذخیره ببینند.` },
+      { q: 'گزارش به چه زبان‌هایی نوشته می‌شود؟', a: `با Pro، به ${num('fa', REPORT_LANGUAGES.fa.length)} زبان: ${listOf('fa', REPORT_LANGUAGES.fa)}.` },
+      { q: 'می‌توانم Pro را لغو کنم؟', a: 'بله، هر زمان، از حساب کاربری‌تان.' },
+    ],
+  },
+};
+
+// ── The last word, and the footer ────────────────────────────────────────────
+
+export const CLOSING: Record<Lang, { heading: string; sub: string; demo: string; register: string; ask: string; write: string }> = {
+  en: {
+    heading: 'See what your data is saying.',
+    sub: 'Try the demo in a minute, or create a free account and use your own file.',
+    demo: 'Open the demo', register: 'Create a free account',
+    ask: 'Questions?', write: 'Email us',
+  },
+  fr: {
+    heading: 'Découvrez ce que disent vos données.',
+    sub: 'Essayez la démo en une minute, ou créez un compte gratuit pour utiliser votre propre fichier.',
+    demo: 'Ouvrir la démo', register: 'Créer un compte gratuit',
+    ask: 'Des questions ?', write: 'Écrivez-nous',
+  },
+  fa: {
+    heading: 'ببینید داده‌هایتان چه می‌گویند.',
+    sub: 'دمو را در یک دقیقه امتحان کنید، یا یک حساب رایگان بسازید و فایل خودتان را بدهید.',
+    demo: 'باز کردن دمو', register: 'ساخت حساب رایگان',
+    ask: 'سؤالی دارید؟', write: 'به ما ایمیل بزنید',
+  },
+};
+
+/** DIG's company page and its founder's, both on LinkedIn. */
+export const LINKEDIN = {
+  dig: 'https://www.linkedin.com/company/144091416/',
+  founder: 'https://www.linkedin.com/in/mahdiyar-ashrafioun/',
+};
+
+export const CONTACT_EMAIL = 'dataset_insight_generator.ai@proton.me';
+
+export const FOOTER: Record<Lang, {
+  tagline: string; product: string; uses: string; company: string; legal: string;
+  demo: string; features: string; pricing: string; faq: string; contact: string;
+  digOn: string; founded: string; founder: string; rights: string;
+}> = {
+  en: {
+    tagline: 'Turn a spreadsheet into a report people actually read.',
+    product: 'Product', uses: 'Use cases', company: 'Company', legal: 'Legal',
+    demo: 'Demo', features: 'Features', pricing: 'Pricing', faq: 'FAQ', contact: 'Contact',
+    digOn: 'DIG on LinkedIn', founded: 'Founded by', founder: 'Mahdiyar Ashrafioun',
+    rights: '© 2026 Dataset Insight Generator',
+  },
+  fr: {
+    tagline: 'Transformez un tableur en un rapport qu’on lit vraiment.',
+    product: 'Produit', uses: 'Cas d’usage', company: 'Entreprise', legal: 'Juridique',
+    demo: 'Démo', features: 'Fonctionnalités', pricing: 'Tarifs', faq: 'FAQ', contact: 'Contact',
+    digOn: 'DIG sur LinkedIn', founded: 'Fondé par', founder: 'Mahdiyar Ashrafioun',
+    rights: '© 2026 Dataset Insight Generator',
+  },
+  fa: {
+    tagline: 'یک صفحه‌گسترده را به گزارشی تبدیل کنید که واقعاً خوانده می‌شود.',
+    product: 'محصول', uses: 'کاربردها', company: 'شرکت', legal: 'حقوقی',
+    demo: 'دمو', features: 'ویژگی‌ها', pricing: 'قیمت‌ها', faq: 'پرسش‌ها', contact: 'تماس',
+    digOn: 'DIG در لینکدین', founded: 'بنیان‌گذار:', founder: 'مهدیار اشرفیون',
+    rights: '© ۲۰۲۶ Dataset Insight Generator',
   },
 };

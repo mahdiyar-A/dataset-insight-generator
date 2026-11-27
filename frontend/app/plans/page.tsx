@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/contexts/AuthContext";
 import BackendAPI from "@/lib/BackendAPI";
+import { CheckIcon, CrossIcon } from "@/components/Icons";
 import { errorMessage } from "@/lib/types";
 import type { UserPlan } from "@/lib/types";
 
@@ -32,7 +34,8 @@ const PLANS = [
       "Team collaboration workspace",
       "Real-time cursors & annotations",
     ],
-    cta:      "Current plan",
+    // Only shown to a Pro member: a Free member sees "Your current plan".
+    cta:      "Included in Pro",
     ctaStyle: "outline",
   },
   {
@@ -40,7 +43,7 @@ const PLANS = [
     name:     "Pro",
     price:    "$9.99",
     interval: "/ month CAD",
-    badge:    "Most popular",
+    badge:    null,
     features: [
       "Up to 20 analyses a day",
       "15 history slots",
@@ -101,6 +104,12 @@ export default function PlansPage() {
   };
 
   const currentPlan = userPlan?.plan ?? "free";
+  // Signed out, there is no current plan: both cards lead to Register. Until
+  // sign-in is known, neither is shown, so a signed-in visitor never sees a
+  // Register button flash past.
+  const signedIn = !isLoading && !!token;
+  const signedOut = !isLoading && !token;
+  const cta = { width: "100%", padding: "14px", borderRadius: "0", fontSize: "0.9rem", fontWeight: 700 } as const;
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--paper)", color: "var(--ink)", padding: "60px 24px" }}>
@@ -179,16 +188,18 @@ export default function PlansPage() {
                 {plan.features.map(f => (
                   <div key={f} style={{ display: "flex", alignItems: "flex-start",
                     gap: "10px", marginBottom: "10px" }}>
-                    <span style={{ color: "var(--ok-text)", fontSize: "0.9rem", flexShrink: 0,
-                      marginTop: "1px" }}>✓</span>
+                    <span style={{ color: "var(--ok-text)", flexShrink: 0, marginTop: "2px" }}>
+                      <CheckIcon size={14} />
+                    </span>
                     <span style={{ fontSize: "0.88rem", color: "var(--ink)" }}>{f}</span>
                   </div>
                 ))}
                 {plan.missing.map(f => (
                   <div key={f} style={{ display: "flex", alignItems: "flex-start",
                     gap: "10px", marginBottom: "10px", opacity: 0.35 }}>
-                    <span style={{ color: "var(--ink-faint)", fontSize: "0.9rem", flexShrink: 0,
-                      marginTop: "1px" }}>✗</span>
+                    <span style={{ color: "var(--ink-faint)", flexShrink: 0, marginTop: "2px" }}>
+                      <CrossIcon size={14} />
+                    </span>
                     <span style={{ fontSize: "0.88rem", color: "var(--ink-faint)",
                       textDecoration: "line-through" }}>{f}</span>
                   </div>
@@ -196,11 +207,22 @@ export default function PlansPage() {
               </div>
 
               {/* CTA */}
-              {isCurrent ? (
+              {isLoading ? (
+                <div aria-hidden="true" style={{ height: "48px" }} />
+              ) : signedOut ? (
+                <Link href="/register" style={{
+                  ...cta, display: "block", textAlign: "center", textDecoration: "none", boxSizing: "border-box",
+                  border: isPro ? "2px solid var(--rule)" : "2px solid var(--ink)",
+                  background: isPro ? "var(--lime)" : "var(--ink)",
+                  color: isPro ? "#12121a" : "var(--paper)",
+                }}>
+                  {isPro ? "Start free, upgrade anytime" : "Create a free account"}
+                </Link>
+              ) : signedIn && isCurrent ? (
                 <div style={{ padding: "12px", textAlign: "center", borderRadius: "0",
                   border: "1px solid var(--line)", color: "var(--ink-faint)",
                   fontSize: "0.88rem", fontWeight: 600 }}>
-                  ✓ Your current plan
+                  <CheckIcon size={13} /> Your current plan
                 </div>
               ) : isPro && currentPlan === "pro" ? (
                 <button
@@ -241,8 +263,7 @@ export default function PlansPage() {
 
       {/* Payment note */}
       <p style={{ textAlign: "center", color: "var(--ink-faint)", fontSize: "0.78rem", marginTop: "36px" }}>
-        Payments are processed securely by Stripe. We never store your card details.
-        Cancel anytime from your billing portal.
+        Cancel Pro anytime.
       </p>
 
       {/* Back */}
