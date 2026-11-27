@@ -33,12 +33,11 @@ from fpdf import FPDF
 from ai_engine.design.looks import Look, Theme
 from ai_engine.fonts import cjk_font_file, dejavu_dir, has_rtl, starts_rtl
 from ai_engine.models.models import DomainResult, LLMReport
-from ai_engine.report_labels import confidence_word, is_rtl, labels_for
+from ai_engine.report_labels import confidence_word, is_rtl, labels_for, printed_issues
 
 # The confidence score is computed by ai_engine/core/confidence.py from the
 # statistics, not by a model. Credits used to be hardcoded and went on naming
 # Gemini 2.5 Flash and Llama 3.3 70B long after both had stopped running.
-CONFIDENCE_CREDIT = "DIG's statistical engine"
 SITE = "datainsightgen.com"
 
 MARGIN = 18.0          # mm, left and right
@@ -473,7 +472,11 @@ def _cover(pdf: DigReport, report: LLMReport, stats_summary: Dict, file_name: st
 
     # What the data is, then the title
     pdf.set_y(38)
+    # The description is written in English by the file-reading model, and sat
+    # in capitals on top of a French report. Other languages get "Report".
     described = (getattr(domain, "description", "") or "") if domain else ""
+    if pdf.language != "en":
+        described = L["report"]
     pdf.kicker(described or _words(domain.domain if domain else "") or L["report"])
     pdf.ln(3)
     title = report.reportTitle or L["report"]
@@ -731,9 +734,8 @@ def _how_we_know(pdf: DigReport, report: LLMReport, stats_summary: Dict, was_cle
 
     # Notes on the data
     assumptions = getattr(report, "assumptions", "") or ""
-    key_issues = list((domain.key_issues if domain else None) or [])
-    detected = list(stats_summary.get("detectedIssues") or [])
-    issues = key_issues + [i for i in detected if i not in key_issues]
+    issues = printed_issues(domain.key_issues if domain else None,
+                            stats_summary.get("detectedIssues"), pdf.language)
     if report.dataQualitySection or assumptions or issues or was_cleaned:
         pdf.ensure(24)
         pdf.ln(2)
@@ -809,14 +811,11 @@ def _how_we_know(pdf: DigReport, report: LLMReport, stats_summary: Dict, was_cle
         pdf.para(L["low_confidence_note"].format(score=score), size=8.8, color="muted", lh=4.6)
         pdf.ln(2)
 
-    writer = getattr(report, "writerModel", "") or ""
-    g_score = getattr(report, "geminiConfidenceScore", None)
-    note = (f"Confidence assessed by {CONFIDENCE_CREDIT} from sample size, completeness and the strength of "
-            f"the statistical evidence ({score}/10). It rates the data, not the writing.")
-    if writer:
-        note += f" Written by {writer}" + (f", which rated its own report {g_score}/10." if g_score else ".")
-    elif str(getattr(report, "rawResponse", "") or "").startswith("[fallback"):
-        note += " No AI writer was available: this is a statistics-only report."
+    # The writing model is not named, nor its score for its own report: DIG
+    # never names its vendors, and a model grading itself tells a reader nothing.
+    note = L["confidence_basis"].format(score=score)
+    if str(getattr(report, "rawResponse", "") or "").startswith("[fallback"):
+        note += " " + L["no_writer_note"]
     pdf.para(note, size=7.5, color="muted", lh=4)
 
 

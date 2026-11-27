@@ -596,13 +596,20 @@ def _missingness_patterns(df: pd.DataFrame, cats: List[str], measures: List[str]
     return out[:top_n]
 
 
+# Isolation-forest score from which a row is clearly unusual (0.5 is average).
+ANOMALY_SCORE = 0.62
+
+
 def _anomalies(df: pd.DataFrame, measures: List[str], seed: int = 42) -> Dict[str, Any]:
     """
     Rows unusual in several measures at once, and what makes them unusual.
 
-    The forest's own threshold ("auto") decides how many rows are anomalous,
-    so the figure comes from the data. For those rows, each measure's median
-    shift (in robust standard units) says which measures drive the anomaly.
+    The forest's own threshold ("auto", a score above 0.5) flagged 30-40% of
+    perfectly normal rows on small clean files, and the report told readers to
+    double-check a third of their data. A row now counts only when its score
+    is clearly high (ANOMALY_SCORE) and stands far above the other rows' scores
+    (three robust spreads above their median). For those rows, each measure's
+    median shift (in robust standard units) says which measures drive it.
     """
     cols = measures[:20]
     if len(cols) < 2:
@@ -614,10 +621,14 @@ def _anomalies(df: pd.DataFrame, measures: List[str], seed: int = 42) -> Dict[st
         frame = frame.sample(20_000, random_state=seed)
     try:
         from sklearn.ensemble import IsolationForest
-        clf = IsolationForest(contamination="auto", random_state=seed, n_estimators=60)
-        flags = clf.fit_predict(frame.to_numpy(dtype="float64")) == -1
+        matrix = frame.to_numpy(dtype="float64")
+        clf = IsolationForest(contamination="auto", random_state=seed, n_estimators=100).fit(matrix)
+        scores = -clf.score_samples(matrix)
     except Exception:
         return {}
+    med = float(np.median(scores))
+    spread = float(np.median(np.abs(scores - med))) * 1.4826
+    flags = (scores >= ANOMALY_SCORE) & (scores > med + 3 * spread)
     k = int(flags.sum())
     result: Dict[str, Any] = {
         "method": "isolation_forest",

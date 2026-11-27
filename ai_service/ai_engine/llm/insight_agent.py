@@ -111,7 +111,8 @@ _LEVEL_RULES = {
     "plain": """KEEP THESE OUT OF EVERY TITLE, SUMMARY, INSIGHT AND CONCLUSION — the reader does not know them:
 p-values ("p = 0.23", "p < 0.001"), "statistically significant", correlation coefficients ("r = 0.71", "ρ"),
 eta-squared ("η²"), R², tau ("τ"), variance, standard deviation, regression, Mann-Kendall, Spearman, Pearson,
-Cramér's V, chi-square, confidence intervals, Sen slope, quartiles, "model share", "lift", "multivariate".
+Cramér's V, chi-square, confidence intervals, Sen slope, quartiles, "model share", "lift", "multivariate",
+Kruskal-Wallis, Mann-Whitney, ANOVA, "isolation forest", "anomaly score", z-scores, "bimodal".
 Say what they mean instead: "moves together with", "a strong link", "a clear difference", "accounts for about
 half of the ups and downs in", "too small to rely on", "could be chance".
 DIG prints the statistics behind each finding on a separate "How we know" page, so nothing is lost.
@@ -701,6 +702,16 @@ INSIGHT RULES:
 - Surface group differences, temporal trends, or strong correlations if they exist.
 - If USER DIRECTIVES were given above, at least one insight must directly address them.
 - Use specific figures where they strengthen the finding. If data is directional but imprecise, say so.
+- "Twice", "half" and "N times" only for two figures you name and have divided. Compare a group with "the
+  average" only using an overall figure given above, never with the lowest or another group.
+- When groups differ in size, compare rates and shares (the share of each department who left), not counts.
+- Describe links, never causes: "staff who left had lower engagement", not "engagement drops before leaving"
+  or "lower pay makes people leave". Say so when a link may come from another column (pay and department).
+- A row is what the dataset description says it is. Never add a period ("daily visits") the data does not state.
+- If the user said two columns are a before and an after, or a first and a second measurement, the change
+  between them is the first insight. If dates exist, check the day of the week and the month.
+- Skip findings a reader would already know ("children are younger") and tiny shares of odd values; put those
+  in the data quality section if anywhere.
 
 Respond ONLY with JSON. No markdown. No text before or after the JSON object.
 """
@@ -1191,6 +1202,45 @@ def _reader_words(report: LLMReport) -> str:
     return "\n".join(p for p in parts if p)
 
 
+def _strip_known_ids(text: str, ids) -> str:
+    """
+    `text` without DIG's result ids, bracketed or bare. evidence.without_ids
+    takes only bracketed ones, and only from insights. The writer is told never
+    to print ids and still wrote "Le tableau R1 indique…" and "(R6)" for the
+    reader to puzzle over. Only ids this report really has are taken out, so a
+    product called F1 stays.
+    """
+    names = sorted({str(i) for i in ids if re.fullmatch(r"[A-Z]\d{1,3}", str(i))}, key=len, reverse=True)
+    if not text or not names:
+        return text
+    one = "(?:" + "|".join(names) + ")"
+    text = re.sub(rf"\s*[\(\[]\s*{one}(?:\s*[,;/&]\s*{one})*\s*[\)\]]", "", text)
+    # Before punctuation, with the space in front ("see R1." becomes "see.");
+    # elsewhere, with the space after. Other spacing stays as written: French
+    # puts a space before a colon.
+    text = re.sub(rf"[ \t]*(?<![\w\-]){one}(?![\w\-])(?=[,.;:!?)]|$)", "", text)
+    text = re.sub(rf"(?<![\w\-]){one}(?![\w\-])[ \t]?", "", text)
+    return re.sub(r"[ \t]{2,}", " ", text)
+
+
+def _without_ids(report: LLMReport, known: Dict[str, Any]) -> None:
+    ids = list(known or {})
+    if not ids:
+        return
+    for field in ("reportTitle", "introduction", "executiveSummary", "conclusion", "dataQualitySection"):
+        setattr(report, field, _strip_known_ids(getattr(report, field, "") or "", ids))
+    for insight in report.insights:
+        for key in ("title", "body"):
+            if isinstance(insight.get(key), str):
+                insight[key] = _strip_known_ids(insight[key], ids)
+    for qa in getattr(report, "questionAnswers", None) or []:
+        if isinstance(qa, dict) and isinstance(qa.get("answer"), str):
+            qa["answer"] = _strip_known_ids(qa["answer"], ids)
+    for k in getattr(report, "keyNumbers", None) or []:
+        if isinstance(k, dict) and isinstance(k.get("label"), str):
+            k["label"] = _strip_known_ids(k["label"], ids)
+
+
 def _heavy_words(report: LLMReport, reading) -> List[str]:
     """The statistics words in a report written for someone who does not read them."""
     if reading is None or getattr(reading, "level", "") != "plain":
@@ -1333,6 +1383,7 @@ def generate_report(
         known = catalog(digest, requested)
         report, provider = _with_checks(report, provider, write, prompt, digest, known, language, reading)
         _keep_traced(report, known, language)
+        _without_ids(report, known)
     except Exception as e:   # a check must never cost anyone their report
         print(f"[Insights] report check skipped: {type(e).__name__}: {e}", flush=True)
     try:

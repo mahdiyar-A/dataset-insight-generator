@@ -23,6 +23,9 @@ public sealed record UploadMeta(
 
     /// <summary>What the user said the data is, when DIG was not sure and asked.</summary>
     public string? DataDescription { get; init; }
+
+    /// <summary>What cleaning would fix, in a few plain words each, for the cleaning question.</summary>
+    public IReadOnlyList<string>? CheckProblems { get; init; }
 }
 
 /// <summary>

@@ -114,7 +114,9 @@ def test_brief_returns_validated_settings(monkeypatch):
     body = client.post("/brief", data={"text": "Short and casual, about returns",
                                        "columns_json": json.dumps([{"name": "returns"}, "region"])}).json()
     assert body["source"] == "model"
-    assert body["settings"] == {"tone": "casual", "insightsCount": 3, "focusOn": "returns"}
+    # "Short" in the brief makes the report short (QA 2026-11-27): the model
+    # left depth out, so DIG sets it.
+    assert body["settings"] == {"tone": "casual", "insightsCount": 3, "focusOn": "returns", "depth": "quick"}
 
 
 def test_ask_queries_the_uploaded_file(monkeypatch, frame):

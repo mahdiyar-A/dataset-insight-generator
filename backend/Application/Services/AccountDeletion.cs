@@ -50,8 +50,10 @@ public class AccountDeletion
         // the other order would strand files with no record of whose they were.
         await _storage.DeleteUserFilesAsync(userId);
 
-        // The two references the database will not clear by itself.
+        // The references the database will not clear by itself. Each one makes
+        // it refuse to delete the user row below.
         await _workspaces.DeleteRepliesToUserAsync(userId);
+        await _workspaces.ReleaseSharesByUserAsync(userId);
         await _teams.ClearInviterAsync(userId);
 
         // Cascades to analyses, memberships, owned teams and comments.

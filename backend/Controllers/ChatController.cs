@@ -123,6 +123,7 @@ public class ChatController : ControllerBase
             string condition;
             string? reason = null;
             DataReading? reading = null;
+            string[]? problems = null;
             var fileName = UploadStore.Users.ReadMeta(userId)?.FileName ?? req.FileName ?? Path.GetFileName(tempPath!);
             try
             {
@@ -134,6 +135,12 @@ public class ChatController : ControllerBase
                 if (checkResult.TryGetProperty("error", out var err) && err.ValueKind == JsonValueKind.String)
                     reason = err.GetString();
                 reading = DataReading.From(checkResult);
+                if (checkResult.TryGetProperty("problems", out var found) && found.ValueKind == JsonValueKind.Array)
+                    problems = found.EnumerateArray()
+                        .Where(p => p.ValueKind == JsonValueKind.String)
+                        .Select(p => p.GetString()!.Trim())
+                        .Where(p => p.Length is > 0 and <= 120)
+                        .Take(4).ToArray();
             }
             catch (Exception ex)
             {
@@ -160,6 +167,7 @@ public class ChatController : ControllerBase
                 CheckCondition  = condition,
                 DomainJson      = reading?.ClassificationJson,
                 DataDescription = null,
+                CheckProblems   = problems,
             });
 
             // Not sure what the data is: ask before anything runs. The reading
@@ -170,7 +178,7 @@ public class ChatController : ControllerBase
                 return Ok(AskWhatTheDataIs(reading, condition));
 
             return Ok(await AfterTheReadingAsync(userId, req, condition, customizationJson, fileInfo.Length,
-                                                 reading?.UnderstoodAs));
+                                                 reading?.UnderstoodAs, problems));
         }
 
         // The answer to "what is this data about?": DIG's own reading confirmed,
@@ -200,7 +208,8 @@ public class ChatController : ControllerBase
             }
 
             return Ok(await AfterTheReadingAsync(userId, req, condition, customizationJson,
-                                                 new System.IO.FileInfo(tempPath!).Length, understoodAs: null));
+                                                 new System.IO.FileInfo(tempPath!).Length, understoodAs: null,
+                                                 meta.CheckProblems));
         }
 
         // "Proceed anyway?" answered No means do not run. It used to start the
@@ -266,7 +275,7 @@ public class ChatController : ControllerBase
     /// </summary>
     private async Task<ChatMessageResponse> AfterTheReadingAsync(
         Guid userId, ChatMessageRequest req, string condition, string? customizationJson,
-        long fileSize, string? understoodAs)
+        long fileSize, string? understoodAs, IReadOnlyList<string>? problems = null)
     {
         // Said when DIG was sure and did not ask, so the person can see what the
         // report will rest on. Never empty text: nothing is better than "".
@@ -277,7 +286,11 @@ public class ChatController : ControllerBase
             case "not_clean":
                 return new ChatMessageResponse
                 {
-                    Reply = "Your dataset has quality issues — missing values or duplicates detected. Would you like me to clean it automatically?",
+                    // Names what was found ("2 duplicate rows, blank cells in 3
+                    // columns (…)"), not the same line for every file.
+                    Reply = problems is { Count: > 0 }
+                        ? $"I found {string.Join(", ", problems)}. Would you like me to clean it automatically?"
+                        : "Your dataset has quality issues — missing values or duplicates detected. Would you like me to clean it automatically?",
                     Condition = "not_clean", RequiresResponse = true, Done = false, Failed = false,
                     UnderstoodAs = saidAs,
                 };
@@ -342,6 +355,7 @@ public class ChatController : ControllerBase
     private static ChatMessageResponse Refused(Admission admission) => new()
     {
         Reply = admission.Message, Condition = null, RequiresResponse = false, Done = false, Failed = true,
+        Code = admission.Code,
     };
 
     // ── POST /api/chat/brief ──────────────────────────────────────────────────
@@ -595,6 +609,8 @@ public class ChatMessageResponse
     [JsonPropertyName("requiresResponse")] public bool    RequiresResponse { get; set; }
     [JsonPropertyName("done")]             public bool    Done             { get; set; }
     [JsonPropertyName("failed")]           public bool    Failed           { get; set; }
+    /// <summary>Why a run was refused (e.g. QUOTA_EXCEEDED), for the page to offer a way on.</summary>
+    [JsonPropertyName("code")]             public string? Code             { get; set; }
 
     // The run this reply started. Without it the page checked a blank address
     // for as long as it stayed open and never saw the finished report.

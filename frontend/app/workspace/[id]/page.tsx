@@ -40,9 +40,17 @@ const FILE_CATALOG = [
   { key: "word",         label: "Word Report",  icon: "📝", editable: true,  flag: "hasWord" },
   { key: "pptx",         label: "Presentation", icon: "📊", editable: true,  flag: "hasPptx" },
   { key: "cleaned_csv",  label: "Cleaned CSV",  icon: "🗂",  editable: true,  flag: "hasCleanedCsv" },
-  { key: "original_csv", label: "Original CSV", icon: "📋", editable: false, flag: "hasOriginalCsv" },
-  { key: "charts",       label: "Charts",       icon: "📈", editable: false, flag: "hasCharts" },
+  { key: "original_csv", label: "Original file", icon: "📋", editable: false, flag: "hasOriginalCsv" },
+  // No "Charts" entry: charts live inside the reports above, with no file of
+  // their own. The entry always read "Not generated", even for a report with 5.
 ] as const;
+
+/** "Original file (.xlsx)": the upload is often not a CSV. */
+function originalLabel(fileName?: string | null) {
+  const dot = fileName?.lastIndexOf(".") ?? -1;
+  const ext = fileName && dot > 0 ? fileName.slice(dot).toLowerCase() : "";
+  return ext && ext.length <= 9 ? `Original file (${ext})` : "Original file";
+}
 
 // A remote cursor disappears if we have not heard from it for this long. Without
 // this a collaborator who closes their laptop leaves a cursor frozen on screen.
@@ -74,6 +82,9 @@ export default function WorkspacePage() {
   const [teammates,    setTeammates]    = useState<Teammate[]>([]);
   const [permissions,  setPermissions]  = useState<WorkspacePermission[]>([]);
   const [accessError,  setAccessError]  = useState("");
+  // A failed comment action is shown beside the comments. It used to go
+  // through `error`, which replaces the whole workspace with an error page.
+  const [commentError, setCommentError] = useState("");
 
   const hubRef        = useRef<signalR.HubConnection | null>(null);
   const previewRef    = useRef<HTMLDivElement | null>(null);
@@ -82,7 +93,8 @@ export default function WorkspacePage() {
   // Availability is derived from the loaded workspace on every render rather
   // than stored, so switching workspaces cannot show stale file states.
   const files: FileItem[] = FILE_CATALOG.map(f => ({
-    key: f.key, label: f.label, icon: f.icon, editable: f.editable,
+    key: f.key, icon: f.icon, editable: f.editable,
+    label: f.key === "original_csv" ? originalLabel(workspace?.analysis?.fileName) : f.label,
     available: Boolean(workspace?.analysis?.[f.flag]),
   }));
 
@@ -103,7 +115,9 @@ export default function WorkspacePage() {
       })
       .catch(e => {
         if (cancelled) return;
-        setError(errorMessage(e));
+        setError(e?.status === 404 || e?.status === 403
+          ? "This shared report isn't available. It may have been unshared, or you're not in its team."
+          : errorMessage(e));
         setLoading(false);
       });
 
@@ -305,8 +319,9 @@ export default function WorkspacePage() {
       setAnnotations(prev => mergeAnnotation(prev, { ...ann, replies: ann.replies ?? [] }));
       setNewComment("");
       setReplyTo(null);
+      setCommentError("");
       hubRef.current?.invoke("BroadcastAnnotation", wsId, ann).catch(() => {});
-    } catch (e) { setError(errorMessage(e)); }
+    } catch (e) { setCommentError(errorMessage(e)); }
   };
 
   const handleResolve = async (annId: string) => {
@@ -314,8 +329,9 @@ export default function WorkspacePage() {
     try {
       await BackendAPI.resolveAnnotation(token, wsId, annId);
       setAnnotations(prev => markResolved(prev, annId));
+      setCommentError("");
       hubRef.current?.invoke("BroadcastAnnotationResolved", wsId, annId).catch(() => {});
-    } catch (e) { setError(errorMessage(e)); }
+    } catch (e) { setCommentError(errorMessage(e)); }
   };
 
   const handleDeleteAnnotation = async (annId: string) => {
@@ -323,8 +339,9 @@ export default function WorkspacePage() {
     try {
       await BackendAPI.deleteAnnotation(token, wsId, annId);
       setAnnotations(prev => removeAnnotation(prev, annId));
+      setCommentError("");
       hubRef.current?.invoke("BroadcastAnnotationDeleted", wsId, annId).catch(() => {});
-    } catch (e) { setError(errorMessage(e)); }
+    } catch (e) { setCommentError(errorMessage(e)); }
   };
 
   // Editing was reachable from neither the UI nor the API layer, even though
@@ -343,7 +360,8 @@ export default function WorkspacePage() {
       hubRef.current?.invoke("BroadcastAnnotationEdit", wsId, updated).catch(() => {});
       setEditingId(null);
       setEditDraft("");
-    } catch (e) { setError(errorMessage(e)); }
+      setCommentError("");
+    } catch (e) { setCommentError(errorMessage(e)); }
   };
 
   // ── Filter annotations for active file ───────────────────────────────────
@@ -643,6 +661,11 @@ export default function WorkspacePage() {
               ({visibleAnnotations.filter(a => !a.resolvedAt).length} open)
             </span>}
           </h3>
+          {commentError && (
+            <p role="alert" style={{ margin: "6px 0 0", fontSize: "0.75rem", color: "var(--danger-text)" }}>
+              {commentError}
+            </p>
+          )}
         </div>
 
         {/* Annotation list */}

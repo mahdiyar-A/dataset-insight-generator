@@ -32,6 +32,7 @@ const T = {
   en: {
     title: "Edit the report",
     intro: "Change the words, the order of the insights and the charts. Each save is a new version, and the PDF, Word and PowerPoint files are rebuilt to match.",
+    introPdf: "Change the words, the order of the insights and the charts. Each save is a new version, and the PDF is rebuilt to match.",
     open: "Edit the report", close: "Close the editor",
     loading: "Opening the report…",
     old: "This report was made before reports could be edited. Run the analysis again to edit it.",
@@ -88,6 +89,7 @@ const T = {
   fr: {
     title: "Modifier le rapport",
     intro: "Modifiez le texte, l'ordre des insights et les graphiques. Chaque enregistrement crée une nouvelle version, et les fichiers PDF, Word et PowerPoint sont reconstruits.",
+    introPdf: "Modifiez le texte, l'ordre des insights et les graphiques. Chaque enregistrement crée une nouvelle version, et le PDF est reconstruit.",
     open: "Modifier le rapport", close: "Fermer l'éditeur",
     loading: "Ouverture du rapport…",
     old: "Ce rapport date d'avant la modification des rapports. Relancez l'analyse pour pouvoir le modifier.",
@@ -144,6 +146,7 @@ const T = {
   fa: {
     title: "ویرایش گزارش",
     intro: "متن، ترتیب یافته‌ها و نمودارها را تغییر دهید. هر ذخیره یک نسخه‌ی تازه است و فایل‌های PDF، Word و PowerPoint دوباره ساخته می‌شوند.",
+    introPdf: "متن، ترتیب یافته‌ها و نمودارها را تغییر دهید. هر ذخیره یک نسخه‌ی تازه است و PDF دوباره ساخته می‌شود.",
     open: "ویرایش گزارش", close: "بستن ویرایشگر",
     loading: "در حال باز کردن گزارش…",
     old: "این گزارش پیش از امکان ویرایش ساخته شده است. برای ویرایش، تحلیل را دوباره اجرا کنید.",
@@ -503,7 +506,9 @@ export default function ReportEditor({ analysis, ready, startOpen = false }) {
         <h2>{readOnly ? t.readTitle : t.title}</h2>
         {base && <span className="pill">{t.version(base.version)}{dirty ? ` · ${t.unsaved}` : ""}</span>}
       </div>
-      <p className="muted-small" style={{ margin: 0 }}>{readOnly ? t.readIntro : t.intro}</p>
+      <p className="muted-small" style={{ margin: 0 }}>{readOnly ? t.readIntro
+        : (analysis?.hasWordReport || analysis?.hasPptx || user?.plan === "pro" || user?.plan === "admin")
+          ? t.intro : t.introPdf}</p>
 
       <button type="button" className="secondary-btn" onClick={() => setOpen(o => !o)}
         style={{ alignSelf: "flex-start" }}>

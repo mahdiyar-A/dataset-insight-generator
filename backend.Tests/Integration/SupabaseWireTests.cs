@@ -408,4 +408,51 @@ public class SupabaseWireTests
         read[0].JoinedAt.Year.Should().Be(2026);
         read[0].Role.Should().Be("editor");
     }
+
+    // ── New rows keep the id the server made ─────────────────────────────────
+    // Leaving the id out let the database make a different one, and every
+    // later step (adding the owner, withdrawing an invite, opening the shared
+    // report, resolving a comment) pointed at a row that didn't exist.
+
+    [Test]
+    public async Task A_new_team_is_saved_with_the_id_its_owner_is_added_under()
+    {
+        var team = new Team(Guid.NewGuid(), "Ops");
+
+        await new TeamRepository(_supabase.Client).CreateTeamAsync(team);
+
+        Row(_supabase.Requests.First(r => r.Path.EndsWith("/rest/v1/teams") && r.Method == "POST"))["id"]!
+            .Value<string>().Should().Be(team.Id.ToString());
+        Row(Write("team_members"))["team_id"]!.Value<string>().Should().Be(team.Id.ToString());
+    }
+
+    [Test]
+    public async Task A_new_invite_is_saved_with_its_id()
+    {
+        var invite = new TeamInvite(Guid.NewGuid(), "a@example.com", "editor", Guid.NewGuid());
+
+        await new TeamRepository(_supabase.Client).CreateInviteAsync(invite);
+
+        Row(Write("team_invites"))["id"]!.Value<string>().Should().Be(invite.Id.ToString());
+    }
+
+    [Test]
+    public async Task A_new_shared_report_is_saved_with_its_id()
+    {
+        var ws = new SharedWorkspace(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+
+        await new WorkspaceRepository(_supabase.Client).ShareAnalysisAsync(ws);
+
+        Row(Write("shared_workspaces"))["id"]!.Value<string>().Should().Be(ws.Id.ToString());
+    }
+
+    [Test]
+    public async Task A_new_comment_is_saved_with_its_id()
+    {
+        var note = new Annotation(Guid.NewGuid(), Guid.NewGuid(), "pdf", "Check this");
+
+        await new WorkspaceRepository(_supabase.Client).AddAnnotationAsync(note);
+
+        Row(Write("annotations"))["id"]!.Value<string>().Should().Be(note.Id.ToString());
+    }
 }

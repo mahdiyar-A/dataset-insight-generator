@@ -195,11 +195,50 @@ def _fix_rtl_text(fig) -> None:
             t.set_text(_display(s))
 
 
+# Characters the chart fonts lack, drawn as a box: "Average Pre▯test Score".
+# The writer uses the non-breaking hyphen (U+2011) in titles.
+_NO_GLYPH = str.maketrans({"‑": "-", "‐": "-", "­": "", "−": "-"})
+
+
+def _plain_glyphs(fig) -> None:
+    from matplotlib.text import Text
+    for t in fig.findobj(Text):
+        s = t.get_text()
+        if s and any(ch in s for ch in "‑‐­−"):
+            t.set_text(s.translate(_NO_GLYPH))
+
+
+def readable_names(columns, meanings: Optional[Dict[str, str]]) -> Dict[str, str]:
+    """
+    Axis names for columns whose own names say nothing (V1, Q12, X_3), from
+    what the file-reading model or the user said they hold. A chart of "V1"
+    against "V5" told the reader nothing they had not already typed in.
+    """
+    out: Dict[str, str] = {}
+    taken = {str(c) for c in columns}
+    for col in columns:
+        name = str(col)
+        meaning = str((meanings or {}).get(name) or "").strip()
+        if not meaning or not re.fullmatch(r"[A-Za-z]{1,3}_?\d{1,3}", name):
+            continue
+        words = re.sub(r"\s*[\(\[].*$", "", meaning).split()
+        label = " ".join(words[:5]).rstrip(",;:.")
+        label = label[:1].upper() + label[1:]
+        if label and label not in taken:
+            out[name] = label
+            taken.add(label)
+    return out
+
+
 def _to_png_base64(fig) -> str:
     try:
         _fix_rtl_text(fig)
     except Exception as e:  # a label problem must not cost the chart
         print(f"[Chart] right-to-left labels left as they were: {e}")
+    try:
+        _plain_glyphs(fig)
+    except Exception as e:
+        print(f"[Chart] hyphens left as they were: {e}")
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=150, bbox_inches="tight",
                 facecolor=fig.get_facecolor())
@@ -662,14 +701,24 @@ def _is_measure(df: pd.DataFrame, column: str | None) -> bool:
 
 
 def generate_charts(df: pd.DataFrame, instructions: List[ChartInstruction],
-                    style: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+                    style: Optional[Dict[str, Any]] = None,
+                    names: Optional[Dict[str, str]] = None) -> List[Dict[str, Any]]:
     """
+    `names` renames columns for the axes only (readable_names): the data and
+    each instruction are renamed together, so every chart finds its columns.
+
     Generate charts from LLM instructions, in the report's look when `style`
     (Look.chart_style()) is given: each chart takes the theme's next colour.
     Routes to correct builder including complex types (grouped_bar, multi_line).
     Also routes simple bar/line charts with subtype/groupColumn to the complex builders.
     Returns list of {type, label, desc, color, insight_index, image_base64} — max 5 charts.
     """
+    if names:
+        df = df.rename(columns=names)
+        rename = lambda c: names.get(c, c) if isinstance(c, str) else c
+        instructions = [replace(i, xColumn=rename(i.xColumn), yColumn=rename(i.yColumn),
+                                groupColumn=rename(i.groupColumn), yColumns=[rename(c) for c in i.yColumns])
+                        for i in instructions]
     results = []
     counted = set()   # x columns already shown as a count, so no chart repeats
     # Truncation is announced rather than silent. The slice used to be a bare
@@ -684,6 +733,16 @@ def generate_charts(df: pd.DataFrame, instructions: List[ChartInstruction],
             if style:
                 instr = replace(instr, color=_pal["colors"][i % len(_pal["colors"])])
             _one_chart(df, instr, counted, results)
+    if names:
+        # The stored spec redraws the chart from the real file later, so it
+        # keeps the file's own column names.
+        back = {v: k for k, v in names.items()}
+        orig = lambda c: back.get(c, c) if isinstance(c, str) else c
+        for r in results:
+            spec = r.get("spec") or {}
+            r["spec"] = {**spec, "x": orig(spec.get("x")), "y": orig(spec.get("y")),
+                         "group": orig(spec.get("group")),
+                         "yColumns": [orig(c) for c in spec.get("yColumns") or []]}
     return results
 
 

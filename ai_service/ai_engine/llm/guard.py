@@ -109,9 +109,42 @@ def leaks_prompt(reply: str) -> bool:
 
 
 _NUMBER = re.compile(
-    r"(?<![\w.])([-+]?\d[\d,]*(?:\.\d+)?)(%)?"
+    r"(?<![\w.,])([-+]?\d(?:[\d,.]*\d)?)(%)?"
     r"(?:(k|K|M|B|mn|bn)\b|\s?(thousand|million|billion|trillion)\b)?"
 )
+# Digits grouped by spaces, as French and Persian write 64 369: one number.
+_SPACED = re.compile(r"(?<![\d,.])(\d{1,3})((?:[    ]\d{3})+)(?!\d)")
+# A minus written as a dash or the minus sign, stuck to the digits and not
+# closing a range ("10–20" keeps both numbers positive).
+_DASH_MINUS = re.compile(r"(?<![\w.,])[−‒–—‐‑﹣－](?=\d)")
+_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩٫٬٪", "01234567890123456789.,%")
+_THOUSANDS_EN = re.compile(r"^\d{1,3}(,\d{3})+(\.\d+)?$|^\d+(\.\d+)?$")
+_THOUSANDS_EU = re.compile(r"^\d{1,3}(\.\d{3})+(,\d+)?$|^\d+(,\d+)?$")
+
+
+def _plain_digits(text: str) -> str:
+    """Persian and Arabic digits, dash minus signs and spaced groups made plain."""
+    text = (text or "").translate(_DIGITS)
+    text = _DASH_MINUS.sub("-", text)
+    return _SPACED.sub(lambda m: m.group(1) + re.sub(r"\D", "", m.group(2)), text)
+
+
+def _readings(digits: str) -> List[float]:
+    """
+    What a written number can mean. "1,234" is 1234 in English and 1.234 in
+    French; "35,8" can only be 35.8, and "64.369" is 64.369 or 64369. Every
+    reading is kept and any may match, since a report can be in any language.
+    """
+    sign = -1.0 if digits.startswith("-") else 1.0
+    body = digits.lstrip("+-")
+    out: List[float] = []
+    if _THOUSANDS_EN.match(body):
+        out.append(sign * float(body.replace(",", "")))
+    if _THOUSANDS_EU.match(body):
+        value = sign * float(body.replace(".", "").replace(",", "."))
+        if value not in out:
+            out.append(value)
+    return out
 _SCALES = {"k": 1e3, "K": 1e3, "thousand": 1e3, "M": 1e6, "mn": 1e6, "million": 1e6,
            "B": 1e9, "bn": 1e9, "billion": 1e9, "trillion": 1e12}
 
@@ -131,13 +164,30 @@ def without_unbacked_margins(text: str, columns: Iterable[str]) -> str:
 
 
 def _figures(text: str) -> List[Tuple[float, float]]:
-    """Each number as written, with what its suffix multiplies it by."""
+    """
+    Each number in DIG's own data, with what its suffix multiplies it by. The
+    data is always written the English way, so only that reading is taken.
+    """
     out = []
-    for digits, _percent, short, word in _NUMBER.findall(text or ""):
+    for digits, _percent, short, word in _NUMBER.findall(_plain_digits(text)):
         try:
             out.append((float(digits.replace(",", "")), _SCALES.get(short or word, 1.0)))
         except ValueError:
             continue
+    return out
+
+
+def _written_figures(text: str) -> List[Tuple[List[float], float]]:
+    """
+    Each number in a reply, in any language: its possible readings and what its
+    suffix multiplies it by. The French report's 35,8 was read as 358 and its
+    64 369 as 369, and every non-English report ended with a false warning.
+    """
+    out = []
+    for digits, _percent, short, word in _NUMBER.findall(_plain_digits(text)):
+        readings = _readings(digits)
+        if readings:
+            out.append((readings, _SCALES.get(short or word, 1.0)))
     return out
 
 
@@ -155,18 +205,21 @@ def ungrounded_numbers(reply: str, sources: Iterable[str], tolerance: float = 0.
     exact: Set[float] = set()
     for src in sources:
         for v, scale in _figures(src):
-            exact.update((v, v * scale, v * 100, v / 100))  # a share written as a percentage
+            # A share written as a percentage, and a fall written without its
+            # minus ("fell by 19 points" for a change of -19.1).
+            exact.update((v, v * scale, v * 100, v / 100, abs(v), abs(v * 100)))
     # Without a suffix to go on, 1,203,455 may be quoted as "1.2" in a sentence
     # about millions.
     pool = exact | {v / scale for v in exact for scale in (1e3, 1e6, 1e9)}
 
     found = []
-    for v, scale in _figures(reply):
-        if scale == 1 and abs(v) <= 12 and float(v).is_integer():
+    for readings, scale in _written_figures(reply):
+        if scale == 1 and any(abs(v) <= 12 and float(v).is_integer() for v in readings):
             continue
-        if any(_close(v * scale, p, tolerance) for p in (exact if scale != 1 else pool)):
+        targets = exact if scale != 1 else pool
+        if any(_close(v * scale, p, tolerance) for v in readings for p in targets):
             continue
-        found.append(v * scale)
+        found.append(readings[0] * scale)
     return found
 
 
@@ -246,12 +299,18 @@ def misattributed_figures(text: str, digest: Any, tolerance: float = 0.005) -> L
         if not named:
             continue
         lowered = sentence.lower()
-        for value, scale in _figures(sentence):
-            figure = value * scale
-            if scale == 1 and abs(figure) <= 12 and float(figure).is_integer():
+        for readings, scale in _written_figures(sentence):
+            if scale == 1 and any(abs(v) <= 12 and float(v).is_integer() for v in readings):
                 continue
-            owners = {n for n, figures in owned.items() if any(_close(figure, f, tolerance) for f in figures)}
-            if not owners or any(_close(figure, f, tolerance) for f in free):
+            if any(_close(v * scale, f, tolerance) for v in readings for f in free):
+                continue
+            figure, owners = readings[0] * scale, set()
+            for v in readings:
+                owners = {n for n, figures in owned.items() if any(_close(v * scale, f, tolerance) for f in figures)}
+                if owners:
+                    figure = v * scale
+                    break
+            if not owners:
                 continue
             # Read loosely: a sentence about "sandwiches" names Sandwich.
             if any(owner.lower().rstrip("s") in lowered for owner in owners):

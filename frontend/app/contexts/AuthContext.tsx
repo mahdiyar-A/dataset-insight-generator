@@ -179,15 +179,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
 
         if (session?.access_token) {
-          if (event === 'SIGNED_IN') {
-            // On first sign-in, sync the user to our DB before fetching profile
-            // Names arrive under different keys from email sign-up, Google,
-            // Microsoft, GitHub and LinkedIn; namesFromUser handles each.
+          // Names arrive under different keys from email sign-up, Google,
+          // Microsoft, GitHub and LinkedIn; namesFromUser handles each.
+          const sync = () => {
             const u = session.user;
             const { firstName, lastName } = namesFromUser(u);
-            await syncUser(session.access_token, firstName, lastName, u.email ?? '');
+            return syncUser(session.access_token, firstName, lastName, u.email ?? '');
+          };
+          // On first sign-in, sync the user to our DB before fetching profile.
+          if (event === 'SIGNED_IN') await sync();
+          let profile = await fetchProfile(session.access_token, event === 'SIGNED_IN' ? 5 : 1);
+          // The account row is still missing: the first sync didn't reach the
+          // server (a deploy, a dropped connection). Sync again now instead of
+          // leaving the account half-made until the next sign-in. The server
+          // makes the row only once, so a repeat does no harm.
+          if (!profile) {
+            await sync();
+            profile = await fetchProfile(session.access_token);
           }
-          const profile = await fetchProfile(session.access_token);
           if (profile) setUser(profile);
         } else {
           setUser(null);

@@ -25,6 +25,7 @@ from typing import List
 # Notation, the same in every language.
 _STAT = (r"(?:\bp\s*[<=>≤≥]|\bp-?value|\br\s*=|\bρ|\brho\b|\bτ|\btau\b|η²?|\beta[\s\-‑]?squared|\bR²|\bR\^?2\b|"
          r"χ²|\bchi[\s\-‑]?squared?|Cram[eé]r|Mann[\s\-‑]?Kendall|Spearman|Pearson|Sen(?:'s)?\s+slope|"
+         r"Kruskal[\s\-‑]?Wallis|Mann[\s\-‑]?Whitney|Welch|ANOVA|isolation[\s\-‑]?forest|\bz[\s\-‑]?score|"
          r"\bz\s*=|\bt\s*=|\bF\s*=|\bd\s*=|\bn\s*=|\bCI\b|confidence interval|\bstd\.?\b|σ|\bIQR\b|\bSD\b)")
 _STAT_RE = re.compile(_STAT, re.IGNORECASE)
 
@@ -39,6 +40,8 @@ _WORDS = [
     "standard deviation", "variance", "regression", "r-squared", "r²", "model share", "coefficient",
     "heteroscedastic", "kurtosis", "skewness", "skewed", "interquartile", "quartile", "non-parametric",
     "parametric", "null hypothesis", "effect size", "multivariate", "univariate", "bivariate", "η²", "ρ", "τ",
+    "kruskal-wallis", "kruskal wallis", "mann-whitney", "mann whitney", "anova", "welch", "isolation forest",
+    "isolation-forest", "anomaly score", "z-score", "bimodal", "outlier fence",
 ]
 _WORD_RE = re.compile("|".join(re.escape(w) for w in sorted(_WORDS, key=len, reverse=True)), re.IGNORECASE)
 
@@ -65,7 +68,8 @@ _SWAP_RES = [(re.compile(a, re.IGNORECASE), b) for a, b in _SWAPS]
 # A sentence that leans on a test name to make its point.
 _TEST_NAMES = re.compile(r"eta[\s\-‑]?squared|η²|mann[\s\-‑]?kendall|sen(?:'s)?\s+slope|spearman|pearson|"
                          r"cram[eé]r|chi[\s\-‑]?squared?|r[\s\-‑]?squared|R²|p[\s\-‑]?value|model share|"
-                         r"\bp\s*[<=>]|\bτ\b|\btau\b", re.IGNORECASE)
+                         r"\bp\s*[<=>]|\bτ\b|\btau\b|kruskal|mann[\s\-‑]?whitney|isolation[\s\-‑]?forest",
+                         re.IGNORECASE)
 _SENTENCE = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"“(])")
 
 

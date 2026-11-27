@@ -145,7 +145,8 @@ public class AnalysisController : ControllerBase
                 return StatusCode(429, new
                 {
                     error   = "QUOTA_EXCEEDED",
-                    message = "Free plan allows 2 analyses per 48 hours.",
+                    message = "The free plan includes 2 analyses every 48 hours, and you've used them. " +
+                              $"You can run another {AnalysisService.TimeLeft(user.ReportsResetAt.AddHours(48) - DateTime.UtcNow)}, or upgrade to Pro.",
                     resetsAt = user.ReportsResetAt.AddHours(48),
                 });
             }

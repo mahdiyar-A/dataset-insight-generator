@@ -95,6 +95,8 @@ builder.Services.AddScoped<ReportAccess>();                  // who may read and
 builder.Services.AddSingleton<IReportLive, ReportLive>();     // tells open pages a report was saved
 builder.Services.AddSingleton(_ => new ReportProposals());   // suggestions from the chat, until applied
 builder.Services.AddScoped<AccountDeletion>();
+builder.Services.AddScoped<IVisitRepository,     VisitRepository>();
+builder.Services.AddSingleton(_ => new VisitCounter());   // today's visitors, in memory only
 builder.Services.AddHttpClient<IAuthAdmin, SupabaseAuthAdmin>();
 builder.Services.AddScoped<UploadIntake>();
 
@@ -302,6 +304,18 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 30,
+                Window      = TimeSpan.FromHours(1),
+                QueueLimit  = 0,
+            }));
+
+    // "Page seen" notes for the visit counts. A person browsing sends a few a
+    // minute; this only stops a script from filling the table.
+    options.AddPolicy("visit", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ClientKey(ctx),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 120,
                 Window      = TimeSpan.FromHours(1),
                 QueueLimit  = 0,
             }));

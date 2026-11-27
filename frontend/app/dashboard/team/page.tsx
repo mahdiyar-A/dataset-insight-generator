@@ -257,10 +257,10 @@ export default function TeamPage() {
                 <h2 style={{ margin: "0 0 4px", fontSize: "1.25rem", fontWeight: 700 }}>
                   {activeTeam.name}
                 </h2>
+                {/* The "invite code" shown here was never used by anything:
+                    people join through an emailed invite link. */}
                 <p style={{ margin: 0, color: "var(--ink-faint)", fontSize: "0.78rem" }}>
-                  Invite code: <code style={{ color: "var(--cobalt-accent)",
-                    background: "color-mix(in srgb, var(--cobalt) 10%, transparent)", padding: "2px 6px",
-                    borderRadius: "0"}}>{activeTeam.inviteCode}</code>
+                  People join through an invite link sent to their email.
                 </p>
               </div>
               {activeTeam.isOwner && (

@@ -632,6 +632,12 @@ public class FakePythonAiClient : IPythonAiClient
 
     public int ModelStatusCalls { get; private set; }
 
+    public Task<bool> HealthAsync()
+    {
+        if (SimulateDown) throw new HttpRequestException("Simulated: AI service unreachable");
+        return Task.FromResult(true);
+    }
+
     public Task<string> ModelStatusAsync()
     {
         ModelStatusCalls++;

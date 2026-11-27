@@ -7,11 +7,17 @@ using static Supabase.Postgrest.Constants;
 namespace backend.Infrastructure.Repositories;
 
 // ── Row models ────────────────────────────────────────────────────────────────
+//
+// PrimaryKey("id", true) sends the id the server made. With false, an Insert
+// leaves it out and the database makes a different one, so every later step
+// that used the server's id pointed at nothing: a new team could not get its
+// owner, an unsent invite could not be withdrawn, and a new share or comment
+// answered with an id that did not exist. Upserts send the id either way.
 
 [Table("teams")]
 public class TeamRow : BaseModel
 {
-    [PrimaryKey("id", false)]   public string   Id          { get; set; } = "";
+    [PrimaryKey("id", true)]    public string   Id          { get; set; } = "";
     [Column("name")]            public string   Name        { get; set; } = "";
     [Column("owner_id")]        public string   OwnerId     { get; set; } = "";
     [Column("invite_code")]     public string   InviteCode  { get; set; } = "";
@@ -31,7 +37,7 @@ public class TeamMemberRow : BaseModel
 [Table("team_invites")]
 public class TeamInviteRow : BaseModel
 {
-    [PrimaryKey("id", false)]   public string    Id         { get; set; } = "";
+    [PrimaryKey("id", true)]    public string    Id         { get; set; } = "";
     [Column("team_id")]         public string    TeamId     { get; set; } = "";
     [Column("email")]           public string    Email      { get; set; } = "";
     [Column("token")]           public string    Token      { get; set; } = "";

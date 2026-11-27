@@ -410,7 +410,8 @@ def test_brief_settings_are_validated(model):
     out = build_brief("Executives want churn by region, short, in Persian.", columns=["region", "churn"])
     s = out["settings"]
     assert out["source"] == "model"
-    assert "tone" not in s and "depth" not in s           # not allowed values
+    # "abyssal" is not a depth and is refused; "short" in the brief means quick.
+    assert "tone" not in s and s["depth"] == "quick"
     assert s["audience"] == "executive" and s["language"] == "fa" and s["writingFormat"] == "bullets"
     assert s["insightsCount"] == 10
     assert s["mustMention"] == ["churn", "region"]

@@ -49,6 +49,7 @@ const T = {
     noContext: "This analysis was made before questions were available. Run it again to ask about it.",
     notReady: "Questions open once the analysis has finished.",
     unreachable: "The assistant couldn't be reached just now. Your question wasn't counted, so please try again in a minute.",
+    notAnswered: "Not answered",
     steps: {
       insight: (cols) => `Add an insight about ${cols.join(" and ")}`,
       shorten: "Make the summary shorter",
@@ -78,6 +79,7 @@ const T = {
     noContext: "Cette analyse date d'avant les questions. Relancez-la pour poser des questions.",
     notReady: "Les questions s'ouvrent une fois l'analyse terminée.",
     unreachable: "L'assistant est injoignable pour le moment. Votre question n'a pas été comptée : réessayez dans une minute.",
+    notAnswered: "Sans réponse",
     steps: {
       insight: (cols) => `Ajouter un insight sur ${cols.join(" et ")}`,
       shorten: "Raccourcir le résumé",
@@ -107,6 +109,7 @@ const T = {
     noContext: "این تحلیل پیش از اضافه شدن پرسش و پاسخ انجام شده. برای پرسیدن، آن را دوباره اجرا کنید.",
     notReady: "پرسش‌ها پس از پایان تحلیل فعال می‌شوند.",
     unreachable: "الان به دستیار دسترسی نیست. پرسش شما شمرده نشد؛ لطفاً یک دقیقه دیگر دوباره تلاش کنید.",
+    notAnswered: "بی‌پاسخ",
     steps: {
       insight: (cols) => `افزودن یافته‌ای درباره‌ی ${cols.join(" و ")}`,
       shorten: "کوتاه‌تر کردن خلاصه",
@@ -251,16 +254,21 @@ export default function AnalysisQA({ analysisId, plan = "free" }) {
     const question = text.trim();
     if (!question || sending || closed) return;
 
-    const history = turns.map((turn) => ({ role: turn.role, content: turn.text }));
-    setTurns((prev) => [...prev, { role: "user", text: question }]);
+    // A question that wasn't answered stays on screen but is not sent as part
+    // of the conversation; asked again, the earlier copy makes way.
+    const history = turns.filter((turn) => !turn.unanswered)
+      .map((turn) => ({ role: turn.role, content: turn.text }));
+    setTurns((prev) => [...prev.filter((turn) => !(turn.unanswered && turn.text === question)),
+      { role: "user", text: question }]);
     setDraft("");
     setNotice("");
     setSending(true);
 
-    // The question goes back in the box so trying again is one click, and it
-    // leaves the log so the next question isn't sent with an unanswered turn.
+    // The question stays in the log, marked as not answered (it used to
+    // vanish), and goes back in the box so trying again is one click.
     const giveBack = (message) => {
-      setTurns((prev) => prev.slice(0, -1));
+      setTurns((prev) => prev.map((turn, i) =>
+        i === prev.length - 1 && turn.role === "user" ? { ...turn, unanswered: true } : turn));
       setDraft(question);
       setNotice(message);
     };
@@ -311,8 +319,11 @@ export default function AnalysisQA({ analysisId, plan = "free" }) {
         <div className="analysis-chat-log" ref={logRef} style={{ maxHeight:"340px" }} aria-live="polite">
           {turns.map((turn, i) => (
             <div key={i} className={`msg-row ${turn.role}`}>
-              <div className="msg" dir="auto" style={{ whiteSpace:"pre-wrap" }}>
+              <div className="msg" dir="auto" style={{ whiteSpace:"pre-wrap", opacity: turn.unanswered ? 0.7 : 1 }}>
                 {turn.text}
+                {turn.unanswered && (
+                  <p className="muted-small" style={{ margin:"6px 0 0" }}>{t.notAnswered}</p>
+                )}
                 {turn.fromData && (
                   <p className="muted-small" style={{ margin:"6px 0 0" }}>{t.fromData}</p>
                 )}

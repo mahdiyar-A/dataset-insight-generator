@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { AuthProvider } from "./contexts/AuthContext";
 import { SettingsProvider } from "./contexts/SettingsContext";
+import VisitBeacon from "@/components/VisitBeacon";
 import { SITE_URL } from "@/lib/siteUrl";
 import "./globals.css";
 
@@ -103,6 +104,7 @@ export default function RootLayout({
         <AuthProvider>
           <SettingsProvider>
             {children}
+            <VisitBeacon />
           </SettingsProvider>
         </AuthProvider>
       </body>

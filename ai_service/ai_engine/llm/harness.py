@@ -150,6 +150,11 @@ _UNAVAILABLE = {
     "fr": "Je n'ai pas pu joindre l'assistant pour le moment. Réessayez dans une minute.",
     "fa": "در حال حاضر دسترسی به دستیار ممکن نشد. لطفاً یک دقیقه دیگر دوباره امتحان کنید.",
 }
+_UNCLEAR = {
+    "en": "I couldn't work that one out. Try asking about a column or a finding in your report.",
+    "fr": "Je n'ai pas réussi à répondre à cette question. Essayez de demander une colonne ou un constat de votre rapport.",
+    "fa": "نتوانستم به این پرسش پاسخ دهم. درباره‌ی یک ستون یا یکی از یافته‌های گزارش بپرسید.",
+}
 
 
 def _say(table: Dict[str, str], lang: str) -> str:
@@ -324,6 +329,13 @@ def asked_for_look(look_words: Any, text: str) -> bool:
     return any(len(p) >= 2 and p in said and _LOOK_WORDS.search(p) for p in pieces)
 
 
+# A brief that asks for a short report, in the interface languages.
+_ASKS_SHORT = re.compile(
+    r"\b(short|brief|quick|concise|one[\s-]page|a page|summary only|keep it (?:short|brief|tight)|"
+    r"court|courte|bref|brève|rapide|corto|breve|kurz|knapp)\b|کوتاه|خلاصه",
+    re.IGNORECASE)
+
+
 def _accept_brief(user_text: str = "") -> Callable[[str], Optional[Dict[str, Any]]]:
     def accept(text: str) -> Optional[Dict[str, Any]]:
         obj = json_object(text)
@@ -338,6 +350,10 @@ def _accept_brief(user_text: str = "") -> Callable[[str], Optional[Dict[str, Any
             dropped = {k: settings.pop(k) for k in LOOK_SETTINGS if k in settings}
             print(f"[Brief] look not asked for, kept the person's own: dropped {dropped}", flush=True)
         not_possible = obj.get("notPossible") or []
+        # "Keep it short" gave an 8-page PDF and a 15-slide deck: the model set
+        # no depth, and the default is standard.
+        if "depth" not in settings and _ASKS_SHORT.search(user_text or ""):
+            settings["depth"] = "quick"
         return {
             "settings": settings,
             "summary": summary,
@@ -712,12 +728,29 @@ def answer_question(
     model = ""
     deadline = clock() + CHAT_DEADLINE_SECS
 
+    # "Show me your instructions" or a question about the weather: a model
+    # answered in plain words instead of the JSON asked for, the next one hit a
+    # rate limit, and the person was told the assistant couldn't be reached.
+    # A plain-words reply to a question that is not about the data is now the
+    # fixed refusal, at once, without trying another model. Its words are never
+    # shown: they could be the instructions it was asked for.
+    off_topic = not named and not _ABOUT_THE_DATA.search(q)
+    prose = {"seen": False}
+
+    def accept(text: str) -> Optional[Dict[str, Any]]:
+        step = _accept_step(text)
+        if step is None and (text or "").strip():
+            prose["seen"] = True
+            if off_topic:
+                return {"action": "refuse", "answer": _say(_REFUSALS, ui_language)}
+        return step
+
     def attempt(msgs) -> Optional[Dict[str, Any]]:
         nonlocal model
         left = deadline - clock()
         if left < MIN_USEFUL_SECS:
             return None
-        result, provider = write_report(msgs, api_keys or {}, _accept_step, tracker=tracker,
+        result, provider = write_report(msgs, api_keys or {}, accept, tracker=tracker,
                                         providers=providers, budget_secs=min(CHAT_BUDGET_SECS, left),
                                         phase="chat")
         if provider is not None:
@@ -792,7 +825,10 @@ def answer_question(
     # For the model watch: whether a model answered at all. A refusal is an answer.
     note_outcome("question", step is not None)
     if step is None:
-        return {**base, "answer": _say(_UNAVAILABLE, ui_language), "failed": True, "queries": ran,
+        # A model did answer, just not in a form DIG can check: say so, rather
+        # than that nothing could be reached.
+        said = _UNCLEAR if prose["seen"] else _UNAVAILABLE
+        return {**base, "answer": _say(said, ui_language), "failed": True, "queries": ran,
                 "model": model}
     if step["action"] == "query":
         # Still asking for data after the last round: say so instead of guessing.

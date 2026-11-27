@@ -13,6 +13,11 @@ export default function InvitePage() {
   const { token, user, isLoading } = useAuth();
   const [status,  setStatus]  = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
+  const [needsProError, setNeedsProError] = useState(false);
+  const [about, setAbout] = useState<{
+    forThisAccount: boolean; status: string; teamName?: string | null;
+    invitedBy?: string | null; role?: string; needsPro?: boolean; sentTo?: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!isLoading && !token) {
@@ -20,6 +25,14 @@ export default function InvitePage() {
       router.replace(`/login?redirectTo=/invite/${inviteToken}`);
     }
   }, [token, isLoading]);
+
+  // Which team, who invited, and as what, before anyone presses Accept.
+  useEffect(() => {
+    if (!token) return;
+    BackendAPI.peekInvite(token, inviteToken)
+      .then(setAbout)
+      .catch((e: unknown) => { setStatus("error"); setMessage(errorMessage(e)); });
+  }, [token, inviteToken]);
 
   const handleAccept = async () => {
     if (!token) return;
@@ -32,6 +45,7 @@ export default function InvitePage() {
     } catch (e) {
       setStatus("error");
       setMessage(errorMessage(e) || "Could not accept invitation.");
+      setNeedsProError((e as { status?: number })?.status === 402);
     }
   };
 
@@ -54,11 +68,41 @@ export default function InvitePage() {
         </h1>
         <p style={{ textAlign: "center", color: "var(--ink-faint)", fontSize: "0.88rem",
           marginBottom: "32px" }}>
-          You've been invited to join a collaboration team on DIG.
-          Accept to access shared analyses and collaborate in real time.
+          {about?.forThisAccount ? (
+            <>
+              {about.invitedBy ? <strong style={{ color: "var(--ink)" }}>{about.invitedBy}</strong> : "Someone"}
+              {" "}invited you to join{" "}
+              <strong style={{ color: "var(--ink)" }}>{about.teamName ?? "a team"}</strong>
+              {" "}as {about.role === "editor" ? "an editor: you can edit shared reports, invite and share"
+                : "a viewer: you can read shared reports and comment"}.
+            </>
+          ) : about && !about.forThisAccount ? (
+            <>This invitation was sent to {about.sentTo}. Sign in with that address to accept it.</>
+          ) : (
+            <>You&apos;ve been invited to join a team on DIG.</>
+          )}
         </p>
 
-        {status === "idle" && (
+        {about?.forThisAccount && about.status !== "pending" && status === "idle" && (
+          <p style={{ textAlign: "center", fontSize: "0.85rem", color: "var(--danger-text)" }}>
+            {about.status === "accepted" ? "This invitation has already been used."
+              : "This invitation has expired. Ask the team owner to send a new one."}
+          </p>
+        )}
+
+        {/* Joining needs Pro: said once, here, with the way to get it. */}
+        {about?.forThisAccount && about.status === "pending" && about.needsPro && status === "idle" && (
+          <p style={{ textAlign: "center", fontSize: "0.85rem", color: "var(--ink-faint)", marginBottom: "16px" }}>
+            Joining a team needs a Pro plan.{" "}
+            <button onClick={() => router.push("/plans")}
+              style={{ background: "none", border: "none", color: "var(--cobalt-accent)",
+                cursor: "pointer", fontWeight: 600, padding: 0 }}>
+              Upgrade →
+            </button>
+          </p>
+        )}
+
+        {status === "idle" && about?.forThisAccount && about.status === "pending" && !about.needsPro && (
           <button
             onClick={handleAccept}
             style={{ width: "100%", padding: "14px", borderRadius: "0", border: "none",
@@ -88,9 +132,8 @@ export default function InvitePage() {
               marginBottom: "16px" }}>
               {message}
             </div>
-            {user?.plan !== "pro" && (
+            {needsProError && (
               <p style={{ textAlign: "center", fontSize: "0.82rem", color: "var(--ink-faint)" }}>
-                Note: joining a team requires a Pro plan.{" "}
                 <button onClick={() => router.push("/plans")}
                   style={{ background: "none", border: "none", color: "var(--cobalt-accent)",
                     cursor: "pointer", fontWeight: 600, padding: 0 }}>

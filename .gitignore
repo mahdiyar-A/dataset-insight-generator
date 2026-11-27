@@ -90,6 +90,7 @@ backend/App_Data/
 ai_service/training_data/*.jsonl
 ai_service/training_data/*.json
 ai_service/training_data/*.csv
+ai_service/training_data/.last_pruned
 ai_service/model_trainer/*.pkl
 ai_service/model_trainer/*.pt
 ai_service/model_trainer/*.pth

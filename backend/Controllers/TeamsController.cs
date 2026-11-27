@@ -234,6 +234,46 @@ public class TeamsController : ControllerBase
         return Ok(new { message = $"Invitation sent to {email}. {next}", invite.Id, inviteeStatus = status });
     }
 
+    // ── GET /api/teams/invite/{token} ──────────────────────────────────────────
+    // What the invite page shows before Accept: which team, who invited, and
+    // as what. Details only for the account the invitation was sent to: the
+    // link alone doesn't show a stranger who is in which team.
+    [HttpGet("invite/{token}")]
+    public async Task<IActionResult> Peek(string token)
+    {
+        var userId = UserId();
+        var invite = await _teams.GetInviteByTokenAsync(token);
+        if (invite == null) return NotFound(new { error = "INVALID_TOKEN", message = InvalidInvite });
+
+        var user = await _users.GetByIdAsync(userId);
+        var forMe = string.Equals(user?.Email, invite.Email, StringComparison.OrdinalIgnoreCase);
+        var status = invite.IsAccepted ? "accepted" : invite.IsExpired ? "expired" : "pending";
+        if (!forMe)
+            return Ok(new { forThisAccount = false, status, sentTo = MaskEmail(invite.Email) });
+
+        var team    = await _teams.GetTeamAsync(invite.TeamId);
+        var inviter = invite.InvitedBy is { } by ? await _users.GetByIdAsync(by) : null;
+        return Ok(new
+        {
+            forThisAccount = true,
+            status,
+            teamName  = team?.Name,
+            invitedBy = inviter?.UserName,
+            role      = invite.Role,
+            needsPro  = user?.Plan is not ("pro" or "admin"),
+        });
+    }
+
+    private const string InvalidInvite =
+        "This invitation link isn't valid. Ask the person who invited you to send a new one.";
+
+    /// <summary>"m***@example.com": enough to see which address to sign in with.</summary>
+    private static string MaskEmail(string email)
+    {
+        var at = email.IndexOf('@');
+        return at <= 1 ? "***" + email[Math.Max(at, 0)..] : email[0] + "***" + email[at..];
+    }
+
     // ── POST /api/teams/accept/{token} ─────────────────────────────────────────
     // Accept an invite by token (from the email link)
     [HttpPost("accept/{token}")]
@@ -249,14 +289,17 @@ public class TeamsController : ControllerBase
             });
 
         var invite = await _teams.GetInviteByTokenAsync(token);
-        if (invite == null)     return NotFound(new { error = "INVALID_TOKEN" });
-        if (invite.IsExpired)   return BadRequest(new { error = "EXPIRED" });
-        if (invite.IsAccepted)  return BadRequest(new { error = "ALREADY_ACCEPTED" });
+        if (invite == null)     return NotFound(new { error = "INVALID_TOKEN", message = InvalidInvite });
+        if (invite.IsExpired)   return BadRequest(new { error = "EXPIRED",
+            message = "This invitation has expired. Ask the team owner to send a new one." });
+        if (invite.IsAccepted)  return BadRequest(new { error = "ALREADY_ACCEPTED",
+            message = "This invitation has already been used." });
 
         // Verify the logged-in user's email matches the invite
         var user = await _users.GetByIdAsync(userId);
-        if (user?.Email != invite.Email)
-            return Forbid(); // wrong account
+        if (!string.Equals(user?.Email, invite.Email, StringComparison.OrdinalIgnoreCase))
+            return StatusCode(403, new { error = "WRONG_ACCOUNT",
+                message = $"This invitation was sent to {MaskEmail(invite.Email)}. Sign in with that address to accept it." });
 
         // A second invite to someone already in the team must not fail on the
         // one-membership-per-team rule in the database.

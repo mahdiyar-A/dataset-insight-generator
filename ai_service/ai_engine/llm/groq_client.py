@@ -46,6 +46,10 @@ MAX_ALTERNATIVES = 2
 DOMAIN_PROVIDERS: Tuple[ReportProvider, ...] = (
     ReportProvider("groq", "OpenAI gpt-oss-20b", GROQ_URL,
                    "openai/gpt-oss-20b", 4000, 40, {"temperature": 0.1}),
+    # On a busy day this was the one model still answering, and it wasn't on
+    # this list: the file went unread and the report forgot what the user said.
+    ReportProvider("groq", "OpenAI gpt-oss-120b", GROQ_URL,
+                   "openai/gpt-oss-120b", 4000, 40, {"temperature": 0.1, "reasoning_effort": "low"}),
     ReportProvider("groq", "Qwen 3.8 27B", GROQ_URL,
                    "qwen/qwen3.8-27b", 4000, 40, {"temperature": 0.1}),
     ReportProvider("openrouter", "NVIDIA Nemotron 3.5 Super", OPENROUTER_URL,
@@ -111,7 +115,8 @@ def _build_fingerprint(df: pd.DataFrame) -> Dict[str, Any]:
         col_info: Dict[str, Any] = {
             "name":         col,
             "dtype":        dtype,
-            "missing_pct":  missing,
+            # "0.2" was read as 20%. Written with its sign and count, it can't be.
+            "missing":      f"{int(df[col].isnull().sum())} of {len(df)} rows ({missing}%)",
             "unique_count": n_unique,
             "sample_values": sample_vals,
         }

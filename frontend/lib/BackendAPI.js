@@ -20,7 +20,9 @@ async function readError(res) {
   try {
     const text = await res.text();
     if (!text) return null;
-    try { const d = JSON.parse(text); return d?.message || d?.error || JSON.stringify(d); }
+    // A body with no message of its own (ASP.NET's {"type","title","status"} for
+    // a 404) used to be shown to people as raw JSON. Fall back to the caller's words.
+    try { const d = JSON.parse(text); return d?.message || (typeof d?.error === "string" ? d.error : null); }
     catch  { return text; }
   } catch { return null; }
 }
@@ -31,7 +33,7 @@ function authHeaders(token) {
 
 async function req(url, options, errorMsg) {
   const res = await fetch(url, options);
-  if (!res.ok) throw new Error((await readError(res)) || errorMsg);
+  if (!res.ok) throw Object.assign(new Error((await readError(res)) || errorMsg), { status: res.status });
   return res.json();
 }
 
@@ -159,7 +161,15 @@ export default class BackendAPI {
 
     const res = await fetch(`${API_BASE}/api/analyses/upload`,
       { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
-    if (!res.ok) throw new Error((await readError(res)) || "Upload failed");
+    if (!res.ok) {
+      // The error's code is kept: out of free analyses, the card offers Pro.
+      const text = await res.text().catch(() => "");
+      let body = null;
+      try { body = JSON.parse(text); } catch { /* plain text */ }
+      const message = body ? (body.message || (typeof body.error === "string" ? body.error : null)) : text;
+      throw Object.assign(new Error(message || "Upload failed"),
+        { status: res.status, code: typeof body?.error === "string" ? body.error : null });
+    }
     return res.json();
   }
 
@@ -306,6 +316,16 @@ export default class BackendAPI {
     return req(`${API_BASE}/api/teams/${teamId}/invite`,
       { method: "POST", headers: authHeaders(token), body: JSON.stringify({ email, role }) },
       "Failed to send invite");
+  }
+
+  /**
+   * What an invitation is for, before accepting: team, inviter, role.
+   * @returns {Promise<{ forThisAccount: boolean, status: string, teamName?: string,
+   *   invitedBy?: string, role?: string, needsPro?: boolean, sentTo?: string }>}
+   */
+  static async peekInvite(token, inviteToken) {
+    return req(`${API_BASE}/api/teams/invite/${inviteToken}`,
+      { headers: authHeaders(token) }, "This invitation couldn't be read.");
   }
 
   static async acceptInvite(token, inviteToken) {
@@ -565,11 +585,30 @@ export default class BackendAPI {
    * @param {string} plan
    * @param {string | null} [expiresAt] ISO timestamp, or null for no expiry.
    */
-  static async adminSetPlan(token, userId, plan, expiresAt = null) {
+  static async adminSetPlan(token, userId, plan, expiresAt = null, cancelSubscription = false) {
     return req(`${API_BASE}/api/admin/users/${userId}/plan`,
       { method: "PATCH", headers: authHeaders(token),
-        body: JSON.stringify({ plan, expiresAt }) },
+        body: JSON.stringify({ plan, expiresAt, cancelSubscription }) },
       "Failed to set plan");
+  }
+
+  /**
+   * Each service tried now: database, file storage, payments, AI service.
+   * @returns {Promise<{ checks: { name: string, ok: boolean, ms: number, note?: string | null }[] }>}
+   */
+  static async adminGetHealth(token) {
+    return req(`${API_BASE}/api/admin/health`,
+      { headers: authHeaders(token) }, "The health check did not answer.");
+  }
+
+  /**
+   * Page visits counted without cookies: daily totals, top pages, sources.
+   * @param {string} token
+   * @param {number} [days]
+   */
+  static async adminGetVisits(token, days = 30) {
+    return req(`${API_BASE}/api/admin/visits?days=${days}`,
+      { headers: authHeaders(token) }, "Failed to fetch visits");
   }
 
   static async adminDeleteUser(token, userId) {

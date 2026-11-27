@@ -559,9 +559,9 @@ def _how_we_know(w: _Writer, report, was_cleaned: bool, cleaning: List[str], dro
         w.direction(para)
         if score <= 4:
             w.para(L["low_confidence_note"].format(score=score), size=9, color="muted")
-    writer = getattr(report, "writerModel", "") or ""
-    if writer:
-        w.para(f"Written by {writer}.", size=8, color="muted", before=4)
+    # As in the PDF: the writing model is never named.
+    if str(getattr(report, "rawResponse", "") or "").startswith("[fallback"):
+        w.para(L["no_writer_note"], size=8, color="muted", before=4)
 
 
 def build_word_doc(

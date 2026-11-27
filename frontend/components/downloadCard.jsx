@@ -277,11 +277,11 @@ export default function DownloadCard({ dataset }) {
               onClick={() => handleDownload("cleaned", cleanedFileName(dataset?.fileName))}>
               {t.downloadCsv}
             </button>
-          ) : (
+          ) : reportReady ? (
             <div style={{ padding:"10px 14px", borderRadius:"0", background:"color-mix(in srgb, var(--card) 60%, transparent)", border:"1px solid var(--line)", fontSize:"0.78rem", color:"var(--ink-faint)", fontStyle:"italic" }}>
               {t.csvNA}
             </div>
-          )}
+          ) : null}
           <button className="secondary-btn" disabled={!reportReady || emailSending}
             style={{ opacity:(!reportReady||emailSending) ? 0.45 : 1, cursor:(!reportReady||emailSending) ? "not-allowed" : "pointer", color: emailSent ? "var(--ok-text)" : undefined, borderColor: emailSent ? "color-mix(in srgb, var(--ok) 40%, transparent)" : undefined }}
             onClick={() => reportReady && handleEmail()}>

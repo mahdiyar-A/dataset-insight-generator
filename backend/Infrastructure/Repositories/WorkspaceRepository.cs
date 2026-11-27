@@ -8,11 +8,17 @@ using static Supabase.Postgrest.Constants;
 namespace backend.Infrastructure.Repositories;
 
 // ── Row models ────────────────────────────────────────────────────────────────
+//
+// PrimaryKey("id", true) sends the id the server made. With false, an Insert
+// leaves it out and the database makes a different one, so every later step
+// that used the server's id pointed at nothing: a new team could not get its
+// owner, an unsent invite could not be withdrawn, and a new share or comment
+// answered with an id that did not exist. Upserts send the id either way.
 
 [Table("shared_workspaces")]
 public class SharedWorkspaceRow : BaseModel
 {
-    [PrimaryKey("id", false)]   public string   Id          { get; set; } = "";
+    [PrimaryKey("id", true)]    public string   Id          { get; set; } = "";
     [Column("team_id")]         public string   TeamId      { get; set; } = "";
     [Column("analysis_id")]     public string   AnalysisId  { get; set; } = "";
     [Column("shared_by")]       public string   SharedBy    { get; set; } = "";
@@ -22,7 +28,7 @@ public class SharedWorkspaceRow : BaseModel
 [Table("workspace_file_permissions")]
 public class WorkspacePermissionRow : BaseModel
 {
-    [PrimaryKey("id", false)]               public string   Id                { get; set; } = "";
+    [PrimaryKey("id", true)]                public string   Id                { get; set; } = "";
     [Column("shared_workspace_id")]         public string   SharedWorkspaceId { get; set; } = "";
     [Column("user_id")]                     public string   UserId            { get; set; } = "";
     [Column("file_type")]                   public string   FileType          { get; set; } = "";
@@ -34,7 +40,7 @@ public class WorkspacePermissionRow : BaseModel
 [Table("annotations")]
 public class AnnotationRow : BaseModel
 {
-    [PrimaryKey("id", false)]               public string    Id                { get; set; } = "";
+    [PrimaryKey("id", true)]                public string    Id                { get; set; } = "";
     [Column("shared_workspace_id")]         public string    SharedWorkspaceId { get; set; } = "";
     [Column("user_id")]                     public string    UserId            { get; set; } = "";
     [Column("file_type")]                   public string    FileType          { get; set; } = "";
@@ -269,6 +275,19 @@ public class WorkspaceRepository : IWorkspaceRepository
             await _db.From<AnnotationRow>()
                 .Filter("parent_id", Operator.Equals, annotation.Id)
                 .Delete();
+    }
+
+    public async Task ReleaseSharesByUserAsync(Guid userId)
+    {
+        await _db.From<WorkspacePermissionRow>()
+            .Filter("granted_by", Operator.Equals, userId.ToString())
+            .Set(r => r.GrantedBy!, null)
+            .Update();
+
+        // Comments and permissions on these go with them (ON DELETE CASCADE).
+        await _db.From<SharedWorkspaceRow>()
+            .Filter("shared_by", Operator.Equals, userId.ToString())
+            .Delete();
     }
 
     // ── Mappers ───────────────────────────────────────────────────────────────

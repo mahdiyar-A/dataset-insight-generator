@@ -39,4 +39,11 @@ public interface IWorkspaceRepository
     /// still has replies, and deleting a user deletes their comments.
     /// </summary>
     Task                   DeleteRepliesToUserAsync(Guid userId);
+
+    /// <summary>
+    /// Unshare every report this user shared, and clear their name from the
+    /// file permissions they granted, so the account can be deleted. Neither
+    /// reference clears itself: the database refuses to delete the user.
+    /// </summary>
+    Task                   ReleaseSharesByUserAsync(Guid userId);
 }

@@ -262,7 +262,10 @@ def distribution_shape(values: np.ndarray) -> Optional[str]:
     One word for the shape a reader would see in a histogram.
 
     Uses skewness for asymmetry, excess kurtosis for heavy tails, and
-    Sarle's bimodality coefficient (b > 0.555 suggests two humps).
+    Sarle's bimodality coefficient for two humps. The coefficient alone is not
+    enough: an even spread scores exactly its 0.555 cut-off, so random draws
+    and whole numbers 0-3 came out "bimodal". Two humps also need a real dip
+    between them in the histogram, and an even spread gets its own word.
     """
     v = np.asarray(values, dtype="float64")
     v = v[np.isfinite(v)]
@@ -274,8 +277,10 @@ def distribution_shape(values: np.ndarray) -> Optional[str]:
     skew = float(scipy_stats.skew(v))
     kurt = float(scipy_stats.kurtosis(v))  # excess
     bc = (skew ** 2 + 1) / (kurt + 3 * (n - 1) ** 2 / ((n - 2) * (n - 3)))
-    if bc > 0.555 and abs(skew) < 1:
+    if bc > 0.555 and abs(skew) < 1 and _has_two_humps(v):
         return "bimodal"
+    if abs(skew) < 0.5 and kurt < -0.9 and _is_even(v):
+        return "evenly spread"
     if skew >= 1:
         return "right-skewed"
     if skew <= -1:
@@ -283,6 +288,46 @@ def distribution_shape(values: np.ndarray) -> Optional[str]:
     if kurt >= 3:
         return "heavy-tailed"
     return "roughly symmetric"
+
+
+def _histogram(v: np.ndarray) -> np.ndarray:
+    """Counts per bin: one bin per value for a few whole numbers, else about 12."""
+    uniq = np.unique(v)
+    if len(uniq) <= 12:
+        return np.array([(v == u).sum() for u in uniq], dtype="float64")
+    counts, _ = np.histogram(v, bins=12)
+    return counts.astype("float64")
+
+
+def _has_two_humps(v: np.ndarray) -> bool:
+    """
+    Two peaks with a valley between them that dips below 60% of the lower
+    peak. Bins are smoothed first, so noise in a flat spread can't pass.
+    """
+    counts = _histogram(v)
+    if len(counts) < 3:
+        return False
+    if len(counts) > 5:
+        counts = np.convolve(counts, [0.25, 0.5, 0.25], mode="same")
+    peaks = [i for i in range(len(counts))
+             if counts[i] > 0
+             and (i == 0 or counts[i] >= counts[i - 1])
+             and (i == len(counts) - 1 or counts[i] >= counts[i + 1])]
+    if len(peaks) < 2:
+        return False
+    top = sorted(peaks, key=lambda i: counts[i], reverse=True)[:2]
+    a, b = sorted(top)
+    if b - a < 2:
+        return False
+    valley = counts[a + 1:b].min()
+    return bool(valley < 0.6 * min(counts[a], counts[b]))
+
+
+def _is_even(v: np.ndarray) -> bool:
+    """No bin holds more than twice or less than half the average."""
+    counts = _histogram(v)
+    mean = counts.mean()
+    return bool(len(counts) >= 3 and counts.max() <= 2 * mean and counts.min() >= 0.5 * mean)
 
 
 def gini(values: Sequence[float]) -> Optional[float]:
