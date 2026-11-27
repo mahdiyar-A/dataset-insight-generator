@@ -6,9 +6,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { errorMessage } from "@/lib/types";
+import { isFirstNameOk, isLastNameOk } from '@/lib/nameRules';
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
-const isNameOk     = (v: string) => /^[A-Za-z]{1,30}$/.test(v.trim());
 const isPasswordOk = (v: string) => v.length >= 8 && /\d/.test(v);
 
 export default function RegisterPage() {
@@ -30,8 +30,8 @@ export default function RegisterPage() {
     const ln = lastName.trim();
     const em = email.trim();
 
-    if (!isNameOk(fn))     return setError('First name must be letters only (max 30).');
-    if (!isNameOk(ln))     return setError('Last name must be letters only (max 30).');
+    if (!isFirstNameOk(fn)) return setError('Enter your first name: letters, apostrophes, hyphens or dots, up to 30.');
+    if (!isLastNameOk(ln))  return setError('Enter your last name: letters, spaces, apostrophes, hyphens or dots, up to 30.');
     if (!isValidEmail(em)) return setError('Enter a valid email.');
     if (!isPasswordOk(password)) return setError('Password must be at least 8 characters and contain a number.');
     if (password !== confirm)    return setError('Passwords do not match.');
