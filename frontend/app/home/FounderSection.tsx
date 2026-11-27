@@ -28,7 +28,6 @@ export default function FounderSection({ lang }: { lang: Lang }) {
           <p data-rv="solid" className="hp-eyebrow">{t.eyebrow}</p>
           <h2 data-rv="solid" className="hp-h2">{t.heading}</h2>
           <blockquote data-rv="solid" className="hp-quote"><p>{t.quote}</p></blockquote>
-          <p data-rv="solid" className="hp-founder-origin">{t.origin}</p>
         </div>
       </div>
     </section>

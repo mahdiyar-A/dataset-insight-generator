@@ -37,10 +37,10 @@ const T = {
       subtitle: 'For business owners, analysts, researchers and students who want answers, not raw numbers.',
       cards: [
         { title: 'Cleans the mess first', desc: 'Spots blank cells, repeated rows and impossible values, cleans them up, and shows you exactly what changed.' },
-        { title: 'Findings that show their work', desc: 'Every insight names the number it rests on, so you can check it against your own file.' },
-        { title: 'Written for your reader', desc: 'DIG works out who the report is for. A café owner gets plain words, and the statistics wait on a last page.' },
-        { title: 'Ask, and it answers from your file', desc: 'Ask follow-up questions in plain words. DIG answers from your data, and tells you when a question is outside it.' },
-        { title: 'Edit it alone or as a team', desc: 'Change any part of the report yourself, or ask the chat to. Every save is a version you can undo. On Pro, up to five people edit together.' },
+        { title: 'Knows what it’s looking at', desc: 'Works out what every column holds, dates, money, categories, and asks what the file is about before it writes a word.' },
+        { title: 'Finds what matters', desc: 'Patterns, trends, gaps between groups and odd values, sorted so the most important finding comes first.' },
+        { title: 'Draws the charts', desc: 'A clear chart for every finding, titled and labelled, ready to drop into a slide.' },
+        { title: 'The maths, kept out of the way', desc: 'The statistics behind each finding sit on a last “How we know” page. The rest reads like a person wrote it.' },
       ],
     },
     switcher: { language: 'Language', theme: 'Theme', dark: 'Dark', light: 'Light' },
@@ -60,10 +60,10 @@ const T = {
       subtitle: 'Pour les commerçants, analystes, chercheurs et étudiants qui veulent des réponses, pas des chiffres bruts.',
       cards: [
         { title: 'Il fait le ménage d’abord', desc: 'Repère les cellules vides, les lignes répétées et les valeurs impossibles, les corrige et vous montre exactement ce qui a changé.' },
-        { title: 'Des constats qui se justifient', desc: 'Chaque constat cite le chiffre sur lequel il repose, pour que vous puissiez le vérifier dans votre propre fichier.' },
-        { title: 'Écrit pour votre lecteur', desc: 'DIG comprend à qui s’adresse le rapport. Un patron de café reçoit des mots simples ; les statistiques attendent sur une dernière page.' },
-        { title: 'Il répond depuis votre fichier', desc: 'Posez vos questions en mots simples. DIG répond à partir de vos données et vous prévient quand une question en sort.' },
-        { title: 'Modifiez-le seul ou en équipe', desc: 'Changez n’importe quelle partie du rapport vous-même, ou demandez-le au chat. Chaque enregistrement est une version que vous pouvez annuler. Avec Pro, jusqu’à cinq personnes le modifient ensemble.' },
+        { title: 'Il sait ce qu’il regarde', desc: 'Il comprend ce que contient chaque colonne, dates, montants, catégories, et demande de quoi parle le fichier avant d’écrire un mot.' },
+        { title: 'Il trouve ce qui compte', desc: 'Tendances, évolutions, écarts entre groupes et valeurs étranges, classés pour que le constat le plus important vienne en premier.' },
+        { title: 'Il dessine les graphiques', desc: 'Un graphique clair pour chaque constat, titré et légendé, prêt à glisser dans une présentation.' },
+        { title: 'Les maths, sans encombrer', desc: 'Les statistiques derrière chaque constat sont sur une dernière page « Comment on le sait ». Le reste se lit comme s’il avait été écrit par une personne.' },
       ],
     },
     switcher: { language: 'Langue', theme: 'Thème', dark: 'Sombre', light: 'Clair' },
@@ -83,10 +83,10 @@ const T = {
       subtitle: 'برای صاحبان کسب‌وکار، تحلیلگران، پژوهشگران و دانشجویانی که پاسخ می‌خواهند، نه عدد خام.',
       cards: [
         { title: 'اول به‌هم‌ریختگی را مرتب می‌کند', desc: 'خانه‌های خالی، ردیف‌های تکراری و مقدارهای ناممکن را پیدا و پاک‌سازی می‌کند و دقیقاً نشان می‌دهد چه چیزی تغییر کرد.' },
-        { title: 'یافته‌هایی که دلیلشان را نشان می‌دهند', desc: 'هر یافته عددی را که بر آن تکیه دارد نام می‌برد تا بتوانید آن را در فایل خودتان بررسی کنید.' },
-        { title: 'نوشته‌شده برای خوانندهٔ شما', desc: 'DIG می‌فهمد گزارش برای چه کسی است. صاحب یک کافه زبان ساده می‌گیرد و آمار در صفحهٔ آخر می‌ماند.' },
-        { title: 'از فایل خودتان جواب می‌گیرید', desc: 'پرسش‌هایتان را به زبان ساده بپرسید. DIG از داده‌های شما پاسخ می‌دهد و اگر پرسشی بیرون از آن‌ها باشد، می‌گوید.' },
-        { title: 'تنها یا گروهی ویرایش کنید', desc: 'هر بخش گزارش را خودتان تغییر دهید یا از چت بخواهید. هر ذخیره نسخه‌ای است که می‌توانید برگردانید. با Pro تا پنج نفر با هم ویرایش می‌کنند.' },
+        { title: 'می‌داند به چه نگاه می‌کند', desc: 'می‌فهمد هر ستون چه دارد، تاریخ، پول، دسته‌بندی، و پیش از نوشتن حتی یک کلمه می‌پرسد فایل دربارهٔ چیست.' },
+        { title: 'چیزهای مهم را پیدا می‌کند', desc: 'الگوها، روندها، فاصلهٔ میان گروه‌ها و مقدارهای عجیب، مرتب‌شده تا مهم‌ترین یافته اول بیاید.' },
+        { title: 'نمودارها را می‌کشد', desc: 'برای هر یافته یک نمودار روشن، با عنوان و برچسب، آمادهٔ گذاشتن در یک اسلاید.' },
+        { title: 'ریاضی، دور از دست‌وپا', desc: 'آمارِ پشت هر یافته در صفحهٔ آخری به نام «از کجا می‌دانیم» می‌آید. بقیه طوری خوانده می‌شود که انگار یک آدم نوشته است.' },
       ],
     },
     switcher: { language: 'زبان', theme: 'تم', dark: 'تیره', light: 'روشن' },
@@ -748,7 +748,8 @@ export default function HomePage() {
             {/* The product itself, laid on the cobalt field like a sheet of
                 paper and overlapping the fold so the page invites a scroll. */}
             <div data-rv style={{ ...stagger(4), margin: 'clamp(22px, min(5vw, 5vh), 56px) auto -2px' }}>
-              <HeroShot lang={lang} />
+              {/* A new language starts the window afresh in that language. */}
+              <HeroShot key={lang} lang={lang} />
             </div>
           </div>
         </section>

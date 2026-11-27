@@ -38,8 +38,11 @@ import HomePage from "@/app/page";
 import { FILES, PLANS, REVENUE } from "@/app/demo/demoFacts";
 import sample from "@/app/demo/sample.json";
 import {
-  CLOSING, FAQ, FOOTER, FOUNDER, HERO_SHOT, LINKEDIN, MESSY_COLUMNS, MESSY_ROWS, PROOF, REPORT_LANGUAGES, SHARE, TRUST, VERSUS, percent,
+  BLANKS, CLOSING, FAQ, FOOTER, FOUNDER, LINKEDIN, MESSY_COLUMNS, MESSY_ROWS, PROOF, REPORT_LANGUAGES, SHARE, TRUST, money, percent,
 } from "@/app/home/homeCopy";
+import { DISCOUNT_ITEMS, HERO, HERO_SAVED_QUESTIONS, RATING, STORE_RATIO, WEEKEND_LIFT } from "@/app/home/heroCopy";
+import { TITLE_IN, VERSUS } from "@/app/home/versusCopy";
+import { CHECK } from "@/app/demo/demoFacts";
 
 const ROOT = path.resolve(__dirname, "..");
 const PUBLIC = path.join(ROOT, "public");
@@ -74,9 +77,10 @@ const cents = (n: number) => n.toFixed(2).replace(".", "");
 
 // ── Before and after ──────────────────────────────────────────────────────────
 
-describe("the messy rows and the finding", () => {
+describe("the messy rows, and the cleaning", () => {
   const lines = readFileSync(path.join(PUBLIC, "demo/coffee_sales.csv"), "utf-8").trim().split(/\r?\n/);
   const head = lines[0].split(",");
+  const cleaned = readFileSync(path.join(PUBLIC, "demo/cleaned_coffee_sales.csv"), "utf-8").trim().split(/\r?\n/).map(l => l.split(","));
 
   it("shows rows that are in the sample file, at those row numbers", () => {
     for (const r of MESSY_ROWS) {
@@ -96,62 +100,89 @@ describe("the messy rows and the finding", () => {
     expect(fine.cells).not.toContain("");
   });
 
-  it("states the report's own finding and share", () => {
-    expect(PROOF.en.finding).toBe(sample.report.insights[0].title);
-    expect(SHARE).toBe(Math.round((100 * REVENUE.byProduct[0].total) / REVENUE.total));
-    expect(sample.report.summary).toContain(percent("en", SHARE));
+  it("shows each fixed cell as the cleaned file has it, and the repeat once", () => {
+    for (const r of MESSY_ROWS.filter(x => x.fixed)) {
+      const [date, store, product] = r.cells;
+      const match = cleaned.filter(c => c[0] === date && c[1] === store && c[2] === product);
+      expect(match).toHaveLength(1);
+      const col = r.flag === "blank" ? "satisfaction" : "units_sold";
+      expect(Number(match[0][head.indexOf(col)]).toFixed(1)).toBe(r.fixed);
+    }
+    const dup = MESSY_ROWS.find(r => r.flag === "dup")!;
+    expect(cleaned.filter(c => c[0] === dup.cells[0] && c[1] === dup.cells[1] && c[2] === dup.cells[2])).toHaveLength(1);
   });
 
-  it("draws one bar per product, longest first", () => {
+  it("lights up the rows of the problem pressed", () => {
     page();
-    const bars = [...section("proof").querySelectorAll<HTMLElement>(".hp-bars li")];
-    expect(bars.map(b => b.querySelector(".hp-bar-name")!.textContent)).toEqual(REVENUE.byProduct.map(p => p.name));
-    const widths = bars.map(b => parseFloat(b.querySelector<HTMLElement>(".hp-fill")!.style.width));
-    expect(widths[0]).toBe(100);
-    expect([...widths].sort((a, b) => b - a)).toEqual(widths);
+    const proof = within(section("proof"));
+    fireEvent.click(proof.getByRole("button", { name: new RegExp(PROOF.en.problems[0]) }));
+    const rows = [...section("proof").querySelectorAll("tbody tr")];
+    expect(rows.filter(r => r.classList.contains("hp-lit"))).toHaveLength(2);
+    expect(rows.filter(r => r.classList.contains("hp-dim"))).toHaveLength(3);
+    expect(proof.getByRole("button", { name: new RegExp(PROOF.en.problems[0]) })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("asks before it cleans, then shows what it changed", () => {
+    page();
+    const proof = within(section("proof"));
+    expect(proof.getByText(PROOF.en.askFirst)).toBeInTheDocument();
+    expect(section("proof").querySelector(".hp-good")).toBeNull();
+
+    fireEvent.click(proof.getByRole("button", { name: PROOF.en.clean }));
+    const fixed = [...section("proof").querySelectorAll(".hp-good")].map(m => m.textContent);
+    expect(fixed).toEqual(MESSY_ROWS.filter(r => r.fixed).map(r => r.fixed));
+    expect(section("proof").querySelectorAll("tr.hp-gone")).toHaveLength(1);
+    for (const n of [CHECK.repeatedRows, BLANKS, CHECK.belowZero]) expect(section("proof").querySelector(".hp-done")).toHaveTextContent(String(n));
+    expect(proof.getByRole("link", { name: PROOF.en.csv })).toHaveAttribute("href", FILES.find(f => f.href.includes("cleaned"))!.href);
+
+    fireEvent.click(proof.getByRole("button", { name: PROOF.en.again }));
+    expect(proof.getByRole("button", { name: PROOF.en.clean })).toBeInTheDocument();
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
 
 // ── Press one ─────────────────────────────────────────────────────────────────
 
 describe("the three things to press", () => {
-  it("quotes the sample's saved answers word for word", () => {
-    const [, looked, refused] = PROOF.en.answers;
-    const saved = sample.answers.find(a => a.q === looked.q)!;
-    expect(looked.a).toBe(saved.a);
-    expect(saved.source).toBe("data");
+  it("quotes the sample's saved refusal word for word", () => {
+    const refused = PROOF.en.answers[2];
     const declined = sample.answers.find(a => a.q === refused.q)!;
     expect(refused.a).toBe(declined.a);
     expect(declined.source).toBe("refused");
   });
 
   it.each(LANGS)("gives the same figures in %s", lang => {
-    const [worked, looked] = PROOF[lang].answers;
-    expect(digits(worked.q)).toContain(String(SHARE));
-    expect(digits(worked.a)).toContain(cents(REVENUE.byProduct[0].total));
-    expect(digits(worked.a)).toContain(cents(REVENUE.total));
-    expect(digits(looked.a)).toContain(cents(REVENUE.byStore[0].total));
-    expect(PROOF[lang].answers.map(a => a.kind)).toEqual(["worked", "looked", "refused"]);
+    const [share, weekend] = PROOF[lang].answers;
+    expect(digits(share.q)).toContain(String(SHARE));
+    expect(digits(share.a)).toContain(cents(REVENUE.byProduct[0].total));
+    expect(digits(share.a)).toContain(cents(REVENUE.total));
+    expect(digits(weekend.a)).toContain(cents(REVENUE.perDay.weekend));
+    expect(digits(weekend.a)).toContain(cents(REVENUE.perDay.weekday));
+    expect(numbers(weekend.a)).toContain(WEEKEND_LIFT);
+    expect(PROOF[lang].answers.map(a => a.kind)).toEqual(["worked", "worked", "refused"]);
+  });
+
+  it("asks nothing the window under the title already asks", () => {
+    for (const lang of LANGS) {
+      const above = HERO[lang].answers.map(a => a.q);
+      for (const a of PROOF[lang].answers) expect(above).not.toContain(a.q);
+    }
   });
 
   it("answers what is pressed, without calling anything", () => {
     page();
     const proof = within(section("proof"));
-    const [worked, looked, refused] = PROOF.en.answers;
-    expect(proof.getByText(worked.a)).toBeInTheDocument();
+    const [share, weekend, refused] = PROOF.en.answers;
+    expect(proof.getByText(share.a)).toBeInTheDocument();
     expect(proof.getByText("$122,040.59 ÷ $381,667.10 = 32%")).toBeInTheDocument();
 
-    fireEvent.click(proof.getByRole("button", { name: looked.q }));
-    expect(proof.getByText(looked.a)).toBeInTheDocument();
-    expect(proof.queryByText(worked.a)).toBeNull();
+    fireEvent.click(proof.getByRole("button", { name: weekend.q }));
+    expect(proof.getByText(weekend.a)).toBeInTheDocument();
+    expect(proof.queryByText(share.a)).toBeNull();
 
     fireEvent.click(proof.getByRole("button", { name: refused.q }));
     expect(proof.getByRole("button", { name: refused.q })).toHaveAttribute("aria-pressed", "true");
     expect(proof.getByText(refused.badge)).toBeInTheDocument();
-
-    // The big number explains itself.
-    fireEvent.click(proof.getByRole("button", { name: /32% of the year/ }));
-    expect(proof.getByText(worked.a)).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
@@ -276,18 +307,110 @@ describe("finding your way", () => {
 // ── The product under the title ───────────────────────────────────────────────
 
 describe("the product under the title", () => {
-  it.each(LANGS)("shows the sample's own finding, figure and answer in %s", lang => {
+  const win = (lang: (typeof LANGS)[number] = "en") => screen.getByRole("group", { name: HERO[lang].label });
+  // French money and percentages use no-break spaces; compare like with like.
+  const flat = (s: string) => s.replace(/\s+/g, " ");
+
+  it.each(LANGS)("opens on the sample's first finding, figure and answer in %s", lang => {
     page(lang);
-    const shot = screen.getByRole("img", { name: HERO_SHOT[lang].label });
-    // French money and percentages use no-break spaces; compare like with like.
-    const flat = (s: string) => s.replace(/\s+/g, " ");
-    const text = flat(shot.textContent ?? "");
-    expect(text).toContain(flat(PROOF[lang].finding));
+    const text = flat(win(lang).textContent ?? "");
+    expect(text).toContain(flat(HERO[lang].findings[0].title));
     expect(text).toContain(flat(percent(lang, SHARE)));
-    expect(text).toContain(flat(PROOF[lang].answers[1].a));
-    const chart = shot.querySelector("img")!;
-    expect(existsSync(path.join(PUBLIC, chart.getAttribute("src")!))).toBe(true);
+    expect(text).toContain(flat(HERO[lang].answers[0].a));
+    const chart = win(lang).querySelector("img")!;
     expect(chart.getAttribute("src")).toBe(sample.report.insights[0].chart.src);
+  });
+
+  it("steps through the report's five findings, each with its own chart", () => {
+    page();
+    const w = within(win());
+    for (let i = 1; i <= 5; i++) {
+      const at = i % 5;
+      fireEvent.click(w.getByRole("button", { name: HERO.en.next }));
+      expect(win()).toHaveTextContent(HERO.en.findings[at].title);
+      expect(win().querySelector(".hp-win-swap img")!.getAttribute("src")).toBe(sample.report.insights[at].chart.src);
+    }
+    for (const src of sample.report.insights.map(x => x.chart.src)) expect(existsSync(path.join(PUBLIC, src))).toBe(true);
+  });
+
+  it("takes each finding's title and figures from the sample report", () => {
+    sample.report.insights.forEach((x, i) => expect(HERO.en.findings[i].title).toBe(x.title));
+    expect(sample.report.summary).toContain(`${STORE_RATIO.toFixed(2)} times Midtown`);
+    expect(sample.report.insights[2].title).toContain(percent("en", WEEKEND_LIFT));
+    expect(sample.report.insights[3].body).toContain(`about ${DISCOUNT_ITEMS.with} items sold instead of ${DISCOUNT_ITEMS.without}`);
+    expect(sample.report.summary).toContain(money("en", REVENUE.bestMonth.total));
+    const discounts = sample.answers.find(a => a.q === HERO_SAVED_QUESTIONS[1])!;
+    expect(discounts.a).toContain(RATING.with.toFixed(2));
+    expect(discounts.a).toContain(RATING.without.toFixed(2));
+  });
+
+  it.each(LANGS)("answers with the sample's own figures in %s", lang => {
+    const [store, discounts, total] = HERO[lang].answers;
+    expect(digits(store.a)).toContain(cents(REVENUE.byStore[0].total));
+    expect(numbers(discounts.a)).toEqual(expect.arrayContaining([417, 430]));
+    expect(digits(total.a)).toContain(cents(REVENUE.total));
+  });
+
+  it("quotes the saved answers word for word in English", () => {
+    HERO.en.answers.forEach((a, i) => {
+      const saved = sample.answers.find(x => x.q === HERO_SAVED_QUESTIONS[i])!;
+      expect(a.q).toBe(saved.q);
+      expect(a.a).toBe(saved.a);
+    });
+  });
+
+  it("switches tabs, and a chart opens its finding", () => {
+    page();
+    const w = within(win());
+    fireEvent.click(w.getByRole("tab", { name: HERO.en.tabs[1] }));
+    const thumbs = win().querySelectorAll(".hp-win-charts button");
+    expect(thumbs).toHaveLength(5);
+    fireEvent.click(thumbs[2]);
+    expect(w.getByRole("tab", { name: HERO.en.tabs[0] })).toHaveAttribute("aria-selected", "true");
+    expect(win()).toHaveTextContent(HERO.en.findings[2].title);
+
+    fireEvent.click(w.getByRole("tab", { name: HERO.en.tabs[2] }));
+    for (const h of sample.file.headers) expect(w.getByRole("columnheader", { name: h })).toBeInTheDocument();
+  });
+
+  it("answers the question pressed, and says where to ask anything else", async () => {
+    page();
+    const w = within(win());
+    fireEvent.click(w.getByRole("button", { name: HERO.en.answers[1].q }));
+    expect(await w.findByText(HERO.en.answers[1].a, {}, { timeout: 2000 })).toBeInTheDocument();
+
+    fireEvent.change(w.getByRole("textbox", { name: HERO.en.placeholder }), { target: { value: "What sold best in March?" } });
+    fireEvent.click(w.getByRole("button", { name: HERO.en.send }));
+    expect(await w.findByText(HERO.en.offline, {}, { timeout: 2000 })).toBeInTheDocument();
+    expect(w.getByText("What sold best in March?")).toBeInTheDocument();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("does what its three dots say", () => {
+    page();
+    const w = within(win());
+    fireEvent.click(w.getByRole("button", { name: HERO.en.dots.chatOff }));
+    expect(w.queryByText(HERO.en.ask)).toBeNull();
+    fireEvent.click(w.getByRole("button", { name: HERO.en.dots.chatOn }));
+    expect(w.getByText(HERO.en.ask)).toBeInTheDocument();
+
+    fireEvent.click(w.getByRole("button", { name: HERO.en.dots.big }));
+    expect(win()).toHaveClass("hp-win-big");
+
+    fireEvent.click(w.getByRole("button", { name: HERO.en.dots.min }));
+    expect(w.queryByRole("tablist")).toBeNull();
+    fireEvent.click(w.getByRole("button", { name: new RegExp(HERO.en.reopen) }));
+    expect(w.getByRole("tablist")).toBeInTheDocument();
+  });
+
+  it("hands over the sample's real files from Report ready", () => {
+    page();
+    const w = within(win());
+    fireEvent.click(w.getByRole("button", { name: new RegExp(HERO.en.ready) }));
+    const links = w.getAllByRole("menuitem");
+    expect(links).toHaveLength(4);
+    for (const a of links) expect(existsSync(path.join(PUBLIC, a.getAttribute("href")!))).toBe(true);
+    expect(links.filter(a => a.textContent?.includes("Pro"))).toHaveLength(2);
   });
 });
 
@@ -377,29 +500,83 @@ describe("the end of the page", () => {
     page(lang);
     const block = section("founder");
     const t = FOUNDER[lang];
-    for (const line of [t.name, t.role, t.school, t.quote, t.origin]) expect(block).toHaveTextContent(line);
+    for (const line of [t.name, t.role, t.school, t.quote]) expect(block).toHaveTextContent(line);
     const linkedin = within(block).getByRole("link", { name: new RegExp(t.linkedin) });
     expect(linkedin).toHaveAttribute("href", LINKEDIN.founder);
     expect(linkedin).toHaveAttribute("target", "_blank");
-    // Where the founder lives stays off the page.
+    // Where the founder lives stays off the page, and so does the old origin line.
     expect(JSON.stringify(FOUNDER)).not.toMatch(/Toronto|Ontario|Alberta|تورنتو|انتاریو/);
+    expect(block.textContent).not.toMatch(/group project|projet de groupe|پروژهٔ گروهی/);
     // The quote is never faded: it is what the section is for.
     expect(block.querySelector(".hp-quote")).toHaveAttribute("data-rv", "solid");
   });
 
-  it.each(LANGS)("says what sets DIG apart from a chatbot, in four statements, in %s", lang => {
+  it.each(LANGS)("says DIG is an AI analyst, in the heading and the quote, in %s", lang => {
+    const ai = /\bAI\b|\bIA\b|هوش مصنوعی/;
+    expect(FOUNDER[lang].heading).toMatch(ai);
+    expect(FOUNDER[lang].quote).toMatch(ai);
+  });
+
+  it.each(LANGS)("opens each of the five differences when it is pressed, in %s", lang => {
     page(lang);
-    const block = section("why");
-    expect(block.querySelector("h2")).toHaveTextContent(VERSUS[lang].heading);
-    const items = block.querySelectorAll(".hp-pillars li");
-    expect(items).toHaveLength(VERSUS.en.pillars.length);
-    VERSUS[lang].pillars.forEach((pillar, i) => {
-      expect(items[i].querySelector("h3")).toHaveTextContent(pillar.title);
-      expect(items[i]).toHaveTextContent(pillar.body);
+    const block = within(section("why"));
+    expect(section("why").querySelector("h2")).toHaveTextContent(VERSUS[lang].heading.split(". ")[0]);
+    const tabs = block.getAllByRole("tab");
+    expect(tabs).toHaveLength(5);
+    VERSUS[lang].powers.forEach((power, i) => {
+      fireEvent.click(tabs[i]);
+      expect(tabs[i]).toHaveAttribute("aria-selected", "true");
+      const stage = block.getByRole("tabpanel");
+      expect(stage.querySelector("h3")).toHaveTextContent(power.title);
+      expect(stage).toHaveTextContent(power.body);
     });
-    // A comparison names no other product, and Word and PowerPoint stay Pro.
+    // A comparison names no other product.
     expect(JSON.stringify(VERSUS)).not.toMatch(/ChatGPT|OpenAI|Gemini|Claude|Copilot|Perplexity|Grok/i);
-    expect(VERSUS.en.pillars[3].body).toMatch(/Word and PowerPoint on Pro/);
+    // The team cap and the languages are the plans' own.
+    expect(VERSUS[lang].powers[2].pro).toMatch(/five|cinq|پنج/);
+    expect(numbers(VERSUS[lang].powers[4].pro!)).toContain(REPORT_LANGUAGES[lang].length);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("plays each scene: readers, the chat, the team, the proof and the languages", () => {
+    page();
+    const block = within(section("why"));
+    const tabs = block.getAllByRole("tab");
+    const t = VERSUS.en;
+
+    fireEvent.click(block.getByRole("button", { name: t.readers[2].who }));
+    expect(block.getByText(t.readers[2].text)).toBeInTheDocument();
+
+    fireEvent.click(tabs[1]);
+    expect(block.getByText(t.chat.version(1))).toBeInTheDocument();
+    fireEvent.click(block.getByRole("button", { name: new RegExp(t.chat.add) }));
+    expect(block.getByText(t.chat.version(2))).toBeInTheDocument();
+    expect(block.getByText(t.chat.added)).toBeInTheDocument();
+    fireEvent.click(block.getByRole("button", { name: new RegExp(t.chat.undo) }));
+    expect(block.getByText(t.chat.version(1))).toBeInTheDocument();
+
+    fireEvent.click(tabs[2]);
+    fireEvent.click(block.getByRole("button", { name: `Leo, ${t.team.people[3].role}` }));
+    expect(block.getByText(t.team.people[3].can)).toBeInTheDocument();
+
+    fireEvent.click(tabs[3]);
+    fireEvent.click(block.getByRole("button", { name: t.proof.n2 }));
+    expect(block.getByText(t.proof.check2)).toBeInTheDocument();
+    expect(t.proof.check2).toContain(STORE_RATIO.toFixed(2));
+
+    fireEvent.click(tabs[4]);
+    expect(block.getAllByRole("button").filter(b => REPORT_LANGUAGES.en.includes(b.textContent ?? ""))).toHaveLength(8);
+    fireEvent.click(block.getByRole("button", { name: "Arabic" }));
+    const out = block.getByText(TITLE_IN[5].text);
+    expect(out).toHaveAttribute("dir", "rtl");
+    expect(TITLE_IN[0].text).toBe(sample.report.insights[0].title);
+  });
+
+  it("keeps the features and the difference apart", () => {
+    page();
+    const features = section("features").textContent ?? "";
+    expect(features).not.toMatch(/team|chat|reader|version/i);
+    for (const power of VERSUS.en.powers) expect(features).not.toContain(power.title);
   });
 
   it("keeps the founder's name in the footer as well", () => {

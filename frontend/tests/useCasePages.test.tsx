@@ -56,7 +56,8 @@ describe.each(USE_CASE_LIST.map(p => [p.path, p] as const))("the page at %s", (r
 
   it("shows a real report, its questions and what to know first", () => {
     const { container } = render(<UseCasePage page={page} />);
-    expect(screen.getByRole("img", { name: /report/i })).toBeInTheDocument();
+    // The sample report window is pressable, so it is a group, not a picture.
+    expect(screen.getByRole("group", { name: /report/i })).toBeInTheDocument();
     expect(container.querySelectorAll("#faq details")).toHaveLength(page.faq.length);
     expect(container.querySelectorAll(".uc-limits li")).toHaveLength(page.limits.length);
     expect(container.querySelectorAll(".uc-steps li")).toHaveLength(4);
