@@ -142,7 +142,7 @@ const SECTIONS = [
 ];
 
 const CLOSING =
-  'This policy describes how the software actually behaves today, verified against the source code. It has not been reviewed by a lawyer — worth doing before taking paying customers.';
+  'This policy describes how the software actually behaves today, verified against the source code.';
 
 export default function PrivacyPolicyPage() {
   return (

@@ -126,7 +126,7 @@ const SECTIONS = [
 ];
 
 const CLOSING =
-  'The limits described here are the ones the software actually enforces. This document has not been reviewed by a lawyer — worth doing before charging customers.';
+  'The limits described here are the ones the software actually enforces.';
 
 export default function TermsPage() {
   return (

@@ -11,8 +11,27 @@
 |---|---|---|
 | C# — unit, integration, edge cases, the real Supabase client against a stand-in server, the chat suggesting changes, teams editing the report, the look of the files | 533 | `dotnet test backend.Tests/backend.Tests.csproj` |
 | Python — stats, ingest, chat harness, reports, full pipeline, model watch, asking what the data is, insights' evidence, the editable report, changes the chat suggests and charts DIG draws, combining teammates' saves, reading who the report is for, plain words and the five looks | 1154 | `cd ai_service && pytest tests/` |
-| Frontend — Vitest, including rendered components, the change card, the live report channel, the two themes, the interactive demo and its team stop, the look picker, the landing page, the Plans page signed out, the pages for searches, the one contact address, the homepage you can press, the English search pages, Persian letters, page tags and red | 497 | `cd frontend && npm test` |
+| Frontend — Vitest, including rendered components, the change card, the live report channel, the two themes, the interactive demo and its team stop, the look picker, the landing page, the Plans page signed out, the pages for searches, the one contact address, the homepage you can press, the English search pages, Persian letters, page tags, red, and real names at sign-up | 501 | `cd frontend && npm test` |
 | Frontend — type check + lint + build | — | `cd frontend && npm run lint && npm run build` |
+
+---
+
+## Real names at sign-up, and no notes on the legal pages, 2026-11-27
+
+From an outside review the owner passed on.
+
+- **Sign-up takes real names.** It allowed only A to Z, so O'Connor,
+  Anne-Marie, François, Zoë and any name typed in Persian were refused. The
+  rules now live in `lib/nameRules.ts`: letters in any script with their
+  marks, apostrophes, hyphens and dots; spaces only in the last name, because
+  the account stores "First Last" and splits at the first space.
+  `tests/nameRules.test.ts`.
+- **The legal pages carry no owner notes.** Privacy and Terms ended with
+  "not reviewed by a lawyer, worth doing before taking paying customers", a
+  to-do shown to the public while Pro is on sale. The to-do is gone, and a
+  test keeps it gone.
+- Not changed: the SPSS page shows the coffee sample. A real survey sample
+  report needs a real `.sav` run through DIG, and testimonials need real users.
 
 ---
 
