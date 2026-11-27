@@ -13,7 +13,8 @@ import { SITE_URL } from "@/lib/siteUrl";
  *
  * Only pages a signed-out visitor can reach belong here. Listing an
  * authenticated route invites a crawler to spend its budget on redirects to the
- * login page.
+ * login page. The login and reset-password forms are left out too: they ask
+ * search engines not to index them, and nobody searches for them.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
   const lastModified = new Date();
@@ -29,7 +30,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/register`, lastModified, changeFrequency: "yearly", priority: 0.5 },
     { url: `${SITE_URL}/privacy`, lastModified, changeFrequency: "yearly", priority: 0.4 },
     { url: `${SITE_URL}/terms`, lastModified, changeFrequency: "yearly", priority: 0.4 },
-    { url: `${SITE_URL}/login`, lastModified, changeFrequency: "yearly", priority: 0.3 },
-    { url: `${SITE_URL}/forgot-password`, lastModified, changeFrequency: "yearly", priority: 0.1 },
   ];
 }

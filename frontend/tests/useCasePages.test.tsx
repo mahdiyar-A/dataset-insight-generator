@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -19,6 +19,15 @@ vi.mock("next/image", () => ({
     <img src={src} alt={alt} width={width} height={height} />
   ),
 }));
+// The page the settings provider thinks it is on.
+const nav = vi.hoisted(() => ({ pathname: "/" }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => nav.pathname,
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}));
+vi.mock("@/lib/supabaseClient", () => ({
+  supabase: { auth: { onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }) } },
+}));
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
     <a href={href} {...rest}>{children}</a>
@@ -28,6 +37,8 @@ vi.mock("next/link", () => ({
 import UseCasePage, { metadataFor } from "@/app/home/UseCasePage";
 import SiteFooter from "@/app/home/SiteFooter";
 import { IS_IT_FREE, UPLOAD_MB, USE_CASES, USE_CASE_LIST } from "@/app/home/useCases";
+import { ENGLISH_ONLY_PATHS } from "@/app/home/useCasePaths";
+import { SettingsProvider } from "@/app/contexts/SettingsContext";
 import { PLANS } from "@/app/demo/demoFacts";
 import { UPLOAD_EXTENSIONS } from "@/lib/uploadFormats";
 import sitemap from "@/app/sitemap";
@@ -127,5 +138,32 @@ describe("what the pages promise", () => {
     const hrefs = [...container.querySelectorAll("a")].map(a => a.getAttribute("href")!);
     for (const page of USE_CASE_LIST) expect(hrefs).toContain(page.path);
     expect(hrefs.filter(h => h.startsWith("#"))).toEqual([]);
+  });
+});
+
+describe("the pages for searches in a Persian session", () => {
+  afterEach(() => {
+    sessionStorage.clear();
+    document.documentElement.removeAttribute("dir");
+    nav.pathname = "/";
+  });
+
+  // The direction the page gets once the visitor has picked Persian.
+  function dirAt(pathname: string) {
+    nav.pathname = pathname;
+    sessionStorage.setItem("dig_settings", JSON.stringify({ lang: "fa" }));
+    const { unmount } = render(<SettingsProvider><p>page</p></SettingsProvider>);
+    const dir = document.documentElement.getAttribute("dir");
+    unmount();
+    return dir;
+  }
+
+  it("stay left to right, as English pages, while the homepage turns right to left", () => {
+    expect(dirAt("/")).toBe("rtl");
+    for (const page of USE_CASE_LIST) expect(dirAt(page.path)).toBe("ltr");
+  });
+
+  it("are all on the English-only list", () => {
+    expect([...ENGLISH_ONLY_PATHS].sort()).toEqual(USE_CASE_LIST.map(p => p.path).sort());
   });
 });

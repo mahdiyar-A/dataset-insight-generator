@@ -3,7 +3,7 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: var(--font-sans), "Work Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-family: var(--font-fa), var(--font-sans), "Work Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 body {
@@ -369,7 +369,7 @@ body {
 
 body.dig-body {
     margin: 0;
-    font-family: var(--font-sans);
+    font-family: var(--font-fa), var(--font-sans);
     background: var(--paper);
     color: var(--text);
     display: flex;
@@ -1575,6 +1575,9 @@ body.dig-body {
     --cobalt-accent: #8b95f5;
     --lime: #d6f24a;
     --lime-text: #d6f24a;
+    /* One red, the same in both looks, like cobalt and lime: the
+       PowerPoint card's red, which the owner picked on 2026-11-27. */
+    --red: #e4572e;
     --ok: #2f8f4e;
     --ok-text: #8fdc9f;
     --danger: #d9473c;
@@ -1599,6 +1602,7 @@ body.dig-body {
     --cobalt-accent: #2536e0;
     --lime: #d6f24a;
     --lime-text: #4d5c00;
+    --red: #e4572e;
     --ok: #1f7a3a;
     --ok-text: #1d6b34;
     --danger: #c0362c;
@@ -1610,8 +1614,8 @@ body.dig-body {
 }
 
 :root {
-    --app-sans: var(--font-sans), "Work Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-    --app-display: var(--font-display), "Bricolage Grotesque", Georgia, serif;
+    --app-sans: var(--font-fa), var(--font-sans), "Work Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --app-display: var(--font-fa), var(--font-display), "Bricolage Grotesque", Georgia, serif;
     --shadow-hard: 4px 4px 0 var(--rule);
     --shadow-lift: 6px 6px 0 var(--rule);
 

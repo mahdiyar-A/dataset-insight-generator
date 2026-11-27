@@ -30,6 +30,27 @@ const sans = localFont({
   display: "swap",
 });
 
+/**
+ * Persian letters. Atlas's faces have none, so a phone or computer with no
+ * Persian font of its own showed empty boxes. Vazirmatn's non-Latin file (SIL
+ * OFL, from the Vazirmatn project, 48 KB) holds only Arabic-script letters, and
+ * its unicode-range means a browser downloads it only for a page that shows
+ * some. It goes first in every font list: the range keeps it to those letters,
+ * and everything else falls through to Atlas's faces. No fallback face is made,
+ * because one would claim the Latin letters too.
+ */
+const persian = localFont({
+  src: "./fonts/Vazirmatn-NL.woff2",
+  weight: "100 900",
+  variable: "--font-fa",
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  declarations: [
+    { prop: "unicode-range", value: "U+0600-06FF, U+0750-077F, U+08A0-08FF, U+200C-200F, U+FB50-FDFF, U+FE70-FEFF" },
+  ],
+});
+
 export const metadata: Metadata = {
   // metadataBase resolves every relative URL below, and is what lets Next emit
   // an absolute canonical link. Without it the .online and .ca domains serve
@@ -77,7 +98,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${display.variable} ${sans.variable}`}>
+    <html lang="en" className={`${display.variable} ${sans.variable} ${persian.variable}`}>
       <body>
         <AuthProvider>
           <SettingsProvider>
