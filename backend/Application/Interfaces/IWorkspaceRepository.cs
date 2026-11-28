@@ -4,6 +4,9 @@ namespace backend.Application.Interfaces;
 
 public interface IWorkspaceRepository
 {
+    /// <summary>How many reports are shared with a team, for the admin page. 0 where not counted.</summary>
+    Task<int> CountSharedAsync() => Task.FromResult(0);
+
     // ── Shared workspaces ─────────────────────────────────────────────────────
     Task<SharedWorkspace?>      GetWorkspaceAsync(Guid workspaceId);
     Task<List<SharedWorkspace>> GetTeamWorkspacesAsync(Guid teamId);

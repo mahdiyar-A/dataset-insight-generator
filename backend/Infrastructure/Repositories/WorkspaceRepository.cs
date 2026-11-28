@@ -60,6 +60,9 @@ public class WorkspaceRepository : IWorkspaceRepository
     private readonly Supabase.Client _db;
     public WorkspaceRepository(Supabase.Client db) => _db = db;
 
+    public async Task<int> CountSharedAsync() =>
+        await _db.From<SharedWorkspaceRow>().Count(Supabase.Postgrest.Constants.CountType.Exact);
+
     // ── Shared workspaces ─────────────────────────────────────────────────────
 
     public async Task<SharedWorkspace?> GetWorkspaceAsync(Guid workspaceId)

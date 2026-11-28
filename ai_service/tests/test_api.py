@@ -79,6 +79,20 @@ def test_inspect_explains_what_it_cannot_read():
     assert body == {"ok": False, "error": body["error"]} and "PDF" in body["error"]
 
 
+def test_inspect_refuses_a_letter_at_upload():
+    letter = (b"Dear Sam,\n\nThank you for your letter, which came on Monday. I hope you and the kids are well.\n"
+              b"We had a lovely time at the lake, the cabin, and the town this summer.\n"
+              b"The weather was warm, the water was cold, and the food was great.\n"
+              b"I will write again soon, once things settle down.\nWith love, as always,\nAlex\n")
+    body = client.post("/inspect", files=_upload("letter.csv", letter)).json()
+    assert body["ok"] is False and "letter" in body["error"] and "table" in body["error"]
+
+
+def test_inspect_refuses_a_single_column():
+    body = client.post("/inspect", files=_upload("list.csv", b"name\nA\nB\nC\n")).json()
+    assert body["ok"] is False and "two columns" in body["error"]
+
+
 def test_check_reports_the_condition_and_how_the_file_was_read(frame):
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as w:

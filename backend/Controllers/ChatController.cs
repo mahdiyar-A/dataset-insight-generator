@@ -64,6 +64,9 @@ public class ChatController : ControllerBase
         _logger   = logger;
     }
 
+    /// <summary>The admin page's counts; absent in tests that build the controller by hand.</summary>
+    private IActivityLog? Activity => HttpContext?.RequestServices.GetService<IActivityLog>();
+
     private Guid GetUserId()
     {
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
@@ -109,7 +112,11 @@ public class ChatController : ControllerBase
             // Refuse before running a quality check on an analysis that could not
             // start anyway: plan allowance used up, one already running, or busy.
             var precheck = await _analysis.CheckAsync(userId);
-            if (!precheck.Allowed) return Ok(Refused(precheck));
+            if (!precheck.Allowed)
+            {
+                Activity?.Count(UsageKinds.RunRefused);
+                return Ok(Refused(precheck));
+            }
 
             // Serialize customization to JSON string for storage + forwarding to pipeline
             string? customizationJson = null;
@@ -499,6 +506,9 @@ public class ChatController : ControllerBase
             var offered = report != null && !failed && root.TryGetProperty("proposal", out var p)
                 ? _reports.Offer(userId, analysis.Id, report.Version, p)
                 : null;
+            if (!failed)
+                Activity?.Count(root.TryGetProperty("refused", out var no) && no.ValueKind == JsonValueKind.True
+                    ? UsageKinds.QuestionRefused : UsageKinds.Question);
 
             return Ok(new
             {

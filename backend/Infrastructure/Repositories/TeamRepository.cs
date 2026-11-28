@@ -55,6 +55,9 @@ public class TeamRepository : ITeamRepository
     private readonly Supabase.Client _db;
     public TeamRepository(Supabase.Client db) => _db = db;
 
+    public async Task<int> CountTeamsAsync() =>
+        await _db.From<TeamRow>().Count(Supabase.Postgrest.Constants.CountType.Exact);
+
     // ── Teams ─────────────────────────────────────────────────────────────────
 
     public async Task<Team?> GetTeamAsync(Guid teamId)

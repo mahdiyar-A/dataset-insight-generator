@@ -8,9 +8,10 @@ namespace backend.Controllers;
 
 /// <summary>
 /// Admin-only endpoints for monitoring the platform.
-/// Access is restricted to users whose plan == "admin".
-/// The admin account is a regular user record in Supabase — you promote
-/// someone to admin by running: UPDATE users SET plan = 'admin' WHERE email = '...';
+/// Access is restricted to users whose plan == "admin" and, when the server
+/// has an owner list (Admin:OwnerIds, env Admin__OwnerIds, account ids
+/// separated by commas), whose account is on it. With the list, a slip in the
+/// database can no longer make anyone an admin.
 /// </summary>
 [ApiController]
 [Route("api/admin")]
@@ -20,13 +21,37 @@ public class AdminController : ControllerBase
     private readonly IUserRepository _users;
     private readonly IAnalysisRepository _analyses;
     private readonly ILogger<AdminController> _logger;
+    private readonly HashSet<Guid> _owners;
+    private readonly IActivityLog? _activity;
 
     public AdminController(
-        IUserRepository users, IAnalysisRepository analyses, ILogger<AdminController> logger)
+        IUserRepository users, IAnalysisRepository analyses, ILogger<AdminController> logger,
+        IConfiguration? config = null, IActivityLog? activity = null)
     {
         _users    = users;
         _analyses = analyses;
         _logger   = logger;
+        _owners   = OwnerIds(config?["Admin:OwnerIds"]);
+        _activity = activity;
+    }
+
+    /// <summary>The owner list from the server settings. Empty: no list, any admin may use this page.</summary>
+    public static HashSet<Guid> OwnerIds(string? setting) =>
+        (setting ?? "").Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                       .Select(s => Guid.TryParse(s, out var g) ? g : Guid.Empty)
+                       .Where(g => g != Guid.Empty)
+                       .ToHashSet();
+
+    private bool OnOwnerList(Guid id) => _owners.Count == 0 || _owners.Contains(id);
+
+    /// <summary>Put one admin action on record, with both email addresses masked.</summary>
+    private async Task RecordAsync(string action, Guid? targetId, string? targetEmail, string detail)
+    {
+        if (_activity == null) return;
+        var me = CallerId() is { } id ? await _users.GetByIdAsync(id) : null;
+        await _activity.RecordAdminActionAsync(new AdminActionRecord(
+            DateTime.UtcNow, CallerId(), me == null ? "" : TeamsController.MaskEmail(me.Email),
+            action, targetId, string.IsNullOrEmpty(targetEmail) ? "" : TeamsController.MaskEmail(targetEmail), detail));
     }
 
     private Guid? CallerId()
@@ -37,7 +62,7 @@ public class AdminController : ControllerBase
 
     private async Task<bool> IsAdminAsync()
     {
-        if (CallerId() is not { } id) return false;
+        if (CallerId() is not { } id || !OnOwnerList(id)) return false;
         var user = await _users.GetByIdAsync(id);
         return user?.Plan == "admin";
     }
@@ -272,6 +297,14 @@ public class AdminController : ControllerBase
         var target = await _users.GetByIdAsync(id);
         if (target == null) return NotFound(new { error = "NOT_FOUND", message = "That account no longer exists." });
 
+        if (req.Plan == "admin" && !OnOwnerList(id))
+            return StatusCode(403, new
+            {
+                error   = "NOT_AN_OWNER",
+                message = "Only accounts on the server's owner list can be admin. Add their account id to "
+                        + "Admin__OwnerIds in the server settings first.",
+            });
+
         if (req.Plan != "admin" && await LockoutAsync(id, target.Plan) is { } lockout)
             return Conflict(lockout);
 
@@ -296,6 +329,11 @@ public class AdminController : ControllerBase
 
         _logger.LogWarning("[Admin] {Admin} changed the plan of {Id}: {From} -> {To}",
             CallerId(), id, target.Plan, req.Plan);
+        var cancelled = req.Plan == "free" && target.StripeSubscriptionId is { Length: > 0 };
+        await RecordAsync("set_plan", id, target.Email,
+            $"{target.Plan} → {req.Plan}"
+            + (req.ExpiresAt is { } until ? $" until {until:yyyy-MM-dd}" : "")
+            + (cancelled ? ", Stripe subscription cancelled" : ""));
         return Ok(new { message = $"Plan set to {req.Plan}." });
     }
 
@@ -315,7 +353,104 @@ public class AdminController : ControllerBase
         await deletion.DeleteAsync(id);
 
         _logger.LogWarning("[Admin] {Admin} deleted user {Id}", CallerId(), id);
+        await RecordAsync("delete_user", id, target?.Email,
+            target == null ? "account was already gone" : $"{target.Plan} account and its files deleted");
         return NoContent();
+    }
+
+    // ── GET /api/admin/usage ──────────────────────────────────────────────────
+    // What people do once signed in, counted per day (UsageKinds), with the
+    // number of teams and shared reports, and which kinds of finding people
+    // keep in their reports. Counts only.
+    [HttpGet("usage")]
+    public async Task<IActionResult> GetUsage(
+        [FromServices] ITeamRepository teams, [FromServices] IWorkspaceRepository workspaces,
+        [FromQuery] int days = 30)
+    {
+        if (!await IsAdminAsync()) return Forbid();
+        if (_activity == null)
+            return StatusCode(503, new { error = "USAGE_UNAVAILABLE", message = "Usage counts are not set up on this server." });
+
+        days = Math.Clamp(days, 1, 365);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var since = today.AddDays(-(days - 1));
+        List<UsageCount> rows;
+        List<FindingFeedbackRow> kept;
+        try
+        {
+            rows = await _activity.GetUsageSinceAsync(since);
+            kept = await _activity.GetFindingFeedbackAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("[Admin] Usage unavailable ({Type}: {Msg})", ex.GetType().Name, ex.Message);
+            return StatusCode(503, new { error = "USAGE_UNAVAILABLE",
+                message = "Usage counts aren't available yet: run migration 007 in Supabase." });
+        }
+
+        int teamCount = 0, sharedCount = 0;
+        try { teamCount = await teams.CountTeamsAsync(); sharedCount = await workspaces.CountSharedAsync(); }
+        catch (Exception ex) { _logger.LogWarning("[Admin] Team counts unavailable ({Type})", ex.GetType().Name); }
+
+        var kinds = new[]
+        {
+            UsageKinds.Question, UsageKinds.QuestionRefused, UsageKinds.ReportEdit, UsageKinds.ReportRestore,
+            UsageKinds.SuggestionOffered, UsageKinds.SuggestionApplied, UsageKinds.RunRefused,
+            UsageKinds.UploadRefused, UsageKinds.FiguresUnmatched,
+        };
+        int Sum(string kind, Func<UsageCount, bool>? when = null) =>
+            rows.Where(r => r.Kind == kind && (when == null || when(r))).Sum(r => r.Count);
+
+        return Ok(new
+        {
+            windowDays = days,
+            totals = kinds.ToDictionary(k => k, k => Sum(k)),
+            today  = kinds.ToDictionary(k => k, k => Sum(k, r => r.Day == today)),
+            teams  = teamCount,
+            sharedReports = sharedCount,
+            perDay = Enumerable.Range(0, days).Select(i => since.AddDays(i)).Select(d => new
+            {
+                date      = d.ToString("yyyy-MM-dd"),
+                questions = Sum(UsageKinds.Question, r => r.Day == d),
+                edits     = Sum(UsageKinds.ReportEdit, r => r.Day == d) + Sum(UsageKinds.SuggestionApplied, r => r.Day == d),
+                refused   = Sum(UsageKinds.RunRefused, r => r.Day == d) + Sum(UsageKinds.UploadRefused, r => r.Day == d),
+            }),
+            findingsKept = kept.GroupBy(r => r.Kind).Select(g => new
+            {
+                kind      = g.Key,
+                shown     = g.Sum(r => r.Shown),
+                removed   = g.Sum(r => r.Removed),
+                rewritten = g.Sum(r => r.Rewritten),
+            }).OrderByDescending(k => k.shown).ToList(),
+        });
+    }
+
+    // ── GET /api/admin/actions ────────────────────────────────────────────────
+    // Who changed whose plan or deleted whom, newest first.
+    [HttpGet("actions")]
+    public async Task<IActionResult> GetActions([FromQuery] int limit = 100)
+    {
+        if (!await IsAdminAsync()) return Forbid();
+        if (_activity == null)
+            return StatusCode(503, new { error = "ACTIONS_UNAVAILABLE", message = "The record is not set up on this server." });
+        try
+        {
+            var actions = await _activity.GetAdminActionsAsync(limit);
+            return Ok(new
+            {
+                ownerListOn = _owners.Count > 0,
+                actions = actions.Select(a => new
+                {
+                    at = a.At, a.Action, a.AdminEmail, a.TargetEmail, a.TargetId, a.Detail,
+                }),
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("[Admin] Actions unavailable ({Type}: {Msg})", ex.GetType().Name, ex.Message);
+            return StatusCode(503, new { error = "ACTIONS_UNAVAILABLE",
+                message = "The record isn't available yet: run migration 007 in Supabase." });
+        }
     }
 
     // ── GET /api/admin/health ─────────────────────────────────────────────────

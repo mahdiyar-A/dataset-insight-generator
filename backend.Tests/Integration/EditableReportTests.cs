@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using backend.Application.Interfaces;
 using backend.Application.Services;
 using backend.Domain.Entities;
 using backend.Tests.Helpers;
@@ -156,6 +157,39 @@ public class EditableReportTests
         Saved(a, "report.pdf").Should().Contain("Edited review");
         Saved(a, "report.docx").Should().Contain("Edited review");
         _factory.StorageSvc.Saved.Keys.Should().NotContain(k => k.EndsWith("report.pptx"));
+    }
+
+    [Test]
+    public async Task A_save_counts_as_an_edit_and_counts_the_findings_it_took_out()
+    {
+        var a = new Analysis(_userId, "orders.csv", 2048);
+        a.SetStatus("done");
+        a.SetPdfPath($"users/{a.UserId}/analyses/{a.Id}/report.pdf");
+        _factory.AnalysisRepo.Store.Add(a);
+        const string written = """
+        {"schema":1,"text":{"reportTitle":"Sales review"},
+         "insights":[{"id":"i1","kind":"trend","title":"Sales rise","body":"Up."},
+                     {"id":"i2","kind":"correlation","title":"Price and units","body":"Linked."}],
+         "charts":[],"questionAnswers":[],"facts":{"domain":{"domain":"sales"}}}
+        """;
+        await _factory.Versions.TryInsertAsync(new ReportVersion(a.Id, 1, written, null, ReportVersion.Written,
+                                                                 filesBuilt: true));
+        // i2 deleted, i1 retitled.
+        const string edited = """
+        {"schema":1,"text":{"reportTitle":"Sales review"},
+         "insights":[{"id":"i1","kind":"trend","title":"Sales rise all year","body":"Up."}],
+         "charts":[],"questionAnswers":[],"facts":{"domain":{"domain":"sales"}}}
+        """;
+
+        var r = await Save(a.Id, 1, edited);
+
+        r.StatusCode.Should().Be(HttpStatusCode.OK);
+        _factory.Activity.CountOf(UsageKinds.ReportEdit).Should().Be(1);
+        _factory.Activity.Findings.Should().BeEquivalentTo(new[]
+        {
+            new FindingFeedbackRow("sales", "trend", 0, 0, 1),
+            new FindingFeedbackRow("sales", "correlation", 0, 1, 0),
+        });
     }
 
     [Test]

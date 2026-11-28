@@ -26,6 +26,62 @@ _AGE_IN_SMALLER_UNITS = {"days", "weeks", "months", "hours", "minutes"}
 _MAX_ODD_SHARE = 0.2
 
 
+# Small words that make up much of any sentence and almost none of a table:
+# English, French and Persian, the languages DIG writes in.
+_FUNCTION_WORDS = {
+    "the", "a", "an", "and", "or", "but", "of", "to", "in", "on", "at", "for", "with", "from", "by",
+    "is", "are", "was", "were", "be", "been", "am", "have", "has", "had", "do", "did", "will", "would",
+    "can", "could", "should", "i", "you", "he", "she", "it", "we", "they", "me", "my", "your", "our",
+    "their", "his", "her", "this", "that", "these", "those", "so", "not", "no", "as", "if", "then",
+    "there", "here", "what", "which", "who", "when", "all", "very", "just", "about", "up", "out",
+    "le", "la", "les", "un", "une", "des", "du", "de", "et", "ou", "je", "tu", "il", "elle", "nous",
+    "vous", "ils", "est", "sont", "pour", "que", "qui", "dans", "sur", "avec", "pas", "ne", "ce", "mon",
+    "\u0648", "\u062f\u0631", "\u0628\u0647", "\u0627\u0632", "\u06a9\u0647", "\u0627\u06cc\u0646",
+    "\u0631\u0627", "\u0628\u0627", "\u0627\u0633\u062a", "\u0645\u0646", "\u0645\u0627",
+    "\u0634\u0645\u0627", "\u0622\u0646", "\u06cc\u06a9",
+}
+NOT_A_TABLE = ("This file reads like a letter or a document, not a table of data. "
+               "Upload a spreadsheet or CSV where each row is one record and each column one field.")
+
+
+def looks_like_prose(df: pd.DataFrame) -> bool:
+    """
+    Whether a "table" is really running text, such as a letter saved as .csv.
+
+    Any reader will cut sentences into columns at the commas or spaces, so
+    the shape alone says nothing. Three things together do: no column holds
+    numbers or dates, a large share of the words are the small words every
+    sentence is built from (the, and, you, de, \u0648), and no column repeats
+    its values the way a category does. A table of names and cities fails
+    the second test; a list of reviews beside a product column fails the
+    third. Both are tables and stay accepted.
+    """
+    if df.empty or len(df.columns) == 0:
+        return False
+    for col in df.columns:
+        series = df[col]
+        if pd.api.types.is_numeric_dtype(series) or pd.api.types.is_datetime64_any_dtype(series):
+            return False
+        sample = series.dropna().astype(str).head(200)
+        if len(sample) and pd.to_numeric(sample, errors="coerce").notnull().mean() >= 0.5:
+            return False
+    cells = [str(c) for c in df.columns]
+    for col in df.columns:
+        cells.extend(df[col].dropna().astype(str).head(400).tolist())
+    words = [w for cell in cells for w in re.findall(r"[^\W\d_]+", cell.lower())]
+    if len(words) < 12:
+        return False
+    if sum(w in _FUNCTION_WORDS for w in words) / len(words) < 0.2:
+        return False
+    if len(df) >= 20:
+        for col in df.columns:
+            filled = df[col].dropna()
+            distinct = filled.nunique()
+            if len(filled) and distinct >= 2 and distinct / len(filled) < 0.5:
+                return False
+    return True
+
+
 def _name_words(name) -> set:
     spaced = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", str(name))
     return set(re.findall(r"[a-z]+", spaced.lower()))
@@ -90,6 +146,8 @@ def check_data_quality(df: pd.DataFrame) -> DataQualityResult:
         errors.append(f"Dataset has only {row_count} rows — too small for meaningful analysis.")
     if col_count < 2:
         errors.append("Dataset needs at least 2 columns.")
+    elif looks_like_prose(df):
+        errors.append(NOT_A_TABLE)
 
     # Duplicate column names
     dupes = df.columns[df.columns.duplicated()].tolist()

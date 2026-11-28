@@ -1,0 +1,5 @@
+{
+  "variant": "baseline",
+  "chosenAt": "2026-11-27",
+  "note": "No tuning run yet: the prompt as written. python -m report_eval.tune --live replaces this."
+}

@@ -147,3 +147,34 @@ def test_a_full_minute_of_output_benches_for_a_minute(monkeypatch):
 def test_a_time_out_benches_for_less_than_an_outage(monkeypatch):
     assert _benched_for(monkeypatch, TimeoutError("slow")) == report_writer.TIMEOUT_COOLDOWN_SECS
     assert report_writer.TIMEOUT_COOLDOWN_SECS < report_writer.COOLDOWN_SECS
+
+
+# ── A letter saved as .csv (item 34) ─────────────────────────────────────────
+
+_LETTER = b'Dear Sam,\n\nThank you for your letter, which arrived on Monday. I hope you, Jo and the kids are well.\nWe had a lovely time at the lake, the cabin, and the town this summer.\nThe weather was warm, the water was cold, and the food was great.\nI will write again soon, once things settle down.\nPlease give my love to everyone, especially Gran.\nSee you at Christmas, if not before.\nWith love, as always,\nAlex\n'
+_SPACED_LETTER = (b"Dear Sam\n\nThank you for your letter. I hope you are well.\n"
+                  b"We had a lovely time at the lake this summer.\nThe kids loved it and so did I.\n\n"
+                  b"Best wishes\nAlex\n")
+
+
+@pytest.mark.parametrize("letter", [_LETTER, _SPACED_LETTER], ids=["commas", "spaces"])
+def test_a_letter_saved_as_csv_is_not_a_table(letter):
+    from ai_engine.quality.quality_checker import NOT_A_TABLE, check_data_quality, looks_like_prose
+    df = load_table(letter, "letter.csv").df
+    assert looks_like_prose(df)
+    quality = check_data_quality(df)
+    assert not quality.isUsable and NOT_A_TABLE in quality.errors
+
+
+def test_text_only_tables_are_still_tables():
+    from ai_engine.quality.quality_checker import looks_like_prose
+    rng = np.random.default_rng(3)
+    people = pd.DataFrame({"name": [f"Person {i}" for i in range(50)],
+                           "city": rng.choice(["Toronto", "Paris", "Tehran"], 50)})
+    reviews = pd.DataFrame({
+        "product": rng.choice(["Kettle", "Toaster", "Fan"], 60),
+        "review": [f"I bought this for my mum and it was the best thing in the house, number {i}"
+                   for i in range(60)]})
+    numbers = pd.DataFrame({"note": ["it was the best of times and the worst"] * 30,
+                            "sales": rng.integers(1, 99, 30)})
+    assert not any(looks_like_prose(d) for d in (people, reviews, numbers))

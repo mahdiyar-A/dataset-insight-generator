@@ -756,3 +756,59 @@ public class FakeReportVersionRepository : IReportVersionRepository
         return Task.CompletedTask;
     }
 }
+
+/// <summary>
+/// The admin page's counts and record, kept in memory so tests can read them.
+/// Set <see cref="Missing"/> to act like a database without migration 007.
+/// </summary>
+public class FakeActivityLog : IActivityLog
+{
+    private readonly object _lock = new();
+    public Dictionary<string, int> Counts { get; } = new();
+    public List<FindingFeedbackRow> Findings { get; } = new();
+    public List<AdminActionRecord> Actions { get; } = new();
+    public bool Missing { get; set; }
+
+    public void Count(string kind, int by = 1)
+    {
+        lock (_lock) Counts[kind] = Counts.GetValueOrDefault(kind) + by;
+    }
+
+    public int CountOf(string kind) { lock (_lock) return Counts.GetValueOrDefault(kind); }
+
+    public void CountFindings(string domain, string kind, int shown, int removed, int rewritten)
+    {
+        lock (_lock)
+        {
+            var i = Findings.FindIndex(f => f.Domain == domain && f.Kind == kind);
+            var was = i >= 0 ? Findings[i] : new FindingFeedbackRow(domain, kind, 0, 0, 0);
+            var now = was with { Shown = was.Shown + shown, Removed = was.Removed + removed, Rewritten = was.Rewritten + rewritten };
+            if (i >= 0) Findings[i] = now; else Findings.Add(now);
+        }
+    }
+
+    public Task RecordAdminActionAsync(AdminActionRecord action)
+    {
+        lock (_lock) Actions.Add(action);
+        return Task.CompletedTask;
+    }
+
+    public Task<List<UsageCount>> GetUsageSinceAsync(DateOnly since)
+    {
+        if (Missing) throw new InvalidOperationException("relation \"usage_daily\" does not exist");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        lock (_lock) return Task.FromResult(Counts.Select(c => new UsageCount(today, c.Key, c.Value)).ToList());
+    }
+
+    public Task<List<FindingFeedbackRow>> GetFindingFeedbackAsync()
+    {
+        if (Missing) throw new InvalidOperationException("relation \"finding_feedback\" does not exist");
+        lock (_lock) return Task.FromResult(Findings.ToList());
+    }
+
+    public Task<List<AdminActionRecord>> GetAdminActionsAsync(int limit)
+    {
+        if (Missing) throw new InvalidOperationException("relation \"admin_actions\" does not exist");
+        lock (_lock) return Task.FromResult(Actions.OrderByDescending(a => a.At).Take(limit).ToList());
+    }
+}

@@ -37,7 +37,12 @@ public class AdminSafetyTests
         _me     = _users.Add("owner", "admin");
     }
 
-    private AdminController Controller() => new(_users, new FakeAnalysisRepository(), NullLogger<AdminController>.Instance)
+    private AdminController Controller(string? owners = null, IActivityLog? activity = null) =>
+        new(_users, new FakeAnalysisRepository(), NullLogger<AdminController>.Instance,
+            new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Admin:OwnerIds"] = owners,
+            }).Build(), activity)
     {
         ControllerContext = new ControllerContext
         {
@@ -103,6 +108,107 @@ public class AdminSafetyTests
 
         result.Should().BeOfType<NoContentResult>();
         _users.Deleted.Should().Equal(other);
+    }
+
+    // ── The owner list ────────────────────────────────────────────────────────
+
+    [Test]
+    public void The_owner_list_reads_ids_and_skips_anything_else()
+    {
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+
+        AdminController.OwnerIds($" {a}, not-an-id ;{b} ").Should().BeEquivalentTo(new[] { a, b });
+        AdminController.OwnerIds(null).Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task With_an_owner_list_an_admin_who_is_not_on_it_gets_nothing()
+    {
+        var result = await Controller(owners: Guid.NewGuid().ToString()).GetStats();
+
+        result.Should().BeOfType<ForbidResult>();
+    }
+
+    [Test]
+    public async Task An_owner_on_the_list_uses_the_page_as_before()
+    {
+        (await Controller(owners: _me.ToString()).GetStats()).Should().BeOfType<OkObjectResult>();
+        (await Controller().GetStats()).Should().BeOfType<OkObjectResult>("no list means any admin, as before");
+    }
+
+    [Test]
+    public async Task Only_someone_on_the_owner_list_can_be_made_admin()
+    {
+        var friend = _users.Add("friend", "pro");
+
+        var result = await Controller(owners: _me.ToString()).SetPlan(friend, new AdminSetPlanRequest("admin"), Services());
+
+        var refused = result.Should().BeOfType<ObjectResult>().Subject;
+        refused.StatusCode.Should().Be(403);
+        Json(refused.Value).GetProperty("error").GetString().Should().Be("NOT_AN_OWNER");
+        _users.PlanChanges.Should().BeEmpty();
+    }
+
+    // ── The record of admin actions ───────────────────────────────────────────
+
+    [Test]
+    public async Task A_plan_change_goes_on_record_with_both_emails_masked()
+    {
+        var log = new FakeActivityLog();
+        var payer = _users.Add("payer", "pro", subscription: "sub_9");
+
+        await Controller(activity: log).SetPlan(payer, new AdminSetPlanRequest("free", CancelSubscription: true), Services());
+
+        var entry = log.Actions.Should().ContainSingle().Subject;
+        entry.Action.Should().Be("set_plan");
+        entry.AdminId.Should().Be(_me);
+        entry.AdminEmail.Should().Be("o***@dig.test");
+        entry.TargetId.Should().Be(payer);
+        entry.TargetEmail.Should().Be("p***@dig.test");
+        entry.Detail.Should().Be("pro → free, Stripe subscription cancelled");
+    }
+
+    [Test]
+    public async Task A_deletion_goes_on_record_and_a_refused_one_does_not()
+    {
+        var log = new FakeActivityLog();
+        var other = _users.Add("someone", "free");
+
+        await Controller(activity: log).DeleteUser(_me, Deletion());
+        await Controller(activity: log).DeleteUser(other, Deletion());
+
+        log.Actions.Should().ContainSingle().Which.Action.Should().Be("delete_user");
+        log.Actions[0].TargetEmail.Should().Be("s***@dig.test");
+    }
+
+    [Test]
+    public async Task The_record_and_the_usage_say_when_the_migration_is_missing()
+    {
+        var log = new FakeActivityLog { Missing = true };
+
+        var actions = await Controller(activity: log).GetActions();
+        var usage   = await Controller(activity: log).GetUsage(new FakeTeamRepository(), new FakeWorkspaceRepository());
+
+        actions.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(503);
+        usage.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(503);
+    }
+
+    [Test]
+    public async Task Usage_adds_up_each_kind_for_the_window_and_today()
+    {
+        var log = new FakeActivityLog();
+        log.Count(UsageKinds.Question, 3);
+        log.Count(UsageKinds.ReportEdit);
+        log.CountFindings("sales", "trend", 4, 1, 0);
+
+        var result = await Controller(activity: log).GetUsage(new FakeTeamRepository(), new FakeWorkspaceRepository(), days: 7);
+
+        var body = Json(result.Should().BeOfType<OkObjectResult>().Subject.Value);
+        body.GetProperty("totals").GetProperty("question").GetInt32().Should().Be(3);
+        body.GetProperty("today").GetProperty("report_edit").GetInt32().Should().Be(1);
+        body.GetProperty("perDay").GetArrayLength().Should().Be(7);
+        body.GetProperty("findingsKept")[0].GetProperty("removed").GetInt32().Should().Be(1);
     }
 
     // ── Paying customers ──────────────────────────────────────────────────────

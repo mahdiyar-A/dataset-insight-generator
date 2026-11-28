@@ -153,6 +153,7 @@ def run_pipeline(
     customization:       Optional[Dict[str, Any]] = None,
     domain_hint:         Optional[Dict[str, Any]] = None,
     data_description:    str = "",
+    finding_feedback:    Any = None,
 ) -> dict:
     """
     Full 8-phase analysis pipeline. Returns dict matching C# AnalyzeResponseDto.
@@ -163,6 +164,10 @@ def run_pipeline(
 
     data_description is what the user said the data is, when DIG was not sure
     and asked. With it the file is classified again, around their words.
+
+    finding_feedback is the backend's count of which kinds of finding people
+    delete or rewrite in their reports (llm/feedback.py). It nudges which
+    findings the planner puts first. Counts only: nothing about any person.
 
     customization (Pro users only, all optional):
       language       — "en" | "fr" | "es" | "de" | "zh" | "ar" | "pt"
@@ -314,7 +319,8 @@ def run_pipeline(
     # only flavoured the wording of the insight prompt, so every dataset got an
     # identical set of computations regardless of what it was.
     stats = build_stats_summary(df_work, quality, domain=domain.domain,
-                                type_conversions=table.conversions, source_file=source_file)
+                                type_conversions=table.conversions, source_file=source_file,
+                                key_columns=list((domain.column_decisions or {}).get("key") or []))
     print(f"[Pipeline] Stats done. Numeric cols: {len(stats.numericStats)}, Correlations: {len(stats.topCorrelations)}", flush=True)
 
     # ── Phase 4b: what the user asked for, computed ─────────────────────
@@ -363,6 +369,7 @@ def run_pipeline(
             avoid=avoid,
             requested=for_prompt(requested),
             reading=reading,
+            plan_weights=_plan_weights(finding_feedback, domain),
         )
     except Exception as e:
         # This should not happen, but if it does — build fallback inline
@@ -545,12 +552,26 @@ def run_pipeline(
         chatContext=chat_context,
         reportWriter=llm_report.writerModel or "",
         reportDocument=document,
+        figuresUnmatched=int(getattr(llm_report, "unmatchedFigures", 0) or 0),
     ).to_response()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Internal helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
+def _plan_weights(finding_feedback: Any, domain) -> Dict[str, float]:
+    """Learned per-kind weights for the planner, or {} (feedback.py). Never raises."""
+    try:
+        from ai_engine.llm.feedback import weights
+        found = weights(finding_feedback, getattr(domain, "domain", None))
+        if found:
+            print(f"[Pipeline] learned weights from report edits: {found}", flush=True)
+        return found
+    except Exception as e:
+        print(f"[Pipeline] learned weights skipped: {type(e).__name__}: {e}", flush=True)
+        return {}
+
 
 def _fail(condition: str, error: str) -> dict:
     return PipelineResult(

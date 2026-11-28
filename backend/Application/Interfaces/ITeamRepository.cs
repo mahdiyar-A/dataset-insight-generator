@@ -4,6 +4,9 @@ namespace backend.Application.Interfaces;
 
 public interface ITeamRepository
 {
+    /// <summary>How many teams exist, for the admin page. 0 where not counted (test fakes).</summary>
+    Task<int> CountTeamsAsync() => Task.FromResult(0);
+
     // ── Teams ─────────────────────────────────────────────────────────────────
     Task<Team?>            GetTeamAsync(Guid teamId);
     Task<List<Team>>       GetUserTeamsAsync(Guid userId);

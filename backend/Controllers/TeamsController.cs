@@ -268,7 +268,7 @@ public class TeamsController : ControllerBase
         "This invitation link isn't valid. Ask the person who invited you to send a new one.";
 
     /// <summary>"m***@example.com": enough to see which address to sign in with.</summary>
-    private static string MaskEmail(string email)
+    internal static string MaskEmail(string email)
     {
         var at = email.IndexOf('@');
         return at <= 1 ? "***" + email[Math.Max(at, 0)..] : email[0] + "***" + email[at..];

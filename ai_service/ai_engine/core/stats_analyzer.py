@@ -663,6 +663,7 @@ def build_stats_summary(
     domain: str = "general",
     type_conversions: Optional[List[Dict[str, Any]]] = None,
     source_file: Optional[Dict[str, Any]] = None,
+    key_columns: Optional[List[str]] = None,
 ) -> StatsSummary:
     started = time.monotonic()
     keys = _key_columns(df)
@@ -720,7 +721,7 @@ def build_stats_summary(
     # is structural — the domain only orders them — so a wrong domain guess
     # costs relevance, never correctness.
     domain_analyses = build_domain_analyses(sample if sampled_rows else df, domain=domain, date_col=time_col,
-                                            full_frame=df, derived=derived)
+                                            full_frame=df, derived=derived, key_columns=key_columns or ())
 
     elapsed = time.monotonic() - started
     print(f"[Stats] {len(df):,} rows x {len(df.columns)} cols in {elapsed:.2f}s "

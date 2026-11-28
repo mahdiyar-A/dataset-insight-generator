@@ -60,4 +60,8 @@ public class AnalyzeRequestDto
     // The user's own description, when DIG was not sure and asked. Empty when
     // they were not asked, confirmed DIG's reading, or skipped.
     public string DataDescription { get; set; } = "";
+
+    // How often people delete or rewrite each kind of finding, per kind of
+    // data: counts only (FindingFeedback). Empty before any are counted.
+    public string FindingFeedbackJson { get; set; } = "";
 }

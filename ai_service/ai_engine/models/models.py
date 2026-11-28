@@ -171,6 +171,9 @@ class LLMReport:
     # Up to three headline figures for the report's cover, each
     # {"value": "$124,000", "label": "in sales"}, checked against the data.
     keyNumbers: List[Dict[str, str]] = field(default_factory=list)
+    # Figures the data does not support that were still in the report when
+    # it went out, so the methodology names them. Counted on the admin page.
+    unmatchedFigures: int = 0
 
 
 @dataclass
@@ -210,6 +213,9 @@ class PipelineResult:
     # See report_document.
     reportDocument: Optional[Dict[str, Any]] = None
 
+    # How many figures the report printed under "check these figures".
+    figuresUnmatched: int = 0
+
     def to_response(self) -> dict:
         return {
             "status":                  self.status,
@@ -226,4 +232,5 @@ class PipelineResult:
             "chat_context":            self.chatContext,
             "report_writer":           self.reportWriter,
             "report_document":         self.reportDocument,
+            "figures_unmatched":       self.figuresUnmatched,
         }

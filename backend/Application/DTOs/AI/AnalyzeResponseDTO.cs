@@ -59,6 +59,10 @@ public class AnalyzeResponseDto
     // Null from an AI service that predates editing: that report cannot be edited.
     [JsonPropertyName("report_document")]
     public JsonElement? ReportDocument { get; set; }
+
+    // How many figures the report printed under "check these figures".
+    [JsonPropertyName("figures_unmatched")]
+    public int FiguresUnmatched { get; set; }
 }
 
 public class UsageDto

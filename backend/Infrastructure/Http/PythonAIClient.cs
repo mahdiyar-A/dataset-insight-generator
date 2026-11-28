@@ -93,6 +93,8 @@ public class PythonAiClient : IPythonAiClient
             // What the data is
             content.Add(new StringContent(request.DomainJson),                            "domain_json");
             content.Add(new StringContent(request.DataDescription),                       "data_description");
+            if (!string.IsNullOrEmpty(request.FindingFeedbackJson))
+                content.Add(new StringContent(request.FindingFeedbackJson),               "finding_feedback_json");
 
             var response = await _http.PostAsync($"{baseUrl}/analyze", content);
             response.EnsureSuccessStatusCode();

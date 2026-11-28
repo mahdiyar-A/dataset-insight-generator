@@ -35,6 +35,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
     public FakeAuthAdmin          AuthAdmin      { get; } = new();
     public FakeReportVersionRepository Versions  { get; } = new();
     public FakeReportLive         ReportLive     { get; } = new();
+    public FakeActivityLog        Activity       { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -118,6 +119,9 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
 
             services.RemoveAll<IReportLive>();
             services.AddSingleton<IReportLive>(ReportLive);
+
+            services.RemoveAll<IActivityLog>();
+            services.AddSingleton<IActivityLog>(Activity);
 
             // Email and Stripe don't need to be replaced unless a test
             // specifically exercises those paths, but remove to avoid

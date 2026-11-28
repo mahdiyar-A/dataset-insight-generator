@@ -61,6 +61,7 @@ const SECTIONS = [
     body: [
       'There is no advertising network, no third-party analytics or tracking script, and no third-party cookie anywhere on this site. We do not build a profile of you, we do not track you across other sites, and we do not sell or rent anything to anyone.',
       'We count page visits on our own server, without cookies. To count unique visitors, we combine your IP address and browser type with a random value that changes every day and is then deleted, and keep only the resulting code for that day. We never store your IP address, and we can\'t follow you from one day to the next or across other sites. Only daily totals are kept: how many people saw each page, and which website, if any, sent them. If your browser is set to Do Not Track or Global Privacy Control, your visits are not counted at all.',
+      'We also keep daily totals of how often things happen once people are signed in: questions asked, report edits, suggestions applied, runs that could not start. And when you delete or rewrite an insight in a report, we add one to a count for that kind of finding (for example, a trend) in that kind of data (for example, sales data). These counts are not linked to you or your file and hold none of your words. They help DIG choose which findings a report leads with.',
       'Your browser stores a sign-in token so you stay logged in, and your language and theme choice for the duration of the tab. Both are strictly necessary for the site to function, which is why you are not asked to consent to a cookie banner — there is nothing optional to consent to.',
     ],
   },
@@ -109,6 +110,7 @@ const SECTIONS = [
       'If you edit a report, the version DIG first wrote and your 20 most recent saved versions are kept with the analysis so you can go back to them. Older versions are deleted as you save new ones, and all of them are deleted with the analysis.',
       'If you add a chart to a report from the chat, the picture DIG draws from your data is stored with the analysis like its other charts, and deleted with it.',
       'Deleting your account deletes your account record, your analyses, and every file stored for you.',
+      'If we change your plan or delete your account from our admin page, a record of that is kept for two years so mistakes can be traced: what was done and when, your account number, and your email address with most of it hidden (for example, n***@example.com). It never includes your files.',
       'Operational logs and error records are kept for at most 30 days and are then deleted. Payment records held by Stripe are kept as long as tax and accounting law requires.',
     ],
   },
