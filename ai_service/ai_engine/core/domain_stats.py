@@ -25,7 +25,8 @@ Everything is computed locally. No model call, no extra cost.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple
+import re
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -86,15 +87,36 @@ def _category_columns(df: pd.DataFrame) -> List[str]:
     return out
 
 
-def _pick_headline_measure(df: pd.DataFrame, measures: List[str]) -> Optional[str]:
+# Numbers that describe who or where a row is, not what happened. A clinic
+# file's widest-spread number is usually the patients' age, and "average age
+# is flat over time" was the trend its report led with, while the waiting
+# times it was for went unmeasured.
+_DESCRIBES_THE_ROW = {"age", "year", "yr", "birth", "born", "dob", "zip", "postal", "postcode",
+                      "lat", "latitude", "lon", "lng", "longitude", "floor", "room"}
+
+
+def _describes_the_row(col: str) -> bool:
+    words = set(re.findall(r"[a-z]+", re.sub(r"(?<=[a-z])(?=[A-Z])", " ", str(col)).lower()))
+    return bool(words & _DESCRIBES_THE_ROW)
+
+
+def _pick_headline_measure(df: pd.DataFrame, measures: List[str], prefer: Sequence[str] = ()) -> Optional[str]:
     """
     The measure most likely to be the one that matters.
 
-    Prefers a money-ish name, then the widest spread — a near-constant column
-    makes for a pointless concentration statistic.
+    The key columns DIG settled on for this data come first (`prefer`, from
+    the domain step, which read the column names and the person's own
+    description). Then a money-ish name, then the widest spread — a
+    near-constant column makes for a pointless concentration statistic. A
+    number that only describes the row (an age, a year, a postcode) is used
+    only when there is nothing else.
     """
     if not measures:
         return None
+    for col in prefer or ():
+        if str(col) in measures:
+            return str(col)
+    measures = [c for c in measures if not _describes_the_row(c)] or measures
     money = [c for c in measures
              if any(w in c.lower() for w in
                     ("revenue", "sales", "amount", "price", "cost", "total",
@@ -105,7 +127,7 @@ def _pick_headline_measure(df: pd.DataFrame, measures: List[str]) -> Optional[st
 
 # ── Concentration ────────────────────────────────────────────────────────────
 
-def concentration(df: pd.DataFrame) -> Optional[Dict[str, Any]]:
+def concentration(df: pd.DataFrame, prefer: Sequence[str] = ()) -> Optional[Dict[str, Any]]:
     """
     How much of the total sits in the largest few categories.
 
@@ -114,7 +136,7 @@ def concentration(df: pd.DataFrame) -> Optional[Dict[str, Any]]:
     money because they hold most of the rows.
     """
     measures = _measure_columns(df)
-    measure = _pick_headline_measure(df, measures)
+    measure = _pick_headline_measure(df, measures, prefer)
     cats = _category_columns(df)
     if not measure or not cats:
         return None
@@ -159,7 +181,7 @@ def concentration(df: pd.DataFrame) -> Optional[Dict[str, Any]]:
 
 # ── Repeat entities ──────────────────────────────────────────────────────────
 
-def repeat_entity(df: pd.DataFrame) -> Optional[Dict[str, Any]]:
+def repeat_entity(df: pd.DataFrame, prefer: Sequence[str] = ()) -> Optional[Dict[str, Any]]:
     """
     Whether a few entities account for most of the activity.
 
@@ -190,7 +212,7 @@ def repeat_entity(df: pd.DataFrame) -> Optional[Dict[str, Any]]:
     }
 
     # The asymmetry that matters: do repeat entities carry disproportionate value?
-    measure = _pick_headline_measure(df, _measure_columns(df))
+    measure = _pick_headline_measure(df, _measure_columns(df), prefer)
     if measure:
         per_entity = df.groupby(key)[measure].sum()
         total = float(per_entity.sum())
@@ -313,7 +335,7 @@ def _seasonality(values: pd.Series, period_name: str, slope: float) -> Optional[
     }
 
 
-def trend(df: pd.DataFrame, date_col: Optional[str]) -> Optional[Dict[str, Any]]:
+def trend(df: pd.DataFrame, date_col: Optional[str], prefer: Sequence[str] = ()) -> Optional[Dict[str, Any]]:
     """
     Direction and strength of change over time, tested on per-period values.
 
@@ -326,7 +348,7 @@ def trend(df: pd.DataFrame, date_col: Optional[str]) -> Optional[Dict[str, Any]]
     if not date_col or date_col not in df.columns:
         return None
     measures = _measure_columns(df)
-    measure = _pick_headline_measure(df, measures)
+    measure = _pick_headline_measure(df, measures, prefer)
     if not measure:
         return None
 
@@ -470,7 +492,7 @@ def trend(df: pd.DataFrame, date_col: Optional[str]) -> Optional[Dict[str, Any]]
 
 # ── Group effect size ────────────────────────────────────────────────────────
 
-def group_effect(df: pd.DataFrame) -> Optional[Dict[str, Any]]:
+def group_effect(df: pd.DataFrame, prefer: Sequence[str] = ()) -> Optional[Dict[str, Any]]:
     """
     How much of a measure's variation a grouping actually explains.
 
@@ -480,7 +502,7 @@ def group_effect(df: pd.DataFrame) -> Optional[Dict[str, Any]]:
     the share of variance explained, which is the part a reader should act on.
     """
     measures = _measure_columns(df)
-    measure = _pick_headline_measure(df, measures)
+    measure = _pick_headline_measure(df, measures, prefer)
     cats = _category_columns(df)
     if not measure or not cats:
         return None
@@ -524,9 +546,13 @@ def build_domain_analyses(
     date_col: Optional[str] = None,
     full_frame: Optional[pd.DataFrame] = None,
     derived: Optional[List[Dict[str, Any]]] = None,
+    key_columns: Sequence[str] = (),
 ) -> Dict[str, Any]:
     """
     Run every analysis the frame structurally supports, ordered by domain.
+
+    `key_columns` are the columns the domain step marked as what the data is
+    about; the analyses measure the first of them that is a number.
 
     `df` may be a sample of a large file; `full_frame`, when given, is the
     whole file, and the analyses that report totals (concentration, repeat
@@ -539,12 +565,13 @@ def build_domain_analyses(
     from ai_engine.core.drivers import key_drivers, segments
 
     whole = full_frame if full_frame is not None else df
-    headline = _pick_headline_measure(df, _measure_columns(df))
+    prefer = [str(c) for c in key_columns or ()]
+    headline = _pick_headline_measure(df, _measure_columns(df), prefer)
     available = {
-        "concentration": lambda: concentration(whole),
-        "repeat_entity": lambda: repeat_entity(whole),
-        "trend":         lambda: trend(whole, date_col),
-        "group_effect":  lambda: group_effect(df),
+        "concentration": lambda: concentration(whole, prefer),
+        "repeat_entity": lambda: repeat_entity(whole, prefer),
+        "trend":         lambda: trend(whole, date_col, prefer),
+        "group_effect":  lambda: group_effect(df, prefer),
         "key_drivers":   lambda: key_drivers(df, headline, derived=derived),
         "segments":      lambda: segments(df, headline),
     }

@@ -47,10 +47,10 @@ const WORK: [string, string, string][] = [
 ];
 
 const card: React.CSSProperties = {
-  background: "color-mix(in srgb, var(--card) 80%, transparent)", border: "1px solid var(--line)",
-  borderRadius: "0", padding: "20px 24px", marginBottom: "16px",
+  background: "var(--card)", border: "2px solid var(--rule)",
+  borderRadius: "0", padding: "18px 22px", marginBottom: "16px",
 };
-const heading: React.CSSProperties = { margin: "0 0 12px", fontSize: "0.95rem", fontWeight: 700, color: "var(--ink-soft)" };
+const heading: React.CSSProperties = { margin: "0 0 12px", fontSize: "1.05rem", fontWeight: 800, color: "var(--ink)" };
 
 export default function AdminModels({ token }: { token: string }) {
   const [status,  setStatus]  = useState<ModelStatus | null>(null);
@@ -91,7 +91,7 @@ export default function AdminModels({ token }: { token: string }) {
 
       {status && (
         <>
-          <div style={{ ...card, borderColor: problems.length ? "color-mix(in srgb, var(--danger) 35%, transparent)" : "color-mix(in srgb, var(--ok) 35%, transparent)" }}>
+          <div style={{ ...card, borderColor: problems.length ? "var(--danger)" : "var(--ok)" }}>
             <h3 style={{ ...heading, color: problems.length ? "var(--danger-text)" : "var(--ok-text)" }}>
               {problems.length === 0 ? "Nothing is wrong"
                 : problems.length === 1 ? "One thing needs a look" : `${problems.length} things need a look`}
@@ -164,10 +164,8 @@ export default function AdminModels({ token }: { token: string }) {
           The server runs this check every six hours and emails you when something is wrong, and straight
           away when a report has to be written without AI. It stays silent when all is well.
         </p>
-        <button onClick={sendTest} disabled={testing}
-          style={{ padding: "8px 16px", borderRadius: "0", border: "none",
-            background: "color-mix(in srgb, var(--cobalt) 30%, transparent)", color: "var(--cobalt-accent)", fontWeight: 600,
-            fontSize: "0.83rem", cursor: testing ? "wait" : "pointer", opacity: testing ? 0.6 : 1 }}>
+        <button className="atlas-btn cobalt" onClick={sendTest} disabled={testing}
+          style={{ cursor: testing ? "wait" : "pointer", opacity: testing ? 0.6 : 1 }}>
           {testing ? "Sending…" : "Send a test alert"}
         </button>
         {tested && (

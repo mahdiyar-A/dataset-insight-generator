@@ -46,8 +46,10 @@ public class AnalysisService
         AnalysisGate             gate,
         ILogger<AnalysisService> logger,
         OwnerAlerts?             alerts = null,
-        IReportVersionRepository? versions = null)
+        IReportVersionRepository? versions = null,
+        IActivityLog?            activity = null)
     {
+        _activity = activity;
         _analyses = analyses;
         _storage  = storage;
         _pythonAi = pythonAi;
@@ -59,6 +61,28 @@ public class AnalysisService
     }
 
     // ── Public entry point ─────────────────────────────────────────────────────
+
+    private readonly IActivityLog? _activity;
+
+    /// <summary>
+    /// Which kinds of finding people delete or rewrite, for the AI service to
+    /// weigh (FindingFeedback). Counts only. Empty when there are none yet or
+    /// the table cannot be read in a second: a report never waits for it.
+    /// </summary>
+    private async Task<string> FindingFeedbackJsonAsync()
+    {
+        if (_activity == null) return "";
+        try
+        {
+            var rows = await _activity.GetFindingFeedbackAsync().WaitAsync(TimeSpan.FromSeconds(2));
+            return rows.Count == 0 ? "" : FindingFeedback.ToJson(rows);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug("[Analysis] Finding feedback unavailable ({Type})", ex.GetType().Name);
+            return "";
+        }
+    }
 
     /// <summary>
     /// Would this user be allowed to start an analysis right now? Changes
@@ -88,13 +112,18 @@ public class AnalysisService
     {
         var user = await _users.GetByIdAsync(userId);
         var quota = await FreePlanQuotaAsync(userId, user);
-        if (quota != null) return quota;
+        if (quota != null)
+        {
+            _activity?.Count(UsageKinds.RunRefused);
+            return quota;
+        }
 
         var caller    = AnalysisCaller.ForUser(userId, user?.Plan);
         var admission = _gate.TryAdmit(caller);
         if (!admission.Allowed)
         {
             _logger.LogInformation("[Analysis] Refused for user {UserId}: {Code}", userId, admission.Code);
+            _activity?.Count(UsageKinds.RunRefused);
             return admission;
         }
 
@@ -219,6 +248,7 @@ public class AnalysisService
             // asked what your file is about is not a paid extra.
             request.DomainJson      = uploaded?.DomainJson ?? "";
             request.DataDescription = uploaded?.DataDescription ?? "";
+            request.FindingFeedbackJson = await FindingFeedbackJsonAsync();
 
             // ── Step 4: Call the Python AI pipeline ───────────────────────────
             var csvBytes = await File.ReadAllBytesAsync(tempPath);
@@ -406,6 +436,8 @@ public class AnalysisService
                     await _versions.TryInsertAsync(new ReportVersion(
                         analysisId.Value, 1, document.GetRawText(), editedBy: null,
                         kind: ReportVersion.Written, filesBuilt: pdfPath != null));
+                    var written = document.GetRawText();
+                    FindingFeedback.Store(_activity, () => FindingFeedback.Written(written), _logger);
                 }
                 catch (Exception ex)
                 {
@@ -417,6 +449,8 @@ public class AnalysisService
             // The person still gets a report: the stats-only one. It is the one
             // failure that arrives looking like a result, so the owner hears
             // about it now, not from the daily check. Once a day at most.
+            if (result.FiguresUnmatched > 0) _activity?.Count(UsageKinds.FiguresUnmatched);
+
             if (result.ReportWriter is { Length: 0 } && _alerts != null)
             {
                 _ = _alerts.RaiseAsync("report-without-ai",

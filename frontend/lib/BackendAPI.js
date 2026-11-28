@@ -611,6 +611,29 @@ export default class BackendAPI {
       { headers: authHeaders(token) }, "Failed to fetch visits");
   }
 
+  /**
+   * Signed-in use, counted per day: questions, report edits, chat suggestions,
+   * refused runs and uploads, teams, shared reports, and which kinds of
+   * findings people keep. A 503 means migration 007 has not been run.
+   * @param {string} token
+   * @param {number} [days]
+   */
+  static async adminGetUsage(token, days = 30) {
+    return req(`${API_BASE}/api/admin/usage?days=${days}`,
+      { headers: authHeaders(token) }, "Failed to fetch usage");
+  }
+
+  /**
+   * Who changed whose plan or deleted whom, newest first, emails masked.
+   * A 503 means migration 007 has not been run.
+   * @param {string} token
+   * @param {number} [limit]
+   */
+  static async adminGetActions(token, limit = 100) {
+    return req(`${API_BASE}/api/admin/actions?limit=${limit}`,
+      { headers: authHeaders(token) }, "Failed to fetch the record");
+  }
+
   static async adminDeleteUser(token, userId) {
     const res = await fetch(`${API_BASE}/api/admin/users/${userId}`,
       { method: "DELETE", headers: authHeaders(token) });

@@ -104,3 +104,6 @@ ai_service/model_trainer/trained_*/
 ####
 # Test output
 TestResults/
+
+# Report test set scorecards (python -m report_eval.run)
+ai_service/report_eval/results/

@@ -31,6 +31,8 @@ from ai_engine.models.models import StatsSummary, LLMReport, ChartInstruction, D
 from ai_engine.llm.report_writer import note_outcome, write_report
 from ai_engine.llm.evidence import based_on, catalog, cited, strength, traced, without_ids
 from ai_engine.llm.plain import humanize_columns, jargon, soften, soften_title
+from ai_engine.llm.planner import plan, plan_block
+from ai_engine.llm import prompt_variants
 from ai_engine.llm.stats_digest import build_digest, digest_json
 from ai_engine.report_labels import labels_for
 from ai_engine.llm.guard import (
@@ -153,6 +155,23 @@ def _auto_writing(reading, technical_standard: str, academic_standard: str) -> s
 # Prompt builder
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _findings_plan(stats: StatsSummary, domain: DomainResult, count: int, requested: str = "",
+                   focus_on: str = "", comparisons: str = "", must_mention: Optional[List[str]] = None,
+                   questions: Optional[List[Dict[str, str]]] = None, avoid: str = "",
+                   plan_weights: Optional[Dict[str, float]] = None) -> List[Dict[str, Any]]:
+    """The findings the report is about, in order: see planner.py. [] if planning fails."""
+    try:
+        known = catalog(build_digest(stats, domain), requested)
+        focus = [focus_on, comparisons, *(must_mention or []),
+                 *(str(q.get("question") or "") for q in (questions or []) if isinstance(q, dict))]
+        return plan(known, count, (stats.columnTypes or {}).keys(), focus=focus, avoid=avoid,
+                    key_columns=(domain.column_decisions or {}).get("key", []) if domain else [],
+                    weights=plan_weights)
+    except Exception as e:   # a plan helps the writer; its absence must not stop it
+        print(f"[Insights] findings plan skipped: {type(e).__name__}: {e}", flush=True)
+        return []
+
+
 def _build_prompt(
     stats: StatsSummary,
     domain: DomainResult,
@@ -179,6 +198,7 @@ def _build_prompt(
     avoid: str = "",                # free text: what to leave out
     requested: str = "",            # user_requests.for_prompt(): figures computed for the directives
     reading=None,                   # ai_engine.reading.Reading: who the report is for, choices applied
+    plan_weights: Optional[Dict[str, float]] = None,   # learned per-kind factors, see planner.py
 ) -> str:
     """
     Build the Gemini prompt. Every customization parameter genuinely reshapes
@@ -419,6 +439,11 @@ WORDS FOR THIS READER — {reading.level.upper()}
     # A ranked, filtered digest in compact JSON rather than the full summary
     # indented: see stats_digest for why prompt size matters on free tiers.
     stats_json      = digest_json(stats, domain)
+    # Which findings to write about, chosen by rules before the model reads
+    # anything: see planner.py.
+    plan_text       = plan_block(_findings_plan(
+        stats, domain, actual_insights_count, requested, focus_on, comparisons, must_mention,
+        questions, avoid, plan_weights))
     focus_block     = "\n".join(f"  - {f}" for f in domain.analysis_focus)
     questions_block = "\n".join(f"  {i+1}. {q}" for i, q in enumerate(domain.key_questions))
 
@@ -579,7 +604,7 @@ Key questions to answer:
 ENRICHED STATISTICAL DATA
 ═══════════════════════════════════════════════════
 {stats_json}
-
+{plan_text}
 ═══════════════════════════════════════════════════
 WRITING STANDARD — follow this exactly for every sentence
 ═══════════════════════════════════════════════════
@@ -943,8 +968,14 @@ def _untraced(report: LLMReport, known: Dict[str, Any]) -> List[str]:
             if not traced(i.get("restsOn"), known)]
 
 
+def _skipped(report: LLMReport, planned: List[str]) -> List[str]:
+    """The first planned findings no insight in the draft rests on."""
+    cited_ids = {str(i) for insight in report.insights for i in (insight.get("restsOn") or [])}
+    return [p for p in planned[:3] if p not in cited_ids]
+
+
 def _with_checks(report, provider, write, prompt: str, digest: Dict[str, Any],
-                 known: Dict[str, Any], language: str, reading=None):
+                 known: Dict[str, Any], language: str, reading=None, planned: Optional[List[str]] = None):
     """
     One correction, as the chat gets, for figures the data does not support,
     for insights that rest on no result, and for a plain report thick with
@@ -962,6 +993,12 @@ def _with_checks(report, provider, write, prompt: str, digest: Dict[str, Any],
     heavy = heavy if len(heavy) >= JARGON_LIMIT else []
     if problems or untraced or heavy:
         notes = []
+        skipped = _skipped(report, planned or [])
+        if skipped:
+            # Said only while a correction is being asked for anyway: a
+            # skipped finding alone is not worth another model call.
+            notes.append("The draft left out these findings from the ANALYST'S PLAN: "
+                         f"{', '.join(skipped)}. Write about them unless a result plainly tells the reader more.")
         if heavy:
             print(f"[Insights] statistics words in a plain report: {heavy[:10]}", flush=True)
             notes.append("The draft used statistics words this reader does not know: "
@@ -986,6 +1023,7 @@ def _with_checks(report, provider, write, prompt: str, digest: Dict[str, Any],
             plainer = bool(heavy) and after <= before and len(_heavy_words(second, reading)) < len(heavy)
             if keeps_one and (after < before or plainer):
                 report, provider, problems = second, by, left
+    report.unmatchedFigures = len(problems)
     if problems:
         line = labels_for(language)["unmatched"].format(figures=", ".join(problems[:8]))
         report.dataQualitySection = f"{report.dataQualitySection}\n\n{line}".strip()
@@ -1020,6 +1058,9 @@ def _keep_traced(report: LLMReport, known: Dict[str, Any], language: str) -> Non
             # How firm the finding is, said in a word on the page: the
             # statistics behind it go to "How we know".
             insight["strength"] = strength(ids, known)
+            # What kind of finding it is: when people delete or rewrite an
+            # insight, the kind is all DIG learns from it (feedback.py).
+            insight["findingKind"] = str(known[ids[0]].get("kind") or "")
         (kept if ids else dropped).append(insight)
     if not kept:
         report.dataQualitySection = f"{report.dataQualitySection}\n\n{labels['ev_untraced']}".strip()
@@ -1310,6 +1351,8 @@ def generate_report(
     avoid: str = "",
     requested: str = "",
     reading=None,
+    plan_weights: Optional[Dict[str, float]] = None,
+    prompt_variant: Optional[str] = None,
 ) -> LLMReport:
     """
     Phase 5: insight agent + report writer. Returns a full LLMReport.
@@ -1360,8 +1403,11 @@ def generate_report(
         include_confidence=include_confidence,
         assumptions=assumptions, questions=questions,
         writing_format=writing_format, avoid=avoid,
-        requested=requested, reading=reading,
+        requested=requested, reading=reading, plan_weights=plan_weights,
     )
+    # The version of the prompt that scored best offline (prompt_variants.py),
+    # or the one report_eval is trying.
+    prompt = prompt_variants.apply(prompt, prompt_variant)
     print(f"[Insights] prompt is ~{len(prompt) // 4:,} tokens", flush=True)
 
     def write(asking):
@@ -1381,7 +1427,11 @@ def generate_report(
     try:
         digest = build_digest(stats, domain)
         known = catalog(digest, requested)
-        report, provider = _with_checks(report, provider, write, prompt, digest, known, language, reading)
+        planned = [c["id"] for c in _findings_plan(
+            stats, domain, max(MIN_INSIGHTS, min(MAX_INSIGHTS, int(insights_count or 5))), requested,
+            focus_on, comparisons, must_mention, questions, avoid, plan_weights)]
+        report, provider = _with_checks(report, provider, write, prompt, digest, known, language, reading,
+                                        planned)
         _keep_traced(report, known, language)
         _without_ids(report, known)
     except Exception as e:   # a check must never cost anyone their report

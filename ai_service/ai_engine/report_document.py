@@ -112,6 +112,10 @@ def build(report: LLMReport, charts: List[Dict[str, Any]], *, stats: Any, domain
             "basedOn": _strings(ins.get("basedOn")),
             **({"strength": str(ins["strength"])} if ins.get("strength") else {}),
             **({"highlight": _figure(ins.get("highlight"))} if _figure(ins.get("highlight")) else {}),
+            # The kind of finding it rests on. When someone deletes or rewrites
+            # the insight, the backend counts it against this kind, and nothing
+            # else (llm/feedback.py).
+            **({"kind": str(ins["findingKind"])} if ins.get("findingKind") else {}),
         })
 
     # Position i is the picture the backend stores as chart_{i}.png.

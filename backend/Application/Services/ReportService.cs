@@ -95,6 +95,7 @@ public class ReportService
     private readonly IUserRepository          _users;
     private readonly IReportLive              _live;
     private readonly ILogger<ReportService>   _logger;
+    private readonly IActivityLog?            _activity;
 
     // One save per report at a time on this server. The version number already
     // refuses a second save from the same starting point; this keeps a save's
@@ -103,8 +104,9 @@ public class ReportService
 
     public ReportService(IAnalysisRepository analyses, IReportVersionRepository versions, IStorageService storage,
                          IPythonAiClient ai, ReportProposals proposals, ReportAccess access, IUserRepository users,
-                         IReportLive live, ILogger<ReportService> logger)
+                         IReportLive live, ILogger<ReportService> logger, IActivityLog? activity = null)
     {
+        _activity  = activity;
         _analyses  = analyses;
         _versions  = versions;
         _storage   = storage;
@@ -200,15 +202,24 @@ public class ReportService
     /// Save an edit made to version <paramref name="baseVersion"/>. When someone
     /// saved since, the two are combined part by part.
     /// </summary>
-    public Task<ReportResult> SaveAsync(Guid userId, Guid analysisId, int baseVersion, JsonElement edited) =>
-        ApplyAsync(userId, analysisId, baseVersion, _ => Task.FromResult<Edit?>(new Edit(edited.GetRawText())),
-                   ReportVersion.Edited, restoredFrom: null, warn: true, combine: true);
+    public async Task<ReportResult> SaveAsync(Guid userId, Guid analysisId, int baseVersion, JsonElement edited)
+    {
+        var result = await ApplyAsync(userId, analysisId, baseVersion,
+                                      _ => Task.FromResult<Edit?>(new Edit(edited.GetRawText())),
+                                      ReportVersion.Edited, restoredFrom: null, warn: true, combine: true);
+        if (result.Outcome == ReportOutcome.Ok) _activity?.Count(UsageKinds.ReportEdit);
+        return result;
+    }
 
     /// <summary>Go back to version <paramref name="target"/>, saving it again as the newest.</summary>
-    public Task<ReportResult> RestoreAsync(Guid userId, Guid analysisId, int baseVersion, int target) =>
-        ApplyAsync(userId, analysisId, baseVersion,
+    public async Task<ReportResult> RestoreAsync(Guid userId, Guid analysisId, int baseVersion, int target)
+    {
+        var result = await ApplyAsync(userId, analysisId, baseVersion,
                    async id => (await _versions.GetAsync(id, target)) is { } v ? new Edit(v.Document) : null,
                    ReportVersion.Restored, restoredFrom: target, warn: false);
+        if (result.Outcome == ReportOutcome.Ok) _activity?.Count(UsageKinds.ReportRestore);
+        return result;
+    }
 
     /// <summary>
     /// Apply a suggestion from the chat, as the owner's own edit. Its figures
@@ -223,6 +234,7 @@ public class ReportService
             _ => Task.FromResult<Edit?>(new Edit(null, proposal.ChangesJson, proposal.Pictures)),
             ReportVersion.Edited, restoredFrom: null, warn: false);
         if (result.Outcome is ReportOutcome.Ok or ReportOutcome.Conflict) _proposals.Remove(proposalId);
+        if (result.Outcome == ReportOutcome.Ok) _activity?.Count(UsageKinds.SuggestionApplied);
         return result;
     }
 
@@ -284,6 +296,15 @@ public class ReportService
                 analysisId, next, document.GetRawText(), userId, kind, restoredFrom));
             if (!stored)
                 return new(ReportOutcome.Conflict, latest.Version, Code: "CHANGED_SINCE_OPENED");
+
+            // What the save deleted or rewrote, by kind of finding: counts only.
+            // Going back to an earlier version is not a judgement on a finding.
+            if (kind == ReportVersion.Edited)
+            {
+                var before = latest.Document;
+                var after  = document.GetRawText();
+                FindingFeedback.Store(_activity, () => FindingFeedback.Edited(before, after), _logger);
+            }
 
             await StoreFilesAsync(analysis, next, rebuilt);
             await TrimAsync(analysisId, next);
@@ -483,6 +504,7 @@ public class ReportService
             ? w.Clone()
             : Parse("[]");
         var id = _proposals.Add(userId, analysisId, baseVersion, changes.ToJsonString(), pictures);
+        _activity?.Count(UsageKinds.SuggestionOffered);
         return new OfferedProposal(id, baseVersion, Parse(preview.ToJsonString()), warnings);
     }
 

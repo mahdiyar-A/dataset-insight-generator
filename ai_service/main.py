@@ -14,7 +14,9 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import JSONResponse
 from ai_engine.core.pipeline import run_pipeline, parse_questions
 from ai_engine.ingest import load_table, UnsupportedFile
-from ai_engine.quality.quality_checker import check_data_quality, impossible_values
+from ai_engine.quality.quality_checker import (
+    NOT_A_TABLE, check_data_quality, impossible_values, looks_like_prose,
+)
 from ai_engine.quality.confidence_engine import evaluate_confidence
 from ai_engine.training.training_logger import get_training_stats
 from ai_engine.llm.harness import answer_question, build_brief
@@ -178,6 +180,14 @@ async def inspect(
     except Exception as e:
         print(f"[Inspect] ✗ unexpected: {type(e).__name__}: {e}", flush=True)
         return JSONResponse({"ok": False, "error": "The file could not be read."})
+    # Refused here, at upload, rather than after the person has pressed Start.
+    if len(table.df.columns) < 2:
+        print("[Inspect] ✗ one column", flush=True)
+        return JSONResponse({"ok": False, "error": "DIG needs a table with at least two columns. "
+                                                   "This file reads as a single column."})
+    if looks_like_prose(table.df):
+        print("[Inspect] ✗ reads like prose", flush=True)
+        return JSONResponse({"ok": False, "error": NOT_A_TABLE})
     summary = table.summary(preview_rows=5)
     summary["columnKinds"] = _column_kinds(table.df)
     summary["notes"] = [*summary["notes"], *impossible_values(table.df)]
@@ -353,6 +363,9 @@ async def analyze(
     # words when DIG was not sure and asked. See pipeline._settle_domain.
     domain_json:         str  = Form(""),
     data_description:    str  = Form(""),
+    # Counts of which kinds of finding people delete or rewrite, per kind of
+    # data, with nothing about any person (ai_engine/llm/feedback.py).
+    finding_feedback_json: str = Form(""),
 ):
     """
     Full 8-phase analysis pipeline.
@@ -407,6 +420,7 @@ async def analyze(
         session_id=session_id,
         domain_hint=_json_form(domain_json, None),
         data_description=data_description,
+        finding_feedback=finding_feedback_json,
         customization={
             "language":           language,
             "tone":               tone,

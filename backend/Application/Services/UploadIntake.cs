@@ -60,6 +60,7 @@ public sealed class UploadIntake
 {
     private readonly IPythonAiClient       _python;
     private readonly ILogger<UploadIntake> _logger;
+    private readonly IActivityLog?         _activity;
 
     // Reading a 50 MB file costs the AI service real memory, and the server
     // has 2 GB shared with running analyses. Two reads at once at most; an
@@ -67,10 +68,11 @@ public sealed class UploadIntake
     private static readonly SemaphoreSlim InspectSlots = new(2, 2);
     private static readonly TimeSpan      SlotWait     = TimeSpan.FromSeconds(15);
 
-    public UploadIntake(IPythonAiClient python, ILogger<UploadIntake> logger)
+    public UploadIntake(IPythonAiClient python, ILogger<UploadIntake> logger, IActivityLog? activity = null)
     {
-        _python = python;
-        _logger = logger;
+        _python   = python;
+        _logger   = logger;
+        _activity = activity;
     }
 
     public async Task<UploadOutcome> AcceptAsync(UploadStore store, Guid owner, IFormFile? file,
@@ -99,6 +101,7 @@ public sealed class UploadIntake
         if (root is { } refused && refused.TryGetProperty("ok", out var ok) && ok.ValueKind == JsonValueKind.False)
         {
             store.Delete(owner);
+            _activity?.Count(UsageKinds.UploadRefused);
             var reason = refused.TryGetProperty("error", out var e) ? e.GetString() : null;
             return UploadOutcome.Refuse("UNREADABLE", string.IsNullOrWhiteSpace(reason) ? "The file could not be read." : reason);
         }

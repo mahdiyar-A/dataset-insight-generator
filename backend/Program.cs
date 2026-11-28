@@ -96,6 +96,7 @@ builder.Services.AddSingleton<IReportLive, ReportLive>();     // tells open page
 builder.Services.AddSingleton(_ => new ReportProposals());   // suggestions from the chat, until applied
 builder.Services.AddScoped<AccountDeletion>();
 builder.Services.AddScoped<IVisitRepository,     VisitRepository>();
+builder.Services.AddSingleton<IActivityLog,      ActivityLog>();  // admin page counts and record (migration 007)
 builder.Services.AddSingleton(_ => new VisitCounter());   // today's visitors, in memory only
 builder.Services.AddHttpClient<IAuthAdmin, SupabaseAuthAdmin>();
 builder.Services.AddScoped<UploadIntake>();
