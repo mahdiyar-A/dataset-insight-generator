@@ -16,17 +16,35 @@ _ESCAPES = {b"n": b"\n", b"r": b"\r", b"t": b"\t", b"b": b"\b", b"f": b"\f", b"(
             b"\\": b"\\"}
 
 
+# A stream's dictionary, then its bytes. The bytes are read by the length the
+# dictionary gives, not up to "endstream": compressed bytes can end in a
+# carriage return, which a pattern would take for the line break and cut off.
+# That made CI fail on 28 Nov 2026, when the date printed on the page changed
+# the bytes.
+_STREAM = re.compile(rb"<<((?:(?!>>\s*stream).)*?)>>\s*stream(?:\r\n|\n|\r)", re.S)
+
+
+def raw_streams(pdf: bytes):
+    """(dictionary, bytes) for each stream with a plain /Length, in order."""
+    for m in _STREAM.finditer(pdf):
+        length = re.search(rb"/Length\s+(\d+)(?!\d)(?!\s+\d+\s+R)", m.group(1))
+        if length:
+            yield m.group(1), pdf[m.end():m.end() + int(length.group(1))]
+
+
+def streams(pdf: bytes):
+    """Each stream's bytes, decompressed when the dictionary says FlateDecode."""
+    for head, data in raw_streams(pdf):
+        if b"/FlateDecode" in head:
+            try:
+                data = zlib.decompress(data)
+            except zlib.error:
+                continue
+        yield data
+
+
 def _stream(body: bytes) -> bytes:
-    m = re.search(rb"stream\r?\n(.*?)\r?\nendstream", body, re.S)
-    if not m:
-        return b""
-    data = m.group(1)
-    if b"/FlateDecode" in body[:m.start()]:
-        try:
-            return zlib.decompress(data)
-        except zlib.error:
-            return b""
-    return data
+    return next(streams(body), b"")
 
 
 def _utf16(hex_text: bytes) -> str:
