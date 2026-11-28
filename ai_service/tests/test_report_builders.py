@@ -7,7 +7,6 @@ import base64
 import io
 import re
 import zipfile
-import zlib
 
 import pytest
 from docx import Document
@@ -17,7 +16,7 @@ from pptx import Presentation
 from ai_engine.design.looks import THEMES, office_theme, settle_look
 from ai_engine.models.models import DomainResult, LLMReport
 from ai_engine.pdf.pdf_builder import build_pdf, needs_unicode
-from tests.pdf_text import pdf_text
+from tests.pdf_text import pdf_text, streams
 from ai_engine.pptx.pptx_builder import FULL_WIDTH_CHARS, _weight, build_pptx, chunk_text
 from ai_engine.report_labels import LABELS, labels_for, left_out_line
 from ai_engine.word.word_builder import build_word_doc
@@ -249,8 +248,7 @@ def test_every_theme_and_size_makes_all_three_files(theme, size):
     paper = THEMES[theme].rgb("paper")
     if paper != (255, 255, 255):
         rg = " ".join(f"{c / 255:.4f}".rstrip("0").rstrip(".") for c in paper).encode() + b" rg"
-        pages = b"".join(zlib.decompress(s) for s in re.findall(rb"stream\r?\n(.*?)\r?\nendstream", pdf, re.S)
-                         if s[:1] == b"x")
+        pages = b"".join(streams(pdf))
         assert rg in pages
 
     word = build_word_doc(report("en"), "orders.xlsx", "retail", charts=CHARTS, confidence_score=7, look=look)
