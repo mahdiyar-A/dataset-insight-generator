@@ -337,6 +337,38 @@ _ASKS_SHORT = re.compile(
     re.IGNORECASE)
 
 
+# "Three points about revenue" once came back with no count from a model whose
+# own summary said "three key insights". How many, when the words say it.
+_COUNT_WORDS = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+    "un": 1, "une": 1, "deux": 2, "trois": 3, "quatre": 4, "cinq": 5, "sept": 7, "huit": 8, "neuf": 9, "dix": 10,
+    "uno": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "siete": 7, "ocho": 8, "nueve": 9, "diez": 10,
+    "um": 1, "dois": 2, "três": 3, "quatro": 4, "sete": 7, "oito": 8, "nove": 9, "dez": 10,
+    "eins": 1, "zwei": 2, "drei": 3, "vier": 4, "fünf": 5, "sechs": 6, "sieben": 7, "acht": 8, "neun": 9, "zehn": 10,
+    "یک": 1, "دو": 2, "سه": 3, "چهار": 4, "پنج": 5, "شش": 6, "هفت": 7, "هشت": 8, "نه": 9, "ده": 10,
+}
+_COUNT_NUMBER = r"(\d{1,2}|[۰-۹]{1,2}|" + "|".join(sorted(map(re.escape, _COUNT_WORDS), key=len, reverse=True)) + r")"
+# The number, up to two words such as "key" or "main", then what is counted.
+# "Data points" is not a count of points, so a "data" between them stops it.
+_ASKS_COUNT = re.compile(
+    r"(?<!\w)" + _COUNT_NUMBER + r"\s+(?:(?!data\b|données\b|datos\b|dados\b|daten\b)\w+\s+){0,2}?"
+    r"(?:points?|insights?|findings?|takeaways?|bullets?|bullet\s+points?|"
+    r"constats?|enseignements?|puntos?|hallazgos?|conclusiones|pontos?|descobertas|"
+    r"punkte|erkenntnisse|befunde|نکته|یافته)(?!\w)",
+    re.IGNORECASE)
+
+
+def asked_count(text: str) -> Optional[int]:
+    """How many points a brief asks for, from its own words, or None."""
+    match = _ASKS_COUNT.search(text or "")
+    if not match:
+        return None
+    word = match.group(1).lower()
+    word = word.translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789"))
+    value = int(word) if word.isdigit() else _COUNT_WORDS.get(word)
+    return value if value and 1 <= value <= 10 else None
+
+
 def _accept_brief(user_text: str = "") -> Callable[[str], Optional[Dict[str, Any]]]:
     def accept(text: str) -> Optional[Dict[str, Any]]:
         obj = json_object(text)
@@ -355,6 +387,8 @@ def _accept_brief(user_text: str = "") -> Callable[[str], Optional[Dict[str, Any
         # no depth, and the default is standard.
         if "depth" not in settings and _ASKS_SHORT.search(user_text or ""):
             settings["depth"] = "quick"
+        if "insightsCount" not in settings and (count := asked_count(user_text)):
+            settings["insightsCount"] = count
         return {
             "settings": settings,
             "summary": summary,
@@ -394,8 +428,10 @@ def build_brief(
                                     providers=providers, budget_secs=BRIEF_BUDGET_SECS, phase="brief")
     note_outcome("brief", result is not None)
     if result is None:
-        return {"settings": {"focusOn": clean_user_text(cleaned, TEXT_SETTINGS["focusOn"])},
-                "summary": "", "notPossible": [], "source": "fallback"}
+        settings = {"focusOn": clean_user_text(cleaned, TEXT_SETTINGS["focusOn"])}
+        if count := asked_count(cleaned):
+            settings["insightsCount"] = count
+        return {"settings": settings, "summary": "", "notPossible": [], "source": "fallback"}
     result["source"] = "model"
     result["model"] = provider.display_name if provider else ""
     return result
